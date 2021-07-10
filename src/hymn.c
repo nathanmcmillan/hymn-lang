@@ -2187,11 +2187,6 @@ static void for_statement(Compiler *this) {
     consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
 
     int start = current(this)->count;
-
-    struct LoopList *outer = this->loop;
-    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = outer};
-    this->loop = &loop;
-
     int jump = -1;
 
     if (!check(this, TOKEN_SEMICOLON)) {
@@ -2204,7 +2199,10 @@ static void for_statement(Compiler *this) {
     consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
 
     int body = emit_jump(this, OP_JUMP);
-    int post = current(this)->count;
+    int increment = current(this)->count;
+
+    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
+    this->loop = &loop;
 
     expression(this);
 
@@ -2214,9 +2212,9 @@ static void for_statement(Compiler *this) {
     patch_jump(this, body);
 
     block(this);
-    emit_loop(this, post);
+    emit_loop(this, increment);
 
-    this->loop = outer;
+    this->loop = loop.next;
 
     if (jump != -1) {
         patch_jump(this, jump);
@@ -2232,8 +2230,7 @@ static void for_statement(Compiler *this) {
 static void while_statement(Compiler *this) {
     int start = current(this)->count;
 
-    struct LoopList *outer = this->loop;
-    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = outer};
+    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop};
     this->loop = &loop;
 
     expression(this);
@@ -2243,7 +2240,7 @@ static void while_statement(Compiler *this) {
     block(this);
     emit_loop(this, start);
 
-    this->loop = outer;
+    this->loop = loop.next;
 
     patch_jump(this, jump);
     emit(this, OP_POP);

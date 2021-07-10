@@ -18,3 +18,19 @@ while x < 8
 end
 
 print("done")
+
+for let i = 0; i < 10; i = i + 1
+  if i == 2
+    break
+  end
+  print("i: " + i)
+end
+
+print("----------")
+
+for let x = 0; x < 2; x = x + 1
+  if x == 10
+    break
+  end
+  print("x: " + x)
+end
