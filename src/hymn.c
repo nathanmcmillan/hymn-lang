@@ -353,6 +353,7 @@ struct JumpList {
 
 struct LoopList {
     int start;
+    int depth;
     struct LoopList *next;
 };
 
@@ -2163,6 +2164,15 @@ static void emit_loop(Compiler *this, int start) {
     emit_two(this, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
 }
 
+static void patch_jump_list(Compiler *this) {
+    while (this->jump != NULL) {
+        patch_jump(this, this->jump->jump);
+        struct JumpList *next = this->jump->next;
+        free(this->jump);
+        this->jump = next;
+    }
+}
+
 static void for_statement(Compiler *this) {
     begin_scope(this);
 
@@ -2177,6 +2187,11 @@ static void for_statement(Compiler *this) {
     consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
 
     int start = current(this)->count;
+
+    struct LoopList *outer = this->loop;
+    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = outer};
+    this->loop = &loop;
+
     int jump = -1;
 
     if (!check(this, TOKEN_SEMICOLON)) {
@@ -2189,36 +2204,37 @@ static void for_statement(Compiler *this) {
     consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
 
     int body = emit_jump(this, OP_JUMP);
-    int increment = current(this)->count;
+    int post = current(this)->count;
 
     expression(this);
 
     emit(this, OP_POP);
     emit_loop(this, start);
-    start = increment;
+
     patch_jump(this, body);
 
     block(this);
+    emit_loop(this, post);
 
-    emit_loop(this, start);
+    this->loop = outer;
 
     if (jump != -1) {
         patch_jump(this, jump);
         emit(this, OP_POP);
     }
 
+    patch_jump_list(this);
     end_scope(this);
+
     consume(this, TOKEN_END, "Expected 'end' after for loop.");
 }
 
 static void while_statement(Compiler *this) {
     int start = current(this)->count;
 
-    struct LoopList *loop_next = this->loop;
-    struct LoopList *loop = safe_malloc(sizeof(struct LoopList));
-    loop->start = start;
-    loop->next = loop_next;
-    this->loop = loop;
+    struct LoopList *outer = this->loop;
+    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = outer};
+    this->loop = &loop;
 
     expression(this);
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
@@ -2227,20 +2243,12 @@ static void while_statement(Compiler *this) {
     block(this);
     emit_loop(this, start);
 
-    free(loop);
-    this->loop = loop_next;
+    this->loop = outer;
 
     patch_jump(this, jump);
     emit(this, OP_POP);
 
-    struct JumpList *jump_link = this->jump;
-    this->jump = NULL;
-    while (jump_link != NULL) {
-        patch_jump(this, jump_link->jump);
-        struct JumpList *next = jump_link->next;
-        free(jump_link);
-        jump_link = next;
-    }
+    patch_jump_list(this);
 
     consume(this, TOKEN_END, "Expected 'end' after while loop.");
 }
@@ -2253,10 +2261,22 @@ static void return_statement(Compiler *this) {
     emit(this, OP_RETURN);
 }
 
+static void pop_stack_loop(Compiler *this) {
+    int depth = this->loop->depth;
+    Scope *scope = this->scope;
+    for (int i = scope->local_count; i > 0; i--) {
+        if (scope->locals[i - 1].depth < depth) {
+            return;
+        }
+        emit(this, OP_POP);
+    }
+}
+
 static void break_statement(Compiler *this) {
     if (this->loop == NULL) {
         compile_error(this, &this->alpha, "Can't use 'break' outside of a loop.");
     }
+    pop_stack_loop(this);
     struct JumpList *jump_next = this->jump;
     struct JumpList *jump = safe_malloc(sizeof(struct JumpList));
     jump->jump = emit_jump(this, OP_JUMP);
@@ -2268,6 +2288,7 @@ static void continue_statement(Compiler *this) {
     if (this->loop == NULL) {
         compile_error(this, &this->alpha, "Can't use 'continue' outside of a loop.");
     }
+    pop_stack_loop(this);
     emit_loop(this, this->loop->start);
 }
 
@@ -2279,7 +2300,7 @@ static void print_statement(Compiler *this) {
 }
 
 static void use_statement(Compiler *this) {
-    consume(this, TOKEN_STRING, "Expected file path after use.");
+    consume(this, TOKEN_STRING, "Expected string after 'use'.");
 }
 
 static void statement(Compiler *this) {

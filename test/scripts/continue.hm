@@ -1,0 +1,22 @@
+let x = 0
+
+while x < 8
+  print("x == " + x)
+  let y = 0
+  while y < 4
+    let z = y + 1
+    print("z == " + z)
+    if y == 1
+      y = y + 4
+      continue
+    end
+    y = y + 1
+  end
+  if x == 2
+    x = x + 6
+    continue
+  end
+  x = x + 1
+end
+
+print("done")
