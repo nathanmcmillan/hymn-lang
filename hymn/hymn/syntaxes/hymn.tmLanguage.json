@@ -1,0 +1,153 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Hymn",
+  "scopeName": "source.hymn",
+  "patterns": [
+    {
+      "match": "#.*$",
+      "name": "comment.line.double-slash.hymn"
+    },
+    {
+      "name": "string.quoted.single.hymn",
+      "begin": "'",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.hymn"
+        }
+      },
+      "end": "(\\')|((?:[^\\\\\\n])$)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.end.hymn"
+        },
+        "2": {
+          "name": "invalid.illegal.newline.hymn"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.hymn",
+          "match": "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.double.hymn",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.hymn"
+        }
+      },
+      "end": "(\")|((?:[^\\\\\\n])$)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.end.hymn"
+        },
+        "2": {
+          "name": "invalid.illegal.newline.hymn"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.hymn",
+          "match": "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
+        }
+      ]
+    },
+    {
+      "match": "\\b(const|let)\\b",
+      "captures": {
+        "1": {
+          "name": "storage.modifier.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(use)\\b",
+      "captures": {
+        "1": {
+          "name": "keyword.import.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(true|false|none)\\b",
+      "captures": {
+        "1": {
+          "name": "constant.language.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|switch|case|pass|in|try|except|begin|end)\\b",
+      "captures": {
+        "1": {
+          "name": "keyword.control.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(func|function)\\b(\\w+(?:\\.\\w+)?)",
+      "captures": {
+        "1": {
+          "name": "keyword.struct.hymn"
+        },
+        "2": {
+          "name": "entity.name.type.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(func|function)\\b",
+      "captures": {
+        "1": {
+          "name": "keyword.struct.hymn"
+        }
+      }
+    },
+    {
+      "match": "(\\w+)(?=<.*>\\()",
+      "captures": {
+        "1": {
+          "name": "support.function.hymn"
+        }
+      }
+    },
+    {
+      "match": "(?<=^| |\\+|\\(|\\.)(\\w+) *(?=\\()",
+      "captures": {
+        "1": {
+          "name": "support.function.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b([0-9]+(?:\\.[0-9]+)?)\\b",
+      "captures": {
+        "1": {
+          "name": "constant.numeric.decimal.hymn"
+        }
+      }
+    },
+    {
+      "match": "(?<= )(>=|<=|!=|<|>|==)(?= +)",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.comparison.hymn"
+        }
+      }
+    },
+    {
+      "match": "(\\w+(?:\\.\\w+)*)(=)",
+      "captures": {
+        "1": {
+          "name": "variable.other.assignment.hymn"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.hymn"
+        }
+      }
+    }
+  ]
+}

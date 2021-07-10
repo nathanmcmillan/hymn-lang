@@ -1,0 +1,16 @@
+.vscode/
+
+build/
+objects/
+
+tags
+ctags.opts
+ctags.sh
+
+clean.bat
+compile.bat
+run.bat
+
+.DS_Store
+
+temp.hm

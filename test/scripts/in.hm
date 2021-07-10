@@ -1,0 +1,16 @@
+let a = []
+a[0] = 4
+a[1] = 5
+a[2] = 6
+# short hand for const temp = len(a) ... user beware
+for v in a
+  print(v)
+end
+
+let t = {}
+t.foo = "bar"
+t.hello = "world"
+# short hand for const temp = keys(t) ... user beware
+for k in t
+  print(k + ": " + t[k])
+end

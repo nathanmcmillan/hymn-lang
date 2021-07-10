@@ -1,0 +1,10 @@
+switch x
+case "foo"
+  print("a")
+case 2 or 3
+  print("b")
+case 3
+  print("c")
+else
+  print("d")
+end
