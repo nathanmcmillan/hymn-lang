@@ -13,7 +13,7 @@ static StringHead *string_head_init(usize length, usize capacity) {
     return head;
 }
 
-String *new_string_with_length(char *init, usize length) {
+String *new_string_with_length(const char *init, usize length) {
     StringHead *head = string_head_init(length, length);
     char *s = (char *)(head + 1);
     memcpy(s, init, length);
@@ -21,7 +21,7 @@ String *new_string_with_length(char *init, usize length) {
     return (String *)s;
 }
 
-String *new_string_from_substring(char *init, usize start, usize end) {
+String *new_string_from_substring(const char *init, usize start, usize end) {
     usize length = end - start;
     StringHead *head = string_head_init(length, length);
     char *s = (char *)(head + 1);
@@ -37,7 +37,7 @@ String *string_allocate(usize length) {
     return (String *)s;
 }
 
-String *new_string(char *init) {
+String *new_string(const char *init) {
     usize len = strlen(init);
     return new_string_with_length(init, len);
 }
@@ -136,7 +136,7 @@ static StringHead *string_resize(StringHead *head, usize capacity) {
     return new;
 }
 
-String *string_append(String *this, char *b) {
+String *string_append(String *this, const char *b) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     usize len_a = head->length;
     usize len_b = strlen(b);
@@ -151,7 +151,7 @@ String *string_append(String *this, char *b) {
     return (String *)s;
 }
 
-String *string_append_char(String *this, char b) {
+String *string_append_char(String *this, const char b) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     usize len = head->length + 1;
     if (len > head->capacity) {
@@ -164,7 +164,7 @@ String *string_append_char(String *this, char b) {
     return (String *)s;
 }
 
-String *string_append_substring(String *this, char *b, usize start, usize end) {
+String *string_append_substring(String *this, const char *b, usize start, usize end) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     usize len_a = head->length;
     usize len_b = end - start;

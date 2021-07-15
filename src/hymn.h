@@ -16,6 +16,7 @@
 #ifndef HYMN_DEBUG_NONE
 #define HYMN_DEBUG_TRACE
 #define HYMN_DEBUG_STACK
+// #define HYMN_DEBUG_CODE
 // #define HYMN_DEBUG_TOKEN
 #endif
 

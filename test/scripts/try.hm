@@ -1,4 +1,6 @@
 try
-  print("xyz")
+  index(0)
 except e
   print(e)
+end
+print("done")

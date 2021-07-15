@@ -1,3 +1,5 @@
+print("std...")
+
 function last_index(array, value)
   let size = len(array)
   let i = size - 1
@@ -10,12 +12,12 @@ function last_index(array, value)
   return -1
 end
 
-function upper(string)
+function upper(s)
   new = ""
-  let size = len(string)
+  let size = len(s)
   let i = 0
   while i < size
-    let c = string[i]
+    let c = s[i]
     if c == 'a' c = 'A'
     elif c == 'b' c = 'B'
     end

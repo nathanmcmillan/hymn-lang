@@ -25,9 +25,9 @@ PACK(struct StringHead {
     char **chars;
 });
 
-String *new_string_with_length(char *init, usize length);
-String *new_string_from_substring(char *init, usize start, usize end);
-String *new_string(char *init);
+String *new_string_with_length(const char *init, usize length);
+String *new_string_from_substring(const char *init, usize start, usize end);
+String *new_string(const char *init);
 String *string_allocate(usize length);
 String *string_copy(String *this);
 
@@ -41,9 +41,9 @@ String *string_concat_varg(int size, ...);
 
 String *substring(String *this, usize start, usize end);
 
-String *string_append(String *this, char *b);
-String *string_append_char(String *this, char b);
-String *string_append_substring(String *this, char *b, usize start, usize end);
+String *string_append(String *this, const char *b);
+String *string_append_char(String *this, const char b);
+String *string_append_substring(String *this, const char *b, usize start, usize end);
 
 int string_compare(String *a, String *b);
 bool string_equal(String *a, String *b);

@@ -9,20 +9,16 @@
 #define new_bool(v) ((Value){VALUE_BOOL, {.b = v}})
 #define new_int(v) ((Value){VALUE_INTEGER, {.i = v}})
 #define new_float(v) ((Value){VALUE_FLOAT, {.f = v}})
-#define new_string_value(v) ((Value){VALUE_STRING, {.s = v}})
-#define new_array_value(v) ((Value){VALUE_ARRAY, {.a = v}})
-#define new_table_value(v) ((Value){VALUE_TABLE, {.t = v}})
-#define new_func(v) ((Value){VALUE_FUNC, {.func = v}})
-#define new_native(v) ((Value){VALUE_FUNC_NATIVE, {.native = v}})
+#define new_native(v) ((Value){VALUE_FUNC_NATIVE, {.n = v}})
 
 #define as_bool(v) ((v).as.b)
 #define as_int(v) ((v).as.i)
 #define as_float(v) ((v).as.f)
-#define as_string(v) ((v).as.s)
-#define as_array(v) ((v).as.a)
-#define as_table(v) ((v).as.t)
-#define as_func(v) ((v).as.func)
-#define as_native(v) ((v).as.native)
+#define as_object(v) ((Object *)(v).as.o)
+#define as_array(v) ((Array *)(v).as.o)
+#define as_table(v) ((ValueMap *)(v).as.o)
+#define as_func(v) ((Function *)(v).as.o)
+#define as_native(v) ((v).as.n)
 
 #define is_undefined(v) ((v).is == VALUE_UNDEFINED)
 #define is_none(v) ((v).is == VALUE_NONE)
@@ -143,6 +139,7 @@ enum TokenType {
     TOKEN_AND,
     TOKEN_ASSIGN,
     TOKEN_BEGIN,
+    TOKEN_CASE,
     TOKEN_COLON,
     TOKEN_COMMA,
     TOKEN_CONST,
@@ -165,6 +162,7 @@ enum TokenType {
     TOKEN_IF,
     TOKEN_INSERT,
     TOKEN_INTEGER,
+    TOKEN_ITERATE,
     TOKEN_LEFT_CURLY,
     TOKEN_LEFT_PAREN,
     TOKEN_LEFT_SQUARE,
@@ -200,6 +198,7 @@ enum TokenType {
     TOKEN_TO_STRING,
     TOKEN_CLEAR,
     TOKEN_COPY,
+    TOKEN_IN,
     TOKEN_INDEX,
     TOKEN_KEYS,
     TOKEN_BREAK,
@@ -213,8 +212,6 @@ enum TokenType {
     TOKEN_TRY,
     TOKEN_EXCEPT,
     TOKEN_SWITCH,
-    TOKEN_CASE,
-    TOKEN_IN,
 };
 
 enum Precedence {
@@ -274,6 +271,7 @@ enum OpCode {
     OP_NOT_EQUAL,
     OP_POP,
     OP_PRINT,
+    OP_USE,
     OP_RETURN,
     OP_SET_DYNAMIC,
     OP_SET_GLOBAL,
@@ -294,6 +292,8 @@ enum FunctionType {
 };
 
 typedef struct Array Array;
+typedef struct Object Object;
+typedef struct ObjectString ObjectString;
 typedef struct Value Value;
 typedef struct Token Token;
 typedef struct Local Local;
@@ -346,6 +346,8 @@ static void statement(Compiler *this);
 static void expression_statement(Compiler *this);
 static void expression(Compiler *this);
 
+static char *machine_interpret(Machine *this);
+
 struct JumpList {
     int jump;
     struct JumpList *next;
@@ -365,17 +367,23 @@ struct Token {
     int length;
 };
 
+struct Object {
+    int count;
+};
+
+struct ObjectString {
+    Object object;
+    String *string;
+};
+
 struct Value {
     enum ValueType is;
     union {
         bool b;
         i64 i;
         double f;
-        String *s;
-        Array *a;
-        ValueMap *t;
-        Function *func;
-        NativeFunction *native;
+        Object *o;
+        NativeFunction *n;
     } as;
 };
 
@@ -386,6 +394,7 @@ struct Local {
 };
 
 struct Array {
+    Object object;
     Value *items;
     i64 length;
     i64 capacity;
@@ -405,12 +414,13 @@ struct Script {
 
 struct ValueMapItem {
     usize hash;
-    String *key;
+    ObjectString *key;
     Value value;
     ValueMapItem *next;
 };
 
 struct ValueMap {
+    Object object;
     unsigned int size;
     unsigned int bins;
     ValueMapItem **items;
@@ -431,6 +441,7 @@ struct ByteCode {
 };
 
 struct Function {
+    Object object;
     String *name;
     int arity;
     ByteCode code;
@@ -481,6 +492,7 @@ struct Compiler {
     Scope *scope;
     struct LoopList *loop;
     struct JumpList *jump;
+    struct JumpList *iterator_jump;
     bool panic;
     String *error;
 };
@@ -525,6 +537,7 @@ Rule rules[] = {
     [TOKEN_INDEX] = {index_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_INSERT] = {array_insert_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_INTEGER] = {compile_integer, NULL, PRECEDENCE_NONE},
+    [TOKEN_ITERATE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_KEYS] = {keys_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_LEFT_CURLY] = {compile_table, NULL, PRECEDENCE_NONE},
     [TOKEN_LEFT_PAREN] = {compile_group, compile_call, PRECEDENCE_CALL},
@@ -561,6 +574,37 @@ Rule rules[] = {
     [TOKEN_VALUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PRECEDENCE_NONE},
 };
+
+static inline ObjectString *as_string_object(Value value) {
+    return (ObjectString *)(value.as.o);
+}
+
+static inline String *as_string(Value value) {
+    return as_string_object(value)->string;
+}
+
+static inline Value new_array_object(Array *array) {
+    return (Value){.is = VALUE_ARRAY, .as = {.o = (Object *)array}};
+}
+
+static inline Value new_table_object(ValueMap *table) {
+    return (Value){.is = VALUE_TABLE, .as = {.o = (Object *)table}};
+}
+
+static inline Value new_func_object(Function *func) {
+    return (Value){.is = VALUE_FUNC, .as = {.o = (Object *)func}};
+}
+
+static inline Value new_string_object(ObjectString *string) {
+    return (Value){.is = VALUE_STRING, .as = {.o = (Object *)string}};
+}
+
+static inline ObjectString *new_object_from_string(String *string) {
+    ObjectString *object = safe_malloc(sizeof(ObjectString));
+    object->object.count = 0;
+    object->string = string;
+    return object;
+}
 
 static usize string_hashcode(String *key) {
     usize length = string_len(key);
@@ -646,13 +690,13 @@ static void map_resize(ValueMap *this) {
     this->items = items;
 }
 
-static void map_put(ValueMap *this, String *key, Value value) {
-    usize hash = map_hash_mix(string_hashcode(key));
+static void map_put(ValueMap *this, ObjectString *key, Value value) {
+    usize hash = map_hash_mix(string_hashcode(key->string));
     unsigned int bin = map_get_bin(this, hash);
     ValueMapItem *item = this->items[bin];
     ValueMapItem *previous = NULL;
     while (item != NULL) {
-        if (string_equal(key, item->key)) {
+        if (string_equal(key->string, item->key->string)) {
             item->value = value;
             return;
         }
@@ -680,7 +724,7 @@ static Value map_get(ValueMap *this, String *key) {
     unsigned int bin = map_get_bin(this, hash);
     ValueMapItem *item = this->items[bin];
     while (item != NULL) {
-        if (string_equal(key, item->key)) {
+        if (string_equal(key, item->key->string)) {
             return item->value;
         }
         item = item->next;
@@ -694,7 +738,7 @@ static Value map_remove(ValueMap *this, String *key) {
     ValueMapItem *item = this->items[bin];
     ValueMapItem *previous = NULL;
     while (item != NULL) {
-        if (string_equal(key, item->key)) {
+        if (string_equal(key, item->key->string)) {
             if (previous == NULL) {
                 this->items[bin] = item->next;
             } else {
@@ -795,6 +839,7 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_INDEX: return "INDEX";
     case TOKEN_INSERT: return "INSERT";
     case TOKEN_INTEGER: return "INTEGER";
+    case TOKEN_ITERATE: return "ITERATE";
     case TOKEN_KEYS: return "KEYS";
     case TOKEN_LEFT_PAREN: return "LEFT_PAREN";
     case TOKEN_LEN: return "LEN";
@@ -828,21 +873,28 @@ static const char *token_name(enum TokenType type) {
     }
 }
 
-static void debug_value(Value value) {
-    printf("%s: ", value_name(value.is));
+static String *debug_value_to_string(Value value) {
+    String *string = new_string(value_name(value.is));
+    string = string_append(string, ": ");
     switch (value.is) {
-    case VALUE_UNDEFINED: printf("UNDEFINED"); break;
-    case VALUE_NONE: printf("NONE"); break;
-    case VALUE_BOOL: printf("%s", as_bool(value) ? "TRUE" : "FALSE"); break;
-    case VALUE_INTEGER: printf("%" PRId64, as_int(value)); break;
-    case VALUE_FLOAT: printf("%g", as_float(value)); break;
-    case VALUE_STRING: printf("\"%s\"", as_string(value)); break;
-    case VALUE_ARRAY: printf("[array %p]", as_array(value)); break;
-    case VALUE_TABLE: printf("[table %p]", as_table(value)); break;
-    case VALUE_FUNC: printf("<%s>", as_func(value)->name); break;
-    case VALUE_FUNC_NATIVE: printf("<%s>", as_native(value)->name); break;
-    default: printf("?");
+    case VALUE_UNDEFINED: return string_append(string, "UNDEFINED"); break;
+    case VALUE_NONE: return string_append(string, "NONE"); break;
+    case VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
+    case VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
+    case VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
+    case VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value)); break;
+    case VALUE_ARRAY: return string_append_format(string, "[array %p]", as_array(value)); break;
+    case VALUE_TABLE: return string_append_format(string, "[table %p]", as_table(value)); break;
+    case VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
+    case VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name); break;
+    default: return string_append_char(string, '?');
     }
+}
+
+static void debug_value(Value value) {
+    String *string = debug_value_to_string(value);
+    printf("%s", string);
+    string_delete(string);
 }
 
 static void compiler_delete(Compiler *this) {
@@ -1017,6 +1069,7 @@ static enum TokenType ident_keyword(char *ident, usize size) {
         if (size == 3) return ident_trie(ident, 1, "nt", TOKEN_TO_INTEGER);
         if (size == 5) return ident_trie(ident, 1, "ndex", TOKEN_INDEX);
         if (size == 6) return ident_trie(ident, 1, "nsert", TOKEN_INSERT);
+        if (size == 7) return ident_trie(ident, 1, "terate", TOKEN_ITERATE);
         if (size == 2) {
             if (ident[1] == 'f') return TOKEN_IF;
             if (ident[1] == 'n') return TOKEN_IN;
@@ -1268,19 +1321,18 @@ static bool match_values(Value a, Value b) {
     case VALUE_BOOL: return as_bool(a) == as_bool(b);
     case VALUE_INTEGER: return as_int(a) == as_int(b);
     case VALUE_FLOAT: return as_float(a) == as_float(b);
-    case VALUE_STRING: return as_string(a) == as_string(b);
-    case VALUE_ARRAY: return as_array(a) == as_array(b);
-    case VALUE_TABLE: return as_table(a) == as_table(b);
-    case VALUE_FUNC: return as_func(a) == as_func(b);
+    case VALUE_STRING:
+    case VALUE_ARRAY:
+    case VALUE_TABLE:
+    case VALUE_FUNC:
+        return as_object(a) == as_object(b);
     case VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
     }
     return false;
 }
 
 static Function *new_function() {
-    Function *func = safe_malloc(sizeof(Function));
-    func->arity = 0;
-    func->name = NULL;
+    Function *func = safe_calloc(1, sizeof(Function));
     byte_code_init(&func->code);
     return func;
 }
@@ -1309,6 +1361,7 @@ static void array_init(Array *this, i64 length) {
 static Array *new_array_with_capacity(i64 length, i64 capacity) {
     Array *this = safe_malloc(sizeof(Array));
     array_init_with_capacity(this, length, capacity);
+    this->object.count = 0;
     return this;
 }
 
@@ -1401,6 +1454,11 @@ static void array_clear(Array *this) {
     this->length = 0;
 }
 
+static void array_delete(Array *this) {
+    free(this->items);
+    free(this);
+}
+
 static ValueMap *new_map() {
     ValueMap *this = safe_calloc(1, sizeof(ValueMap));
     map_init(this);
@@ -1432,7 +1490,7 @@ static Array *map_keys(ValueMap *this) {
     }
 
     if (item == NULL) return array;
-    array_push(array, new_string_value(item->key));
+    array_push(array, new_string_object(item->key));
 
     while (true) {
         item = item->next;
@@ -1446,13 +1504,13 @@ static Array *map_keys(ValueMap *this) {
             }
             if (item == NULL) return array;
         }
-        array_push(array, new_string_value(item->key));
+        array_push(array, new_string_object(item->key));
     }
 
     return array;
 }
 
-static String *map_key_of(ValueMap *this, Value match) {
+static ObjectString *map_key_of(ValueMap *this, Value match) {
 
     unsigned int bin = 0;
     ValueMapItem *item = NULL;
@@ -1565,23 +1623,16 @@ static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
-static String *intern_string(ValueMap *this, String *value) {
-    Value exists = map_get(this, value);
+static Value machine_intern_string(Machine *this, String *string) {
+    Value exists = map_get(&this->strings, string);
     if (is_undefined(exists)) {
-        map_put(this, value, new_string_value(value));
-        return NULL;
-    } else {
-        return as_string(exists);
+        ObjectString *object = new_object_from_string(string);
+        Value value = new_string_object(object);
+        map_put(&this->strings, object, value);
+        return value;
     }
-}
-
-static Value machine_intern_string(Machine *this, String *value) {
-    String *intern = intern_string(&this->strings, value);
-    if (intern != NULL) {
-        string_delete(value);
-        return new_string_value(intern);
-    }
-    return new_string_value(value);
+    string_delete(string);
+    return exists;
 }
 
 static bool check(Compiler *this, enum TokenType type) {
@@ -1705,7 +1756,7 @@ static void compile_array(Compiler *this, bool assign) {
     consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.");
     Token *alpha = &this->alpha;
     Array *array = new_array(0);
-    write_constant(current(this), new_array_value(array), alpha->row);
+    write_constant(current(this), new_array_object(array), alpha->row);
 }
 
 static void compile_table(Compiler *this, bool assign) {
@@ -1713,7 +1764,7 @@ static void compile_table(Compiler *this, bool assign) {
     consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
     Token *alpha = &this->alpha;
     ValueMap *table = new_map();
-    write_constant(current(this), new_table_value(table), alpha->row);
+    write_constant(current(this), new_table_object(table), alpha->row);
 }
 
 static void function_delete(Function *this) {
@@ -1730,9 +1781,12 @@ static void panic_halt(Compiler *this) {
     while (true) {
         switch (this->beta.type) {
         case TOKEN_FOR:
+        case TOKEN_ITERATE:
         case TOKEN_IF:
         case TOKEN_WHILE:
+        case TOKEN_SWITCH:
         case TOKEN_PRINT:
+        case TOKEN_PASS:
         case TOKEN_POP:
         case TOKEN_PUSH:
         case TOKEN_INSERT:
@@ -1811,6 +1865,20 @@ static void local_initialize(Compiler *this) {
     scope->locals[scope->local_count - 1].depth = scope->depth;
 }
 
+static u8 push_hidden_local(Compiler *this) {
+    Scope *scope = this->scope;
+    if (scope->local_count == UINT8_COUNT) {
+        compile_error(this, &this->alpha, "Too many local variables in scope.");
+        return 0;
+    }
+    u8 index = (u8)scope->local_count++;
+    Local *local = &scope->locals[index];
+    local->name = (Token){0};
+    local->constant = true;
+    local->depth = scope->depth;
+    return index;
+}
+
 static void finalize_variable(Compiler *this, u8 global) {
     if (this->scope->depth > 0) {
         local_initialize(this);
@@ -1853,10 +1921,7 @@ static void named_variable(Compiler *this, Token token, bool assign) {
         get = OP_GET_GLOBAL;
         set = OP_SET_GLOBAL;
         var = ident_constant(this, &token);
-        // todo: const for globals
-        // globals are evaluated at runtime
-        // during compile they're literally just the string reference
-        // this will need to change in order to store that it's const or not
+        // TODO: CONST FOR GLOBALS
     }
     if (assign and match(this, TOKEN_ASSIGN)) {
         if (constant) {
@@ -2024,7 +2089,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
 
     Function *func = end_function(this);
 
-    write_constant(current(this), new_func(func), this->alpha.row);
+    write_constant(current(this), new_func_object(func), this->alpha.row);
 }
 
 static void declare_function(Compiler *this) {
@@ -2173,8 +2238,111 @@ static void patch_jump_list(Compiler *this) {
     }
 }
 
+static void patch_iterator_jump_list(Compiler *this) {
+    while (this->iterator_jump != NULL) {
+        patch_jump(this, this->iterator_jump->jump);
+        struct JumpList *next = this->iterator_jump->next;
+        free(this->iterator_jump);
+        this->iterator_jump = next;
+    }
+}
+
+static void iterate_statement(Compiler *this) {
+
+    begin_scope(this);
+
+    // parameters
+
+    u8 index;
+
+    u8 value = (u8)this->scope->local_count;
+    variable(this, true, "Expected parameter name.");
+    local_initialize(this);
+
+    if (match(this, TOKEN_COMMA)) {
+        index = value;
+        write_constant(current(this), new_int(0), this->alpha.row);
+
+        value = (u8)this->scope->local_count;
+        variable(this, true, "Expected second parameter name.");
+        local_initialize(this);
+        emit(this, OP_NONE);
+    } else {
+        emit(this, OP_NONE);
+
+        index = push_hidden_local(this);
+        write_constant(current(this), new_int(0), this->alpha.row);
+    }
+
+    consume(this, TOKEN_IN, "Expected 'in' after iterate parameters.");
+
+    // setup
+
+    u8 reference = push_hidden_local(this);
+    expression(this);
+
+    u8 length = push_hidden_local(this);
+    emit_two(this, OP_GET_LOCAL, reference);
+    emit(this, OP_LEN);
+
+    // compare
+
+    int compare = current(this)->count;
+
+    struct LoopList loop = {.start = -1, .depth = this->scope->depth + 1, .next = this->loop};
+    this->loop = &loop;
+
+    emit_two(this, OP_GET_LOCAL, index);
+    emit_two(this, OP_GET_LOCAL, length);
+    emit(this, OP_LESS);
+
+    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
+    emit(this, OP_POP);
+
+    // update
+
+    emit_two(this, OP_GET_LOCAL, reference);
+    emit_two(this, OP_GET_LOCAL, index);
+    emit(this, OP_GET_DYNAMIC);
+
+    emit_two(this, OP_SET_LOCAL, value);
+    emit(this, OP_POP);
+
+    // inside
+
+    block(this);
+
+    // increment
+
+    patch_iterator_jump_list(this);
+
+    emit_two(this, OP_GET_LOCAL, index);
+    write_constant(current(this), new_int(1), this->alpha.row);
+    emit(this, OP_ADD);
+    emit_two(this, OP_SET_LOCAL, index);
+    emit(this, OP_POP);
+
+    // next
+
+    emit_loop(this, compare);
+
+    // end
+
+    this->loop = loop.next;
+
+    patch_jump(this, jump);
+    emit(this, OP_POP);
+
+    patch_jump_list(this);
+    end_scope(this);
+
+    consume(this, TOKEN_END, "Expected 'end'.");
+}
+
 static void for_statement(Compiler *this) {
     begin_scope(this);
+
+    // assign
 
     if (match(this, TOKEN_LET)) {
         define_new_variable(this, false);
@@ -2186,17 +2354,18 @@ static void for_statement(Compiler *this) {
 
     consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
 
-    int start = current(this)->count;
-    int jump = -1;
+    // compare
 
-    if (!check(this, TOKEN_SEMICOLON)) {
-        expression(this);
+    int compare = current(this)->count;
 
-        jump = emit_jump(this, OP_JUMP_IF_FALSE);
-        emit(this, OP_POP);
-    }
+    expression(this);
+
+    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
+    emit(this, OP_POP);
 
     consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
+
+    // increment
 
     int body = emit_jump(this, OP_JUMP);
     int increment = current(this)->count;
@@ -2207,19 +2376,21 @@ static void for_statement(Compiler *this) {
     expression(this);
 
     emit(this, OP_POP);
-    emit_loop(this, start);
+    emit_loop(this, compare);
+
+    // body
 
     patch_jump(this, body);
 
     block(this);
     emit_loop(this, increment);
 
+    // end
+
     this->loop = loop.next;
 
-    if (jump != -1) {
-        patch_jump(this, jump);
-        emit(this, OP_POP);
-    }
+    patch_jump(this, jump);
+    emit(this, OP_POP);
 
     patch_jump_list(this);
     end_scope(this);
@@ -2286,7 +2457,15 @@ static void continue_statement(Compiler *this) {
         compile_error(this, &this->alpha, "Can't use 'continue' outside of a loop.");
     }
     pop_stack_loop(this);
-    emit_loop(this, this->loop->start);
+    if (this->loop->start == -1) {
+        struct JumpList *jump_next = this->iterator_jump;
+        struct JumpList *jump = safe_malloc(sizeof(struct JumpList));
+        jump->jump = emit_jump(this, OP_JUMP);
+        jump->next = jump_next;
+        this->iterator_jump = jump;
+    } else {
+        emit_loop(this, this->loop->start);
+    }
 }
 
 static void print_statement(Compiler *this) {
@@ -2297,7 +2476,8 @@ static void print_statement(Compiler *this) {
 }
 
 static void use_statement(Compiler *this) {
-    consume(this, TOKEN_STRING, "Expected string after 'use'.");
+    expression(this);
+    emit(this, OP_USE);
 }
 
 static void statement(Compiler *this) {
@@ -2309,6 +2489,8 @@ static void statement(Compiler *this) {
         if_statement(this);
     } else if (match(this, TOKEN_SWITCH)) {
         switch_statement(this);
+    } else if (match(this, TOKEN_ITERATE)) {
+        iterate_statement(this);
     } else if (match(this, TOKEN_FOR)) {
         for_statement(this);
     } else if (match(this, TOKEN_WHILE)) {
@@ -2479,95 +2661,113 @@ static Function *compile(Machine *machine, char *source, char **error) {
     return func;
 }
 
-#ifdef HYMN_DEBUG_TRACE
-static usize debug_constant_instruction(const char *name, ByteCode *this, usize index) {
+#if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_CODE
+static usize debug_constant_instruction(String **debug, const char *name, ByteCode *this, usize index) {
     u8 constant = this->instructions[index + 1];
-    printf("%s: [%d: ", name, constant);
-    debug_value(this->constants.values[constant]);
-    printf("]\n");
+    // *debug = string_append_format(*debug, "%s: [%d: ", name, constant);
+    *debug = string_append_format(*debug, "%s: [", name);
+    String *value = debug_value_to_string(this->constants.values[constant]);
+    *debug = string_append(*debug, value);
+    string_delete(value);
+    *debug = string_append(*debug, "]");
     return index + 2;
 }
 
-static usize debug_byte_instruction(const char *name, ByteCode *this, usize index) {
+static usize debug_byte_instruction(String **debug, const char *name, ByteCode *this, usize index) {
     u8 b = this->instructions[index + 1];
-    printf("%s: [%d]\n", name, b);
+    *debug = string_append_format(*debug, "%s: [%d]", name, b);
     return index + 2;
 }
 
-static usize debug_jump_instruction(const char *name, int sign, ByteCode *this, usize index) {
+static usize debug_jump_instruction(String **debug, const char *name, int sign, ByteCode *this, usize index) {
     u16 jump = (u16)(this->instructions[index + 1] << 8) | (u16)this->instructions[index + 2];
-    printf("%s: [%zu] -> [%zu]\n", name, index, index + 3 + sign * jump);
+    *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, index + 3 + sign * jump);
     return index + 3;
 }
 
-static usize debug_instruction(const char *name, usize index) {
-    printf("%s\n", name);
+static usize debug_instruction(String **debug, const char *name, usize index) {
+    *debug = string_append_format(*debug, "%s", name);
     return index + 1;
 }
 
-static usize disassemble_instruction(ByteCode *this, usize index) {
-    printf("%04zu ", index);
+static usize disassemble_instruction(String **debug, ByteCode *this, usize index) {
+    *debug = string_append_format(*debug, "%04zu ", index);
     if (index > 0 and this->rows[index] == this->rows[index - 1]) {
-        printf("   | ");
+        *debug = string_append(*debug, "   | ");
     } else {
-        printf("%4d ", this->rows[index]);
+        *debug = string_append_format(*debug, "%4d ", this->rows[index]);
     }
     u8 op = this->instructions[index];
     switch (op) {
-    case OP_RETURN: return debug_instruction("OP_RETURN", index);
-    case OP_ADD: return debug_instruction("OP_ADD", index);
-    case OP_SUBTRACT: return debug_instruction("OP_SUBTRACT", index);
-    case OP_MULTIPLY: return debug_instruction("OP_MULTIPLY", index);
-    case OP_DIVIDE: return debug_instruction("OP_DIVIDE", index);
-    case OP_NEGATE: return debug_instruction("OP_NEGATE", index);
-    case OP_TRUE: return debug_instruction("OP_TRUE", index);
-    case OP_FALSE: return debug_instruction("OP_FALSE", index);
-    case OP_NONE: return debug_instruction("OP_NONE", index);
-    case OP_NOT: return debug_instruction("OP_NOT", index);
-    case OP_EQUAL: return debug_instruction("OP_EQUAL", index);
-    case OP_NOT_EQUAL: return debug_instruction("OP_NOT_EQUAL", index);
-    case OP_GREATER: return debug_instruction("OP_GREATER", index);
-    case OP_GREATER_EQUAL: return debug_instruction("OP_GREATER_EQUAL", index);
-    case OP_LESS: return debug_instruction("OP_LESS", index);
-    case OP_LESS_EQUAL: return debug_instruction("OP_LESS_EQUAL", index);
-    case OP_PRINT: return debug_instruction("OP_PRINT", index);
-    case OP_ARRAY_POP: return debug_instruction("OP_ARRAY_POP", index);
-    case OP_ARRAY_PUSH: return debug_instruction("OP_ARRAY_PUSH", index);
-    case OP_ARRAY_INSERT: return debug_instruction("OP_ARRAY_INSERT", index);
-    case OP_DELETE: return debug_instruction("OP_DELETE", index);
-    case OP_TYPE: return debug_instruction("OP_TYPE", index);
-    case OP_TO_INTEGER: return debug_instruction("OP_TO_INTEGER", index);
-    case OP_TO_FLOAT: return debug_instruction("OP_TO_FLOAT", index);
-    case OP_TO_STRING: return debug_instruction("OP_TO_STRING", index);
-    case OP_LEN: return debug_instruction("OP_LEN", index);
-    case OP_POP: return debug_instruction("OP_POP", index);
-    case OP_CLEAR: return debug_instruction("OP_CLEAR", index);
-    case OP_COPY: return debug_instruction("OP_COPY", index);
-    case OP_SLICE: return debug_instruction("OP_SLICE", index);
-    case OP_INDEX: return debug_instruction("OP_INDEX", index);
-    case OP_KEYS: return debug_instruction("OP_KEYS", index);
-    case OP_BIT_OR: return debug_instruction("OP_BIT_OR", index);
-    case OP_BIT_NOT: return debug_instruction("OP_BIT_NOT", index);
-    case OP_BIT_AND: return debug_instruction("OP_BIT_AND", index);
-    case OP_BIT_XOR: return debug_instruction("OP_BIT_XOR", index);
-    case OP_BIT_LEFT_SHIFT: return debug_instruction("OP_BIT_LEFT_SHIFT", index);
-    case OP_BIT_RIGHT_SHIFT: return debug_instruction("OP_BIT_RIGHT_SHIFT", index);
-    case OP_SET_DYNAMIC: return debug_instruction("OP_SET_DYNAMIC", index);
-    case OP_GET_DYNAMIC: return debug_instruction("OP_GET_DYNAMIC", index);
-    case OP_LOOP: return debug_jump_instruction("OP_LOOP", -1, this, index);
-    case OP_JUMP: return debug_jump_instruction("OP_JUMP", 1, this, index);
-    case OP_JUMP_IF_FALSE: return debug_jump_instruction("OP_JUMP_IF_FALSE", 1, this, index);
-    case OP_CONSTANT: return debug_constant_instruction("OP_CONSTANT", this, index);
-    case OP_DEFINE_GLOBAL: return debug_constant_instruction("OP_DEFINE_GLOBAL", this, index);
-    case OP_SET_GLOBAL: return debug_constant_instruction("OP_SET_GLOBAL", this, index);
-    case OP_GET_GLOBAL: return debug_constant_instruction("OP_GET_GLOBAL", this, index);
-    case OP_SET_LOCAL: return debug_byte_instruction("OP_SET_LOCAL", this, index);
-    case OP_GET_LOCAL: return debug_byte_instruction("OP_GET_LOCAL", this, index);
-    case OP_SET_PROPERTY: return debug_constant_instruction("OP_SET_PROPERTY", this, index);
-    case OP_GET_PROPERTY: return debug_constant_instruction("OP_GET_PROPERTY", this, index);
-    case OP_CALL: return debug_byte_instruction("OP_CALL", this, index);
-    default: printf("UNKNOWN OPCODE %d\n", op); return index + 1;
+    case OP_ADD: return debug_instruction(debug, "OP_ADD", index);
+    case OP_ARRAY_INSERT: return debug_instruction(debug, "OP_ARRAY_INSERT", index);
+    case OP_ARRAY_POP: return debug_instruction(debug, "OP_ARRAY_POP", index);
+    case OP_ARRAY_PUSH: return debug_instruction(debug, "OP_ARRAY_PUSH", index);
+    case OP_BIT_AND: return debug_instruction(debug, "OP_BIT_AND", index);
+    case OP_BIT_LEFT_SHIFT: return debug_instruction(debug, "OP_BIT_LEFT_SHIFT", index);
+    case OP_BIT_NOT: return debug_instruction(debug, "OP_BIT_NOT", index);
+    case OP_BIT_OR: return debug_instruction(debug, "OP_BIT_OR", index);
+    case OP_BIT_RIGHT_SHIFT: return debug_instruction(debug, "OP_BIT_RIGHT_SHIFT", index);
+    case OP_BIT_XOR: return debug_instruction(debug, "OP_BIT_XOR", index);
+    case OP_CALL: return debug_byte_instruction(debug, "OP_CALL", this, index);
+    case OP_CLEAR: return debug_instruction(debug, "OP_CLEAR", index);
+    case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", this, index);
+    case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
+    case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", this, index);
+    case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
+    case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
+    case OP_EQUAL: return debug_instruction(debug, "OP_EQUAL", index);
+    case OP_FALSE: return debug_instruction(debug, "OP_FALSE", index);
+    case OP_GET_DYNAMIC: return debug_instruction(debug, "OP_GET_DYNAMIC", index);
+    case OP_GET_GLOBAL: return debug_constant_instruction(debug, "OP_GET_GLOBAL", this, index);
+    case OP_GET_LOCAL: return debug_byte_instruction(debug, "OP_GET_LOCAL", this, index);
+    case OP_GET_PROPERTY: return debug_constant_instruction(debug, "OP_GET_PROPERTY", this, index);
+    case OP_GREATER: return debug_instruction(debug, "OP_GREATER", index);
+    case OP_GREATER_EQUAL: return debug_instruction(debug, "OP_GREATER_EQUAL", index);
+    case OP_INDEX: return debug_instruction(debug, "OP_INDEX", index);
+    case OP_JUMP: return debug_jump_instruction(debug, "OP_JUMP", 1, this, index);
+    case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, this, index);
+    case OP_KEYS: return debug_instruction(debug, "OP_KEYS", index);
+    case OP_LEN: return debug_instruction(debug, "OP_LEN", index);
+    case OP_LESS: return debug_instruction(debug, "OP_LESS", index);
+    case OP_LESS_EQUAL: return debug_instruction(debug, "OP_LESS_EQUAL", index);
+    case OP_LOOP: return debug_jump_instruction(debug, "OP_LOOP", -1, this, index);
+    case OP_MULTIPLY: return debug_instruction(debug, "OP_MULTIPLY", index);
+    case OP_NEGATE: return debug_instruction(debug, "OP_NEGATE", index);
+    case OP_NONE: return debug_instruction(debug, "OP_NONE", index);
+    case OP_NOT: return debug_instruction(debug, "OP_NOT", index);
+    case OP_NOT_EQUAL: return debug_instruction(debug, "OP_NOT_EQUAL", index);
+    case OP_POP: return debug_instruction(debug, "OP_POP", index);
+    case OP_PRINT: return debug_instruction(debug, "OP_PRINT", index);
+    case OP_SET_DYNAMIC: return debug_instruction(debug, "OP_SET_DYNAMIC", index);
+    case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", this, index);
+    case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", this, index);
+    case OP_SET_PROPERTY: return debug_constant_instruction(debug, "OP_SET_PROPERTY", this, index);
+    case OP_SLICE: return debug_instruction(debug, "OP_SLICE", index);
+    case OP_SUBTRACT: return debug_instruction(debug, "OP_SUBTRACT", index);
+    case OP_TO_FLOAT: return debug_instruction(debug, "OP_TO_FLOAT", index);
+    case OP_TO_INTEGER: return debug_instruction(debug, "OP_TO_INTEGER", index);
+    case OP_TO_STRING: return debug_instruction(debug, "OP_TO_STRING", index);
+    case OP_TRUE: return debug_instruction(debug, "OP_TRUE", index);
+    case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
+    case OP_USE: return debug_instruction(debug, "OP_USE", index);
+    case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
+    default: *debug = string_append_format(*debug, "UNKNOWN OPCODE %d\n", op); return index + 1;
     }
+}
+#endif
+
+#ifdef HYMN_DEBUG_CODE
+void disassemble_byte_code(ByteCode *this, const char *name) {
+    printf("== %s ==\n", name);
+    String *debug = new_string("");
+    usize offset = 0;
+    while (offset < this->count) {
+        offset = disassemble_instruction(&debug, this, offset);
+        printf("%s\n", debug);
+        string_zero(debug);
+    }
+    string_delete(debug);
 }
 #endif
 
@@ -2611,7 +2811,95 @@ static void machine_runtime_error(Machine *this, const char *format, ...) {
     machine_reset_stack(this);
 }
 
+static inline void object_reference(Value value) {
+    switch (value.is) {
+    case VALUE_STRING:
+    case VALUE_ARRAY:
+    case VALUE_TABLE:
+    case VALUE_FUNC:
+        as_object(value)->count++;
+        printf("REF: %d, ", as_object(value)->count);
+        debug_value(value);
+        printf("\n");
+        break;
+    }
+}
+
+static inline void object_dereference(Value value) {
+    switch (value.is) {
+    case VALUE_STRING: {
+        ObjectString *string = as_string_object(value);
+        int count = --(string->object.count);
+        if (count == 0) {
+            printf("FREE: ");
+            debug_value(value);
+            printf("\n");
+
+            string_delete(string->string);
+        } else {
+            printf("DEREF: %d, ", as_object(value)->count);
+            debug_value(value);
+            printf("\n");
+        }
+        break;
+    }
+    case VALUE_ARRAY: {
+        Array *array = as_array(value);
+        int count = --(array->object.count);
+        if (count == 0) {
+            printf("FREE: ");
+            debug_value(value);
+            printf("\n");
+
+            // FIXME: DEREF ALL ELEMENTS
+
+            array_delete(array);
+        } else {
+            printf("DEREF: %d, ", as_object(value)->count);
+            debug_value(value);
+            printf("\n");
+        }
+        break;
+    }
+    case VALUE_TABLE: {
+        ValueMap *table = as_table(value);
+        int count = --(table->object.count);
+        if (count == 0) {
+            printf("FREE: ");
+            debug_value(value);
+            printf("\n");
+
+            // FIXME: DEREF ALL ELEMENTS
+
+            map_delete(table);
+        } else {
+            printf("DEREF: %d, ", as_object(value)->count);
+            debug_value(value);
+            printf("\n");
+        }
+        break;
+    }
+    case VALUE_FUNC: {
+        Function *func = as_func(value);
+        int count = --(func->object.count);
+        if (count == 0) {
+            printf("FREE: ");
+            debug_value(value);
+            printf("\n");
+
+            function_delete(func);
+        } else {
+            printf("DEREF: %d, ", as_object(value)->count);
+            debug_value(value);
+            printf("\n");
+        }
+        break;
+    }
+    }
+}
+
 static void machine_push(Machine *this, Value value) {
+    object_reference(value);
     this->stack[this->stack_top++] = value;
 }
 
@@ -2628,7 +2916,9 @@ static Value machine_pop(Machine *this) {
         machine_runtime_error(this, "Nothing on stack to pop");
         return new_none();
     }
-    return this->stack[--this->stack_top];
+    Value value = this->stack[--this->stack_top];
+    object_dereference(value);
+    return value;
 }
 
 static bool machine_equal(Value a, Value b) {
@@ -2648,25 +2938,13 @@ static bool machine_equal(Value a, Value b) {
         default: return false;
         }
     case VALUE_STRING:
-        switch (b.is) {
-        case VALUE_STRING: return as_string(a) == as_string(b);
-        default: return false;
-        }
     case VALUE_ARRAY:
-        switch (b.is) {
-        case VALUE_ARRAY: return as_array(a) == as_array(b);
-        default: return false;
-        }
     case VALUE_TABLE:
-        switch (b.is) {
-        case VALUE_TABLE: return as_table(a) == as_table(b);
-        default: return false;
-        }
     case VALUE_FUNC:
-        switch (b.is) {
-        case VALUE_FUNC: return as_func(a) == as_func(b);
-        default: return false;
+        if (b.is == a.is) {
+            return as_object(a) == as_object(b);
         }
+        return false;
     case VALUE_FUNC_NATIVE:
         switch (b.is) {
         case VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
@@ -2740,29 +3018,64 @@ static inline Value read_constant(Frame *frame) {
     return frame->func->code.constants.values[read_byte(frame)];
 }
 
+static void machine_import(Machine *this, String *file) {
+
+    String *source = cat(file);
+
+    char *error = NULL;
+
+    Function *func = compile(this, source, &error);
+    if (error) {
+        printf("Error compiling import:\n%s\n", error);
+        return;
+    }
+
+    machine_push(this, new_func_object(func));
+    machine_call(this, func, 0);
+
+    error = machine_interpret(this);
+    if (error) {
+        printf("Error evaluating import:\n%s\n", error);
+    }
+}
+
 static void machine_run(Machine *this) {
     Frame *frame = &this->frames[this->frame_count - 1];
     while (true) {
-#ifdef HYMN_DEBUG_STACK
-        if (this->stack_top > 0) {
-            printf("STACK ================================================== ");
-            for (usize i = 0; i < this->stack_top; i++) {
-                printf("[%zu: ", i);
-                debug_value(this->stack[i]);
-                printf("] ");
-            }
-            printf("\n");
-        }
-#endif
+#if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_STACK
+        {
+            String *debug = new_string("");
 #ifdef HYMN_DEBUG_TRACE
-        disassemble_instruction(&frame->func->code, frame->ip);
+            disassemble_instruction(&debug, &frame->func->code, frame->ip);
+#endif
+
+#ifdef HYMN_DEBUG_STACK
+            if (this->stack_top > 0) {
+                if (string_len(debug) > 0) {
+                    while (string_len(debug) < 70) {
+                        debug = string_append_char(debug, ' ');
+                    }
+                }
+                for (usize i = 0; i < this->stack_top; i++) {
+                    // debug = string_append_format(debug, "[%zu: ", i);
+                    debug = string_append_char(debug, '[');
+                    String *stack_debug = debug_value_to_string(this->stack[i]);
+                    debug = string_append(debug, stack_debug);
+                    string_delete(stack_debug);
+                    debug = string_append(debug, "] ");
+                }
+            }
+#endif
+            printf("%s\n", debug);
+            string_delete(debug);
+        }
 #endif
         u8 op = read_byte(frame);
         switch (op) {
         case OP_RETURN:
             Value result = machine_pop(this);
             this->frame_count--;
-            if (this->frame_count == 0) {
+            if (this->frame_count == 0 or frame->func->name == NULL) {
                 machine_pop(this);
                 return;
             }
@@ -3025,20 +3338,27 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_DEFINE_GLOBAL: {
-            String *name = as_string(read_constant(frame));
+            ObjectString *name = as_string_object(read_constant(frame));
             Value set = machine_peek(this, 1);
+            object_reference(set);
             map_put(&this->globals, name, set);
             machine_pop(this);
             break;
         }
         case OP_SET_GLOBAL: {
-            String *name = as_string(read_constant(frame));
+            ObjectString *name = as_string_object(read_constant(frame));
             Value set = machine_peek(this, 1);
-            Value exists = map_get(&this->globals, name);
+            Value exists = map_get(&this->globals, name->string);
             if (is_undefined(exists)) {
-                machine_runtime_error(this, "Undefined variable '%s'.", name);
+                machine_runtime_error(this, "Undefined variable '%s'.", name->string);
                 return;
             }
+            // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
+            Value previous = map_get(&this->globals, name->string);
+            if (!is_undefined(previous)) {
+                object_dereference(previous);
+            }
+            object_reference(set);
             map_put(&this->globals, name, set);
             break;
         }
@@ -3063,15 +3383,23 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_SET_PROPERTY: {
-            Value value = machine_pop(this);
-            Value var = machine_pop(this);
+            Value var = machine_peek(this, 2);
             if (!is_table(var)) {
                 machine_runtime_error(this, "Only tables can set properties.");
                 return;
             }
             ValueMap *table = as_table(var);
-            String *name = as_string(read_constant(frame));
+            ObjectString *name = as_string_object(read_constant(frame));
+            Value value = machine_peek(this, 1);
+            object_reference(value);
+            // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
+            Value previous = map_get(table, name->string);
+            if (!is_undefined(previous)) {
+                object_dereference(previous);
+            }
             map_put(table, name, value);
+            machine_pop(this);
+            machine_pop(this);
             machine_push(this, value);
             break;
         }
@@ -3125,7 +3453,7 @@ static void machine_run(Machine *this) {
                     return;
                 }
                 ValueMap *table = as_table(var);
-                String *name = as_string(refer);
+                ObjectString *name = as_string_object(refer);
                 map_put(table, name, value);
             } else {
                 machine_runtime_error(this, "Expected array or table to set inner value.");
@@ -3341,12 +3669,12 @@ static void machine_run(Machine *this) {
                 break;
             case VALUE_ARRAY: {
                 Array *copy = new_array_copy(as_array(value));
-                machine_push(this, new_array_value(copy));
+                machine_push(this, new_array_object(copy));
                 break;
             }
             case VALUE_TABLE: {
                 ValueMap *copy = new_map_copy(as_table(value));
-                machine_push(this, new_table_value(copy));
+                machine_push(this, new_table_object(copy));
                 break;
             }
             default:
@@ -3420,7 +3748,7 @@ static void machine_run(Machine *this) {
                     return;
                 }
                 Array *copy = new_array_slice(array, left, right);
-                machine_push(this, new_array_value(copy));
+                machine_push(this, new_array_object(copy));
                 break;
             } else {
                 machine_runtime_error(this, "Expected string or array for slice expression.");
@@ -3468,7 +3796,7 @@ static void machine_run(Machine *this) {
             if (is_table(value)) {
                 ValueMap *table = as_table(value);
                 Array *array = map_keys(table);
-                machine_push(this, new_array_value(array));
+                machine_push(this, new_array_object(array));
             } else {
                 machine_runtime_error(this, "Expected table for keys function.");
                 return;
@@ -3497,11 +3825,11 @@ static void machine_run(Machine *this) {
                 machine_push(this, new_int(array_index_of(as_array(var), find)));
                 break;
             case VALUE_TABLE:
-                String *key = map_key_of(as_table(var), find);
+                ObjectString *key = map_key_of(as_table(var), find);
                 if (key == NULL) {
                     machine_push(this, new_none());
                 } else {
-                    machine_push(this, new_string_value(key));
+                    machine_push(this, new_string_object(key));
                 }
                 break;
             default:
@@ -3607,7 +3935,7 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_PRINT: {
-            Value value = machine_pop(this);
+            Value value = machine_peek(this, 1);
             switch (value.is) {
             case VALUE_NONE:
                 printf("%s\n", STRING_NONE);
@@ -3639,7 +3967,18 @@ static void machine_run(Machine *this) {
             default:
                 printf("%p\n", &value);
             }
+            machine_pop(this);
             break;
+        }
+        case OP_USE: {
+            Value file = machine_pop(this);
+            if (is_string(file)) {
+                machine_import(this, as_string(file));
+                break;
+            } else {
+                machine_runtime_error(this, "Use requires a string.");
+                return;
+            }
         }
         default:
             machine_runtime_error(this, "Unknown instruction.");
@@ -3658,10 +3997,10 @@ static char *machine_interpret(Machine *this) {
     return error;
 }
 
-static void add_func(Machine *this, char *name, NativeCall func) {
+static void add_native_func(Machine *this, const char *name, NativeCall func) {
     Value intern = machine_intern_string(this, new_string(name));
-    String *key = as_string(intern);
-    String *copy = string_copy(key);
+    ObjectString *key = as_string_object(intern);
+    String *copy = string_copy(key->string);
     NativeFunction *value = new_native_function(copy, func);
     map_put(&this->globals, key, new_native(value));
 }
@@ -3678,6 +4017,8 @@ static void machine_delete(Machine *this) {
     map_delete(&this->strings);
     map_delete(&this->globals);
     string_delete(this->error);
+
+    // TODO: FOR ALL GLOBALS: CLEAN OBJECTS
 }
 
 Hymn *new_hymn() {
@@ -3699,7 +4040,7 @@ char *hymn_eval(Hymn *this, char *source) {
     Machine m = new_machine();
     Machine *machine = &m;
 
-    add_func(machine, "inc", temp_native_test);
+    add_native_func(machine, "inc", temp_native_test);
 
     char *error = NULL;
 
@@ -3708,7 +4049,11 @@ char *hymn_eval(Hymn *this, char *source) {
         return error;
     }
 
-    machine_push(machine, new_func(func));
+#ifdef HYMN_DEBUG_CODE
+    disassemble_byte_code(&func->code, "<script>");
+#endif
+
+    machine_push(machine, new_func_object(func));
     machine_call(machine, func, 0);
 
     error = machine_interpret(machine);
@@ -3751,7 +4096,7 @@ char *hymn_repl(Hymn *this) {
             break;
         }
 
-        machine_push(machine, new_func(func));
+        machine_push(machine, new_func_object(func));
         machine_call(machine, func, 0);
 
         error = machine_interpret(machine);

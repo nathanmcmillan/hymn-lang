@@ -80,7 +80,7 @@
       }
     },
     {
-      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|switch|case|pass|in|try|except|begin|end)\\b",
+      "match": "\\b(if|elif|else|for|while|iterate|return|break|continue|and|or|switch|case|pass|in|try|except|begin|end)\\b",
       "captures": {
         "1": {
           "name": "keyword.control.hymn"

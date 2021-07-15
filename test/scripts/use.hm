@@ -1,0 +1,8 @@
+use "test/scripts/std.hm"
+
+print("imported")
+
+print(min(4, 6))
+print(max(4, 6))
+
+print("done")
