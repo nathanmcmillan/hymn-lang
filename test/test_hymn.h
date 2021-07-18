@@ -1,5 +1,5 @@
 #include "test.h"
 
-#include "hymn.h"
+#include "../src/hymn.h"
 
 char *test_hymn_all();

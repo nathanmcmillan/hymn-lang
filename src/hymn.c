@@ -346,10 +346,14 @@ static void statement(Compiler *this);
 static void expression_statement(Compiler *this);
 static void expression(Compiler *this);
 
+static inline void reference(Value value);
+static inline void dereference(Machine *this, Value value);
+
 static char *machine_interpret(Machine *this);
 
 struct JumpList {
     int jump;
+    int depth;
     struct JumpList *next;
 };
 
@@ -606,6 +610,119 @@ static inline ObjectString *new_object_from_string(String *string) {
     return object;
 }
 
+static const char *value_name(enum ValueType value) {
+    switch (value) {
+    case VALUE_UNDEFINED: return "UNDEFINED";
+    case VALUE_NONE: return "NONE";
+    case VALUE_BOOL: return "BOOLEAN";
+    case VALUE_INTEGER: return "INTEGER";
+    case VALUE_FLOAT: return "FLOAT";
+    case VALUE_STRING: return "STRING";
+    case VALUE_ARRAY: return "ARRAY";
+    case VALUE_TABLE: return "TABLE";
+    case VALUE_FUNC: return "FUNCTION";
+    case VALUE_FUNC_NATIVE: return "NATIVE_FUNCTION";
+    default: return "VALUE";
+    }
+}
+
+static const char *token_name(enum TokenType type) {
+    switch (type) {
+    case TOKEN_ADD: return "ADD";
+    case TOKEN_AND: return "AND";
+    case TOKEN_ASSIGN: return "ASSIGN";
+    case TOKEN_BEGIN: return "BEGIN";
+    case TOKEN_BIT_AND: return "BTIWISE_AND";
+    case TOKEN_BIT_LEFT_SHIFT: return "BTIWISE_LEFT_SHIFT";
+    case TOKEN_BIT_NOT: return "BTIWISE_NOT";
+    case TOKEN_BIT_OR: return "BTIWISE_OR";
+    case TOKEN_BIT_RIGHT_SHIFT: return "BTIWISE_RIGHT_SHIFT";
+    case TOKEN_BIT_XOR: return "BTIWISE_XOR";
+    case TOKEN_BREAK: return "BREAK";
+    case TOKEN_CASE: return "CASE";
+    case TOKEN_CLEAR: return "CLEAR";
+    case TOKEN_COLON: return "COLON";
+    case TOKEN_CONST: return "CONST";
+    case TOKEN_CONTINUE: return "CONTINUE";
+    case TOKEN_COPY: return "COPY";
+    case TOKEN_DELETE: return "DELETE";
+    case TOKEN_DIVIDE: return "DIVIDE";
+    case TOKEN_ELIF: return "ELIF";
+    case TOKEN_ELSE: return "ELSE";
+    case TOKEN_END: return "END";
+    case TOKEN_EOF: return "EOF";
+    case TOKEN_EQUAL: return "EQUAL";
+    case TOKEN_EXCEPT: return "EXCEPT";
+    case TOKEN_FALSE: return "FALSE";
+    case TOKEN_FLOAT: return "FLOAT";
+    case TOKEN_FOR: return "FOR";
+    case TOKEN_FUNCTION: return "FUNCTION";
+    case TOKEN_GREATER: return "GREATER";
+    case TOKEN_GREATER_EQUAL: return "GREATER_EQUAL";
+    case TOKEN_IDENT: return "IDENT";
+    case TOKEN_IF: return "IF";
+    case TOKEN_IN: return "IN";
+    case TOKEN_INDEX: return "INDEX";
+    case TOKEN_INSERT: return "INSERT";
+    case TOKEN_INTEGER: return "INTEGER";
+    case TOKEN_ITERATE: return "ITERATE";
+    case TOKEN_KEYS: return "KEYS";
+    case TOKEN_LEFT_PAREN: return "LEFT_PAREN";
+    case TOKEN_LEN: return "LEN";
+    case TOKEN_LESS: return "LESS";
+    case TOKEN_LESS_EQUAL: return "LESS_EQUAL";
+    case TOKEN_LET: return "LET";
+    case TOKEN_MULTIPLY: return "MULTIPLY";
+    case TOKEN_NONE: return "NONE";
+    case TOKEN_NOT: return "NOT";
+    case TOKEN_NOT_EQUAL: return "NOT_EQUAL";
+    case TOKEN_OR: return "OR";
+    case TOKEN_PASS: return "PASS";
+    case TOKEN_POP: return "POP";
+    case TOKEN_PRINT: return "PRINT";
+    case TOKEN_PUSH: return "PUSH";
+    case TOKEN_RETURN: return "RETURN";
+    case TOKEN_RIGHT_PAREN: return "RIGHT_PAREN";
+    case TOKEN_SEMICOLON: return "SEMICOLON";
+    case TOKEN_STRING: return "STRING";
+    case TOKEN_SUBTRACT: return "SUBTRACT";
+    case TOKEN_SWITCH: return "SWITCH";
+    case TOKEN_TO_FLOAT: return "TO_FLOAT";
+    case TOKEN_TO_INTEGER: return "TO_INTEGER";
+    case TOKEN_TO_STRING: return "TO_STRING";
+    case TOKEN_TRUE: return "TRUE";
+    case TOKEN_TRY: return "TRY";
+    case TOKEN_TYPE: return "TYPE";
+    case TOKEN_WHILE: return "WHILE";
+    case TOKEN_USE: return "USE";
+    default: return "TOKEN";
+    }
+}
+
+static String *debug_value_to_string(Value value) {
+    String *string = new_string(value_name(value.is));
+    string = string_append(string, ": ");
+    switch (value.is) {
+    case VALUE_UNDEFINED: return string_append(string, "UNDEFINED"); break;
+    case VALUE_NONE: return string_append(string, "NONE"); break;
+    case VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
+    case VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
+    case VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
+    case VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value)); break;
+    case VALUE_ARRAY: return string_append_format(string, "[array %p]", as_array(value)); break;
+    case VALUE_TABLE: return string_append_format(string, "[table %p]", as_table(value)); break;
+    case VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
+    case VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name); break;
+    default: return string_append_char(string, '?');
+    }
+}
+
+static void debug_value(Value value) {
+    String *string = debug_value_to_string(value);
+    printf("%s", string);
+    string_delete(string);
+}
+
 static usize string_hashcode(String *key) {
     usize length = string_len(key);
     usize hash = 0;
@@ -744,6 +861,7 @@ static Value map_remove(ValueMap *this, String *key) {
             } else {
                 previous->next = item->next;
             }
+            // TODO: MAYBE NEED TO FREE ITEM
             this->size -= 1;
             return item->value;
         }
@@ -753,12 +871,16 @@ static Value map_remove(ValueMap *this, String *key) {
     return new_undefined();
 }
 
-static void map_clear(ValueMap *this) {
+static void map_clear(Machine *machine, ValueMap *this) {
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         ValueMapItem *item = this->items[i];
         while (item != NULL) {
             ValueMapItem *next = item->next;
+            printf("MAP CLEAR: ");
+            debug_value(item->value);
+            printf("\n");
+            dereference(machine, item->value);
             free(item);
             item = next;
         }
@@ -767,134 +889,14 @@ static void map_clear(ValueMap *this) {
     this->size = 0;
 }
 
-static bool map_is_empty(ValueMap *this) {
-    return this->size == 0;
-}
-
-static bool map_not_empty(ValueMap *this) {
-    return this->size != 0;
-}
-
-static unsigned int map_size(ValueMap *this) {
-    return this->size;
-}
-
-static void map_delete(ValueMap *this) {
-    map_clear(this);
+static void map_release(Machine *machine, ValueMap *this) {
+    map_clear(machine, this);
     free(this->items);
 }
 
-static const char *value_name(enum ValueType value) {
-    switch (value) {
-    case VALUE_UNDEFINED: return "UNDEFINED";
-    case VALUE_NONE: return "NONE";
-    case VALUE_BOOL: return "BOOLEAN";
-    case VALUE_INTEGER: return "INTEGER";
-    case VALUE_FLOAT: return "FLOAT";
-    case VALUE_STRING: return "STRING";
-    case VALUE_ARRAY: return "ARRAY";
-    case VALUE_TABLE: return "TABLE";
-    case VALUE_FUNC: return "FUNCTION";
-    case VALUE_FUNC_NATIVE: return "NATIVE_FUNCTION";
-    default: return "VALUE";
-    }
-}
-
-static const char *token_name(enum TokenType type) {
-    switch (type) {
-    case TOKEN_ADD: return "ADD";
-    case TOKEN_AND: return "AND";
-    case TOKEN_ASSIGN: return "ASSIGN";
-    case TOKEN_BEGIN: return "BEGIN";
-    case TOKEN_BIT_AND: return "BTIWISE_AND";
-    case TOKEN_BIT_LEFT_SHIFT: return "BTIWISE_LEFT_SHIFT";
-    case TOKEN_BIT_NOT: return "BTIWISE_NOT";
-    case TOKEN_BIT_OR: return "BTIWISE_OR";
-    case TOKEN_BIT_RIGHT_SHIFT: return "BTIWISE_RIGHT_SHIFT";
-    case TOKEN_BIT_XOR: return "BTIWISE_XOR";
-    case TOKEN_BREAK: return "BREAK";
-    case TOKEN_CASE: return "CASE";
-    case TOKEN_CLEAR: return "CLEAR";
-    case TOKEN_COLON: return "COLON";
-    case TOKEN_CONST: return "CONST";
-    case TOKEN_CONTINUE: return "CONTINUE";
-    case TOKEN_COPY: return "COPY";
-    case TOKEN_DELETE: return "DELETE";
-    case TOKEN_DIVIDE: return "DIVIDE";
-    case TOKEN_ELIF: return "ELIF";
-    case TOKEN_ELSE: return "ELSE";
-    case TOKEN_END: return "END";
-    case TOKEN_EOF: return "EOF";
-    case TOKEN_EQUAL: return "EQUAL";
-    case TOKEN_EXCEPT: return "EXCEPT";
-    case TOKEN_FALSE: return "FALSE";
-    case TOKEN_FLOAT: return "FLOAT";
-    case TOKEN_FOR: return "FOR";
-    case TOKEN_FUNCTION: return "FUNCTION";
-    case TOKEN_GREATER: return "GREATER";
-    case TOKEN_GREATER_EQUAL: return "GREATER_EQUAL";
-    case TOKEN_IDENT: return "IDENT";
-    case TOKEN_IF: return "IF";
-    case TOKEN_IN: return "IN";
-    case TOKEN_INDEX: return "INDEX";
-    case TOKEN_INSERT: return "INSERT";
-    case TOKEN_INTEGER: return "INTEGER";
-    case TOKEN_ITERATE: return "ITERATE";
-    case TOKEN_KEYS: return "KEYS";
-    case TOKEN_LEFT_PAREN: return "LEFT_PAREN";
-    case TOKEN_LEN: return "LEN";
-    case TOKEN_LESS: return "LESS";
-    case TOKEN_LESS_EQUAL: return "LESS_EQUAL";
-    case TOKEN_LET: return "LET";
-    case TOKEN_MULTIPLY: return "MULTIPLY";
-    case TOKEN_NONE: return "NONE";
-    case TOKEN_NOT: return "NOT";
-    case TOKEN_NOT_EQUAL: return "NOT_EQUAL";
-    case TOKEN_OR: return "OR";
-    case TOKEN_PASS: return "PASS";
-    case TOKEN_POP: return "POP";
-    case TOKEN_PRINT: return "PRINT";
-    case TOKEN_PUSH: return "PUSH";
-    case TOKEN_RETURN: return "RETURN";
-    case TOKEN_RIGHT_PAREN: return "RIGHT_PAREN";
-    case TOKEN_SEMICOLON: return "SEMICOLON";
-    case TOKEN_STRING: return "STRING";
-    case TOKEN_SUBTRACT: return "SUBTRACT";
-    case TOKEN_SWITCH: return "SWITCH";
-    case TOKEN_TO_FLOAT: return "TO_FLOAT";
-    case TOKEN_TO_INTEGER: return "TO_INTEGER";
-    case TOKEN_TO_STRING: return "TO_STRING";
-    case TOKEN_TRUE: return "TRUE";
-    case TOKEN_TRY: return "TRY";
-    case TOKEN_TYPE: return "TYPE";
-    case TOKEN_WHILE: return "WHILE";
-    case TOKEN_USE: return "USE";
-    default: return "TOKEN";
-    }
-}
-
-static String *debug_value_to_string(Value value) {
-    String *string = new_string(value_name(value.is));
-    string = string_append(string, ": ");
-    switch (value.is) {
-    case VALUE_UNDEFINED: return string_append(string, "UNDEFINED"); break;
-    case VALUE_NONE: return string_append(string, "NONE"); break;
-    case VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
-    case VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
-    case VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
-    case VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value)); break;
-    case VALUE_ARRAY: return string_append_format(string, "[array %p]", as_array(value)); break;
-    case VALUE_TABLE: return string_append_format(string, "[table %p]", as_table(value)); break;
-    case VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
-    case VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name); break;
-    default: return string_append_char(string, '?');
-    }
-}
-
-static void debug_value(Value value) {
-    String *string = debug_value_to_string(value);
-    printf("%s", string);
-    string_delete(string);
+static void map_delete(Machine *machine, ValueMap *this) {
+    map_release(machine, this);
+    free(this);
 }
 
 static void compiler_delete(Compiler *this) {
@@ -1317,6 +1319,7 @@ static bool match_values(Value a, Value b) {
         return false;
     }
     switch (a.is) {
+    case VALUE_UNDEFINED:
     case VALUE_NONE: return true;
     case VALUE_BOOL: return as_bool(a) == as_bool(b);
     case VALUE_INTEGER: return as_int(a) == as_int(b);
@@ -1334,6 +1337,7 @@ static bool match_values(Value a, Value b) {
 static Function *new_function() {
     Function *func = safe_calloc(1, sizeof(Function));
     byte_code_init(&func->code);
+    func->object.count = 1;
     return func;
 }
 
@@ -1377,6 +1381,9 @@ static Array *new_array_slice(Array *from, i64 start, i64 end) {
     memcpy(this->items, &from->items[start], size);
     this->length = length;
     this->capacity = length;
+    for (usize i = 0; i < length; i++) {
+        reference(this->items[i]);
+    }
     return this;
 }
 
@@ -1450,11 +1457,20 @@ static Value array_remove_index(Array *this, i64 index) {
     return deleted;
 }
 
-static void array_clear(Array *this) {
+static void array_clear(Machine *machine, Array *this) {
+    i64 len = this->length;
+    Value *items = this->items;
+    for (i64 i = 0; i < len; i++) {
+        printf("ARRAY CLEAR: ");
+        debug_value(items[i]);
+        printf("\n");
+        dereference(machine, items[i]);
+    }
     this->length = 0;
 }
 
-static void array_delete(Array *this) {
+static void array_delete(Machine *machine, Array *this) {
+    array_clear(machine, this);
     free(this->items);
     free(this);
 }
@@ -1466,10 +1482,20 @@ static ValueMap *new_map() {
 }
 
 static ValueMap *new_map_copy(ValueMap *from) {
-    (void *)from;
-    LOG("TODO TABLE COPY");
     ValueMap *this = safe_calloc(1, sizeof(ValueMap));
-    map_init(this);
+    this->size = from->size;
+    this->bins = from->bins;
+    usize memory = this->bins * sizeof(ValueMapItem *);
+    this->items = safe_malloc(memory);
+    memcpy(this->items, from->items, memory);
+    unsigned int bins = this->bins;
+    for (unsigned int i = 0; i < bins; i++) {
+        ValueMapItem *item = this->items[i];
+        while (item != NULL) {
+            reference(item->value);
+            item = item->next;
+        }
+    }
     return this;
 }
 
@@ -1490,7 +1516,12 @@ static Array *map_keys(ValueMap *this) {
     }
 
     if (item == NULL) return array;
-    array_push(array, new_string_object(item->key));
+
+    {
+        Value value = new_string_object(item->key);
+        reference(value);
+        array_push(array, value);
+    }
 
     while (true) {
         item = item->next;
@@ -1504,7 +1535,10 @@ static Array *map_keys(ValueMap *this) {
             }
             if (item == NULL) return array;
         }
-        array_push(array, new_string_object(item->key));
+
+        Value value = new_string_object(item->key);
+        reference(value);
+        array_push(array, value);
     }
 
     return array;
@@ -1628,6 +1662,7 @@ static Value machine_intern_string(Machine *this, String *string) {
     if (is_undefined(exists)) {
         ObjectString *object = new_object_from_string(string);
         Value value = new_string_object(object);
+        reference(value);
         map_put(&this->strings, object, value);
         return value;
     }
@@ -1796,6 +1831,8 @@ static void panic_halt(Compiler *this) {
         case TOKEN_BEGIN:
         case TOKEN_EOF:
             return;
+        default:
+            break;
         }
         advance(this);
     }
@@ -1947,6 +1984,7 @@ static void compile_unary(Compiler *this, bool assign) {
     case TOKEN_NOT: emit(this, OP_NOT); break;
     case TOKEN_SUBTRACT: emit(this, OP_NEGATE); break;
     case TOKEN_BIT_NOT: emit(this, OP_BIT_NOT); break;
+    default: return;
     }
 }
 
@@ -1971,6 +2009,7 @@ static void compile_binary(Compiler *this, bool assign) {
     case TOKEN_BIT_XOR: emit(this, OP_BIT_XOR); break;
     case TOKEN_BIT_LEFT_SHIFT: emit(this, OP_BIT_LEFT_SHIFT); break;
     case TOKEN_BIT_RIGHT_SHIFT: emit(this, OP_BIT_RIGHT_SHIFT); break;
+    default: return;
     }
 }
 
@@ -2186,8 +2225,9 @@ static bool match_literal(Compiler *this) {
     case TOKEN_STRING:
         advance(this);
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 static void switch_statement(Compiler *this) {
@@ -2231,18 +2271,36 @@ static void emit_loop(Compiler *this, int start) {
 
 static void patch_jump_list(Compiler *this) {
     while (this->jump != NULL) {
+        int depth = 1;
+        if (this->loop != NULL) {
+            depth = this->loop->depth + 1;
+        }
+        printf("JUMP DEBUG: %d < %d ?\n", this->jump->depth, depth);
+        if (this->jump->depth < depth) {
+            break;
+        }
         patch_jump(this, this->jump->jump);
         struct JumpList *next = this->jump->next;
         free(this->jump);
+        printf("FREE JUMP LIST!\n");
         this->jump = next;
     }
 }
 
 static void patch_iterator_jump_list(Compiler *this) {
     while (this->iterator_jump != NULL) {
+        int depth = 1;
+        if (this->loop != NULL) {
+            depth = this->loop->depth + 1;
+        }
+        printf("JUMP LIST DEBUG: %d < %d ?\n", this->iterator_jump->depth, depth);
+        if (this->iterator_jump->depth < depth) {
+            break;
+        }
         patch_jump(this, this->iterator_jump->jump);
         struct JumpList *next = this->iterator_jump->next;
         free(this->iterator_jump);
+        printf("FREE JUMP!\n");
         this->iterator_jump = next;
     }
 }
@@ -2278,11 +2336,11 @@ static void iterate_statement(Compiler *this) {
 
     // setup
 
-    u8 reference = push_hidden_local(this);
+    u8 local = push_hidden_local(this);
     expression(this);
 
     u8 length = push_hidden_local(this);
-    emit_two(this, OP_GET_LOCAL, reference);
+    emit_two(this, OP_GET_LOCAL, local);
     emit(this, OP_LEN);
 
     // compare
@@ -2301,7 +2359,7 @@ static void iterate_statement(Compiler *this) {
 
     // update
 
-    emit_two(this, OP_GET_LOCAL, reference);
+    emit_two(this, OP_GET_LOCAL, local);
     emit_two(this, OP_GET_LOCAL, index);
     emit(this, OP_GET_DYNAMIC);
 
@@ -2373,6 +2431,8 @@ static void for_statement(Compiler *this) {
     struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
     this->loop = &loop;
 
+    printf("CURRENT LOOP: %d\n", loop.depth);
+
     expression(this);
 
     emit(this, OP_POP);
@@ -2388,12 +2448,15 @@ static void for_statement(Compiler *this) {
     // end
 
     this->loop = loop.next;
+    printf("END LOOP\n");
 
     patch_jump(this, jump);
     emit(this, OP_POP);
 
     patch_jump_list(this);
     end_scope(this);
+
+    printf("END FOR\n");
 
     consume(this, TOKEN_END, "Expected 'end' after for loop.");
 }
@@ -2404,6 +2467,8 @@ static void while_statement(Compiler *this) {
     struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop};
     this->loop = &loop;
 
+    printf("CURRENT LOOP: %d\n", loop.depth);
+
     expression(this);
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
 
@@ -2412,11 +2477,14 @@ static void while_statement(Compiler *this) {
     emit_loop(this, start);
 
     this->loop = loop.next;
+    printf("END LOOP\n");
 
     patch_jump(this, jump);
     emit(this, OP_POP);
 
     patch_jump_list(this);
+
+    printf("END WHILE\n");
 
     consume(this, TOKEN_END, "Expected 'end' after while loop.");
 }
@@ -2448,6 +2516,7 @@ static void break_statement(Compiler *this) {
     struct JumpList *jump_next = this->jump;
     struct JumpList *jump = safe_malloc(sizeof(struct JumpList));
     jump->jump = emit_jump(this, OP_JUMP);
+    jump->depth = this->loop->depth;
     jump->next = jump_next;
     this->jump = jump;
 }
@@ -2461,6 +2530,7 @@ static void continue_statement(Compiler *this) {
         struct JumpList *jump_next = this->iterator_jump;
         struct JumpList *jump = safe_malloc(sizeof(struct JumpList));
         jump->jump = emit_jump(this, OP_JUMP);
+        jump->depth = this->loop->depth;
         jump->next = jump_next;
         this->iterator_jump = jump;
     } else {
@@ -2811,33 +2881,55 @@ static void machine_runtime_error(Machine *this, const char *format, ...) {
     machine_reset_stack(this);
 }
 
-static inline void object_reference(Value value) {
+static inline void debug_reference(Value value) {
+    switch (value.is) {
+    case VALUE_STRING:
+    case VALUE_ARRAY:
+    case VALUE_TABLE:
+    case VALUE_FUNC:
+        printf("REF: %p: %d, ", (void *)as_object(value), as_object(value)->count);
+        debug_value(value);
+        printf("\n");
+        break;
+    default:
+        return;
+    }
+}
+
+static inline void reference(Value value) {
     switch (value.is) {
     case VALUE_STRING:
     case VALUE_ARRAY:
     case VALUE_TABLE:
     case VALUE_FUNC:
         as_object(value)->count++;
-        printf("REF: %d, ", as_object(value)->count);
-        debug_value(value);
-        printf("\n");
+        debug_reference(value);
         break;
+    default:
+        return;
     }
 }
 
-static inline void object_dereference(Value value) {
+static inline void dereference(Machine *this, Value value) {
     switch (value.is) {
     case VALUE_STRING: {
         ObjectString *string = as_string_object(value);
         int count = --(string->object.count);
-        if (count == 0) {
-            printf("FREE: ");
+        if (!(count >= 0)) {
+            printf("BAD: %p: ", (void *)string);
             debug_value(value);
             printf("\n");
-
+        }
+        assert(count >= 0);
+        if (count == 0) {
+            printf("FREE: %p: ", (void *)string);
+            debug_value(value);
+            printf("\nSTRING MAP REMOVE: %p\n", string->string);
+            map_remove(&this->strings, string->string);
             string_delete(string->string);
+            free(string);
         } else {
-            printf("DEREF: %d, ", as_object(value)->count);
+            printf("DEREF: %p: %d, ", (void *)string, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
@@ -2846,16 +2938,20 @@ static inline void object_dereference(Value value) {
     case VALUE_ARRAY: {
         Array *array = as_array(value);
         int count = --(array->object.count);
+        if (!(count >= 0)) {
+            printf("BAD: %p: ", (void *)array);
+            debug_value(value);
+            printf("\n");
+        }
+        assert(count >= 0);
         if (count == 0) {
-            printf("FREE: ");
+            printf("FREE: %p: ", (void *)array);
             debug_value(value);
             printf("\n");
 
-            // FIXME: DEREF ALL ELEMENTS
-
-            array_delete(array);
+            array_delete(this, array);
         } else {
-            printf("DEREF: %d, ", as_object(value)->count);
+            printf("DEREF: %p: %d, ", (void *)array, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
@@ -2864,16 +2960,20 @@ static inline void object_dereference(Value value) {
     case VALUE_TABLE: {
         ValueMap *table = as_table(value);
         int count = --(table->object.count);
+        if (!(count >= 0)) {
+            printf("BAD: %p: ", (void *)table);
+            debug_value(value);
+            printf("\n");
+        }
+        assert(count >= 0);
         if (count == 0) {
-            printf("FREE: ");
+            printf("FREE: %p: ", (void *)table);
             debug_value(value);
             printf("\n");
 
-            // FIXME: DEREF ALL ELEMENTS
-
-            map_delete(table);
+            map_delete(this, table);
         } else {
-            printf("DEREF: %d, ", as_object(value)->count);
+            printf("DEREF: %p: %d, ", (void *)table, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
@@ -2882,28 +2982,30 @@ static inline void object_dereference(Value value) {
     case VALUE_FUNC: {
         Function *func = as_func(value);
         int count = --(func->object.count);
+        assert(count >= 0);
         if (count == 0) {
-            printf("FREE: ");
+            printf("FREE: %p: ", (void *)func);
             debug_value(value);
             printf("\n");
 
             function_delete(func);
         } else {
-            printf("DEREF: %d, ", as_object(value)->count);
+            printf("DEREF: %p: %d, ", (void *)func, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
         break;
     }
+    default:
+        return;
     }
 }
 
 static void machine_push(Machine *this, Value value) {
-    object_reference(value);
     this->stack[this->stack_top++] = value;
 }
 
-static Value machine_peek(Machine *this, int dist) {
+static Value machine_peek(Machine *this, usize dist) {
     if (dist > this->stack_top) {
         machine_runtime_error(this, "Nothing on stack to peek");
         return new_none();
@@ -2917,7 +3019,6 @@ static Value machine_pop(Machine *this) {
         return new_none();
     }
     Value value = this->stack[--this->stack_top];
-    object_dereference(value);
     return value;
 }
 
@@ -3072,19 +3173,20 @@ static void machine_run(Machine *this) {
 #endif
         u8 op = read_byte(frame);
         switch (op) {
-        case OP_RETURN:
+        case OP_RETURN: {
             Value result = machine_pop(this);
             this->frame_count--;
             if (this->frame_count == 0 or frame->func->name == NULL) {
-                machine_pop(this);
+                dereference(this, machine_pop(this));
                 return;
             }
             this->stack_top = frame->stack_top;
             machine_push(this, result);
             frame = &this->frames[this->frame_count - 1];
             break;
+        }
         case OP_POP:
-            machine_pop(this);
+            dereference(this, machine_pop(this));
             break;
         case OP_TRUE:
             machine_push(this, new_bool(true));
@@ -3125,12 +3227,16 @@ static void machine_run(Machine *this) {
             Value b = machine_pop(this);
             Value a = machine_pop(this);
             machine_push(this, new_bool(machine_equal(a, b)));
+            dereference(this, a);
+            dereference(this, b);
             break;
         }
         case OP_NOT_EQUAL: {
             Value b = machine_pop(this);
             Value a = machine_pop(this);
             machine_push(this, new_bool(!machine_equal(a, b)));
+            dereference(this, a);
+            dereference(this, b);
             break;
         }
         case OP_LESS: {
@@ -3260,6 +3366,8 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Operands can't be added.");
                 return;
             }
+            dereference(this, a);
+            dereference(this, b);
             break;
         }
         case OP_SUBTRACT: {
@@ -3306,7 +3414,7 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_NEGATE: {
-            Value value = machine_peek(this, 1);
+            Value value = machine_pop(this);
             if (is_int(value)) {
                 value.as.i = -value.as.i;
             } else if (is_float(value)) {
@@ -3315,39 +3423,36 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Operand must be a number.");
                 return;
             }
-            machine_pop(this);
             machine_push(this, value);
             break;
         }
 
         case OP_NOT: {
-            Value value = machine_peek(this, 1);
+            Value value = machine_pop(this);
             if (is_bool(value)) {
                 value.as.b = !value.as.b;
             } else {
                 machine_runtime_error(this, "Operand must be a boolean.");
                 return;
             }
-            machine_pop(this);
             machine_push(this, value);
             break;
         }
         case OP_CONSTANT: {
             Value constant = read_constant(frame);
+            reference(constant);
             machine_push(this, constant);
             break;
         }
         case OP_DEFINE_GLOBAL: {
             ObjectString *name = as_string_object(read_constant(frame));
-            Value set = machine_peek(this, 1);
-            object_reference(set);
-            map_put(&this->globals, name, set);
-            machine_pop(this);
+            Value value = machine_pop(this);
+            map_put(&this->globals, name, value);
             break;
         }
         case OP_SET_GLOBAL: {
             ObjectString *name = as_string_object(read_constant(frame));
-            Value set = machine_peek(this, 1);
+            Value value = machine_peek(this, 1);
             Value exists = map_get(&this->globals, name->string);
             if (is_undefined(exists)) {
                 machine_runtime_error(this, "Undefined variable '%s'.", name->string);
@@ -3356,10 +3461,9 @@ static void machine_run(Machine *this) {
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
             Value previous = map_get(&this->globals, name->string);
             if (!is_undefined(previous)) {
-                object_dereference(previous);
+                dereference(this, previous);
             }
-            object_reference(set);
-            map_put(&this->globals, name, set);
+            map_put(&this->globals, name, value);
             break;
         }
         case OP_GET_GLOBAL: {
@@ -3369,6 +3473,7 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Undefined variable '%s'.", name);
                 return;
             }
+            reference(get);
             machine_push(this, get);
             break;
         }
@@ -3379,32 +3484,34 @@ static void machine_run(Machine *this) {
         }
         case OP_GET_LOCAL: {
             u8 slot = read_byte(frame);
-            machine_push(this, this->stack[slot]);
+            Value value = this->stack[slot];
+            reference(value);
+            machine_push(this, value);
             break;
         }
         case OP_SET_PROPERTY: {
-            Value var = machine_peek(this, 2);
+            Value value = machine_pop(this);
+            Value var = machine_pop(this);
             if (!is_table(var)) {
                 machine_runtime_error(this, "Only tables can set properties.");
                 return;
             }
             ValueMap *table = as_table(var);
             ObjectString *name = as_string_object(read_constant(frame));
-            Value value = machine_peek(this, 1);
-            object_reference(value);
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
             Value previous = map_get(table, name->string);
             if (!is_undefined(previous)) {
-                object_dereference(previous);
+                dereference(this, previous);
             }
             map_put(table, name, value);
-            machine_pop(this);
-            machine_pop(this);
+            reference(value);
+            dereference(this, var);
             machine_push(this, value);
             break;
         }
         case OP_GET_PROPERTY: {
-            Value var = machine_peek(this, 1);
+            Value var = machine_pop(this);
+            // Value var = machine_peek(this, 1);
             if (!is_table(var)) {
                 machine_runtime_error(this, "Only tables can get properties.");
                 return;
@@ -3415,22 +3522,24 @@ static void machine_run(Machine *this) {
             if (is_undefined(value)) {
                 value.is = VALUE_NONE;
             }
-            machine_pop(this);
+            // machine_pop(this);
+            dereference(this, var);
+            reference(value);
             machine_push(this, value);
             break;
         }
         case OP_SET_DYNAMIC: {
-            Value value = machine_pop(this);
-            Value refer = machine_pop(this);
-            Value var = machine_pop(this);
-            if (is_array(var)) {
-                if (!is_int(refer)) {
+            Value s = machine_pop(this);
+            Value i = machine_pop(this);
+            Value v = machine_pop(this);
+            if (is_array(v)) {
+                if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to set array index.");
                     return;
                 }
-                Array *array = as_array(var);
+                Array *array = as_array(v);
                 i64 size = array->length;
-                i64 index = as_int(refer);
+                i64 index = as_int(i);
                 if (index > size) {
                     machine_runtime_error(this, "Array index out of bounds %d > %d.", index, size);
                     return;
@@ -3443,37 +3552,41 @@ static void machine_run(Machine *this) {
                     }
                 }
                 if (index == size) {
-                    array_push(array, value);
+                    array_push(array, s);
                 } else {
-                    array->items[index] = value;
+                    dereference(this, array->items[index]);
+                    array->items[index] = s;
                 }
-            } else if (is_table(var)) {
-                if (!is_string(refer)) {
+            } else if (is_table(v)) {
+                if (!is_string(i)) {
                     machine_runtime_error(this, "String required to set table property.");
                     return;
                 }
-                ValueMap *table = as_table(var);
-                ObjectString *name = as_string_object(refer);
-                map_put(table, name, value);
+                ValueMap *table = as_table(v);
+                ObjectString *name = as_string_object(i);
+                map_put(table, name, s);
+                dereference(this, i);
             } else {
-                machine_runtime_error(this, "Expected array or table to set inner value.");
+                machine_runtime_error(this, "Expected array or table to set inner s.");
                 return;
             }
-            machine_push(this, value);
+            machine_push(this, s);
+            dereference(this, v);
+            reference(s);
             break;
         }
         case OP_GET_DYNAMIC: {
-            Value refer = machine_pop(this);
-            Value var = machine_pop(this);
-            switch (var.is) {
+            Value i = machine_pop(this);
+            Value v = machine_pop(this);
+            switch (v.is) {
             case VALUE_STRING: {
-                if (!is_int(refer)) {
+                if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to get string character from index.");
                     return;
                 }
-                String *string = as_string(var);
+                String *string = as_string(v);
                 i64 size = (i64)string_len(string);
-                i64 index = as_int(refer);
+                i64 index = as_int(i);
                 if (index >= size) {
                     machine_runtime_error(this, "String index out of bounds %d >= %d.", index, size);
                     return;
@@ -3487,16 +3600,17 @@ static void machine_run(Machine *this) {
                 }
                 char c = string[index];
                 machine_push(this, machine_intern_string(this, char_to_string(c)));
+                dereference(this, v);
                 break;
             }
             case VALUE_ARRAY: {
-                if (!is_int(refer)) {
+                if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to get array index.");
                     return;
                 }
-                Array *array = as_array(var);
+                Array *array = as_array(v);
                 i64 size = array->length;
-                i64 index = as_int(refer);
+                i64 index = as_int(i);
                 if (index >= size) {
                     machine_runtime_error(this, "Array index out of bounds %d >= %d.", index, size);
                     return;
@@ -3508,21 +3622,28 @@ static void machine_run(Machine *this) {
                         return;
                     }
                 }
-                machine_push(this, array_get(array, index));
+                Value g = array_get(array, index);
+                reference(g);
+                machine_push(this, g);
+                dereference(this, v);
                 break;
             }
             case VALUE_TABLE: {
-                if (!is_string(refer)) {
+                if (!is_string(i)) {
                     machine_runtime_error(this, "String required to get table property.");
                     return;
                 }
-                ValueMap *table = as_table(var);
-                String *name = as_string(refer);
-                Value value = map_get(table, name);
-                if (is_undefined(value)) {
-                    value.is = VALUE_NONE;
+                ValueMap *table = as_table(v);
+                String *name = as_string(i);
+                Value g = map_get(table, name);
+                if (is_undefined(g)) {
+                    g.is = VALUE_NONE;
+                } else {
+                    reference(g);
                 }
-                machine_push(this, value);
+                machine_push(this, g);
+                dereference(this, v);
+                dereference(this, i);
                 break;
             }
             default:
@@ -3532,20 +3653,20 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_LEN: {
-            Value var = machine_pop(this);
-            switch (var.is) {
+            Value value = machine_pop(this);
+            switch (value.is) {
             case VALUE_STRING: {
-                i64 len = (i64)string_len(as_string(var));
+                i64 len = (i64)string_len(as_string(value));
                 machine_push(this, new_int(len));
                 break;
             }
             case VALUE_ARRAY: {
-                i64 len = as_array(var)->length;
+                i64 len = as_array(value)->length;
                 machine_push(this, new_int(len));
                 break;
             }
             case VALUE_TABLE: {
-                i64 len = (i64)as_table(var)->size;
+                i64 len = (i64)as_table(value)->size;
                 machine_push(this, new_int(len));
                 break;
             }
@@ -3553,43 +3674,45 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Expected array or table for len function.");
                 return;
             }
+            dereference(this, value);
             break;
         }
         case OP_ARRAY_POP: {
-            Value var = machine_pop(this);
-            if (is_array(var)) {
-                Value value = array_pop(as_array(var));
-                machine_push(this, value);
-            } else {
+            Value array = machine_pop(this);
+            if (!is_array(array)) {
                 machine_runtime_error(this, "Expected array for pop function.");
                 return;
             }
+            Value value = array_pop(as_array(array));
+            machine_push(this, value);
+            dereference(this, array);
             break;
         }
         case OP_ARRAY_PUSH: {
             Value value = machine_pop(this);
-            Value var = machine_pop(this);
-            if (is_array(var)) {
-                array_push(as_array(var), value);
-                machine_push(this, value);
-            } else {
+            Value array = machine_pop(this);
+            if (!is_array(array)) {
                 machine_runtime_error(this, "Expected array for push function.");
                 return;
             }
+            array_push(as_array(array), value);
+            machine_push(this, value);
+            reference(value);
+            dereference(this, array);
             break;
         }
         case OP_ARRAY_INSERT: {
-            Value value = machine_pop(this);
-            Value refer = machine_pop(this);
-            Value var = machine_pop(this);
-            if (is_array(var)) {
-                if (!is_int(refer)) {
+            Value p = machine_pop(this);
+            Value i = machine_pop(this);
+            Value v = machine_pop(this);
+            if (is_array(v)) {
+                if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to insert into array index.");
                     return;
                 }
-                Array *array = as_array(var);
+                Array *array = as_array(v);
                 i64 size = array->length;
-                i64 index = as_int(refer);
+                i64 index = as_int(i);
                 if (index > size) {
                     machine_runtime_error(this, "Array index out of bounds %d > %d.", index, size);
                     return;
@@ -3602,11 +3725,13 @@ static void machine_run(Machine *this) {
                     }
                 }
                 if (index == size) {
-                    array_push(array, value);
+                    array_push(array, p);
                 } else {
-                    array_insert(array, index, value);
+                    array_insert(array, index, p);
                 }
-                machine_push(this, value);
+                machine_push(this, p);
+                reference(v);
+                dereference(this, v);
             } else {
                 machine_runtime_error(this, "Expected array for insert function.");
                 return;
@@ -3614,16 +3739,16 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_DELETE: {
-            Value refer = machine_pop(this);
-            Value var = machine_pop(this);
-            if (is_array(var)) {
-                if (!is_int(refer)) {
+            Value i = machine_pop(this);
+            Value v = machine_pop(this);
+            if (is_array(v)) {
+                if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to delete from array.");
                     return;
                 }
-                Array *array = as_array(var);
+                Array *array = as_array(v);
                 i64 size = array->length;
-                i64 index = as_int(refer);
+                i64 index = as_int(i);
                 if (index >= size) {
                     machine_runtime_error(this, "Array index out of bounds %d > %d.", index, size);
                     return;
@@ -3637,18 +3762,21 @@ static void machine_run(Machine *this) {
                 }
                 Value value = array_remove_index(array, index);
                 machine_push(this, value);
-            } else if (is_table(var)) {
-                if (!is_string(refer)) {
+                dereference(this, v);
+            } else if (is_table(v)) {
+                if (!is_string(i)) {
                     machine_runtime_error(this, "String required to delete from table.");
                     return;
                 }
-                String *key = as_string(refer);
-                ValueMap *table = as_table(var);
+                String *key = as_string(i);
+                ValueMap *table = as_table(v);
                 Value value = map_remove(table, key);
                 if (is_undefined(value)) {
                     value.is = VALUE_NONE;
                 }
                 machine_push(this, value);
+                dereference(this, i);
+                dereference(this, v);
             } else {
                 machine_runtime_error(this, "Expected array or table for function.");
                 return;
@@ -3669,12 +3797,18 @@ static void machine_run(Machine *this) {
                 break;
             case VALUE_ARRAY: {
                 Array *copy = new_array_copy(as_array(value));
-                machine_push(this, new_array_object(copy));
+                Value new = new_array_object(copy);
+                machine_push(this, new);
+                reference(new);
+                dereference(this, value);
                 break;
             }
             case VALUE_TABLE: {
                 ValueMap *copy = new_map_copy(as_table(value));
-                machine_push(this, new_table_object(copy));
+                Value new = new_table_object(copy);
+                machine_push(this, new);
+                reference(new);
+                dereference(this, value);
                 break;
             }
             default:
@@ -3683,21 +3817,21 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_SLICE: {
-            Value two = machine_pop(this);
-            Value one = machine_pop(this);
-            if (!is_int(one)) {
+            Value b = machine_pop(this);
+            Value a = machine_pop(this);
+            if (!is_int(a)) {
                 machine_runtime_error(this, "Integer required for slice expression.");
                 return;
             }
-            i64 left = as_int(one);
+            i64 left = as_int(a);
             Value value = machine_pop(this);
             if (is_string(value)) {
                 String *original = as_string(value);
                 i64 size = (i64)string_len(original);
                 i64 right;
-                if (is_int(two)) {
-                    right = as_int(two);
-                } else if (is_none(two)) {
+                if (is_int(b)) {
+                    right = as_int(b);
+                } else if (is_none(b)) {
                     right = size;
                 } else {
                     machine_runtime_error(this, "Integer required for slice expression.");
@@ -3724,9 +3858,9 @@ static void machine_run(Machine *this) {
                 Array *array = as_array(value);
                 i64 size = array->length;
                 i64 right;
-                if (is_int(two)) {
-                    right = as_int(two);
-                } else if (is_none(two)) {
+                if (is_int(b)) {
+                    right = as_int(b);
+                } else if (is_none(b)) {
                     right = size;
                 } else {
                     machine_runtime_error(this, "Integer required for slice expression.");
@@ -3748,12 +3882,15 @@ static void machine_run(Machine *this) {
                     return;
                 }
                 Array *copy = new_array_slice(array, left, right);
-                machine_push(this, new_array_object(copy));
+                Value new = new_array_object(copy);
+                machine_push(this, new);
+                reference(new);
                 break;
             } else {
                 machine_runtime_error(this, "Expected string or array for slice expression.");
                 return;
             }
+            dereference(this, value);
             break;
         }
         case OP_CLEAR: {
@@ -3773,16 +3910,17 @@ static void machine_run(Machine *this) {
                 break;
             case VALUE_ARRAY: {
                 Array *array = as_array(value);
-                array_clear(array);
+                array_clear(this, array);
                 machine_push(this, value);
                 break;
             }
             case VALUE_TABLE: {
                 ValueMap *table = as_table(value);
-                map_clear(table);
+                map_clear(this, table);
                 machine_push(this, value);
                 break;
             }
+            case VALUE_UNDEFINED:
             case VALUE_NONE:
             case VALUE_FUNC:
             case VALUE_FUNC_NATIVE:
@@ -3793,45 +3931,54 @@ static void machine_run(Machine *this) {
         }
         case OP_KEYS: {
             Value value = machine_pop(this);
-            if (is_table(value)) {
-                ValueMap *table = as_table(value);
-                Array *array = map_keys(table);
-                machine_push(this, new_array_object(array));
-            } else {
+            if (!is_table(value)) {
                 machine_runtime_error(this, "Expected table for keys function.");
                 return;
             }
+            ValueMap *table = as_table(value);
+            Array *array = map_keys(table);
+            Value keys = new_array_object(array);
+            reference(keys);
+            machine_push(this, keys);
+            dereference(this, value);
             break;
         }
         case OP_INDEX: {
-            Value find = machine_pop(this);
-            Value var = machine_pop(this);
-            switch (var.is) {
+            Value b = machine_pop(this);
+            Value a = machine_pop(this);
+            switch (a.is) {
             case VALUE_STRING: {
-                if (!is_string(find)) {
+                if (!is_string(b)) {
                     machine_runtime_error(this, "Index function requires a string.");
                     return;
                 }
                 usize index = 0;
-                bool found = string_find(as_string(var), as_string(find), &index);
+                bool found = string_find(as_string(a), as_string(b), &index);
                 if (found) {
                     machine_push(this, new_int((i64)index));
                 } else {
                     machine_push(this, new_int(-1));
                 }
+                dereference(this, a);
+                dereference(this, b);
                 break;
             }
             case VALUE_ARRAY:
-                machine_push(this, new_int(array_index_of(as_array(var), find)));
+                machine_push(this, new_int(array_index_of(as_array(a), b)));
+                dereference(this, a);
+                dereference(this, b);
                 break;
-            case VALUE_TABLE:
-                ObjectString *key = map_key_of(as_table(var), find);
+            case VALUE_TABLE: {
+                ObjectString *key = map_key_of(as_table(a), b);
                 if (key == NULL) {
                     machine_push(this, new_none());
                 } else {
                     machine_push(this, new_string_object(key));
                 }
+                dereference(this, a);
+                dereference(this, b);
                 break;
+            }
             default:
                 machine_runtime_error(this, "Expected string, array, or table for index function.");
                 return;
@@ -3855,15 +4002,19 @@ static void machine_run(Machine *this) {
                 break;
             case VALUE_STRING:
                 machine_push(this, machine_intern_string(this, new_string(STRING_STRING)));
+                dereference(this, value);
                 break;
             case VALUE_ARRAY:
                 machine_push(this, machine_intern_string(this, new_string(STRING_ARRAY)));
+                dereference(this, value);
                 break;
             case VALUE_TABLE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_TABLE)));
+                dereference(this, value);
                 break;
             case VALUE_FUNC:
                 machine_push(this, machine_intern_string(this, new_string(STRING_FUNC)));
+                dereference(this, value);
                 break;
             case VALUE_FUNC_NATIVE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_NATIVE)));
@@ -3902,6 +4053,7 @@ static void machine_run(Machine *this) {
         case OP_TO_STRING: {
             Value value = machine_pop(this);
             switch (value.is) {
+            case VALUE_UNDEFINED:
             case VALUE_NONE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_NONE)));
                 break;
@@ -3919,24 +4071,26 @@ static void machine_run(Machine *this) {
                 break;
             case VALUE_ARRAY:
                 machine_push(this, machine_intern_string(this, string_format("[array %p]", as_array(value))));
+                dereference(this, value);
                 break;
             case VALUE_TABLE:
                 machine_push(this, machine_intern_string(this, string_format("[table %p]", as_table(value))));
+                dereference(this, value);
                 break;
             case VALUE_FUNC:
                 machine_push(this, machine_intern_string(this, as_func(value)->name));
+                dereference(this, value);
                 break;
             case VALUE_FUNC_NATIVE:
                 machine_push(this, machine_intern_string(this, as_native(value)->name));
                 break;
-            default:
-                machine_push(this, value);
             }
             break;
         }
         case OP_PRINT: {
-            Value value = machine_peek(this, 1);
+            Value value = machine_pop(this);
             switch (value.is) {
+            case VALUE_UNDEFINED:
             case VALUE_NONE:
                 printf("%s\n", STRING_NONE);
                 break;
@@ -3951,23 +4105,24 @@ static void machine_run(Machine *this) {
                 break;
             case VALUE_STRING:
                 printf("%s\n", as_string(value));
+                dereference(this, value);
                 break;
             case VALUE_ARRAY:
-                printf("[array %p]\n", as_array(value));
+                printf("[array %p]\n", (void *)as_array(value));
+                dereference(this, value);
                 break;
             case VALUE_TABLE:
-                printf("[table %p]\n", as_table(value));
+                printf("[table %p]\n", (void *)as_table(value));
+                dereference(this, value);
                 break;
             case VALUE_FUNC:
                 printf("%s\n", as_func(value)->name);
+                dereference(this, value);
                 break;
             case VALUE_FUNC_NATIVE:
                 printf("%s\n", as_native(value)->name);
                 break;
-            default:
-                printf("%p\n", &value);
             }
-            machine_pop(this);
             break;
         }
         case OP_USE: {
@@ -4014,11 +4169,26 @@ static inline Machine new_machine() {
 }
 
 static void machine_delete(Machine *this) {
-    map_delete(&this->strings);
-    map_delete(&this->globals);
-    string_delete(this->error);
+    map_release(this, &this->globals);
+    assert(this->globals.size == 0);
 
-    // TODO: FOR ALL GLOBALS: CLEAN OBJECTS
+    ValueMap *strings = &this->strings;
+    unsigned int bins = strings->bins;
+    for (unsigned int i = 0; i < bins; i++) {
+        ValueMapItem *item = strings->items[i];
+        while (item != NULL) {
+            ValueMapItem *next = item->next;
+            printf("STRING CLEAR: ");
+            debug_value(item->value);
+            printf("\n");
+            dereference(this, item->value);
+            item = next;
+        }
+    }
+    assert(strings->size == 0);
+    free(strings->items);
+
+    string_delete(this->error);
 }
 
 Hymn *new_hymn() {
@@ -4035,7 +4205,7 @@ static Value temp_native_test(int count, Value *arguments) {
 }
 
 char *hymn_eval(Hymn *this, char *source) {
-    (void *)this;
+    (void)this;
 
     Machine m = new_machine();
     Machine *machine = &m;
@@ -4075,7 +4245,7 @@ char *hymn_read(Hymn *this, char *file) {
 }
 
 char *hymn_repl(Hymn *this) {
-    (void *)this;
+    (void)this;
     printf("Welcome to Hymn\n");
 
     char input[1024];
@@ -4112,62 +4282,62 @@ char *hymn_repl(Hymn *this) {
 }
 
 void hymn_add_func(Hymn *this, char *name, char *(*func)(Hymn *)) {
-    (void *)this;
-    (void *)name;
-    (void *)func;
+    (void)this;
+    (void)name;
+    (void)func;
 }
 
 void hymn_add_pointer(Hymn *this, char *name, void *pointer) {
-    (void *)this;
-    (void *)name;
-    (void *)pointer;
+    (void)this;
+    (void)name;
+    (void)pointer;
 }
 
 char *hymn_call(Hymn *this, char *name) {
-    (void *)this;
-    (void *)name;
+    (void)this;
+    (void)name;
     return NULL;
 }
 
 void *hymn_pointer(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return NULL;
 }
 
 i32 hymn_i32(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return 0;
 }
 
 u32 hymn_u32(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return 0;
 }
 
 i64 hymn_i64(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return 0;
 }
 
 u64 hymn_u64(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return 0;
 }
 
 f32 hymn_f32(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return 0.0f;
 }
 
 f64 hymn_f64(Hymn *this, i32 index) {
-    (void *)this;
-    (i32) index;
+    (void)this;
+    (void)index;
     return 0.0;
 }
 

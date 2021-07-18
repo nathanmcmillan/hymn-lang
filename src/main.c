@@ -4,13 +4,15 @@
 
 #include "main.h"
 
+#ifndef HYMN_TESTING
+
 int main(int argc, char **argv) {
-    (int)argc;
-    (void *)argv;
+    (void)argc;
+    (void)argv;
 
     Hymn *vm = new_hymn();
 
-    char *error = hymn_read(vm, "test/scripts/temp.hm");
+    char *error = hymn_read(vm, "test/scripts/test.hm");
     if (error != NULL) {
         fprintf(stderr, "%s\n", error);
         return 1;
@@ -18,3 +20,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+#endif

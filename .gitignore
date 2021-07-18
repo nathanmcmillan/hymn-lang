@@ -10,7 +10,11 @@ ctags.sh
 clean.bat
 compile.bat
 run.bat
+test.bat
 
 .DS_Store
 
-temp.hm
+test.hm
+
+hymn
+tests

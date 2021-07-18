@@ -5,6 +5,10 @@
 #ifndef HYMN_H
 #define HYMN_H
 
+// #define NDEBUG
+
+#include <assert.h>
+
 #include "file_io.h"
 #include "log.h"
 #include "mem.h"

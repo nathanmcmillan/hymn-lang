@@ -1,21 +1,25 @@
 #include "test_hymn.h"
 
-static char *test() {
-
+static char *test(char *script) {
     Hymn *vm = new_hymn();
-
-    char *error = hymn_read(vm, "test/scripts/temp.hm");
+    char *error = hymn_read(vm, script);
     if (error != NULL) {
-        fprintf(stderr, "%s\n", error);
-        return 1;
+        return error;
     }
+    ASSERT(error, error != NULL);
+    return NULL;
+}
 
-    ASSERT("example", true);
+static char *test_if() {
+    return test("scripts/if.hm");
+}
 
-    return 0;
+static char *test_break() {
+    return test("scripts/break.hm");
 }
 
 char *test_hymn_all() {
-    TEST(test);
-    return 0;
+    TEST(test_if);
+    TEST(test_break);
+    return NULL;
 }

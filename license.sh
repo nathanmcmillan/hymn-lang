@@ -13,6 +13,7 @@ function cleanup {
 }
 trap cleanup EXIT
 
+shopt -s nullglob
 shopt -s globstar
 
 function fun {

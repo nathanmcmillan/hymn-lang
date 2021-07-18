@@ -5,9 +5,13 @@ int tests_success = 0;
 int tests_fail = 0;
 int tests_count = 0;
 
-int main() {
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
     printf("\n");
     TEST_SET(test_hymn_all);
     printf("Success: %d, Failed: %d, Total: %d\n\n", tests_success, tests_fail, tests_count);
+
     return 0;
 }
