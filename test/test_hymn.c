@@ -12,15 +12,20 @@ static char *test(char *script) {
 }
 
 static char *test_if() {
-    return test("scripts/if.hm");
+    return test("test/scripts/if.hm");
 }
 
 static char *test_break() {
-    return test("scripts/break.hm");
+    return test("test/scripts/break.hm");
+}
+
+static char *test_switch() {
+    return test("test/scripts/switch.hm");
 }
 
 char *test_hymn_all() {
     TEST(test_if);
     TEST(test_break);
+    TEST(test_switch);
     return NULL;
 }

@@ -1,0 +1,9 @@
+
+begin
+  let a = {}
+  let b = {}
+  a.x = b
+  b.y = a
+  print(a)
+  print(b)
+end

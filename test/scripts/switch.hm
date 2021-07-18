@@ -1,9 +1,11 @@
+let x = 3
+
 switch x
 case "foo"
   print("a")
-case 2 or 3
+case 2 or 3 or 4
   print("b")
-case 3
+case 5
   print("c")
 else
   print("d")

@@ -266,6 +266,7 @@ enum OpCode {
     OP_INDEX,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
+    OP_JUMP_IF_TRUE,
     OP_KEYS,
     OP_LEN,
     OP_LESS,
@@ -784,15 +785,11 @@ static Value map_remove(ValueMap *this, String *key) {
 }
 
 static void map_clear(Machine *machine, ValueMap *this) {
-    printf("MAP CLEAR: [%p]\n", (void *)this);
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         ValueMapItem *item = this->items[i];
         while (item != NULL) {
-            printf("MAP DEREF ITEM: [%p]: ", (void *)item);
             ValueMapItem *next = item->next;
-            debug_value(item->value);
-            printf("\n");
             dereference(machine, item->value);
             free(item);
             item = next;
@@ -800,7 +797,6 @@ static void map_clear(Machine *machine, ValueMap *this) {
         this->items[i] = NULL;
     }
     this->size = 0;
-    printf("END MAP CLEAR: [%p]\n", (void *)this);
 }
 
 static void map_release(Machine *machine, ValueMap *this) {
@@ -1395,16 +1391,12 @@ static ValueMap *new_map() {
 }
 
 static ValueMap *new_map_copy(ValueMap *from) {
-    ValueMap *this = safe_calloc(1, sizeof(ValueMap));
-    this->size = from->size;
+    ValueMap *this = new_map();
     unsigned int bins = from->bins;
-    this->bins = bins;
-    usize memory = bins * sizeof(ValueMapItem *);
-    this->items = safe_malloc(memory);
-    memcpy(this->items, from->items, memory);
     for (unsigned int i = 0; i < bins; i++) {
-        ValueMapItem *item = this->items[i];
+        ValueMapItem *item = from->items[i];
         while (item != NULL) {
+            map_put(this, item->key, item->value);
             reference(item->value);
             item = item->next;
         }
@@ -2102,9 +2094,8 @@ static void if_statement(Compiler *this) {
         }
         end_scope(this);
 
-        struct JumpList *next = safe_malloc(sizeof(struct JumpList));
+        struct JumpList *next = safe_calloc(1, sizeof(struct JumpList));
         next->jump = emit_jump(this, OP_JUMP);
-        next->next = NULL;
 
         tail->next = next;
         tail = next;
@@ -2129,15 +2120,26 @@ static void if_statement(Compiler *this) {
     consume(this, TOKEN_END, "Expected 'end' after if statement.");
 }
 
-static bool match_literal(Compiler *this) {
-    switch (this->beta.type) {
+static bool compile_literal(Compiler *this) {
+    advance(this);
+    switch (this->alpha.type) {
     case TOKEN_NONE:
+        compile_none(this, false);
+        return true;
     case TOKEN_TRUE:
+        compile_true(this, false);
+        return true;
     case TOKEN_FALSE:
+        compile_false(this, false);
+        return true;
     case TOKEN_INTEGER:
+        compile_integer(this, false);
+        return true;
     case TOKEN_FLOAT:
+        compile_float(this, false);
+        return true;
     case TOKEN_STRING:
-        advance(this);
+        compile_string(this, false);
         return true;
     default:
         return false;
@@ -2145,31 +2147,109 @@ static bool match_literal(Compiler *this) {
 }
 
 static void switch_statement(Compiler *this) {
+
+    begin_scope(this);
+
+    u8 local = push_hidden_local(this);
     expression(this);
 
+    if (!check(this, TOKEN_CASE)) {
+        compile_error(this, &this->beta, "Expected case.");
+        return;
+    }
+
+    int jump = -1;
+
+    struct JumpList *head = NULL;
+    struct JumpList *tail = NULL;
+
     while (match(this, TOKEN_CASE)) {
-        if (!match_literal(this)) {
+
+        if (jump != -1) {
+            patch_jump(this, jump);
+            emit(this, OP_POP);
+        }
+
+        if (!compile_literal(this)) {
             compile_error(this, &this->beta, "Expected literal for case.");
         }
-        while (match(this, TOKEN_OR)) {
-            if (!match_literal(this)) {
-                compile_error(this, &this->beta, "Expected literal after 'or' in case.");
+        emit_two(this, OP_GET_LOCAL, local);
+        emit(this, OP_EQUAL);
+
+        struct JumpList *body = NULL;
+
+        if (match(this, TOKEN_OR)) {
+            body = safe_calloc(1, sizeof(struct JumpList));
+            struct JumpList *tail = body;
+            body->jump = emit_jump(this, OP_JUMP_IF_TRUE);
+            emit(this, OP_POP);
+
+            while (true) {
+                if (!compile_literal(this)) {
+                    compile_error(this, &this->beta, "Expected literal after 'or' in case.");
+                }
+                emit_two(this, OP_GET_LOCAL, local);
+                emit(this, OP_EQUAL);
+
+                if (match(this, TOKEN_OR)) {
+                    struct JumpList *next = safe_calloc(1, sizeof(struct JumpList));
+                    next->jump = emit_jump(this, OP_JUMP_IF_TRUE);
+                    emit(this, OP_POP);
+
+                    tail->next = next;
+                    tail = next;
+                } else {
+                    break;
+                }
             }
         }
+
+        jump = emit_jump(this, OP_JUMP_IF_FALSE);
+
+        while (body != NULL) {
+            patch_jump(this, body->jump);
+            struct JumpList *next = body->next;
+            free(body);
+            body = next;
+        }
+
+        emit(this, OP_POP);
+
         begin_scope(this);
         while (!check(this, TOKEN_CASE) and !check(this, TOKEN_ELSE) and !check(this, TOKEN_END) and !check(this, TOKEN_EOF)) {
             declaration(this);
         }
         end_scope(this);
+
+        struct JumpList *next = safe_calloc(1, sizeof(struct JumpList));
+        next->jump = emit_jump(this, OP_JUMP);
+
+        if (head == NULL) {
+            head = next;
+            tail = next;
+        } else {
+            tail->next = next;
+            tail = next;
+        }
+    }
+
+    if (jump != -1) {
+        patch_jump(this, jump);
+        emit(this, OP_POP);
     }
 
     if (match(this, TOKEN_ELSE)) {
-        begin_scope(this);
-        while (!check(this, TOKEN_END) and !check(this, TOKEN_EOF)) {
-            declaration(this);
-        }
-        end_scope(this);
+        block(this);
     }
+
+    while (head != NULL) {
+        patch_jump(this, head->jump);
+        struct JumpList *next = head->next;
+        free(head);
+        head = next;
+    }
+
+    end_scope(this);
 
     consume(this, TOKEN_END, "Expected 'end' after switch statement.");
 }
@@ -2189,14 +2269,12 @@ static void patch_jump_list(Compiler *this) {
         if (this->loop != NULL) {
             depth = this->loop->depth + 1;
         }
-        printf("JUMP DEBUG: %d < %d ?\n", this->jump->depth, depth);
         if (this->jump->depth < depth) {
             break;
         }
         patch_jump(this, this->jump->jump);
         struct JumpList *next = this->jump->next;
         free(this->jump);
-        printf("FREE JUMP LIST!\n");
         this->jump = next;
     }
 }
@@ -2207,14 +2285,12 @@ static void patch_iterator_jump_list(Compiler *this) {
         if (this->loop != NULL) {
             depth = this->loop->depth + 1;
         }
-        printf("JUMP LIST DEBUG: %d < %d ?\n", this->iterator_jump->depth, depth);
         if (this->iterator_jump->depth < depth) {
             break;
         }
         patch_jump(this, this->iterator_jump->jump);
         struct JumpList *next = this->iterator_jump->next;
         free(this->iterator_jump);
-        printf("FREE JUMP!\n");
         this->iterator_jump = next;
     }
 }
@@ -2345,8 +2421,6 @@ static void for_statement(Compiler *this) {
     struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
     this->loop = &loop;
 
-    printf("CURRENT LOOP: %d\n", loop.depth);
-
     expression(this);
 
     emit(this, OP_POP);
@@ -2362,15 +2436,12 @@ static void for_statement(Compiler *this) {
     // end
 
     this->loop = loop.next;
-    printf("END LOOP\n");
 
     patch_jump(this, jump);
     emit(this, OP_POP);
 
     patch_jump_list(this);
     end_scope(this);
-
-    printf("END FOR\n");
 
     consume(this, TOKEN_END, "Expected 'end' after for loop.");
 }
@@ -2381,8 +2452,6 @@ static void while_statement(Compiler *this) {
     struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop};
     this->loop = &loop;
 
-    printf("CURRENT LOOP: %d\n", loop.depth);
-
     expression(this);
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
 
@@ -2391,14 +2460,11 @@ static void while_statement(Compiler *this) {
     emit_loop(this, start);
 
     this->loop = loop.next;
-    printf("END LOOP\n");
 
     patch_jump(this, jump);
     emit(this, OP_POP);
 
     patch_jump_list(this);
-
-    printf("END WHILE\n");
 
     consume(this, TOKEN_END, "Expected 'end' after while loop.");
 }
@@ -2711,6 +2777,7 @@ static usize disassemble_instruction(String **debug, ByteCode *this, usize index
     case OP_INDEX: return debug_instruction(debug, "OP_INDEX", index);
     case OP_JUMP: return debug_jump_instruction(debug, "OP_JUMP", 1, this, index);
     case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, this, index);
+    case OP_JUMP_IF_TRUE: return debug_jump_instruction(debug, "OP_JUMP_IF_TRUE", 1, this, index);
     case OP_KEYS: return debug_instruction(debug, "OP_KEYS", index);
     case OP_LEN: return debug_instruction(debug, "OP_LEN", index);
     case OP_LESS: return debug_instruction(debug, "OP_LESS", index);
@@ -2795,6 +2862,7 @@ static void machine_runtime_error(Machine *this, const char *format, ...) {
     machine_reset_stack(this);
 }
 
+#ifdef HYMN_DEBUG_REFERENCE
 static inline void debug_reference(Value value) {
     switch (value.is) {
     case HYMN_VALUE_STRING:
@@ -2812,6 +2880,7 @@ static inline void debug_reference(Value value) {
         return;
     }
 }
+#endif
 
 static inline void reference(Value value) {
     switch (value.is) {
@@ -2820,7 +2889,9 @@ static inline void reference(Value value) {
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
         as_object(value)->count++;
+#ifdef HYMN_DEBUG_REFERENCE
         debug_reference(value);
+#endif
         break;
     default:
         return;
@@ -2832,67 +2903,29 @@ static inline void dereference(Machine *this, Value value) {
     case HYMN_VALUE_STRING: {
         ObjectString *string = as_string_object(value);
         int count = --(string->object.count);
-        if (!(count >= 0)) {
-            printf("BAD: %p: ", (void *)string);
-            debug_value(value);
-            printf("\n");
-        }
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: [%p]: ", (void *)string);
-            debug_value(value);
-            printf("\nINTERN STRING REMOVE: [%p]\n", (void *)string);
             map_remove(&this->strings, string->string);
             string_delete(string->string);
             free(string);
-        } else {
-            printf("DEREF: [%p]: %d, ", (void *)string, as_object(value)->count);
-            debug_value(value);
-            printf("\n");
         }
         break;
     }
     case HYMN_VALUE_ARRAY: {
         Array *array = as_array(value);
         int count = --(array->object.count);
-        if (!(count >= 0)) {
-            printf("BAD: %p: ", (void *)array);
-            debug_value(value);
-            printf("\n");
-        }
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: [%p]: ", (void *)array);
-            debug_value(value);
-            printf("\n");
-
             array_delete(this, array);
-        } else {
-            printf("DEREF: [%p]: %d, ", (void *)array, as_object(value)->count);
-            debug_value(value);
-            printf("\n");
         }
         break;
     }
     case HYMN_VALUE_TABLE: {
         ValueMap *table = as_table(value);
         int count = --(table->object.count);
-        if (!(count >= 0)) {
-            printf("BAD: %p: ", (void *)table);
-            debug_value(value);
-            printf("\n");
-        }
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: [%p]: ", (void *)table);
-            debug_value(value);
-            printf("\n");
-
             map_delete(this, table);
-        } else {
-            printf("DEREF: [%p]: %d, ", (void *)table, as_object(value)->count);
-            debug_value(value);
-            printf("\n");
         }
         break;
     }
@@ -2901,15 +2934,7 @@ static inline void dereference(Machine *this, Value value) {
         int count = --(func->object.count);
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: [%p]: ", (void *)func);
-            debug_value(value);
-            printf("\n");
-
             function_delete(func);
-        } else {
-            printf("DEREF: [%p]: %d, ", (void *)func, as_object(value)->count);
-            debug_value(value);
-            printf("\n");
         }
         break;
     }
@@ -2935,8 +2960,7 @@ static Value machine_pop(Machine *this) {
         machine_runtime_error(this, "Nothing on stack to pop");
         return new_none();
     }
-    Value value = this->stack[--this->stack_top];
-    return value;
+    return this->stack[--this->stack_top];
 }
 
 static bool machine_equal(Value a, Value b) {
@@ -3095,6 +3119,7 @@ static void machine_run(Machine *this) {
             this->frame_count--;
             if (this->frame_count == 0 or frame->func->name == NULL) {
                 dereference(this, machine_pop(this));
+                assert(this->stack_top == 0);
                 return;
             }
             this->stack_top = frame->stack_top;
@@ -3131,6 +3156,13 @@ static void machine_run(Machine *this) {
         case OP_JUMP_IF_FALSE: {
             u16 jump = read_short(frame);
             if (machine_false(machine_peek(this, 1))) {
+                frame->ip += jump;
+            }
+            break;
+        }
+        case OP_JUMP_IF_TRUE: {
+            u16 jump = read_short(frame);
+            if (!machine_false(machine_peek(this, 1))) {
                 frame->ip += jump;
             }
             break;
@@ -3421,9 +3453,9 @@ static void machine_run(Machine *this) {
                 dereference(this, previous);
             }
             map_put(table, name, p);
+            machine_push(this, p);
             reference(p);
             dereference(this, v);
-            machine_push(this, p);
             break;
         }
         case OP_GET_PROPERTY: {
@@ -4077,9 +4109,7 @@ Hymn *new_hymn() {
 }
 
 void hymn_delete(Hymn *this) {
-    printf("MACHINE DELETE\n");
     {
-        printf("MACHINE FREE NATIVE\n");
         ValueMap *globals = &this->globals;
         unsigned int bins = globals->bins;
         for (unsigned int i = 0; i < bins; i++) {
@@ -4088,9 +4118,6 @@ void hymn_delete(Hymn *this) {
             while (item != NULL) {
                 ValueMapItem *next = item->next;
                 if (is_native(item->value)) {
-                    printf("FREE NATIVE: ");
-                    debug_value(item->value);
-                    printf("\n");
                     if (previous == NULL) {
                         globals->items[i] = next;
                     } else {
@@ -4105,13 +4132,11 @@ void hymn_delete(Hymn *this) {
                 item = next;
             }
         }
-        printf("MACHINE RELEASE GLOBALS\n");
         map_release(this, &this->globals);
         assert(this->globals.size == 0);
     }
 
     {
-        printf("MACHINE RELEASE STRINGS\n");
         ValueMap *strings = &this->strings;
         unsigned int bins = strings->bins;
         for (unsigned int i = 0; i < bins; i++) {
@@ -4127,7 +4152,6 @@ void hymn_delete(Hymn *this) {
     }
 
     string_delete(this->error);
-    printf("END MACHINE DELETE\n");
 
     free(this);
 }

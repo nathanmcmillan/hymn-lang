@@ -2,6 +2,7 @@
 
 build/
 objects/
+testing/
 
 tags
 ctags.opts
