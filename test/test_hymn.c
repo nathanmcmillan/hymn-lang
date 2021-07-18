@@ -1,11 +1,12 @@
 #include "test_hymn.h"
 
 static char *test(char *script) {
-    Hymn *vm = new_hymn();
-    char *error = hymn_read(vm, script);
+    Hymn *hymn = new_hymn();
+    char *error = hymn_read(hymn, script);
     if (error != NULL) {
         return error;
     }
+    hymn_delete(hymn);
     ASSERT(error, error != NULL);
     return NULL;
 }

@@ -4,32 +4,32 @@
 
 #include "hymn.h"
 
-#define new_undefined() ((Value){VALUE_UNDEFINED, {.i = 0}})
-#define new_none() ((Value){VALUE_NONE, {.i = 0}})
-#define new_bool(v) ((Value){VALUE_BOOL, {.b = v}})
-#define new_int(v) ((Value){VALUE_INTEGER, {.i = v}})
-#define new_float(v) ((Value){VALUE_FLOAT, {.f = v}})
-#define new_native(v) ((Value){VALUE_FUNC_NATIVE, {.n = v}})
+#define new_undefined() hymn_new_undefined()
+#define new_none() hymn_new_none()
+#define new_bool(v) hymn_new_bool(v)
+#define new_int(v) hymn_new_int(v)
+#define new_float(v) hymn_new_float(v)
+#define new_native(v) hymn_new_native(v)
 
-#define as_bool(v) ((v).as.b)
-#define as_int(v) ((v).as.i)
-#define as_float(v) ((v).as.f)
-#define as_object(v) ((Object *)(v).as.o)
-#define as_array(v) ((Array *)(v).as.o)
-#define as_table(v) ((ValueMap *)(v).as.o)
-#define as_func(v) ((Function *)(v).as.o)
-#define as_native(v) ((v).as.n)
+#define as_bool(v) hymn_as_bool(v)
+#define as_int(v) hymn_as_int(v)
+#define as_float(v) hymn_as_float(v)
+#define as_object(v) hymn_as_object(v)
+#define as_array(v) hymn_as_array(v)
+#define as_table(v) hymn_as_table(v)
+#define as_func(v) hymn_as_func(v)
+#define as_native(v) hymn_as_native(v)
 
-#define is_undefined(v) ((v).is == VALUE_UNDEFINED)
-#define is_none(v) ((v).is == VALUE_NONE)
-#define is_bool(v) ((v).is == VALUE_BOOL)
-#define is_int(v) ((v).is == VALUE_INTEGER)
-#define is_float(v) ((v).is == VALUE_FLOAT)
-#define is_string(v) ((v).is == VALUE_STRING)
-#define is_array(v) ((v).is == VALUE_ARRAY)
-#define is_table(v) ((v).is == VALUE_TABLE)
-#define is_func(v) ((v).is == VALUE_FUNC)
-#define is_native(v) ((v).is == VALUE_FUNC_NATIVE)
+#define is_undefined(v) ((v).is == HYMN_VALUE_UNDEFINED)
+#define is_none(v) ((v).is == HYMN_VALUE_NONE)
+#define is_bool(v) ((v).is == HYMN_VALUE_BOOL)
+#define is_int(v) ((v).is == HYMN_VALUE_INTEGER)
+#define is_float(v) ((v).is == HYMN_VALUE_FLOAT)
+#define is_string(v) ((v).is == HYMN_VALUE_STRING)
+#define is_array(v) ((v).is == HYMN_VALUE_ARRAY)
+#define is_table(v) ((v).is == HYMN_VALUE_TABLE)
+#define is_func(v) ((v).is == HYMN_VALUE_FUNC)
+#define is_native(v) ((v).is == HYMN_VALUE_FUNC_NATIVE)
 
 #define STRING_NONE "None"
 #define STRING_BOOL "Bool"
@@ -115,24 +115,31 @@
         return;                                                                    \
     }
 
+typedef struct Array Array;
+typedef struct Token Token;
+typedef struct Local Local;
+typedef struct Rule Rule;
+typedef struct Script Script;
+typedef struct Scope Scope;
+typedef struct Compiler Compiler;
+
+typedef HymnValue Value;
+typedef HymnObject Object;
+typedef HymnValueMap ValueMap;
+typedef HymnValueMapItem ValueMapItem;
+typedef HymnNativeCall NativeCall;
+typedef HymnFunction Function;
+typedef HymnNativeFunction NativeFunction;
+typedef HymnString ObjectString;
+typedef HymnFrame Frame;
+typedef HymnValuePool ValuePool;
+typedef HymnByteCode ByteCode;
+
 static const float LOAD_FACTOR = 0.80f;
 
 static const unsigned int INITIAL_BINS = 1 << 3;
 
 static const unsigned int MAXIMUM_BINS = 1 << 30;
-
-enum ValueType {
-    VALUE_UNDEFINED,
-    VALUE_NONE,
-    VALUE_BOOL,
-    VALUE_INTEGER,
-    VALUE_FLOAT,
-    VALUE_STRING,
-    VALUE_ARRAY,
-    VALUE_TABLE,
-    VALUE_FUNC,
-    VALUE_FUNC_NATIVE,
-};
 
 enum TokenType {
     TOKEN_ADD,
@@ -291,24 +298,7 @@ enum FunctionType {
     TYPE_SCRIPT,
 };
 
-typedef struct Array Array;
-typedef struct Object Object;
-typedef struct ObjectString ObjectString;
-typedef struct Value Value;
-typedef struct Token Token;
-typedef struct Local Local;
-typedef struct Rule Rule;
-typedef struct Script Script;
-typedef struct ValueMapItem ValueMapItem;
-typedef struct ValueMap ValueMap;
-typedef struct ValuePool ValuePool;
-typedef struct ByteCode ByteCode;
-typedef struct Function Function;
-typedef struct NativeFunction NativeFunction;
-typedef struct Frame Frame;
-typedef struct Machine Machine;
-typedef struct Scope Scope;
-typedef struct Compiler Compiler;
+typedef struct Hymn Machine;
 
 static void compile_with_precedence(Compiler *this, enum Precedence precedence);
 static void compile_call(Compiler *this, bool assign);
@@ -371,26 +361,6 @@ struct Token {
     int length;
 };
 
-struct Object {
-    int count;
-};
-
-struct ObjectString {
-    Object object;
-    String *string;
-};
-
-struct Value {
-    enum ValueType is;
-    union {
-        bool b;
-        i64 i;
-        double f;
-        Object *o;
-        NativeFunction *n;
-    } as;
-};
-
 struct Local {
     Token name;
     int depth;
@@ -416,69 +386,11 @@ struct Script {
     usize variable_count;
 };
 
-struct ValueMapItem {
-    usize hash;
-    ObjectString *key;
-    Value value;
-    ValueMapItem *next;
-};
-
-struct ValueMap {
-    Object object;
-    unsigned int size;
-    unsigned int bins;
-    ValueMapItem **items;
-};
-
-struct ValuePool {
-    int count;
-    int capacity;
-    Value *values;
-};
-
-struct ByteCode {
-    int count;
-    int capacity;
-    u8 *instructions;
-    int *rows;
-    ValuePool constants;
-};
-
-struct Function {
-    Object object;
-    String *name;
-    int arity;
-    ByteCode code;
-};
-
-typedef Value (*NativeCall)(int count, Value *arguments);
-
-struct NativeFunction {
-    String *name;
-    NativeCall func;
-};
-
-struct Frame {
-    Function *func;
-    usize ip;
-    usize stack_top;
-};
-
-struct Machine {
-    Value stack[HYMN_STACK_MAX];
-    usize stack_top;
-    Frame frames[HYMN_FRAMES_MAX];
-    int frame_count;
-    ValueMap strings;
-    ValueMap globals;
-    String *error;
-};
-
 struct Scope {
     struct Scope *enclosing;
     Function *func;
     enum FunctionType type;
-    Local locals[UINT8_COUNT];
+    Local locals[HYMN_UINT8_COUNT];
     int local_count;
     int depth;
 };
@@ -588,40 +500,39 @@ static inline String *as_string(Value value) {
 }
 
 static inline Value new_array_object(Array *array) {
-    return (Value){.is = VALUE_ARRAY, .as = {.o = (Object *)array}};
+    return (Value){.is = HYMN_VALUE_ARRAY, .as = {.o = (Object *)array}};
 }
 
 static inline Value new_table_object(ValueMap *table) {
-    return (Value){.is = VALUE_TABLE, .as = {.o = (Object *)table}};
+    return (Value){.is = HYMN_VALUE_TABLE, .as = {.o = (Object *)table}};
 }
 
 static inline Value new_func_object(Function *func) {
-    return (Value){.is = VALUE_FUNC, .as = {.o = (Object *)func}};
+    return (Value){.is = HYMN_VALUE_FUNC, .as = {.o = (Object *)func}};
 }
 
 static inline Value new_string_object(ObjectString *string) {
-    return (Value){.is = VALUE_STRING, .as = {.o = (Object *)string}};
+    return (Value){.is = HYMN_VALUE_STRING, .as = {.o = (Object *)string}};
 }
 
 static inline ObjectString *new_object_from_string(String *string) {
-    ObjectString *object = safe_malloc(sizeof(ObjectString));
-    object->object.count = 0;
+    ObjectString *object = safe_calloc(1, sizeof(ObjectString));
     object->string = string;
     return object;
 }
 
-static const char *value_name(enum ValueType value) {
+static const char *value_name(enum HymnValueType value) {
     switch (value) {
-    case VALUE_UNDEFINED: return "UNDEFINED";
-    case VALUE_NONE: return "NONE";
-    case VALUE_BOOL: return "BOOLEAN";
-    case VALUE_INTEGER: return "INTEGER";
-    case VALUE_FLOAT: return "FLOAT";
-    case VALUE_STRING: return "STRING";
-    case VALUE_ARRAY: return "ARRAY";
-    case VALUE_TABLE: return "TABLE";
-    case VALUE_FUNC: return "FUNCTION";
-    case VALUE_FUNC_NATIVE: return "NATIVE_FUNCTION";
+    case HYMN_VALUE_UNDEFINED: return "UNDEFINED";
+    case HYMN_VALUE_NONE: return "NONE";
+    case HYMN_VALUE_BOOL: return "BOOLEAN";
+    case HYMN_VALUE_INTEGER: return "INTEGER";
+    case HYMN_VALUE_FLOAT: return "FLOAT";
+    case HYMN_VALUE_STRING: return "STRING";
+    case HYMN_VALUE_ARRAY: return "ARRAY";
+    case HYMN_VALUE_TABLE: return "TABLE";
+    case HYMN_VALUE_FUNC: return "FUNCTION";
+    case HYMN_VALUE_FUNC_NATIVE: return "NATIVE_FUNCTION";
     default: return "VALUE";
     }
 }
@@ -703,16 +614,16 @@ static String *debug_value_to_string(Value value) {
     String *string = new_string(value_name(value.is));
     string = string_append(string, ": ");
     switch (value.is) {
-    case VALUE_UNDEFINED: return string_append(string, "UNDEFINED"); break;
-    case VALUE_NONE: return string_append(string, "NONE"); break;
-    case VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
-    case VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
-    case VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
-    case VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value)); break;
-    case VALUE_ARRAY: return string_append_format(string, "[array %p]", as_array(value)); break;
-    case VALUE_TABLE: return string_append_format(string, "[table %p]", as_table(value)); break;
-    case VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
-    case VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name); break;
+    case HYMN_VALUE_UNDEFINED: return string_append(string, "UNDEFINED"); break;
+    case HYMN_VALUE_NONE: return string_append(string, "NONE"); break;
+    case HYMN_VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
+    case HYMN_VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
+    case HYMN_VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
+    case HYMN_VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value)); break;
+    case HYMN_VALUE_ARRAY: return string_append_format(string, "[%p]", as_array(value)); break;
+    case HYMN_VALUE_TABLE: return string_append_format(string, "[%p]", as_table(value)); break;
+    case HYMN_VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
+    case HYMN_VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name); break;
     default: return string_append_char(string, '?');
     }
 }
@@ -861,9 +772,10 @@ static Value map_remove(ValueMap *this, String *key) {
             } else {
                 previous->next = item->next;
             }
-            // TODO: MAYBE NEED TO FREE ITEM
+            Value value = item->value;
+            free(item);
             this->size -= 1;
-            return item->value;
+            return value;
         }
         previous = item;
         item = item->next;
@@ -872,12 +784,13 @@ static Value map_remove(ValueMap *this, String *key) {
 }
 
 static void map_clear(Machine *machine, ValueMap *this) {
+    printf("MAP CLEAR: [%p]\n", (void *)this);
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         ValueMapItem *item = this->items[i];
         while (item != NULL) {
+            printf("MAP DEREF ITEM: [%p]: ", (void *)item);
             ValueMapItem *next = item->next;
-            printf("MAP CLEAR: ");
             debug_value(item->value);
             printf("\n");
             dereference(machine, item->value);
@@ -887,6 +800,7 @@ static void map_clear(Machine *machine, ValueMap *this) {
         this->items[i] = NULL;
     }
     this->size = 0;
+    printf("END MAP CLEAR: [%p]\n", (void *)this);
 }
 
 static void map_release(Machine *machine, ValueMap *this) {
@@ -1319,17 +1233,17 @@ static bool match_values(Value a, Value b) {
         return false;
     }
     switch (a.is) {
-    case VALUE_UNDEFINED:
-    case VALUE_NONE: return true;
-    case VALUE_BOOL: return as_bool(a) == as_bool(b);
-    case VALUE_INTEGER: return as_int(a) == as_int(b);
-    case VALUE_FLOAT: return as_float(a) == as_float(b);
-    case VALUE_STRING:
-    case VALUE_ARRAY:
-    case VALUE_TABLE:
-    case VALUE_FUNC:
+    case HYMN_VALUE_UNDEFINED:
+    case HYMN_VALUE_NONE: return true;
+    case HYMN_VALUE_BOOL: return as_bool(a) == as_bool(b);
+    case HYMN_VALUE_INTEGER: return as_int(a) == as_int(b);
+    case HYMN_VALUE_FLOAT: return as_float(a) == as_float(b);
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
         return as_object(a) == as_object(b);
-    case VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
+    case HYMN_VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
     }
     return false;
 }
@@ -1363,9 +1277,8 @@ static void array_init(Array *this, i64 length) {
 }
 
 static Array *new_array_with_capacity(i64 length, i64 capacity) {
-    Array *this = safe_malloc(sizeof(Array));
+    Array *this = safe_calloc(1, sizeof(Array));
     array_init_with_capacity(this, length, capacity);
-    this->object.count = 0;
     return this;
 }
 
@@ -1376,7 +1289,7 @@ static Array *new_array(i64 length) {
 static Array *new_array_slice(Array *from, i64 start, i64 end) {
     usize length = end - start;
     usize size = length * sizeof(Value);
-    Array *this = safe_malloc(sizeof(Array));
+    Array *this = safe_calloc(1, sizeof(Array));
     this->items = safe_malloc(size);
     memcpy(this->items, &from->items[start], size);
     this->length = length;
@@ -1484,11 +1397,11 @@ static ValueMap *new_map() {
 static ValueMap *new_map_copy(ValueMap *from) {
     ValueMap *this = safe_calloc(1, sizeof(ValueMap));
     this->size = from->size;
-    this->bins = from->bins;
-    usize memory = this->bins * sizeof(ValueMapItem *);
+    unsigned int bins = from->bins;
+    this->bins = bins;
+    usize memory = bins * sizeof(ValueMapItem *);
     this->items = safe_malloc(memory);
     memcpy(this->items, from->items, memory);
-    unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         ValueMapItem *item = this->items[i];
         while (item != NULL) {
@@ -1808,6 +1721,7 @@ static void function_delete(Function *this) {
 }
 
 static void native_function_delete(NativeFunction *this) {
+    string_delete(this->name);
     free(this);
 }
 
@@ -1858,7 +1772,7 @@ static u8 ident_constant(Compiler *this, Token *token) {
 
 static void push_local(Compiler *this, Token name, bool constant) {
     Scope *scope = this->scope;
-    if (scope->local_count == UINT8_COUNT) {
+    if (scope->local_count == HYMN_UINT8_COUNT) {
         compile_error(this, &name, "Too many local variables in scope.");
         return;
     }
@@ -1904,7 +1818,7 @@ static void local_initialize(Compiler *this) {
 
 static u8 push_hidden_local(Compiler *this) {
     Scope *scope = this->scope;
-    if (scope->local_count == UINT8_COUNT) {
+    if (scope->local_count == HYMN_UINT8_COUNT) {
         compile_error(this, &this->alpha, "Too many local variables in scope.");
         return 0;
     }
@@ -2883,14 +2797,17 @@ static void machine_runtime_error(Machine *this, const char *format, ...) {
 
 static inline void debug_reference(Value value) {
     switch (value.is) {
-    case VALUE_STRING:
-    case VALUE_ARRAY:
-    case VALUE_TABLE:
-    case VALUE_FUNC:
-        printf("REF: %p: %d, ", (void *)as_object(value), as_object(value)->count);
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC: {
+        int count = as_object(value)->count;
+        printf("REF: [%p]: %d, ", (void *)as_object(value), count);
         debug_value(value);
         printf("\n");
+        assert(count >= 0);
         break;
+    }
     default:
         return;
     }
@@ -2898,10 +2815,10 @@ static inline void debug_reference(Value value) {
 
 static inline void reference(Value value) {
     switch (value.is) {
-    case VALUE_STRING:
-    case VALUE_ARRAY:
-    case VALUE_TABLE:
-    case VALUE_FUNC:
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
         as_object(value)->count++;
         debug_reference(value);
         break;
@@ -2912,7 +2829,7 @@ static inline void reference(Value value) {
 
 static inline void dereference(Machine *this, Value value) {
     switch (value.is) {
-    case VALUE_STRING: {
+    case HYMN_VALUE_STRING: {
         ObjectString *string = as_string_object(value);
         int count = --(string->object.count);
         if (!(count >= 0)) {
@@ -2922,20 +2839,20 @@ static inline void dereference(Machine *this, Value value) {
         }
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: %p: ", (void *)string);
+            printf("FREE: [%p]: ", (void *)string);
             debug_value(value);
-            printf("\nSTRING MAP REMOVE: %p\n", string->string);
+            printf("\nINTERN STRING REMOVE: [%p]\n", (void *)string);
             map_remove(&this->strings, string->string);
             string_delete(string->string);
             free(string);
         } else {
-            printf("DEREF: %p: %d, ", (void *)string, as_object(value)->count);
+            printf("DEREF: [%p]: %d, ", (void *)string, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
         break;
     }
-    case VALUE_ARRAY: {
+    case HYMN_VALUE_ARRAY: {
         Array *array = as_array(value);
         int count = --(array->object.count);
         if (!(count >= 0)) {
@@ -2945,19 +2862,19 @@ static inline void dereference(Machine *this, Value value) {
         }
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: %p: ", (void *)array);
+            printf("FREE: [%p]: ", (void *)array);
             debug_value(value);
             printf("\n");
 
             array_delete(this, array);
         } else {
-            printf("DEREF: %p: %d, ", (void *)array, as_object(value)->count);
+            printf("DEREF: [%p]: %d, ", (void *)array, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
         break;
     }
-    case VALUE_TABLE: {
+    case HYMN_VALUE_TABLE: {
         ValueMap *table = as_table(value);
         int count = --(table->object.count);
         if (!(count >= 0)) {
@@ -2967,30 +2884,30 @@ static inline void dereference(Machine *this, Value value) {
         }
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: %p: ", (void *)table);
+            printf("FREE: [%p]: ", (void *)table);
             debug_value(value);
             printf("\n");
 
             map_delete(this, table);
         } else {
-            printf("DEREF: %p: %d, ", (void *)table, as_object(value)->count);
+            printf("DEREF: [%p]: %d, ", (void *)table, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
         break;
     }
-    case VALUE_FUNC: {
+    case HYMN_VALUE_FUNC: {
         Function *func = as_func(value);
         int count = --(func->object.count);
         assert(count >= 0);
         if (count == 0) {
-            printf("FREE: %p: ", (void *)func);
+            printf("FREE: [%p]: ", (void *)func);
             debug_value(value);
             printf("\n");
 
             function_delete(func);
         } else {
-            printf("DEREF: %p: %d, ", (void *)func, as_object(value)->count);
+            printf("DEREF: [%p]: %d, ", (void *)func, as_object(value)->count);
             debug_value(value);
             printf("\n");
         }
@@ -3024,31 +2941,31 @@ static Value machine_pop(Machine *this) {
 
 static bool machine_equal(Value a, Value b) {
     switch (a.is) {
-    case VALUE_NONE: return is_none(b);
-    case VALUE_BOOL: return is_bool(b) ? as_bool(a) == as_bool(b) : false;
-    case VALUE_INTEGER:
+    case HYMN_VALUE_NONE: return is_none(b);
+    case HYMN_VALUE_BOOL: return is_bool(b) ? as_bool(a) == as_bool(b) : false;
+    case HYMN_VALUE_INTEGER:
         switch (b.is) {
-        case VALUE_INTEGER: return as_int(a) == as_int(b);
-        case VALUE_FLOAT: return (double)as_int(a) == as_float(b);
+        case HYMN_VALUE_INTEGER: return as_int(a) == as_int(b);
+        case HYMN_VALUE_FLOAT: return (double)as_int(a) == as_float(b);
         default: return false;
         }
-    case VALUE_FLOAT:
+    case HYMN_VALUE_FLOAT:
         switch (b.is) {
-        case VALUE_INTEGER: return as_float(a) == (double)as_int(b);
-        case VALUE_FLOAT: return as_float(a) == as_float(b);
+        case HYMN_VALUE_INTEGER: return as_float(a) == (double)as_int(b);
+        case HYMN_VALUE_FLOAT: return as_float(a) == as_float(b);
         default: return false;
         }
-    case VALUE_STRING:
-    case VALUE_ARRAY:
-    case VALUE_TABLE:
-    case VALUE_FUNC:
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
         if (b.is == a.is) {
             return as_object(a) == as_object(b);
         }
         return false;
-    case VALUE_FUNC_NATIVE:
+    case HYMN_VALUE_FUNC_NATIVE:
         switch (b.is) {
-        case VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
+        case HYMN_VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
         default: return false;
         }
     default: return false;
@@ -3057,15 +2974,15 @@ static bool machine_equal(Value a, Value b) {
 
 static bool machine_false(Value value) {
     switch (value.is) {
-    case VALUE_NONE: return true;
-    case VALUE_BOOL: return !as_bool(value);
-    case VALUE_INTEGER: return as_int(value) == 0;
-    case VALUE_FLOAT: return as_float(value) == 0.0;
-    case VALUE_STRING: return string_len(as_string(value)) == 0;
-    case VALUE_ARRAY: return as_array(value) == NULL;
-    case VALUE_TABLE: return as_table(value) == NULL;
-    case VALUE_FUNC: return as_func(value) == NULL;
-    case VALUE_FUNC_NATIVE: return as_native(value) == NULL;
+    case HYMN_VALUE_NONE: return true;
+    case HYMN_VALUE_BOOL: return !as_bool(value);
+    case HYMN_VALUE_INTEGER: return as_int(value) == 0;
+    case HYMN_VALUE_FLOAT: return as_float(value) == 0.0;
+    case HYMN_VALUE_STRING: return string_len(as_string(value)) == 0;
+    case HYMN_VALUE_ARRAY: return as_array(value) == NULL;
+    case HYMN_VALUE_TABLE: return as_table(value) == NULL;
+    case HYMN_VALUE_FUNC: return as_func(value) == NULL;
+    case HYMN_VALUE_FUNC_NATIVE: return as_native(value) == NULL;
     default: return false;
     }
 }
@@ -3091,9 +3008,9 @@ static bool machine_call(Machine *this, Function *func, int count) {
 
 static bool machine_call_value(Machine *this, Value call, int count) {
     switch (call.is) {
-    case VALUE_FUNC:
+    case HYMN_VALUE_FUNC:
         return machine_call(this, as_func(call), count);
-    case VALUE_FUNC_NATIVE: {
+    case HYMN_VALUE_FUNC_NATIVE: {
         NativeCall func = as_native(call)->func;
         Value result = func(count, &this->stack[this->stack_top - count]);
         this->stack_top -= count + 1;
@@ -3314,47 +3231,47 @@ static void machine_run(Machine *this) {
                 String *s = as_string(a);
                 String *add = NULL;
                 switch (b.is) {
-                case VALUE_NONE:
+                case HYMN_VALUE_NONE:
                     add = string_append(string_copy(s), STRING_NONE);
                     break;
-                case VALUE_BOOL:
+                case HYMN_VALUE_BOOL:
                     add = string_append(string_copy(s), as_bool(b) ? STRING_TRUE : STRING_FALSE);
                     break;
-                case VALUE_INTEGER: {
+                case HYMN_VALUE_INTEGER: {
                     String *temp = int64_to_string(as_int(b));
                     add = string_concat(s, temp);
                     string_delete(temp);
                     break;
                 }
-                case VALUE_FLOAT: {
+                case HYMN_VALUE_FLOAT: {
                     String *temp = float64_to_string(as_float(b));
                     add = string_concat(s, temp);
                     string_delete(temp);
                     break;
                 }
-                case VALUE_STRING:
+                case HYMN_VALUE_STRING:
                     add = string_concat(s, as_string(b));
                     break;
-                case VALUE_ARRAY: {
-                    String *temp = new_string("[array ");
+                case HYMN_VALUE_ARRAY: {
+                    String *temp = new_string("[");
                     temp = string_append(temp, pointer_to_string(as_array(b)));
                     temp = string_append_char(temp, ']');
                     add = string_concat(s, temp);
                     string_delete(temp);
                     break;
                 }
-                case VALUE_TABLE: {
-                    String *temp = new_string("[table ");
+                case HYMN_VALUE_TABLE: {
+                    String *temp = new_string("[");
                     temp = string_append(temp, pointer_to_string(as_table(b)));
                     temp = string_append_char(temp, ']');
                     add = string_concat(s, temp);
                     string_delete(temp);
                     break;
                 }
-                case VALUE_FUNC:
+                case HYMN_VALUE_FUNC:
                     add = string_concat(s, as_func(b)->name);
                     break;
-                case VALUE_FUNC_NATIVE:
+                case HYMN_VALUE_FUNC_NATIVE:
                     add = string_concat(s, as_native(b)->name);
                     break;
                 default:
@@ -3490,42 +3407,41 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_SET_PROPERTY: {
-            Value value = machine_pop(this);
-            Value var = machine_pop(this);
-            if (!is_table(var)) {
+            Value p = machine_pop(this);
+            Value v = machine_pop(this);
+            if (!is_table(v)) {
                 machine_runtime_error(this, "Only tables can set properties.");
                 return;
             }
-            ValueMap *table = as_table(var);
+            ValueMap *table = as_table(v);
             ObjectString *name = as_string_object(read_constant(frame));
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
             Value previous = map_get(table, name->string);
             if (!is_undefined(previous)) {
                 dereference(this, previous);
             }
-            map_put(table, name, value);
-            reference(value);
-            dereference(this, var);
-            machine_push(this, value);
+            map_put(table, name, p);
+            reference(p);
+            dereference(this, v);
+            machine_push(this, p);
             break;
         }
         case OP_GET_PROPERTY: {
-            Value var = machine_pop(this);
-            // Value var = machine_peek(this, 1);
-            if (!is_table(var)) {
+            Value v = machine_pop(this);
+            if (!is_table(v)) {
                 machine_runtime_error(this, "Only tables can get properties.");
                 return;
             }
-            ValueMap *table = as_table(var);
+            ValueMap *table = as_table(v);
             String *name = as_string(read_constant(frame));
-            Value value = map_get(table, name);
-            if (is_undefined(value)) {
-                value.is = VALUE_NONE;
+            Value g = map_get(table, name);
+            if (is_undefined(g)) {
+                g.is = HYMN_VALUE_NONE;
+            } else {
+                reference(g);
             }
-            // machine_pop(this);
-            dereference(this, var);
-            reference(value);
-            machine_push(this, value);
+            dereference(this, v);
+            machine_push(this, g);
             break;
         }
         case OP_SET_DYNAMIC: {
@@ -3579,7 +3495,7 @@ static void machine_run(Machine *this) {
             Value i = machine_pop(this);
             Value v = machine_pop(this);
             switch (v.is) {
-            case VALUE_STRING: {
+            case HYMN_VALUE_STRING: {
                 if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to get string character from index.");
                     return;
@@ -3603,7 +3519,7 @@ static void machine_run(Machine *this) {
                 dereference(this, v);
                 break;
             }
-            case VALUE_ARRAY: {
+            case HYMN_VALUE_ARRAY: {
                 if (!is_int(i)) {
                     machine_runtime_error(this, "Integer required to get array index.");
                     return;
@@ -3628,7 +3544,7 @@ static void machine_run(Machine *this) {
                 dereference(this, v);
                 break;
             }
-            case VALUE_TABLE: {
+            case HYMN_VALUE_TABLE: {
                 if (!is_string(i)) {
                     machine_runtime_error(this, "String required to get table property.");
                     return;
@@ -3637,7 +3553,7 @@ static void machine_run(Machine *this) {
                 String *name = as_string(i);
                 Value g = map_get(table, name);
                 if (is_undefined(g)) {
-                    g.is = VALUE_NONE;
+                    g.is = HYMN_VALUE_NONE;
                 } else {
                     reference(g);
                 }
@@ -3655,17 +3571,17 @@ static void machine_run(Machine *this) {
         case OP_LEN: {
             Value value = machine_pop(this);
             switch (value.is) {
-            case VALUE_STRING: {
+            case HYMN_VALUE_STRING: {
                 i64 len = (i64)string_len(as_string(value));
                 machine_push(this, new_int(len));
                 break;
             }
-            case VALUE_ARRAY: {
+            case HYMN_VALUE_ARRAY: {
                 i64 len = as_array(value)->length;
                 machine_push(this, new_int(len));
                 break;
             }
-            case VALUE_TABLE: {
+            case HYMN_VALUE_TABLE: {
                 i64 len = (i64)as_table(value)->size;
                 machine_push(this, new_int(len));
                 break;
@@ -3772,7 +3688,7 @@ static void machine_run(Machine *this) {
                 ValueMap *table = as_table(v);
                 Value value = map_remove(table, key);
                 if (is_undefined(value)) {
-                    value.is = VALUE_NONE;
+                    value.is = HYMN_VALUE_NONE;
                 }
                 machine_push(this, value);
                 dereference(this, i);
@@ -3786,16 +3702,16 @@ static void machine_run(Machine *this) {
         case OP_COPY: {
             Value value = machine_pop(this);
             switch (value.is) {
-            case VALUE_NONE:
-            case VALUE_BOOL:
-            case VALUE_INTEGER:
-            case VALUE_FLOAT:
-            case VALUE_STRING:
-            case VALUE_FUNC:
-            case VALUE_FUNC_NATIVE:
+            case HYMN_VALUE_NONE:
+            case HYMN_VALUE_BOOL:
+            case HYMN_VALUE_INTEGER:
+            case HYMN_VALUE_FLOAT:
+            case HYMN_VALUE_STRING:
+            case HYMN_VALUE_FUNC:
+            case HYMN_VALUE_FUNC_NATIVE:
                 machine_push(this, value);
                 break;
-            case VALUE_ARRAY: {
+            case HYMN_VALUE_ARRAY: {
                 Array *copy = new_array_copy(as_array(value));
                 Value new = new_array_object(copy);
                 machine_push(this, new);
@@ -3803,7 +3719,7 @@ static void machine_run(Machine *this) {
                 dereference(this, value);
                 break;
             }
-            case VALUE_TABLE: {
+            case HYMN_VALUE_TABLE: {
                 ValueMap *copy = new_map_copy(as_table(value));
                 Value new = new_table_object(copy);
                 machine_push(this, new);
@@ -3896,34 +3812,34 @@ static void machine_run(Machine *this) {
         case OP_CLEAR: {
             Value value = machine_pop(this);
             switch (value.is) {
-            case VALUE_BOOL:
+            case HYMN_VALUE_BOOL:
                 machine_push(this, new_bool(false));
                 break;
-            case VALUE_INTEGER:
+            case HYMN_VALUE_INTEGER:
                 machine_push(this, new_int(0));
                 break;
-            case VALUE_FLOAT:
+            case HYMN_VALUE_FLOAT:
                 machine_push(this, new_float(0.0f));
                 break;
-            case VALUE_STRING:
+            case HYMN_VALUE_STRING:
                 machine_push(this, machine_intern_string(this, new_string("")));
                 break;
-            case VALUE_ARRAY: {
+            case HYMN_VALUE_ARRAY: {
                 Array *array = as_array(value);
                 array_clear(this, array);
                 machine_push(this, value);
                 break;
             }
-            case VALUE_TABLE: {
+            case HYMN_VALUE_TABLE: {
                 ValueMap *table = as_table(value);
                 map_clear(this, table);
                 machine_push(this, value);
                 break;
             }
-            case VALUE_UNDEFINED:
-            case VALUE_NONE:
-            case VALUE_FUNC:
-            case VALUE_FUNC_NATIVE:
+            case HYMN_VALUE_UNDEFINED:
+            case HYMN_VALUE_NONE:
+            case HYMN_VALUE_FUNC:
+            case HYMN_VALUE_FUNC_NATIVE:
                 machine_push(this, new_none());
                 break;
             }
@@ -3947,7 +3863,7 @@ static void machine_run(Machine *this) {
             Value b = machine_pop(this);
             Value a = machine_pop(this);
             switch (a.is) {
-            case VALUE_STRING: {
+            case HYMN_VALUE_STRING: {
                 if (!is_string(b)) {
                     machine_runtime_error(this, "Index function requires a string.");
                     return;
@@ -3963,12 +3879,12 @@ static void machine_run(Machine *this) {
                 dereference(this, b);
                 break;
             }
-            case VALUE_ARRAY:
+            case HYMN_VALUE_ARRAY:
                 machine_push(this, new_int(array_index_of(as_array(a), b)));
                 dereference(this, a);
                 dereference(this, b);
                 break;
-            case VALUE_TABLE: {
+            case HYMN_VALUE_TABLE: {
                 ObjectString *key = map_key_of(as_table(a), b);
                 if (key == NULL) {
                     machine_push(this, new_none());
@@ -3988,35 +3904,35 @@ static void machine_run(Machine *this) {
         case OP_TYPE: {
             Value value = machine_pop(this);
             switch (value.is) {
-            case VALUE_NONE:
+            case HYMN_VALUE_NONE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_NONE)));
                 break;
-            case VALUE_BOOL:
+            case HYMN_VALUE_BOOL:
                 machine_push(this, machine_intern_string(this, new_string(STRING_BOOL)));
                 break;
-            case VALUE_INTEGER:
+            case HYMN_VALUE_INTEGER:
                 machine_push(this, machine_intern_string(this, new_string(STRING_INTEGER)));
                 break;
-            case VALUE_FLOAT:
+            case HYMN_VALUE_FLOAT:
                 machine_push(this, machine_intern_string(this, new_string(STRING_FLOAT)));
                 break;
-            case VALUE_STRING:
+            case HYMN_VALUE_STRING:
                 machine_push(this, machine_intern_string(this, new_string(STRING_STRING)));
                 dereference(this, value);
                 break;
-            case VALUE_ARRAY:
+            case HYMN_VALUE_ARRAY:
                 machine_push(this, machine_intern_string(this, new_string(STRING_ARRAY)));
                 dereference(this, value);
                 break;
-            case VALUE_TABLE:
+            case HYMN_VALUE_TABLE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_TABLE)));
                 dereference(this, value);
                 break;
-            case VALUE_FUNC:
+            case HYMN_VALUE_FUNC:
                 machine_push(this, machine_intern_string(this, new_string(STRING_FUNC)));
                 dereference(this, value);
                 break;
-            case VALUE_FUNC_NATIVE:
+            case HYMN_VALUE_FUNC_NATIVE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_NATIVE)));
                 break;
             default:
@@ -4053,35 +3969,35 @@ static void machine_run(Machine *this) {
         case OP_TO_STRING: {
             Value value = machine_pop(this);
             switch (value.is) {
-            case VALUE_UNDEFINED:
-            case VALUE_NONE:
+            case HYMN_VALUE_UNDEFINED:
+            case HYMN_VALUE_NONE:
                 machine_push(this, machine_intern_string(this, new_string(STRING_NONE)));
                 break;
-            case VALUE_BOOL:
+            case HYMN_VALUE_BOOL:
                 machine_push(this, machine_intern_string(this, as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE)));
                 break;
-            case VALUE_INTEGER:
+            case HYMN_VALUE_INTEGER:
                 machine_push(this, machine_intern_string(this, int64_to_string(as_int(value))));
                 break;
-            case VALUE_FLOAT:
+            case HYMN_VALUE_FLOAT:
                 machine_push(this, machine_intern_string(this, float64_to_string(as_float(value))));
                 break;
-            case VALUE_STRING:
+            case HYMN_VALUE_STRING:
                 machine_push(this, value);
                 break;
-            case VALUE_ARRAY:
+            case HYMN_VALUE_ARRAY:
                 machine_push(this, machine_intern_string(this, string_format("[array %p]", as_array(value))));
                 dereference(this, value);
                 break;
-            case VALUE_TABLE:
+            case HYMN_VALUE_TABLE:
                 machine_push(this, machine_intern_string(this, string_format("[table %p]", as_table(value))));
                 dereference(this, value);
                 break;
-            case VALUE_FUNC:
+            case HYMN_VALUE_FUNC:
                 machine_push(this, machine_intern_string(this, as_func(value)->name));
                 dereference(this, value);
                 break;
-            case VALUE_FUNC_NATIVE:
+            case HYMN_VALUE_FUNC_NATIVE:
                 machine_push(this, machine_intern_string(this, as_native(value)->name));
                 break;
             }
@@ -4090,36 +4006,36 @@ static void machine_run(Machine *this) {
         case OP_PRINT: {
             Value value = machine_pop(this);
             switch (value.is) {
-            case VALUE_UNDEFINED:
-            case VALUE_NONE:
+            case HYMN_VALUE_UNDEFINED:
+            case HYMN_VALUE_NONE:
                 printf("%s\n", STRING_NONE);
                 break;
-            case VALUE_BOOL:
+            case HYMN_VALUE_BOOL:
                 printf("%s\n", as_bool(value) ? STRING_TRUE : STRING_FALSE);
                 break;
-            case VALUE_INTEGER:
+            case HYMN_VALUE_INTEGER:
                 printf("%" PRId64 "\n", as_int(value));
                 break;
-            case VALUE_FLOAT:
+            case HYMN_VALUE_FLOAT:
                 printf("%g\n", as_float(value));
                 break;
-            case VALUE_STRING:
+            case HYMN_VALUE_STRING:
                 printf("%s\n", as_string(value));
                 dereference(this, value);
                 break;
-            case VALUE_ARRAY:
+            case HYMN_VALUE_ARRAY:
                 printf("[array %p]\n", (void *)as_array(value));
                 dereference(this, value);
                 break;
-            case VALUE_TABLE:
+            case HYMN_VALUE_TABLE:
                 printf("[table %p]\n", (void *)as_table(value));
                 dereference(this, value);
                 break;
-            case VALUE_FUNC:
+            case HYMN_VALUE_FUNC:
                 printf("%s\n", as_func(value)->name);
                 dereference(this, value);
                 break;
-            case VALUE_FUNC_NATIVE:
+            case HYMN_VALUE_FUNC_NATIVE:
                 printf("%s\n", as_native(value)->name);
                 break;
             }
@@ -4152,7 +4068,71 @@ static char *machine_interpret(Machine *this) {
     return error;
 }
 
-static void add_native_func(Machine *this, const char *name, NativeCall func) {
+Hymn *new_hymn() {
+    Hymn *this = safe_calloc(1, sizeof(Hymn));
+    machine_reset_stack(this);
+    map_init(&this->strings);
+    map_init(&this->globals);
+    return this;
+}
+
+void hymn_delete(Hymn *this) {
+    printf("MACHINE DELETE\n");
+    {
+        printf("MACHINE FREE NATIVE\n");
+        ValueMap *globals = &this->globals;
+        unsigned int bins = globals->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            ValueMapItem *item = globals->items[i];
+            ValueMapItem *previous = NULL;
+            while (item != NULL) {
+                ValueMapItem *next = item->next;
+                if (is_native(item->value)) {
+                    printf("FREE NATIVE: ");
+                    debug_value(item->value);
+                    printf("\n");
+                    if (previous == NULL) {
+                        globals->items[i] = next;
+                    } else {
+                        previous->next = next;
+                    }
+                    native_function_delete(as_native(item->value));
+                    free(item);
+                    globals->size -= 1;
+                } else {
+                    previous = item;
+                }
+                item = next;
+            }
+        }
+        printf("MACHINE RELEASE GLOBALS\n");
+        map_release(this, &this->globals);
+        assert(this->globals.size == 0);
+    }
+
+    {
+        printf("MACHINE RELEASE STRINGS\n");
+        ValueMap *strings = &this->strings;
+        unsigned int bins = strings->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            ValueMapItem *item = strings->items[i];
+            while (item != NULL) {
+                ValueMapItem *next = item->next;
+                dereference(this, item->value);
+                item = next;
+            }
+        }
+        free(strings->items);
+        assert(strings->size == 0);
+    }
+
+    string_delete(this->error);
+    printf("END MACHINE DELETE\n");
+
+    free(this);
+}
+
+void hymn_add_function(Hymn *this, const char *name, NativeCall func) {
     Value intern = machine_intern_string(this, new_string(name));
     ObjectString *key = as_string_object(intern);
     String *copy = string_copy(key->string);
@@ -4160,61 +4140,9 @@ static void add_native_func(Machine *this, const char *name, NativeCall func) {
     map_put(&this->globals, key, new_native(value));
 }
 
-static inline Machine new_machine() {
-    Machine this = {0};
-    machine_reset_stack(&this);
-    map_init(&this.strings);
-    map_init(&this.globals);
-    return this;
-}
-
-static void machine_delete(Machine *this) {
-    map_release(this, &this->globals);
-    assert(this->globals.size == 0);
-
-    ValueMap *strings = &this->strings;
-    unsigned int bins = strings->bins;
-    for (unsigned int i = 0; i < bins; i++) {
-        ValueMapItem *item = strings->items[i];
-        while (item != NULL) {
-            ValueMapItem *next = item->next;
-            printf("STRING CLEAR: ");
-            debug_value(item->value);
-            printf("\n");
-            dereference(this, item->value);
-            item = next;
-        }
-    }
-    assert(strings->size == 0);
-    free(strings->items);
-
-    string_delete(this->error);
-}
-
-Hymn *new_hymn() {
-    Hymn *this = safe_calloc(1, sizeof(Hymn));
-    return this;
-}
-
-static Value temp_native_test(int count, Value *arguments) {
-    if (count == 0) {
-        return new_none();
-    }
-    i64 i = as_int(arguments[0]) + 1;
-    return new_int(i);
-}
-
 char *hymn_eval(Hymn *this, char *source) {
-    (void)this;
-
-    Machine m = new_machine();
-    Machine *machine = &m;
-
-    add_native_func(machine, "inc", temp_native_test);
-
     char *error = NULL;
-
-    Function *func = compile(machine, source, &error);
+    Function *func = compile(this, source, &error);
     if (error) {
         return error;
     }
@@ -4223,17 +4151,15 @@ char *hymn_eval(Hymn *this, char *source) {
     disassemble_byte_code(&func->code, "<script>");
 #endif
 
-    machine_push(machine, new_func_object(func));
-    machine_call(machine, func, 0);
+    machine_push(this, new_func_object(func));
+    machine_call(this, func, 0);
 
-    error = machine_interpret(machine);
+    error = machine_interpret(this);
     if (error) {
         return error;
     }
 
-    machine_reset_stack(machine);
-
-    machine_delete(machine);
+    machine_reset_stack(this);
     return error;
 }
 
@@ -4251,9 +4177,6 @@ char *hymn_repl(Hymn *this) {
     char input[1024];
     char *error = NULL;
 
-    Machine m = new_machine();
-    Machine *machine = &m;
-
     while (true) {
         printf("> ");
         if (!fgets(input, sizeof(input), stdin)) {
@@ -4261,30 +4184,23 @@ char *hymn_repl(Hymn *this) {
             break;
         }
 
-        Function *func = compile(machine, input, &error);
+        Function *func = compile(this, input, &error);
         if (error) {
             break;
         }
 
-        machine_push(machine, new_func_object(func));
-        machine_call(machine, func, 0);
+        machine_push(this, new_func_object(func));
+        machine_call(this, func, 0);
 
-        error = machine_interpret(machine);
+        error = machine_interpret(this);
         if (error) {
             return error;
         }
 
-        machine_reset_stack(machine);
+        machine_reset_stack(this);
     }
 
-    machine_delete(machine);
     return error;
-}
-
-void hymn_add_func(Hymn *this, char *name, char *(*func)(Hymn *)) {
-    (void)this;
-    (void)name;
-    (void)func;
 }
 
 void hymn_add_pointer(Hymn *this, char *name, void *pointer) {
@@ -4293,9 +4209,9 @@ void hymn_add_pointer(Hymn *this, char *name, void *pointer) {
     (void)pointer;
 }
 
-char *hymn_call(Hymn *this, char *name) {
+char *hymn_call(Hymn *this, char *function) {
     (void)this;
-    (void)name;
+    (void)function;
     return NULL;
 }
 
@@ -4339,8 +4255,4 @@ f64 hymn_f64(Hymn *this, i32 index) {
     (void)this;
     (void)index;
     return 0.0;
-}
-
-void hymn_delete(Hymn *this) {
-    free(this);
 }
