@@ -23,9 +23,14 @@ static char *test_switch() {
     return test("test/scripts/switch.hm");
 }
 
+static char *test_functions() {
+    return test("test/scripts/functions.hm");
+}
+
 char *test_hymn_all() {
     TEST(test_if);
     TEST(test_break);
     TEST(test_switch);
+    TEST(test_functions);
     return NULL;
 }

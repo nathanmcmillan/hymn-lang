@@ -13,15 +13,17 @@ function last_index(array, value)
 end
 
 function upper(s)
-  new = ""
+  let new = ""
   let size = len(s)
-  let i = 0
-  while i < size
+  for let i = 0; i < size; i = i + 1
     let c = s[i]
-    if c == 'a' c = 'A'
-    elif c == 'b' c = 'B'
+    switch c
+    case 'a' c = 'A'
+    case 'b' c = 'B'
+    case 'f' c = 'F'
+    case 'o' c = 'O'
     end
-    push(new, c)
+    new = new + c
   end
   return new
 end
@@ -39,4 +41,8 @@ end
 function max(a, b)
   if a > b return a end
   return b
+end
+
+function clamp(n, a, b)
+  return min(max(n, a), b)
 end

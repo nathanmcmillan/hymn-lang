@@ -2180,7 +2180,7 @@ static void switch_statement(Compiler *this) {
 
         if (match(this, TOKEN_OR)) {
             body = safe_calloc(1, sizeof(struct JumpList));
-            struct JumpList *tail = body;
+            struct JumpList *link = body;
             body->jump = emit_jump(this, OP_JUMP_IF_TRUE);
             emit(this, OP_POP);
 
@@ -2196,8 +2196,8 @@ static void switch_statement(Compiler *this) {
                     next->jump = emit_jump(this, OP_JUMP_IF_TRUE);
                     emit(this, OP_POP);
 
-                    tail->next = next;
-                    tail = next;
+                    link->next = next;
+                    link = next;
                 } else {
                     break;
                 }
@@ -3025,7 +3025,7 @@ static bool machine_call(Machine *this, Function *func, int count) {
     Frame *frame = &this->frames[this->frame_count++];
     frame->func = func;
     frame->ip = 0;
-    frame->stack_top = this->stack_top - count - 1;
+    frame->stack = this->stack_top - count - 1;
 
     return true;
 }
@@ -3038,6 +3038,7 @@ static bool machine_call_value(Machine *this, Value call, int count) {
         NativeCall func = as_native(call)->func;
         Value result = func(count, &this->stack[this->stack_top - count]);
         this->stack_top -= count + 1;
+        reference(result);
         machine_push(this, result);
         return true;
     }
@@ -3099,7 +3100,6 @@ static void machine_run(Machine *this) {
                     }
                 }
                 for (usize i = 0; i < this->stack_top; i++) {
-                    // debug = string_append_format(debug, "[%zu: ", i);
                     debug = string_append_char(debug, '[');
                     String *stack_debug = debug_value_to_string(this->stack[i]);
                     debug = string_append(debug, stack_debug);
@@ -3119,10 +3119,9 @@ static void machine_run(Machine *this) {
             this->frame_count--;
             if (this->frame_count == 0 or frame->func->name == NULL) {
                 dereference(this, machine_pop(this));
-                assert(this->stack_top == 0);
                 return;
             }
-            this->stack_top = frame->stack_top;
+            this->stack_top = frame->stack;
             machine_push(this, result);
             frame = &this->frames[this->frame_count - 1];
             break;
@@ -3141,8 +3140,8 @@ static void machine_run(Machine *this) {
             break;
         case OP_CALL: {
             int count = read_byte(frame);
-            Value value = machine_peek(this, count + 1);
-            if (!machine_call_value(this, value, count)) {
+            Value call = machine_peek(this, count + 1);
+            if (!machine_call_value(this, call, count)) {
                 return;
             }
             frame = &this->frames[this->frame_count - 1];
@@ -3428,12 +3427,12 @@ static void machine_run(Machine *this) {
         }
         case OP_SET_LOCAL: {
             u8 slot = read_byte(frame);
-            this->stack[slot] = machine_peek(this, 1);
+            this->stack[frame->stack + slot] = machine_peek(this, 1);
             break;
         }
         case OP_GET_LOCAL: {
             u8 slot = read_byte(frame);
-            Value value = this->stack[slot];
+            Value value = this->stack[frame->stack + slot];
             reference(value);
             machine_push(this, value);
             break;
@@ -3637,16 +3636,16 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_ARRAY_PUSH: {
-            Value value = machine_pop(this);
-            Value array = machine_pop(this);
-            if (!is_array(array)) {
+            Value v = machine_pop(this);
+            Value a = machine_pop(this);
+            if (!is_array(a)) {
                 machine_runtime_error(this, "Expected array for push function.");
                 return;
             }
-            array_push(as_array(array), value);
-            machine_push(this, value);
-            reference(value);
-            dereference(this, array);
+            array_push(as_array(a), v);
+            machine_push(this, v);
+            reference(v);
+            dereference(this, a);
             break;
         }
         case OP_ARRAY_INSERT: {
@@ -4077,6 +4076,7 @@ static void machine_run(Machine *this) {
             Value file = machine_pop(this);
             if (is_string(file)) {
                 machine_import(this, as_string(file));
+                dereference(this, file);
                 break;
             } else {
                 machine_runtime_error(this, "Use requires a string.");

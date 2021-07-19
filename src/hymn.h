@@ -136,7 +136,7 @@ struct HymnFunction {
 struct HymnFrame {
     HymnFunction *func;
     usize ip;
-    usize stack_top;
+    usize stack;
 };
 
 struct Hymn {
