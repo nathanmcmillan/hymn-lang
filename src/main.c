@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
     }
 
     hymn_delete(hymn);
+    LOG("END PROGRAM");
 
     return 0;
 }

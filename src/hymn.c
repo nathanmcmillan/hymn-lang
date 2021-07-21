@@ -620,7 +620,7 @@ static String *debug_value_to_string(Value value) {
     case HYMN_VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
     case HYMN_VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
     case HYMN_VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
-    case HYMN_VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value)); break;
+    case HYMN_VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value));
     case HYMN_VALUE_ARRAY: return string_append_format(string, "[%p]", as_array(value)); break;
     case HYMN_VALUE_TABLE: return string_append_format(string, "[%p]", as_table(value)); break;
     case HYMN_VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
@@ -633,6 +633,12 @@ static void debug_value(Value value) {
     String *string = debug_value_to_string(value);
     printf("%s", string);
     string_delete(string);
+}
+
+static void debug_value_message(const char *prefix, Value value) {
+    printf(prefix);
+    debug_value(value);
+    printf("\n");
 }
 
 static usize string_hashcode(String *key) {
@@ -1247,7 +1253,6 @@ static bool match_values(Value a, Value b) {
 static Function *new_function() {
     Function *func = safe_calloc(1, sizeof(Function));
     byte_code_init(&func->code);
-    func->object.count = 1;
     return func;
 }
 
@@ -1370,9 +1375,6 @@ static void array_clear(Machine *machine, Array *this) {
     i64 len = this->length;
     Value *items = this->items;
     for (i64 i = 0; i < len; i++) {
-        printf("ARRAY CLEAR: ");
-        debug_value(items[i]);
-        printf("\n");
         dereference(machine, items[i]);
     }
     this->length = 0;
@@ -1553,22 +1555,40 @@ static void write_two_op(ByteCode *this, u8 b, u8 n, int row) {
     this->count = count + 2;
 }
 
-static void write_constant(ByteCode *this, Value value, int row) {
-    u8 constant = (u8)byte_code_add_constant(this, value);
-    write_two_op(this, OP_CONSTANT, constant, row);
+static void write_constant(Compiler *this, Value value, int row) {
+    int constant = byte_code_add_constant(current(this), value);
+    if (constant > UINT8_MAX) {
+        compile_error(this, &this->alpha, "Too many constants.");
+        constant = 0;
+    }
+    write_two_op(current(this), OP_CONSTANT, (u8)constant, row);
 }
 
 static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
+static inline Value machine_put_string(Machine *this, String *string) {
+    ObjectString *object = new_object_from_string(string);
+    Value value = new_string_object(object);
+    map_put(&this->strings, object, value);
+    return value;
+}
+
 static Value machine_intern_string(Machine *this, String *string) {
     Value exists = map_get(&this->strings, string);
     if (is_undefined(exists)) {
-        ObjectString *object = new_object_from_string(string);
-        Value value = new_string_object(object);
+        return machine_put_string(this, string);
+    }
+    string_delete(string);
+    return exists;
+}
+
+static Value compile_intern_string(Machine *this, String *string) {
+    Value exists = map_get(&this->strings, string);
+    if (is_undefined(exists)) {
+        Value value = machine_put_string(this, string);
         reference(value);
-        map_put(&this->strings, object, value);
         return value;
     }
     string_delete(string);
@@ -1674,21 +1694,21 @@ static void compile_integer(Compiler *this, bool assign) {
     (void)assign;
     Token *alpha = &this->alpha;
     i64 number = (i64)strtoll(&this->source[alpha->start], NULL, 10);
-    write_constant(current(this), new_int(number), alpha->row);
+    write_constant(this, new_int(number), alpha->row);
 }
 
 static void compile_float(Compiler *this, bool assign) {
     (void)assign;
     Token *alpha = &this->alpha;
     double number = strtod(&this->source[alpha->start], NULL);
-    write_constant(current(this), new_float(number), alpha->row);
+    write_constant(this, new_float(number), alpha->row);
 }
 
 static void compile_string(Compiler *this, bool assign) {
     (void)assign;
     Token *alpha = &this->alpha;
     String *s = new_string_from_substring(this->source, alpha->start, alpha->start + alpha->length);
-    write_constant(current(this), machine_intern_string(this->machine, s), alpha->row);
+    write_constant(this, compile_intern_string(this->machine, s), alpha->row);
 }
 
 static void compile_array(Compiler *this, bool assign) {
@@ -1696,7 +1716,7 @@ static void compile_array(Compiler *this, bool assign) {
     consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.");
     Token *alpha = &this->alpha;
     Array *array = new_array(0);
-    write_constant(current(this), new_array_object(array), alpha->row);
+    write_constant(this, new_array_object(array), alpha->row);
 }
 
 static void compile_table(Compiler *this, bool assign) {
@@ -1704,7 +1724,7 @@ static void compile_table(Compiler *this, bool assign) {
     consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
     Token *alpha = &this->alpha;
     ValueMap *table = new_map();
-    write_constant(current(this), new_table_object(table), alpha->row);
+    write_constant(this, new_table_object(table), alpha->row);
 }
 
 static void function_delete(Function *this) {
@@ -1759,7 +1779,7 @@ static void end_scope(Compiler *this) {
 
 static u8 ident_constant(Compiler *this, Token *token) {
     String *s = new_string_from_substring(this->source, token->start, token->start + token->length);
-    return (u8)byte_code_add_constant(current(this), machine_intern_string(this->machine, s));
+    return (u8)byte_code_add_constant(current(this), compile_intern_string(this->machine, s));
 }
 
 static void push_local(Compiler *this, Token name, bool constant) {
@@ -1932,9 +1952,9 @@ static void compile_dot(Compiler *this, bool assign) {
 
 static void compile_square(Compiler *this, bool assign) {
     if (match(this, TOKEN_COLON)) {
-        write_constant(current(this), new_int(0), this->alpha.row);
+        write_constant(this, new_int(0), this->alpha.row);
         if (match(this, TOKEN_RIGHT_SQUARE)) {
-            write_constant(current(this), new_none(), this->alpha.row);
+            write_constant(this, new_none(), this->alpha.row);
         } else {
             expression(this);
             consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
@@ -1944,7 +1964,7 @@ static void compile_square(Compiler *this, bool assign) {
         expression(this);
         if (match(this, TOKEN_COLON)) {
             if (match(this, TOKEN_RIGHT_SQUARE)) {
-                write_constant(current(this), new_none(), this->alpha.row);
+                write_constant(this, new_none(), this->alpha.row);
             } else {
                 expression(this);
                 consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
@@ -2034,7 +2054,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
 
     Function *func = end_function(this);
 
-    write_constant(current(this), new_func_object(func), this->alpha.row);
+    write_constant(this, new_func_object(func), this->alpha.row);
 }
 
 static void declare_function(Compiler *this) {
@@ -2309,7 +2329,7 @@ static void iterate_statement(Compiler *this) {
 
     if (match(this, TOKEN_COMMA)) {
         index = value;
-        write_constant(current(this), new_int(0), this->alpha.row);
+        write_constant(this, new_int(0), this->alpha.row);
 
         value = (u8)this->scope->local_count;
         variable(this, true, "Expected second parameter name.");
@@ -2319,7 +2339,7 @@ static void iterate_statement(Compiler *this) {
         emit(this, OP_NONE);
 
         index = push_hidden_local(this);
-        write_constant(current(this), new_int(0), this->alpha.row);
+        write_constant(this, new_int(0), this->alpha.row);
     }
 
     consume(this, TOKEN_IN, "Expected 'in' after iterate parameters.");
@@ -2365,7 +2385,7 @@ static void iterate_statement(Compiler *this) {
     patch_iterator_jump_list(this);
 
     emit_two(this, OP_GET_LOCAL, index);
-    write_constant(current(this), new_int(1), this->alpha.row);
+    write_constant(this, new_int(1), this->alpha.row);
     emit(this, OP_ADD);
     emit_two(this, OP_SET_LOCAL, index);
     emit(this, OP_POP);
@@ -2714,7 +2734,6 @@ static Function *compile(Machine *machine, char *source, char **error) {
 #if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_CODE
 static usize debug_constant_instruction(String **debug, const char *name, ByteCode *this, usize index) {
     u8 constant = this->instructions[index + 1];
-    // *debug = string_append_format(*debug, "%s: [%d: ", name, constant);
     *debug = string_append_format(*debug, "%s: [", name);
     String *value = debug_value_to_string(this->constants.values[constant]);
     *debug = string_append(*debug, value);
@@ -2862,43 +2881,59 @@ static void machine_runtime_error(Machine *this, const char *format, ...) {
     machine_reset_stack(this);
 }
 
-#ifdef HYMN_DEBUG_REFERENCE
-static inline void debug_reference(Value value) {
-    switch (value.is) {
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC: {
-        int count = as_object(value)->count;
-        printf("REF: [%p]: %d, ", (void *)as_object(value), count);
-        debug_value(value);
-        printf("\n");
-        assert(count >= 0);
-        break;
-    }
-    default:
-        return;
-    }
-}
-#endif
-
-static inline void reference(Value value) {
+static inline bool is_object(Value value) {
     switch (value.is) {
     case HYMN_VALUE_STRING:
     case HYMN_VALUE_ARRAY:
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
+        return true;
+    default:
+        return false;
+    }
+}
+
+#ifdef HYMN_DEBUG_REFERENCE
+static void debug_reference(Value value) {
+    if (is_object(value)) {
+        int count = as_object(value)->count;
+        printf("REF: [%p]: %d, ", (void *)as_object(value), count);
+        debug_value(value);
+        printf("\n");
+        assert(count >= 0);
+    }
+}
+
+static void debug_dereference(Value value) {
+    if (is_object(value)) {
+        Object *object = as_object(value);
+        int count = object->count - 1;
+        if (count == 0) {
+            printf("FREE: ");
+        } else if (count < 0) {
+            printf("BAD: ");
+        } else {
+            printf("DEREF: %d: ", count);
+        }
+        debug_value(value);
+        printf("\n");
+    }
+}
+#endif
+
+static void reference(Value value) {
+    if (is_object(value)) {
         as_object(value)->count++;
 #ifdef HYMN_DEBUG_REFERENCE
         debug_reference(value);
 #endif
-        break;
-    default:
-        return;
     }
 }
 
-static inline void dereference(Machine *this, Value value) {
+static void dereference(Machine *this, Value value) {
+#ifdef HYMN_DEBUG_REFERENCE
+    debug_dereference(value);
+#endif
     switch (value.is) {
     case HYMN_VALUE_STRING: {
         ObjectString *string = as_string_object(value);
@@ -2961,6 +2996,12 @@ static Value machine_pop(Machine *this) {
         return new_none();
     }
     return this->stack[--this->stack_top];
+}
+
+static void machine_push_intern_string(Machine *this, String *string) {
+    Value value = machine_intern_string(this, string);
+    reference(value);
+    machine_push(this, value);
 }
 
 static bool machine_equal(Value a, Value b) {
@@ -3115,13 +3156,25 @@ static void machine_run(Machine *this) {
         u8 op = read_byte(frame);
         switch (op) {
         case OP_RETURN: {
+            printf("OP RETURN: %zu\n", this->stack_top);
             Value result = machine_pop(this);
             this->frame_count--;
             if (this->frame_count == 0 or frame->func->name == NULL) {
-                dereference(this, machine_pop(this));
+                Value value = machine_pop(this);
+                printf("SCRIPT END: %zu: ", this->stack_top);
+                debug_value(value);
+                printf("\n");
+                // dereference(this, machine_pop(this));
                 return;
             }
-            this->stack_top = frame->stack;
+            printf("RETURN \n");
+            while (this->stack_top != frame->stack) {
+                Value pop = this->stack[--this->stack_top];
+                printf("RETURN POP: ");
+                debug_value(pop);
+                printf("\n");
+                dereference(this, pop);
+            }
             machine_push(this, result);
             frame = &this->frames[this->frame_count - 1];
             break;
@@ -3211,7 +3264,7 @@ static void machine_run(Machine *this) {
                     String *temp = new_string(STRING_NONE);
                     String *add = string_concat(temp, string_copy(as_string(b)));
                     string_delete(temp);
-                    machine_push(this, machine_intern_string(this, add));
+                    machine_push_intern_string(this, add);
                 } else {
                     machine_runtime_error(this, "Operands can't be added.");
                     return;
@@ -3221,7 +3274,7 @@ static void machine_run(Machine *this) {
                     String *temp = new_string(as_bool(a) ? STRING_TRUE : STRING_FALSE);
                     String *add = string_concat(temp, string_copy(as_string(b)));
                     string_delete(temp);
-                    machine_push(this, machine_intern_string(this, add));
+                    machine_push_intern_string(this, add);
                 } else {
                     machine_runtime_error(this, "Operands can't be added.");
                     return;
@@ -3237,7 +3290,7 @@ static void machine_run(Machine *this) {
                     String *temp = int64_to_string(as_int(a));
                     String *add = string_concat(temp, as_string(b));
                     string_delete(temp);
-                    machine_push(this, machine_intern_string(this, add));
+                    machine_push_intern_string(this, add);
                 } else {
                     machine_runtime_error(this, "Operands can't be added.");
                     return;
@@ -3253,7 +3306,7 @@ static void machine_run(Machine *this) {
                     String *temp = float64_to_string(as_float(a));
                     String *add = string_concat(temp, as_string(b));
                     string_delete(temp);
-                    machine_push(this, machine_intern_string(this, add));
+                    machine_push_intern_string(this, add);
                 } else {
                     machine_runtime_error(this, "Operands can't be added.");
                     return;
@@ -3309,7 +3362,7 @@ static void machine_run(Machine *this) {
                     machine_runtime_error(this, "Operands can't be added.");
                     return;
                 }
-                machine_push(this, machine_intern_string(this, add));
+                machine_push_intern_string(this, add);
             } else {
                 machine_runtime_error(this, "Operands can't be added.");
                 return;
@@ -3427,7 +3480,11 @@ static void machine_run(Machine *this) {
         }
         case OP_SET_LOCAL: {
             u8 slot = read_byte(frame);
-            this->stack[frame->stack + slot] = machine_peek(this, 1);
+            Value value = machine_peek(this, 1);
+            reference(value);
+            // FIXME: OK TO DEREFERENCE THE STACK SLOT?
+            dereference(this, this->stack[frame->stack + slot]);
+            this->stack[frame->stack + slot] = value;
             break;
         }
         case OP_GET_LOCAL: {
@@ -3546,7 +3603,7 @@ static void machine_run(Machine *this) {
                     }
                 }
                 char c = string[index];
-                machine_push(this, machine_intern_string(this, char_to_string(c)));
+                machine_push_intern_string(this, char_to_string(c));
                 dereference(this, v);
                 break;
             }
@@ -3800,7 +3857,7 @@ static void machine_run(Machine *this) {
                     return;
                 }
                 String *sub = new_string_from_substring(original, left, right);
-                machine_push(this, machine_intern_string(this, sub));
+                machine_push_intern_string(this, sub);
             } else if (is_array(value)) {
                 Array *array = as_array(value);
                 i64 size = array->length;
@@ -3853,7 +3910,7 @@ static void machine_run(Machine *this) {
                 machine_push(this, new_float(0.0f));
                 break;
             case HYMN_VALUE_STRING:
-                machine_push(this, machine_intern_string(this, new_string("")));
+                machine_push_intern_string(this, new_string(""));
                 break;
             case HYMN_VALUE_ARRAY: {
                 Array *array = as_array(value);
@@ -3936,35 +3993,35 @@ static void machine_run(Machine *this) {
             Value value = machine_pop(this);
             switch (value.is) {
             case HYMN_VALUE_NONE:
-                machine_push(this, machine_intern_string(this, new_string(STRING_NONE)));
+                machine_push_intern_string(this, new_string(STRING_NONE));
                 break;
             case HYMN_VALUE_BOOL:
-                machine_push(this, machine_intern_string(this, new_string(STRING_BOOL)));
+                machine_push_intern_string(this, new_string(STRING_BOOL));
                 break;
             case HYMN_VALUE_INTEGER:
-                machine_push(this, machine_intern_string(this, new_string(STRING_INTEGER)));
+                machine_push_intern_string(this, new_string(STRING_INTEGER));
                 break;
             case HYMN_VALUE_FLOAT:
-                machine_push(this, machine_intern_string(this, new_string(STRING_FLOAT)));
+                machine_push_intern_string(this, new_string(STRING_FLOAT));
                 break;
             case HYMN_VALUE_STRING:
-                machine_push(this, machine_intern_string(this, new_string(STRING_STRING)));
+                machine_push_intern_string(this, new_string(STRING_STRING));
                 dereference(this, value);
                 break;
             case HYMN_VALUE_ARRAY:
-                machine_push(this, machine_intern_string(this, new_string(STRING_ARRAY)));
+                machine_push_intern_string(this, new_string(STRING_ARRAY));
                 dereference(this, value);
                 break;
             case HYMN_VALUE_TABLE:
-                machine_push(this, machine_intern_string(this, new_string(STRING_TABLE)));
+                machine_push_intern_string(this, new_string(STRING_TABLE));
                 dereference(this, value);
                 break;
             case HYMN_VALUE_FUNC:
-                machine_push(this, machine_intern_string(this, new_string(STRING_FUNC)));
+                machine_push_intern_string(this, new_string(STRING_FUNC));
                 dereference(this, value);
                 break;
             case HYMN_VALUE_FUNC_NATIVE:
-                machine_push(this, machine_intern_string(this, new_string(STRING_NATIVE)));
+                machine_push_intern_string(this, new_string(STRING_NATIVE));
                 break;
             default:
                 machine_push(this, new_none());
@@ -3978,8 +4035,17 @@ static void machine_run(Machine *this) {
             } else if (is_float(value)) {
                 i64 push = (i64)as_float(value);
                 machine_push(this, new_int(push));
+            } else if (is_string(value)) {
+                String *s = as_string(value);
+                if (string_len(s) == 1) {
+                    i64 c = (i64)s[0];
+                    machine_push(this, new_int(c));
+                } else {
+                    machine_push(this, new_int(-1));
+                }
+                dereference(this, value);
             } else {
-                machine_runtime_error(this, "Only integers and floats can be casted to an integer.");
+                machine_runtime_error(this, "Can't cast to an integer.");
                 return;
             }
             break;
@@ -3991,8 +4057,17 @@ static void machine_run(Machine *this) {
                 machine_push(this, new_float(push));
             } else if (is_float(value)) {
                 machine_push(this, value);
+            } else if (is_string(value)) {
+                String *s = as_string(value);
+                if (string_len(s) == 1) {
+                    float c = (float)((i64)s[0]);
+                    machine_push(this, new_float(c));
+                } else {
+                    machine_push(this, new_float(-1));
+                }
+                dereference(this, value);
             } else {
-                machine_runtime_error(this, "Only integers and floats can be casted to a float.");
+                machine_runtime_error(this, "Can't cast to a float.");
                 return;
             }
             break;
@@ -4002,34 +4077,34 @@ static void machine_run(Machine *this) {
             switch (value.is) {
             case HYMN_VALUE_UNDEFINED:
             case HYMN_VALUE_NONE:
-                machine_push(this, machine_intern_string(this, new_string(STRING_NONE)));
+                machine_push_intern_string(this, new_string(STRING_NONE));
                 break;
             case HYMN_VALUE_BOOL:
-                machine_push(this, machine_intern_string(this, as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE)));
+                machine_push_intern_string(this, as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE));
                 break;
             case HYMN_VALUE_INTEGER:
-                machine_push(this, machine_intern_string(this, int64_to_string(as_int(value))));
+                machine_push_intern_string(this, int64_to_string(as_int(value)));
                 break;
             case HYMN_VALUE_FLOAT:
-                machine_push(this, machine_intern_string(this, float64_to_string(as_float(value))));
+                machine_push_intern_string(this, float64_to_string(as_float(value)));
                 break;
             case HYMN_VALUE_STRING:
                 machine_push(this, value);
                 break;
             case HYMN_VALUE_ARRAY:
-                machine_push(this, machine_intern_string(this, string_format("[array %p]", as_array(value))));
+                machine_push_intern_string(this, string_format("[array %p]", as_array(value)));
                 dereference(this, value);
                 break;
             case HYMN_VALUE_TABLE:
-                machine_push(this, machine_intern_string(this, string_format("[table %p]", as_table(value))));
+                machine_push_intern_string(this, string_format("[table %p]", as_table(value)));
                 dereference(this, value);
                 break;
             case HYMN_VALUE_FUNC:
-                machine_push(this, machine_intern_string(this, as_func(value)->name));
+                machine_push_intern_string(this, as_func(value)->name);
                 dereference(this, value);
                 break;
             case HYMN_VALUE_FUNC_NATIVE:
-                machine_push(this, machine_intern_string(this, as_native(value)->name));
+                machine_push_intern_string(this, as_native(value)->name);
                 break;
             }
             break;
@@ -4109,6 +4184,11 @@ Hymn *new_hymn() {
 }
 
 void hymn_delete(Hymn *this) {
+
+    printf("MACHINE DELETE: %zu\n", this->stack_top);
+
+    assert(this->stack_top == 0);
+
     {
         ValueMap *globals = &this->globals;
         unsigned int bins = globals->bins;
@@ -4132,6 +4212,22 @@ void hymn_delete(Hymn *this) {
                 item = next;
             }
         }
+#ifndef NDEBUG
+        for (unsigned int i = 0; i < bins; i++) {
+            ValueMapItem *item = globals->items[i];
+            while (item != NULL) {
+                Value value = item->value;
+                if (is_object(value)) {
+                    if (as_object(value)->count != 1) {
+                        printf("BAD GLOBAL: ");
+                        debug_value(item->value);
+                        printf("\n");
+                    }
+                }
+                item = item->next;
+            }
+        }
+#endif
         map_release(this, &this->globals);
         assert(this->globals.size == 0);
     }
@@ -4147,8 +4243,21 @@ void hymn_delete(Hymn *this) {
                 item = next;
             }
         }
-        free(strings->items);
+#ifndef NDEBUG
+        if (strings->size != 0) {
+            for (unsigned int i = 0; i < bins; i++) {
+                ValueMapItem *item = strings->items[i];
+                while (item != NULL) {
+                    printf("BAD STRING: ");
+                    debug_value(item->value);
+                    printf("\n");
+                    item = item->next;
+                }
+            }
+        }
         assert(strings->size == 0);
+#endif
+        free(strings->items);
     }
 
     string_delete(this->error);
@@ -4158,6 +4267,7 @@ void hymn_delete(Hymn *this) {
 
 void hymn_add_function(Hymn *this, const char *name, NativeCall func) {
     Value intern = machine_intern_string(this, new_string(name));
+    reference(intern);
     ObjectString *key = as_string_object(intern);
     String *copy = string_copy(key->string);
     NativeFunction *value = new_native_function(copy, func);
