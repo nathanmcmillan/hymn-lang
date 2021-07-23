@@ -1,4 +1,6 @@
-print("std...")
+use "test/scripts/util"
+
+print("std.hm")
 
 function last_index(array, value)
   let size = len(array)
@@ -41,8 +43,4 @@ end
 function max(a, b)
   if a > b return a end
   return b
-end
-
-function clamp(n, a, b)
-  return min(max(n, a), b)
 end

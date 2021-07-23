@@ -6,12 +6,18 @@
 
 #ifndef HYMN_TESTING
 
-static HymnValue example_native_test(int count, HymnValue *arguments) {
-    if (count == 0) {
+static HymnValue read(Hymn *this, int count, HymnValue *arguments) {
+    (void)this;
+    if (count != 1) {
         return hymn_new_none();
     }
-    i64 i = hymn_as_int(arguments[0]) + 1;
-    return hymn_new_int(i);
+    String *string = hymn_as_string(arguments[0])->string;
+    String *content = cat(string);
+
+    HymnString *object = new_hymn_string(content);
+    HymnValue response = (HymnValue){.is = HYMN_VALUE_STRING, .as = {.o = (HymnObject *)object}};
+
+    return response;
 }
 
 int main(int argc, char **argv) {
@@ -20,7 +26,7 @@ int main(int argc, char **argv) {
 
     Hymn *hymn = new_hymn();
 
-    hymn_add_function(hymn, "inc", example_native_test);
+    hymn_add_function(hymn, "read", read);
 
     char *error = hymn_read(hymn, "test/scripts/test.hm");
     if (error != NULL) {
@@ -29,7 +35,6 @@ int main(int argc, char **argv) {
     }
 
     hymn_delete(hymn);
-    LOG("END PROGRAM");
 
     return 0;
 }

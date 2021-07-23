@@ -38,6 +38,7 @@ void string_delete(String *this);
 String *string_concat(String *a, String *b);
 String *string_concat_list(String **list, int size);
 String *string_concat_varg(int size, ...);
+String *string_concat_const(String *a, const char *b);
 
 String *substring(String *this, usize start, usize end);
 

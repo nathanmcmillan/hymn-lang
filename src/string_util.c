@@ -120,6 +120,18 @@ String *string_concat_varg(int size, ...) {
     return (String *)s;
 }
 
+String *string_concat_const(String *a, const char *b) {
+    usize len1 = string_len(a);
+    usize len2 = strlen(b);
+    usize len = len1 + len2;
+    StringHead *head = string_head_init(len, len);
+    char *s = (char *)(head + 1);
+    memcpy(s, a, len1);
+    memcpy(s + len1, b, len2);
+    s[len] = '\0';
+    return (String *)s;
+}
+
 String *substring(String *this, usize start, usize end) {
     usize len = end - start;
     StringHead *head = string_head_init(len, len);
