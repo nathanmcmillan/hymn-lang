@@ -171,8 +171,8 @@ struct Hymn {
     usize stack_top;
     HymnFrame frames[HYMN_FRAMES_MAX];
     int frame_count;
-    HymnValueMap strings;
     HymnValueMap globals;
+    HymnSet strings;
     HymnSet imports;
     String *error;
 };

@@ -6,7 +6,7 @@
 
 #ifndef HYMN_TESTING
 
-static HymnValue read(Hymn *this, int count, HymnValue *arguments) {
+static HymnValue read_file(Hymn *this, int count, HymnValue *arguments) {
     (void)this;
     if (count != 1) {
         return hymn_new_none();
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
     Hymn *hymn = new_hymn();
 
-    hymn_add_function(hymn, "read", read);
+    hymn_add_function(hymn, "read", read_file);
 
     char *error = hymn_read(hymn, "test/scripts/test.hm");
     if (error != NULL) {

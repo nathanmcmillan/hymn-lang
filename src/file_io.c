@@ -4,6 +4,22 @@
 
 #include "file_io.h"
 
+String *working_directory() {
+    // char cwd[1024];
+    // if (getcwd(cwd, sizeof(cwd)) != NULL) {
+    //     return new_string(cwd);
+    // }
+    return NULL;
+}
+
+String *absolute_path(char *path) {
+    // char *real = realpath(path, NULL);
+    // if (real != NULL) {
+    //     return new_string(real);
+    // }
+    return path;
+}
+
 usize file_size(char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {

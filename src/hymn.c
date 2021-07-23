@@ -1701,16 +1701,15 @@ HymnString *new_hymn_string(String *string) {
     return object;
 }
 
-static inline Value machine_put_string(Machine *this, String *string) {
+static inline HymnString *machine_put_string(Machine *this, String *string) {
     HymnString *object = new_hymn_string(string);
-    Value value = new_string_value(object);
-    map_put(&this->strings, object, value);
-    return value;
+    set_add(&this->strings, object);
+    return object;
 }
 
-static Value machine_intern_string(Machine *this, String *string) {
-    Value exists = map_get(&this->strings, string);
-    if (is_undefined(exists)) {
+static HymnString *machine_intern_string(Machine *this, String *string) {
+    HymnString *exists = set_get(&this->strings, string);
+    if (exists == NULL) {
         return machine_put_string(this, string);
     }
     string_delete(string);
@@ -1718,14 +1717,14 @@ static Value machine_intern_string(Machine *this, String *string) {
 }
 
 static Value compile_intern_string(Machine *this, String *string) {
-    Value exists = map_get(&this->strings, string);
-    if (is_undefined(exists)) {
-        Value value = machine_put_string(this, string);
-        reference(value);
-        return value;
+    HymnString *exists = set_get(&this->strings, string);
+    if (exists == NULL) {
+        HymnString *new = machine_put_string(this, string);
+        new->object.count++;
+        return new_string_value(new);
     }
     string_delete(string);
-    return exists;
+    return new_string_value(exists);
 }
 
 static bool check(Compiler *this, enum TokenType type) {
@@ -3067,7 +3066,7 @@ static inline void dereference_string(Machine *this, HymnString *string) {
     int count = --(string->object.count);
     assert(count >= 0);
     if (count == 0) {
-        map_remove(&this->strings, string->string);
+        set_remove(&this->strings, string->string);
         string_delete(string->string);
         free(string);
     }
@@ -3136,9 +3135,9 @@ static Value machine_pop(Machine *this) {
 }
 
 static void machine_push_intern_string(Machine *this, String *string) {
-    Value value = machine_intern_string(this, string);
-    reference(value);
-    machine_push(this, value);
+    HymnString *intern = machine_intern_string(this, string);
+    intern->object.count++;
+    machine_push(this, new_string_value(intern));
 }
 
 static bool machine_equal(Value a, Value b) {
@@ -3250,9 +3249,13 @@ static void machine_import(Machine *this, HymnString *file) {
     set_add(&this->imports, file);
     file->object.count++;
 
-    String *use = string_concat_const(file->string, ".hm");
+    String *path = string_concat_const(file->string, ".hm");
+    String *use = absolute_path(path);
+
     String *source = cat(use);
+
     string_delete(use);
+    string_delete(path);
 
     char *error = NULL;
 
@@ -4321,8 +4324,8 @@ static char *machine_interpret(Machine *this) {
 Hymn *new_hymn() {
     Hymn *this = safe_calloc(1, sizeof(Hymn));
     machine_reset_stack(this);
-    map_init(&this->strings);
     map_init(&this->globals);
+    set_init(&this->strings);
     set_init(&this->imports);
     return this;
 }
@@ -4376,23 +4379,23 @@ void hymn_delete(Hymn *this) {
     }
 
     {
-        ValueMap *strings = &this->strings;
+        Set *strings = &this->strings;
         unsigned int bins = strings->bins;
         for (unsigned int i = 0; i < bins; i++) {
-            ValueMapItem *item = strings->items[i];
+            SetItem *item = strings->items[i];
             while (item != NULL) {
-                ValueMapItem *next = item->next;
-                dereference(this, item->value);
+                SetItem *next = item->next;
+                dereference_string(this, item->string);
                 item = next;
             }
         }
 #ifndef NDEBUG
         if (strings->size != 0) {
             for (unsigned int i = 0; i < bins; i++) {
-                ValueMapItem *item = strings->items[i];
+                SetItem *item = strings->items[i];
                 while (item != NULL) {
                     printf("BAD STRING: ");
-                    debug_value(item->value);
+                    debug_value(new_string_value(item->string));
                     printf("\n");
                     item = item->next;
                 }
@@ -4409,12 +4412,11 @@ void hymn_delete(Hymn *this) {
 }
 
 void hymn_add_function(Hymn *this, const char *name, NativeCall func) {
-    Value intern = machine_intern_string(this, new_string(name));
-    reference(intern);
-    HymnString *key = as_hymn_string(intern);
-    String *copy = string_copy(key->string);
+    HymnString *intern = machine_intern_string(this, new_string(name));
+    intern->object.count++;
+    String *copy = string_copy(intern->string);
     NativeFunction *value = new_native_function(copy, func);
-    map_put(&this->globals, key, new_native(value));
+    map_put(&this->globals, intern, new_native(value));
 }
 
 char *hymn_eval(Hymn *this, char *source) {

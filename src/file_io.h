@@ -5,7 +5,6 @@
 #ifndef FILE_IO_H
 #define FILE_IO_H
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +14,8 @@
 #include "pie.h"
 #include "string_util.h"
 
+String *working_directory();
+String *absolute_path(char *path);
 usize file_size(char *path);
 usize file_binary_size(char *path);
 String *cat(char *path);
