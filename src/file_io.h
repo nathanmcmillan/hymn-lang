@@ -10,12 +10,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __GNUC__
+#include <linux/limits.h>
+#include <unistd.h>
+#define PATH_SEP '/'
+#elif _MSC_VER
+#include <direct.h>
+#define getcwd _getcwd
+#define PATH_MAX FILENAME_MAX
+#define PATH_SEP '\\'
+#endif
+
 #include "mem.h"
 #include "pie.h"
 #include "string_util.h"
 
 String *working_directory();
-String *absolute_path(char *path);
+String *path_normalize(String *path);
+String *path_absolute(String *path);
+String *path_parent(String *path);
+String *path_join(String *path, String *child);
 usize file_size(char *path);
 usize file_binary_size(char *path);
 String *cat(char *path);

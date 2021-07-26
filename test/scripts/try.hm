@@ -1,3 +1,5 @@
+#!/usr/bin/env hymn
+
 try
   index(0)
 except e

@@ -204,6 +204,12 @@ bool string_equal(String *a, String *b) {
     return 0 == string_compare(a, b);
 }
 
+bool string_starts_with(String *s, String *p) {
+    usize slen = string_len(s);
+    usize plen = string_len(p);
+    return slen < plen ? false : memcmp(s, p, plen) == 0;
+}
+
 bool string_find(String *this, String *sub, usize *out) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     StringHead *head_sub = (StringHead *)((char *)sub - sizeof(StringHead));

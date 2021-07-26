@@ -48,6 +48,7 @@ String *string_append_substring(String *this, const char *b, usize start, usize 
 
 int string_compare(String *a, String *b);
 bool string_equal(String *a, String *b);
+bool string_starts_with(String *a, String *b);
 
 bool string_find(String *this, String *sub, usize *out);
 

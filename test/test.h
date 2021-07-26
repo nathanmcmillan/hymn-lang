@@ -13,44 +13,59 @@ char *run_test(char *message, void(test)());
 // #define VERBOSE
 
 #ifdef VERBOSE
-#define ASSERT(message, test)                                                                                                                                                                          \
-    do {                                                                                                                                                                                               \
-        printf("%s ... ", #test);                                                                                                                                                                      \
-        fflush(stdout);                                                                                                                                                                                \
-        if (!(test)) {                                                                                                                                                                                 \
-            return message;                                                                                                                                                                            \
-        }                                                                                                                                                                                              \
-        printf("done!\n");                                                                                                                                                                             \
+#define ASSERT(message, test)     \
+    do {                          \
+        printf("%s ... ", #test); \
+        fflush(stdout);           \
+        if (!(test)) {            \
+            return message;       \
+        }                         \
+        printf("done!\n");        \
     } while (0)
 #else
-#define ASSERT(message, test)                                                                                                                                                                          \
-    do {                                                                                                                                                                                               \
-        if (!(test)) {                                                                                                                                                                                 \
-            return message;                                                                                                                                                                            \
-        }                                                                                                                                                                                              \
+
+#define ASSERT(message, test) \
+    do {                      \
+        if (!(test)) {        \
+            return message;   \
+        }                     \
     } while (0)
 #endif
 
-#define TEST(test)                                                                                                                                                                                     \
-    do {                                                                                                                                                                                               \
-        printf("    %s\n", #test);                                                                                                                                                                     \
-        char *message = test();                                                                                                                                                                        \
-        tests_count++;                                                                                                                                                                                 \
-        if (message) {                                                                                                                                                                                 \
-            tests_fail++;                                                                                                                                                                              \
-            return message;                                                                                                                                                                            \
-        }                                                                                                                                                                                              \
-        tests_success++;                                                                                                                                                                               \
+#define TEST(test)                 \
+    do {                           \
+        printf("    %s\n", #test); \
+        char *message = test();    \
+        tests_count++;             \
+        if (message) {             \
+            tests_fail++;          \
+            return message;        \
+        }                          \
+        tests_success++;           \
     } while (0)
 
-#define TEST_SET(test_set)                                                                                                                                                                             \
-    do {                                                                                                                                                                                               \
-        printf("%s\n", #test_set);                                                                                                                                                                     \
-        char *result = test_set();                                                                                                                                                                     \
-        if (result != 0) {                                                                                                                                                                             \
-            printf("    ERROR: %s\n", result);                                                                                                                                                         \
-        }                                                                                                                                                                                              \
-        printf("\n");                                                                                                                                                                                  \
+#define TEST_SET(test_set)                     \
+    do {                                       \
+        printf("%s\n", #test_set);             \
+        char *result = test_set();             \
+        if (result != 0) {                     \
+            printf("    ERROR: %s\n", result); \
+        }                                      \
+        printf("\n");                          \
     } while (0);
 
 #endif
+
+#define BENCHMARK(test)                                              \
+    do {                                                             \
+        clock_t start = clock();                                     \
+        char *message = test();                                      \
+        double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC; \
+        printf("    %s: %f seconds\n", #test, elapsed);              \
+        tests_count++;                                               \
+        if (message) {                                               \
+            tests_fail++;                                            \
+            return message;                                          \
+        }                                                            \
+        tests_success++;                                             \
+    } while (0)

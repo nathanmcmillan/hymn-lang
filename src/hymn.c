@@ -10,6 +10,7 @@
 #define new_int(v) hymn_new_int(v)
 #define new_float(v) hymn_new_float(v)
 #define new_native(v) hymn_new_native(v)
+#define new_pointer(v) hymn_new_pointer(v)
 #define new_string_value(v) hymn_new_string_value(v)
 #define new_array_value(v) hymn_new_array_value(v)
 #define new_table_value(v) hymn_new_table_value(v)
@@ -19,6 +20,7 @@
 #define as_int(v) hymn_as_int(v)
 #define as_float(v) hymn_as_float(v)
 #define as_native(v) hymn_as_native(v)
+#define as_pointer(v) hymn_as_pointer(v)
 #define as_object(v) hymn_as_object(v)
 #define as_hymn_string(v) hymn_as_string(v)
 #define as_string(v) (hymn_as_string(v)->string)
@@ -32,6 +34,7 @@
 #define is_int(v) ((v).is == HYMN_VALUE_INTEGER)
 #define is_float(v) ((v).is == HYMN_VALUE_FLOAT)
 #define is_native(v) ((v).is == HYMN_VALUE_FUNC_NATIVE)
+#define is_pointer(v) ((v).is == HYMN_VALUE_POINTER)
 #define is_string(v) ((v).is == HYMN_VALUE_STRING)
 #define is_array(v) ((v).is == HYMN_VALUE_ARRAY)
 #define is_table(v) ((v).is == HYMN_VALUE_TABLE)
@@ -48,51 +51,52 @@
 #define STRING_TABLE "Table"
 #define STRING_FUNC "Function"
 #define STRING_NATIVE "Native"
+#define STRING_POINTER "Pointer"
 
-#define INTEGER_OP(_binary_)                                              \
-    Value b = machine_pop(this);                                          \
-    Value a = machine_pop(this);                                          \
-    if (is_int(a)) {                                                      \
-        if (is_int(b)) {                                                  \
-            a.as.i _binary_ b.as.i;                                       \
-            machine_push(this, a);                                        \
-        } else {                                                          \
-            machine_runtime_error(this, "Bitwise operand must integer."); \
-            return;                                                       \
-        }                                                                 \
-    } else {                                                              \
-        machine_runtime_error(this, "Bitwise operand must integer.");     \
-        return;                                                           \
+#define INTEGER_OP(_binary_)                                           \
+    Value b = machine_pop(this);                                       \
+    Value a = machine_pop(this);                                       \
+    if (is_int(a)) {                                                   \
+        if (is_int(b)) {                                               \
+            a.as.i _binary_ b.as.i;                                    \
+            machine_push(this, a);                                     \
+        } else {                                                       \
+            machine_runtime_error(this, "Operands must be integers."); \
+            return;                                                    \
+        }                                                              \
+    } else {                                                           \
+        machine_runtime_error(this, "Operands must be integers.");     \
+        return;                                                        \
     }
 
-#define ARITHMETIC_OP(_binary_)                                 \
-    Value b = machine_pop(this);                                \
-    Value a = machine_pop(this);                                \
-    if (is_int(a)) {                                            \
-        if (is_int(b)) {                                        \
-            a.as.i _binary_ b.as.i;                             \
-            machine_push(this, a);                              \
-        } else if (is_float(b)) {                               \
-            b.as.f _binary_ a.as.i;                             \
-            machine_push(this, a);                              \
-        } else {                                                \
-            machine_runtime_error(this, "Operand non-number."); \
-            return;                                             \
-        }                                                       \
-    } else if (is_float(a)) {                                   \
-        if (is_int(b)) {                                        \
-            a.as.f _binary_ b.as.i;                             \
-            machine_push(this, a);                              \
-        } else if (is_float(b)) {                               \
-            a.as.f _binary_ b.as.f;                             \
-            machine_push(this, a);                              \
-        } else {                                                \
-            machine_runtime_error(this, "Operand non-number."); \
-            return;                                             \
-        }                                                       \
-    } else {                                                    \
-        machine_runtime_error(this, "Operand non-number.");     \
-        return;                                                 \
+#define ARITHMETIC_OP(_binary_)                                       \
+    Value b = machine_pop(this);                                      \
+    Value a = machine_pop(this);                                      \
+    if (is_int(a)) {                                                  \
+        if (is_int(b)) {                                              \
+            a.as.i _binary_ b.as.i;                                   \
+            machine_push(this, a);                                    \
+        } else if (is_float(b)) {                                     \
+            b.as.f _binary_ a.as.i;                                   \
+            machine_push(this, a);                                    \
+        } else {                                                      \
+            machine_runtime_error(this, "Operands must be numbers."); \
+            return;                                                   \
+        }                                                             \
+    } else if (is_float(a)) {                                         \
+        if (is_int(b)) {                                              \
+            a.as.f _binary_ b.as.i;                                   \
+            machine_push(this, a);                                    \
+        } else if (is_float(b)) {                                     \
+            a.as.f _binary_ b.as.f;                                   \
+            machine_push(this, a);                                    \
+        } else {                                                      \
+            machine_runtime_error(this, "Operands must be numbers."); \
+            return;                                                   \
+        }                                                             \
+    } else {                                                          \
+        machine_runtime_error(this, "Operands must be numbers.");     \
+        return;                                                       \
     }
 
 #define COMPARE_OP(_compare_)                                                      \
@@ -104,7 +108,7 @@
         } else if (is_float(b)) {                                                  \
             machine_push(this, new_bool((double)as_int(a) _compare_ as_float(b))); \
         } else {                                                                   \
-            machine_runtime_error(this, "Comparing non-number.");                  \
+            machine_runtime_error(this, "Operands must be numbers.");              \
             return;                                                                \
         }                                                                          \
     } else if (is_float(a)) {                                                      \
@@ -113,19 +117,19 @@
         } else if (is_float(b)) {                                                  \
             machine_push(this, new_bool(as_float(a) _compare_ as_float(b)));       \
         } else {                                                                   \
-            machine_runtime_error(this, "Comparing non-number.");                  \
+            machine_runtime_error(this, "Operands must be numbers.");              \
             return;                                                                \
         }                                                                          \
     } else {                                                                       \
-        machine_runtime_error(this, "Comparing non-number.");                      \
+        machine_runtime_error(this, "Operands must be numbers.");                  \
         return;                                                                    \
     }
 
 typedef HymnValue Value;
 typedef HymnObject Object;
 typedef HymnArray Array;
-typedef HymnValueMap ValueMap;
-typedef HymnValueMapItem ValueMapItem;
+typedef HymnTable Table;
+typedef HymnTableItem TableItem;
 typedef HymnSet Set;
 typedef HymnSetItem SetItem;
 typedef HymnNativeCall NativeCall;
@@ -157,6 +161,7 @@ enum TokenType {
     TOKEN_COLON,
     TOKEN_COMMA,
     TOKEN_CONST,
+    TOKEN_DO,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
     TOKEN_DOT,
@@ -185,6 +190,7 @@ enum TokenType {
     TOKEN_LEN,
     TOKEN_LET,
     TOKEN_LINE,
+    TOKEN_MODULO,
     TOKEN_MULTIPLY,
     TOKEN_NONE,
     TOKEN_NOT,
@@ -259,6 +265,7 @@ enum OpCode {
     OP_CONSTANT,
     OP_CONSTANT_TWO,
     OP_COPY,
+    OP_DO,
     OP_DEFINE_GLOBAL,
     OP_DELETE,
     OP_DIVIDE,
@@ -279,6 +286,7 @@ enum OpCode {
     OP_LESS,
     OP_LESS_EQUAL,
     OP_LOOP,
+    OP_MODULO,
     OP_MULTIPLY,
     OP_NEGATE,
     OP_NONE,
@@ -344,6 +352,7 @@ static void statement(Compiler *this);
 static void expression_statement(Compiler *this);
 static void expression(Compiler *this);
 
+static inline void reference_string(HymnString *string);
 static inline void reference(Value value);
 static inline void dereference_string(Machine *this, HymnString *string);
 static inline void dereference(Machine *this, Value value);
@@ -433,6 +442,7 @@ Rule rules[] = {
     [TOKEN_CONST] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE},
+    [TOKEN_DO] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL},
@@ -465,6 +475,7 @@ Rule rules[] = {
     [TOKEN_LESS_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_LET] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_LINE] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_MODULO] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_MULTIPLY] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_NONE] = {compile_none, NULL, PRECEDENCE_NONE},
     [TOKEN_NOT] = {compile_unary, NULL, PRECEDENCE_NONE},
@@ -528,6 +539,7 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_CONST: return "CONST";
     case TOKEN_CONTINUE: return "CONTINUE";
     case TOKEN_COPY: return "COPY";
+    case TOKEN_DO: return "DO";
     case TOKEN_DELETE: return "DELETE";
     case TOKEN_DIVIDE: return "DIVIDE";
     case TOKEN_ELIF: return "ELIF";
@@ -555,6 +567,7 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_LESS: return "LESS";
     case TOKEN_LESS_EQUAL: return "LESS_EQUAL";
     case TOKEN_LET: return "LET";
+    case TOKEN_MODULO: return "MODULO";
     case TOKEN_MULTIPLY: return "MULTIPLY";
     case TOKEN_NONE: return "NONE";
     case TOKEN_NOT: return "NOT";
@@ -621,21 +634,32 @@ static usize string_hashcode(String *key) {
     return hash;
 }
 
-static void map_init(ValueMap *this) {
-    this->size = 0;
-    this->bins = INITIAL_BINS;
-    this->items = safe_calloc(this->bins, sizeof(ValueMapItem *));
-}
-
-static unsigned int map_get_bin(ValueMap *this, usize hash) {
-    return (this->bins - 1) & hash;
-}
-
 static usize mix_hash(usize hash) {
     return hash ^ (hash >> 16);
 }
 
-static void map_resize(ValueMap *this) {
+static HymnString *new_hymn_string_with_hash(String *string, usize hash) {
+    HymnString *object = safe_calloc(1, sizeof(HymnString));
+    object->string = string;
+    object->hash = hash;
+    return object;
+}
+
+HymnString *new_hymn_string(String *string) {
+    return new_hymn_string_with_hash(string, mix_hash(string_hashcode(string)));
+}
+
+static void table_init(Table *this) {
+    this->size = 0;
+    this->bins = INITIAL_BINS;
+    this->items = safe_calloc(this->bins, sizeof(TableItem *));
+}
+
+static unsigned int table_get_bin(Table *this, usize hash) {
+    return (this->bins - 1) & hash;
+}
+
+static void table_resize(Table *this) {
 
     unsigned int old_bins = this->bins;
     unsigned int bins = old_bins << 1;
@@ -644,23 +668,23 @@ static void map_resize(ValueMap *this) {
         return;
     }
 
-    ValueMapItem **old_items = this->items;
-    ValueMapItem **items = safe_calloc(bins, sizeof(ValueMapItem *));
+    TableItem **old_items = this->items;
+    TableItem **items = safe_calloc(bins, sizeof(TableItem *));
 
     for (unsigned int i = 0; i < old_bins; i++) {
-        ValueMapItem *item = old_items[i];
+        TableItem *item = old_items[i];
         if (item == NULL) {
             continue;
         }
         if (item->next == NULL) {
-            items[(bins - 1) & item->hash] = item;
+            items[(bins - 1) & item->key->hash] = item;
         } else {
-            ValueMapItem *low_head = NULL;
-            ValueMapItem *low_tail = NULL;
-            ValueMapItem *high_head = NULL;
-            ValueMapItem *high_tail = NULL;
+            TableItem *low_head = NULL;
+            TableItem *low_tail = NULL;
+            TableItem *high_head = NULL;
+            TableItem *high_tail = NULL;
             do {
-                if ((old_bins & item->hash) == 0) {
+                if ((old_bins & item->key->hash) == 0) {
                     if (low_tail == NULL) {
                         low_head = item;
                     } else {
@@ -696,21 +720,19 @@ static void map_resize(ValueMap *this) {
     this->items = items;
 }
 
-static void map_put(ValueMap *this, HymnString *key, Value value) {
-    usize hash = mix_hash(string_hashcode(key->string));
-    unsigned int bin = map_get_bin(this, hash);
-    ValueMapItem *item = this->items[bin];
-    ValueMapItem *previous = NULL;
+static void table_put(Table *this, HymnString *key, Value value) {
+    unsigned int bin = table_get_bin(this, key->hash);
+    TableItem *item = this->items[bin];
+    TableItem *previous = NULL;
     while (item != NULL) {
-        if (string_equal(key->string, item->key->string)) {
+        if (key == item->key) {
             item->value = value;
             return;
         }
         previous = item;
         item = item->next;
     }
-    item = safe_malloc(sizeof(ValueMapItem));
-    item->hash = hash;
+    item = safe_malloc(sizeof(TableItem));
     item->key = key;
     item->value = value;
     item->next = NULL;
@@ -721,16 +743,15 @@ static void map_put(ValueMap *this, HymnString *key, Value value) {
     }
     this->size++;
     if (this->size >= this->bins * LOAD_FACTOR) {
-        map_resize(this);
+        table_resize(this);
     }
 }
 
-static Value map_get(ValueMap *this, String *key) {
-    usize hash = mix_hash(string_hashcode(key));
-    unsigned int bin = map_get_bin(this, hash);
-    ValueMapItem *item = this->items[bin];
+static Value table_get(Table *this, HymnString *key) {
+    unsigned int bin = table_get_bin(this, key->hash);
+    TableItem *item = this->items[bin];
     while (item != NULL) {
-        if (string_equal(key, item->key->string)) {
+        if (key == item->key) {
             return item->value;
         }
         item = item->next;
@@ -738,13 +759,12 @@ static Value map_get(ValueMap *this, String *key) {
     return new_undefined();
 }
 
-static Value map_remove(ValueMap *this, String *key) {
-    usize hash = mix_hash(string_hashcode(key));
-    unsigned int bin = map_get_bin(this, hash);
-    ValueMapItem *item = this->items[bin];
-    ValueMapItem *previous = NULL;
+static Value table_remove(Table *this, HymnString *key) {
+    unsigned int bin = table_get_bin(this, key->hash);
+    TableItem *item = this->items[bin];
+    TableItem *previous = NULL;
     while (item != NULL) {
-        if (string_equal(key, item->key->string)) {
+        if (key == item->key) {
             if (previous == NULL) {
                 this->items[bin] = item->next;
             } else {
@@ -761,12 +781,12 @@ static Value map_remove(ValueMap *this, String *key) {
     return new_undefined();
 }
 
-static void map_clear(Machine *machine, ValueMap *this) {
+static void table_clear(Machine *machine, Table *this) {
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        ValueMapItem *item = this->items[i];
+        TableItem *item = this->items[i];
         while (item != NULL) {
-            ValueMapItem *next = item->next;
+            TableItem *next = item->next;
             dereference(machine, item->value);
             free(item);
             item = next;
@@ -776,13 +796,13 @@ static void map_clear(Machine *machine, ValueMap *this) {
     this->size = 0;
 }
 
-static void map_release(Machine *machine, ValueMap *this) {
-    map_clear(machine, this);
+static void table_release(Machine *machine, Table *this) {
+    table_clear(machine, this);
     free(this->items);
 }
 
-static void map_delete(Machine *machine, ValueMap *this) {
-    map_release(machine, this);
+static void table_delete(Machine *machine, Table *this) {
+    table_release(machine, this);
     free(this);
 }
 
@@ -814,14 +834,14 @@ static void set_resize(Set *this) {
             continue;
         }
         if (item->next == NULL) {
-            items[(bins - 1) & item->hash] = item;
+            items[(bins - 1) & item->string->hash] = item;
         } else {
             SetItem *low_head = NULL;
             SetItem *low_tail = NULL;
             SetItem *high_head = NULL;
             SetItem *high_tail = NULL;
             do {
-                if ((old_bins & item->hash) == 0) {
+                if ((old_bins & item->string->hash) == 0) {
                     if (low_tail == NULL) {
                         low_head = item;
                     } else {
@@ -857,21 +877,21 @@ static void set_resize(Set *this) {
     this->items = items;
 }
 
-static bool set_add(Set *this, HymnString *put) {
-    usize hash = mix_hash(string_hashcode(put->string));
+static HymnString *set_add_or_get(Set *this, String *add) {
+    usize hash = mix_hash(string_hashcode(add));
     unsigned int bin = set_get_bin(this, hash);
     SetItem *item = this->items[bin];
     SetItem *previous = NULL;
     while (item != NULL) {
-        if (string_equal(put->string, item->string->string)) {
-            return false;
+        if (string_equal(add, item->string->string)) {
+            return item->string;
         }
         previous = item;
         item = item->next;
     }
+    HymnString *new = new_hymn_string_with_hash(add, hash);
     item = safe_malloc(sizeof(SetItem));
-    item->hash = hash;
-    item->string = put;
+    item->string = new;
     item->next = NULL;
     if (previous == NULL) {
         this->items[bin] = item;
@@ -882,20 +902,7 @@ static bool set_add(Set *this, HymnString *put) {
     if (this->size >= this->bins * LOAD_FACTOR) {
         set_resize(this);
     }
-    return true;
-}
-
-static HymnString *set_get(Set *this, String *get) {
-    usize hash = mix_hash(string_hashcode(get));
-    unsigned int bin = set_get_bin(this, hash);
-    SetItem *item = this->items[bin];
-    while (item != NULL) {
-        if (string_equal(get, item->string->string)) {
-            return item->string;
-        }
-        item = item->next;
-    }
-    return NULL;
+    return new;
 }
 
 static HymnString *set_remove(Set *this, String *remove) {
@@ -922,7 +929,6 @@ static HymnString *set_remove(Set *this, String *remove) {
 }
 
 static void set_clear(Machine *machine, Set *this) {
-    (void)machine;
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         SetItem *item = this->items[i];
@@ -1074,6 +1080,7 @@ static enum TokenType ident_keyword(char *ident, usize size) {
         break;
     case 'd':
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
+        if (size == 2 && ident[1] == 'o') return TOKEN_DO;
         break;
     case 'r':
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
@@ -1250,6 +1257,7 @@ static void advance(Compiler *this) {
         case '~': token(this, TOKEN_BIT_NOT); return;
         case '+': token(this, TOKEN_ADD); return;
         case '-': token(this, TOKEN_SUBTRACT); return;
+        case '%': token(this, TOKEN_MODULO); return;
         case '*': token(this, TOKEN_MULTIPLY); return;
         case '/': token(this, TOKEN_DIVIDE); return;
         case ',': token(this, TOKEN_COMMA); return;
@@ -1373,6 +1381,7 @@ static bool match_values(Value a, Value b) {
     case HYMN_VALUE_FUNC:
         return as_object(a) == as_object(b);
     case HYMN_VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
+    case HYMN_VALUE_POINTER: return as_pointer(a) == as_pointer(b);
     }
     return false;
 }
@@ -1513,19 +1522,19 @@ static void array_delete(Machine *machine, Array *this) {
     free(this);
 }
 
-static ValueMap *new_map() {
-    ValueMap *this = safe_calloc(1, sizeof(ValueMap));
-    map_init(this);
+static Table *new_table() {
+    Table *this = safe_calloc(1, sizeof(Table));
+    table_init(this);
     return this;
 }
 
-static ValueMap *new_map_copy(ValueMap *from) {
-    ValueMap *this = new_map();
+static Table *new_table_copy(Table *from) {
+    Table *this = new_table();
     unsigned int bins = from->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        ValueMapItem *item = from->items[i];
+        TableItem *item = from->items[i];
         while (item != NULL) {
-            map_put(this, item->key, item->value);
+            table_put(this, item->key, item->value);
             reference(item->value);
             item = item->next;
         }
@@ -1533,15 +1542,15 @@ static ValueMap *new_map_copy(ValueMap *from) {
     return this;
 }
 
-static Array *map_keys(ValueMap *this) {
+static Array *table_keys(Table *this) {
     Array *array = new_array_with_capacity(0, this->size);
 
     unsigned int bin = 0;
-    ValueMapItem *item = NULL;
+    TableItem *item = NULL;
 
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        ValueMapItem *start = this->items[i];
+        TableItem *start = this->items[i];
         if (start) {
             bin = i;
             item = start;
@@ -1561,7 +1570,7 @@ static Array *map_keys(ValueMap *this) {
         item = item->next;
         if (item == NULL) {
             for (bin = bin + 1; bin < bins; bin++) {
-                ValueMapItem *start = this->items[bin];
+                TableItem *start = this->items[bin];
                 if (start) {
                     item = start;
                     break;
@@ -1578,14 +1587,14 @@ static Array *map_keys(ValueMap *this) {
     return array;
 }
 
-static HymnString *map_key_of(ValueMap *this, Value match) {
+static HymnString *table_key_of(Table *this, Value match) {
 
     unsigned int bin = 0;
-    ValueMapItem *item = NULL;
+    TableItem *item = NULL;
 
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        ValueMapItem *start = this->items[i];
+        TableItem *start = this->items[i];
         if (start) {
             bin = i;
             item = start;
@@ -1600,7 +1609,7 @@ static HymnString *map_key_of(ValueMap *this, Value match) {
         item = item->next;
         if (item == NULL) {
             for (bin = bin + 1; bin < bins; bin++) {
-                ValueMapItem *start = this->items[bin];
+                TableItem *start = this->items[bin];
                 if (start) {
                     item = start;
                     break;
@@ -1695,36 +1704,28 @@ static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
-HymnString *new_hymn_string(String *string) {
-    HymnString *object = safe_calloc(1, sizeof(HymnString));
-    object->string = string;
-    return object;
-}
-
-static inline HymnString *machine_put_string(Machine *this, String *string) {
-    HymnString *object = new_hymn_string(string);
-    set_add(&this->strings, object);
-    return object;
-}
-
 static HymnString *machine_intern_string(Machine *this, String *string) {
-    HymnString *exists = set_get(&this->strings, string);
-    if (exists == NULL) {
-        return machine_put_string(this, string);
+    HymnString *object = set_add_or_get(&this->strings, string);
+    if (object->string != string) {
+        string_delete(string);
     }
-    string_delete(string);
-    return exists;
+    return object;
 }
 
 static Value compile_intern_string(Machine *this, String *string) {
-    HymnString *exists = set_get(&this->strings, string);
-    if (exists == NULL) {
-        HymnString *new = machine_put_string(this, string);
-        new->object.count++;
-        return new_string_value(new);
+    HymnString *object = set_add_or_get(&this->strings, string);
+    if (object->string == string) {
+        reference_string(object);
+    } else {
+        string_delete(string);
     }
-    string_delete(string);
-    return new_string_value(exists);
+    return new_string_value(object);
+}
+
+static void machine_set_global(Machine *this, const char *name, Value value) {
+    HymnString *intern = machine_intern_string(this, new_string(name));
+    reference_string(intern);
+    table_put(&this->globals, intern, value);
 }
 
 static bool check(Compiler *this, enum TokenType type) {
@@ -1855,7 +1856,7 @@ static void compile_table(Compiler *this, bool assign) {
     (void)assign;
     consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
     Token *alpha = &this->alpha;
-    ValueMap *table = new_map();
+    Table *table = new_table();
     write_constant(this, new_table_value(table), alpha->row);
 }
 
@@ -2055,6 +2056,7 @@ static void compile_binary(Compiler *this, bool assign) {
     switch (type) {
     case TOKEN_ADD: emit(this, OP_ADD); break;
     case TOKEN_SUBTRACT: emit(this, OP_SUBTRACT); break;
+    case TOKEN_MODULO: emit(this, OP_MODULO); break;
     case TOKEN_MULTIPLY: emit(this, OP_MULTIPLY); break;
     case TOKEN_DIVIDE: emit(this, OP_DIVIDE); break;
     case TOKEN_EQUAL: emit(this, OP_EQUAL); break;
@@ -2682,9 +2684,16 @@ static void use_statement(Compiler *this) {
     emit(this, OP_USE);
 }
 
+static void do_statement(Compiler *this) {
+    expression(this);
+    emit(this, OP_DO);
+}
+
 static void statement(Compiler *this) {
     if (match(this, TOKEN_PRINT)) {
         print_statement(this);
+    } else if (match(this, TOKEN_DO)) {
+        do_statement(this);
     } else if (match(this, TOKEN_USE)) {
         use_statement(this);
     } else if (match(this, TOKEN_IF)) {
@@ -2843,6 +2852,8 @@ static Function *compile(Machine *machine, char *source, char **error) {
 
     Scope scope = {0};
 
+    // TODO: Need to pass in path to the source script, so that the directory can be known and used for relative imports
+
     Compiler c = new_compiler(source, machine, &scope);
     Compiler *compiler = &c;
 
@@ -2914,6 +2925,7 @@ static usize disassemble_instruction(String **debug, ByteCode *this, usize index
     case OP_CLEAR: return debug_instruction(debug, "OP_CLEAR", index);
     case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", this, index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
+    case OP_DO: return debug_instruction(debug, "OP_DO", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", this, index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
@@ -2934,6 +2946,7 @@ static usize disassemble_instruction(String **debug, ByteCode *this, usize index
     case OP_LESS: return debug_instruction(debug, "OP_LESS", index);
     case OP_LESS_EQUAL: return debug_instruction(debug, "OP_LESS_EQUAL", index);
     case OP_LOOP: return debug_jump_instruction(debug, "OP_LOOP", -1, this, index);
+    case OP_MODULO: return debug_instruction(debug, "OP_MODULO", index);
     case OP_MULTIPLY: return debug_instruction(debug, "OP_MULTIPLY", index);
     case OP_NEGATE: return debug_instruction(debug, "OP_NEGATE", index);
     case OP_NONE: return debug_instruction(debug, "OP_NONE", index);
@@ -3053,6 +3066,13 @@ static void debug_dereference(Value value) {
 }
 #endif
 
+static inline void reference_string(HymnString *string) {
+    string->object.count++;
+#ifdef HYMN_DEBUG_REFERENCE
+    debug_reference(new_string_value(string));
+#endif
+}
+
 static void reference(Value value) {
     if (is_object(value)) {
         as_object(value)->count++;
@@ -3092,11 +3112,11 @@ static void dereference(Machine *this, Value value) {
         break;
     }
     case HYMN_VALUE_TABLE: {
-        ValueMap *table = as_table(value);
+        Table *table = as_table(value);
         int count = --(table->object.count);
         assert(count >= 0);
         if (count == 0) {
-            map_delete(this, table);
+            table_delete(this, table);
         }
         break;
     }
@@ -3136,7 +3156,7 @@ static Value machine_pop(Machine *this) {
 
 static void machine_push_intern_string(Machine *this, String *string) {
     HymnString *intern = machine_intern_string(this, string);
-    intern->object.count++;
+    reference_string(intern);
     machine_push(this, new_string_value(intern));
 }
 
@@ -3241,21 +3261,47 @@ static inline Value read_constant(Frame *frame) {
     return frame->func->code.constants.values[read_byte(frame)];
 }
 
-static void machine_import(Machine *this, HymnString *file) {
-    HymnString *exists = set_get(&this->imports, file->string);
-    if (exists != NULL) {
+static void machine_do(Machine *this, HymnString *source) {
+
+    char *error = NULL;
+
+    Function *func = compile(this, source->string, &error);
+
+    if (error) {
+        printf("Error compiling: %s\n", error);
         return;
     }
-    set_add(&this->imports, file);
-    file->object.count++;
 
+    Value function = new_func_value(func);
+    reference(function);
+
+    machine_push(this, function);
+    machine_call(this, func, 0);
+
+    error = machine_interpret(this);
+    if (error) {
+        printf("Error evaluating:\n%s\n", error);
+    }
+}
+
+static void machine_import(Machine *this, HymnString *file) {
     String *path = string_concat_const(file->string, ".hm");
-    String *use = absolute_path(path);
-
-    String *source = cat(use);
-
-    string_delete(use);
+    HymnString *use = machine_intern_string(this, path_absolute(path));
+    reference_string(use);
     string_delete(path);
+
+    printf("IMPORT: [%s] -> [%s]\n", file->string, use->string);
+
+    Table *imports = as_table(table_get(&this->globals, this->imports));
+
+    if (table_get(imports, use).is != HYMN_VALUE_UNDEFINED) {
+        dereference_string(this, use);
+        return;
+    }
+
+    table_put(imports, use, new_bool(true));
+
+    String *source = cat(use->string);
 
     char *error = NULL;
 
@@ -3529,6 +3575,10 @@ static void machine_run(Machine *this) {
             ARITHMETIC_OP(/=);
             break;
         }
+        case OP_MODULO: {
+            INTEGER_OP(%=);
+            break;
+        }
         case OP_BIT_NOT: {
             Value value = machine_pop(this);
             if (is_int(value)) {
@@ -3594,28 +3644,28 @@ static void machine_run(Machine *this) {
         case OP_DEFINE_GLOBAL: {
             HymnString *name = as_hymn_string(read_constant(frame));
             Value value = machine_pop(this);
-            map_put(&this->globals, name, value);
+            table_put(&this->globals, name, value);
             break;
         }
         case OP_SET_GLOBAL: {
             HymnString *name = as_hymn_string(read_constant(frame));
             Value value = machine_peek(this, 1);
-            Value exists = map_get(&this->globals, name->string);
+            Value exists = table_get(&this->globals, name);
             if (is_undefined(exists)) {
                 machine_runtime_error(this, "Undefined variable '%s'.", name->string);
                 return;
             }
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
-            Value previous = map_get(&this->globals, name->string);
+            Value previous = table_get(&this->globals, name);
             if (!is_undefined(previous)) {
                 dereference(this, previous);
             }
-            map_put(&this->globals, name, value);
+            table_put(&this->globals, name, value);
             break;
         }
         case OP_GET_GLOBAL: {
-            String *name = as_string(read_constant(frame));
-            Value get = map_get(&this->globals, name);
+            HymnString *name = as_hymn_string(read_constant(frame));
+            Value get = table_get(&this->globals, name);
             if (is_undefined(get)) {
                 machine_runtime_error(this, "Undefined variable '%s'.", name);
                 return;
@@ -3647,14 +3697,14 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Only tables can set properties.");
                 return;
             }
-            ValueMap *table = as_table(v);
+            Table *table = as_table(v);
             HymnString *name = as_hymn_string(read_constant(frame));
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
-            Value previous = map_get(table, name->string);
+            Value previous = table_get(table, name);
             if (!is_undefined(previous)) {
                 dereference(this, previous);
             }
-            map_put(table, name, p);
+            table_put(table, name, p);
             machine_push(this, p);
             reference(p);
             dereference(this, v);
@@ -3666,9 +3716,9 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Only tables can get properties.");
                 return;
             }
-            ValueMap *table = as_table(v);
-            String *name = as_string(read_constant(frame));
-            Value g = map_get(table, name);
+            Table *table = as_table(v);
+            HymnString *name = as_hymn_string(read_constant(frame));
+            Value g = table_get(table, name);
             if (is_undefined(g)) {
                 g.is = HYMN_VALUE_NONE;
             } else {
@@ -3712,9 +3762,9 @@ static void machine_run(Machine *this) {
                     machine_runtime_error(this, "String required to set table property.");
                     return;
                 }
-                ValueMap *table = as_table(v);
+                Table *table = as_table(v);
                 HymnString *name = as_hymn_string(i);
-                map_put(table, name, s);
+                table_put(table, name, s);
                 dereference(this, i);
             } else {
                 machine_runtime_error(this, "Expected array or table to set inner s.");
@@ -3783,9 +3833,9 @@ static void machine_run(Machine *this) {
                     machine_runtime_error(this, "String required to get table property.");
                     return;
                 }
-                ValueMap *table = as_table(v);
-                String *name = as_string(i);
-                Value g = map_get(table, name);
+                Table *table = as_table(v);
+                HymnString *name = as_hymn_string(i);
+                Value g = table_get(table, name);
                 if (is_undefined(g)) {
                     g.is = HYMN_VALUE_NONE;
                 } else {
@@ -3918,9 +3968,9 @@ static void machine_run(Machine *this) {
                     machine_runtime_error(this, "String required to delete from table.");
                     return;
                 }
-                String *key = as_string(i);
-                ValueMap *table = as_table(v);
-                Value value = map_remove(table, key);
+                Table *table = as_table(v);
+                HymnString *name = as_hymn_string(i);
+                Value value = table_remove(table, name);
                 if (is_undefined(value)) {
                     value.is = HYMN_VALUE_NONE;
                 }
@@ -3954,7 +4004,7 @@ static void machine_run(Machine *this) {
                 break;
             }
             case HYMN_VALUE_TABLE: {
-                ValueMap *copy = new_map_copy(as_table(value));
+                Table *copy = new_table_copy(as_table(value));
                 Value new = new_table_value(copy);
                 machine_push(this, new);
                 reference(new);
@@ -4065,8 +4115,8 @@ static void machine_run(Machine *this) {
                 break;
             }
             case HYMN_VALUE_TABLE: {
-                ValueMap *table = as_table(value);
-                map_clear(this, table);
+                Table *table = as_table(value);
+                table_clear(this, table);
                 machine_push(this, value);
                 break;
             }
@@ -4074,6 +4124,7 @@ static void machine_run(Machine *this) {
             case HYMN_VALUE_NONE:
             case HYMN_VALUE_FUNC:
             case HYMN_VALUE_FUNC_NATIVE:
+            case HYMN_VALUE_POINTER:
                 machine_push(this, new_none());
                 break;
             }
@@ -4085,8 +4136,8 @@ static void machine_run(Machine *this) {
                 machine_runtime_error(this, "Expected table for keys function.");
                 return;
             }
-            ValueMap *table = as_table(value);
-            Array *array = map_keys(table);
+            Table *table = as_table(value);
+            Array *array = table_keys(table);
             Value keys = new_array_value(array);
             reference(keys);
             machine_push(this, keys);
@@ -4119,7 +4170,7 @@ static void machine_run(Machine *this) {
                 dereference(this, b);
                 break;
             case HYMN_VALUE_TABLE: {
-                HymnString *key = map_key_of(as_table(a), b);
+                HymnString *key = table_key_of(as_table(a), b);
                 if (key == NULL) {
                     machine_push(this, new_none());
                 } else {
@@ -4138,6 +4189,7 @@ static void machine_run(Machine *this) {
         case OP_TYPE: {
             Value value = machine_pop(this);
             switch (value.is) {
+            case HYMN_VALUE_UNDEFINED:
             case HYMN_VALUE_NONE:
                 machine_push_intern_string(this, new_string(STRING_NONE));
                 break;
@@ -4169,8 +4221,9 @@ static void machine_run(Machine *this) {
             case HYMN_VALUE_FUNC_NATIVE:
                 machine_push_intern_string(this, new_string(STRING_NATIVE));
                 break;
-            default:
-                machine_push(this, new_none());
+            case HYMN_VALUE_POINTER:
+                machine_push_intern_string(this, new_string(STRING_POINTER));
+                break;
             }
             break;
         }
@@ -4252,6 +4305,9 @@ static void machine_run(Machine *this) {
             case HYMN_VALUE_FUNC_NATIVE:
                 machine_push_intern_string(this, as_native(value)->name);
                 break;
+            case HYMN_VALUE_POINTER:
+                machine_push_intern_string(this, string_format("[pointer %p]", as_pointer(value)));
+                dereference(this, value);
             }
             break;
         }
@@ -4290,8 +4346,23 @@ static void machine_run(Machine *this) {
             case HYMN_VALUE_FUNC_NATIVE:
                 printf("%s\n", as_native(value)->name);
                 break;
+            case HYMN_VALUE_POINTER:
+                printf("[pointer %p]\n", as_pointer(value));
+                dereference(this, value);
+                break;
             }
             break;
+        }
+        case OP_DO: {
+            Value code = machine_pop(this);
+            if (is_string(code)) {
+                machine_do(this, as_hymn_string(code));
+                dereference(this, code);
+                break;
+            } else {
+                machine_runtime_error(this, "Do requires a string to evaluate.");
+                return;
+            }
         }
         case OP_USE: {
             Value file = machine_pop(this);
@@ -4324,21 +4395,46 @@ static char *machine_interpret(Machine *this) {
 Hymn *new_hymn() {
     Hymn *this = safe_calloc(1, sizeof(Hymn));
     machine_reset_stack(this);
-    map_init(&this->globals);
+
+    table_init(&this->globals);
     set_init(&this->strings);
-    set_init(&this->imports);
+
+    this->dir = machine_intern_string(this, new_string("__dir"));
+    this->paths = machine_intern_string(this, new_string("__paths"));
+    this->imports = machine_intern_string(this, new_string("__imports"));
+
+    reference_string(this->dir);
+    reference_string(this->paths);
+    reference_string(this->imports);
+
+    HymnString *dir = machine_intern_string(this, working_directory());
+    Table *paths = new_table();
+    Table *imports = new_table();
+
+    Value dir_value = new_string_value(dir);
+    Value paths_value = new_table_value(paths);
+    Value imports_value = new_table_value(imports);
+
+    table_put(&this->globals, this->dir, dir_value);
+    table_put(&this->globals, this->paths, paths_value);
+    table_put(&this->globals, this->imports, imports_value);
+
+    reference(dir_value);
+    reference(paths_value);
+    reference(imports_value);
+
     return this;
 }
 
 void hymn_delete(Hymn *this) {
     {
-        ValueMap *globals = &this->globals;
+        Table *globals = &this->globals;
         unsigned int bins = globals->bins;
         for (unsigned int i = 0; i < bins; i++) {
-            ValueMapItem *item = globals->items[i];
-            ValueMapItem *previous = NULL;
+            TableItem *item = globals->items[i];
+            TableItem *previous = NULL;
             while (item != NULL) {
-                ValueMapItem *next = item->next;
+                TableItem *next = item->next;
                 if (is_native(item->value)) {
                     if (previous == NULL) {
                         globals->items[i] = next;
@@ -4356,7 +4452,7 @@ void hymn_delete(Hymn *this) {
         }
 #ifndef NDEBUG
         for (unsigned int i = 0; i < bins; i++) {
-            ValueMapItem *item = globals->items[i];
+            TableItem *item = globals->items[i];
             while (item != NULL) {
                 Value value = item->value;
                 if (is_object(value)) {
@@ -4370,12 +4466,8 @@ void hymn_delete(Hymn *this) {
             }
         }
 #endif
-        map_release(this, &this->globals);
+        table_release(this, &this->globals);
         assert(this->globals.size == 0);
-    }
-
-    {
-        set_release(this, &this->imports);
     }
 
     {
@@ -4413,13 +4505,17 @@ void hymn_delete(Hymn *this) {
 
 void hymn_add_function(Hymn *this, const char *name, NativeCall func) {
     HymnString *intern = machine_intern_string(this, new_string(name));
-    intern->object.count++;
+    reference_string(intern);
     String *copy = string_copy(intern->string);
     NativeFunction *value = new_native_function(copy, func);
-    map_put(&this->globals, intern, new_native(value));
+    table_put(&this->globals, intern, new_native(value));
 }
 
-char *hymn_eval(Hymn *this, char *source) {
+void hymn_add_pointer(Hymn *this, char *name, void *pointer) {
+    machine_set_global(this, name, new_pointer(pointer));
+}
+
+char *hymn_do(Hymn *this, char *source) {
     char *error = NULL;
     Function *func = compile(this, source, &error);
     if (error) {
@@ -4449,7 +4545,7 @@ char *hymn_eval(Hymn *this, char *source) {
 
 char *hymn_read(Hymn *this, char *file) {
     String *source = cat(file);
-    char *error = hymn_eval(this, source);
+    char *error = hymn_do(this, source);
     string_delete(source);
     return error;
 }
@@ -4463,9 +4559,16 @@ char *hymn_repl(Hymn *this) {
 
     while (true) {
         printf("> ");
-        if (!fgets(input, sizeof(input), stdin)) {
+        if (fgets(input, sizeof(input), stdin) == NULL) {
             printf("\n");
+            continue;
+        }
+
+        if (strcmp(input, ".exit\n") == 0) {
             break;
+        } else if (strcmp(input, ".help\n") == 0) {
+            printf("Type '.exit' to exit the REPL\n");
+            continue;
         }
 
         Function *func = compile(this, input, &error);
@@ -4473,7 +4576,10 @@ char *hymn_repl(Hymn *this) {
             break;
         }
 
-        machine_push(this, new_func_value(func));
+        Value function = new_func_value(func);
+        reference(function);
+
+        machine_push(this, function);
         machine_call(this, func, 0);
 
         error = machine_interpret(this);
@@ -4481,62 +4587,9 @@ char *hymn_repl(Hymn *this) {
             return error;
         }
 
+        assert(this->stack_top == 0);
         machine_reset_stack(this);
     }
 
     return error;
-}
-
-void hymn_add_pointer(Hymn *this, char *name, void *pointer) {
-    (void)this;
-    (void)name;
-    (void)pointer;
-}
-
-char *hymn_call(Hymn *this, char *function) {
-    (void)this;
-    (void)function;
-    return NULL;
-}
-
-void *hymn_pointer(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return NULL;
-}
-
-i32 hymn_i32(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return 0;
-}
-
-u32 hymn_u32(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return 0;
-}
-
-i64 hymn_i64(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return 0;
-}
-
-u64 hymn_u64(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return 0;
-}
-
-f32 hymn_f32(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return 0.0f;
-}
-
-f64 hymn_f64(Hymn *this, i32 index) {
-    (void)this;
-    (void)index;
-    return 0.0;
 }

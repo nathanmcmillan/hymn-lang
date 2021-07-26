@@ -27,10 +27,15 @@ static char *test_functions() {
     return test("test/scripts/functions.hm");
 }
 
+static char *benchmark_fib() {
+    return test("test/scripts/fib.hm");
+}
+
 char *test_hymn_all() {
     TEST(test_if);
     TEST(test_break);
     TEST(test_switch);
     TEST(test_functions);
+    BENCHMARK(benchmark_fib);
     return NULL;
 }

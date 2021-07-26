@@ -8,6 +8,7 @@
 // #define NDEBUG
 
 #include <assert.h>
+#include <errno.h>
 
 #include "file_io.h"
 #include "log.h"
@@ -15,15 +16,11 @@
 #include "pie.h"
 #include "string_util.h"
 
-// #define HYMN_DEBUG_NONE
-
-#ifndef HYMN_DEBUG_NONE
-#define HYMN_DEBUG_TRACE
+// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 #define HYMN_DEBUG_REFERENCE
 // #define HYMN_DEBUG_CODE
 // #define HYMN_DEBUG_TOKEN
-#endif
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 
@@ -36,6 +33,7 @@
 #define hymn_new_int(v) ((HymnValue){.is = HYMN_VALUE_INTEGER, .as = {.i = v}})
 #define hymn_new_float(v) ((HymnValue){.is = HYMN_VALUE_FLOAT, .as = {.f = v}})
 #define hymn_new_native(v) ((HymnValue){.is = HYMN_VALUE_FUNC_NATIVE, .as = {.n = v}})
+#define hymn_new_pointer(v) ((HymnValue){.is = HYMN_VALUE_POINTER, .as = {.p = v}})
 #define hymn_new_string_value(v) ((HymnValue){.is = HYMN_VALUE_STRING, .as = {.o = (HymnObject *)v}})
 #define hymn_new_array_value(v) ((HymnValue){.is = HYMN_VALUE_ARRAY, .as = {.o = (HymnObject *)v}})
 #define hymn_new_table_value(v) ((HymnValue){.is = HYMN_VALUE_TABLE, .as = {.o = (HymnObject *)v}})
@@ -45,10 +43,11 @@
 #define hymn_as_int(v) ((v).as.i)
 #define hymn_as_float(v) ((v).as.f)
 #define hymn_as_native(v) ((v).as.n)
+#define hymn_as_pointer(v) ((v).as.p)
 #define hymn_as_object(v) ((HymnObject *)(v).as.o)
 #define hymn_as_string(v) ((HymnString *)(v).as.o)
 #define hymn_as_array(v) ((HymnArray *)(v).as.o)
-#define hymn_as_table(v) ((HymnValueMap *)(v).as.o)
+#define hymn_as_table(v) ((HymnTable *)(v).as.o)
 #define hymn_as_func(v) ((HymnFunction *)(v).as.o)
 
 enum HymnValueType {
@@ -62,14 +61,15 @@ enum HymnValueType {
     HYMN_VALUE_TABLE,
     HYMN_VALUE_FUNC,
     HYMN_VALUE_FUNC_NATIVE,
+    HYMN_VALUE_POINTER,
 };
 
 typedef struct HymnValue HymnValue;
 typedef struct HymnObject HymnObject;
 typedef struct HymnString HymnString;
 typedef struct HymnArray HymnArray;
-typedef struct HymnValueMap HymnValueMap;
-typedef struct HymnValueMapItem HymnValueMapItem;
+typedef struct HymnTable HymnTable;
+typedef struct HymnTableItem HymnTableItem;
 typedef struct HymnSet HymnSet;
 typedef struct HymnSetItem HymnSetItem;
 typedef struct HymnFunction HymnFunction;
@@ -89,6 +89,7 @@ struct HymnValue {
         double f;
         HymnObject *o;
         HymnNativeFunction *n;
+        void *p;
     } as;
 };
 
@@ -99,6 +100,7 @@ struct HymnObject {
 struct HymnString {
     HymnObject object;
     String *string;
+    usize hash;
 };
 
 struct HymnArray {
@@ -108,22 +110,20 @@ struct HymnArray {
     i64 capacity;
 };
 
-struct HymnValueMapItem {
-    usize hash;
+struct HymnTableItem {
     HymnString *key;
     HymnValue value;
-    HymnValueMapItem *next;
+    HymnTableItem *next;
 };
 
-struct HymnValueMap {
+struct HymnTable {
     HymnObject object;
     unsigned int size;
     unsigned int bins;
-    HymnValueMapItem **items;
+    HymnTableItem **items;
 };
 
 struct HymnSetItem {
-    usize hash;
     HymnString *string;
     HymnSetItem *next;
 };
@@ -171,9 +171,11 @@ struct Hymn {
     usize stack_top;
     HymnFrame frames[HYMN_FRAMES_MAX];
     int frame_count;
-    HymnValueMap globals;
+    HymnTable globals;
     HymnSet strings;
-    HymnSet imports;
+    HymnString *dir;
+    HymnString *paths;
+    HymnString *imports;
     String *error;
 };
 
@@ -181,21 +183,12 @@ HymnString *new_hymn_string(String *string);
 
 Hymn *new_hymn();
 
-char *hymn_eval(Hymn *this, char *content);
+char *hymn_do(Hymn *this, char *content);
 char *hymn_read(Hymn *this, char *file);
-char *hymn_call(Hymn *this, char *function);
 char *hymn_repl(Hymn *this);
 
 void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
 void hymn_add_pointer(Hymn *this, char *name, void *pointer);
-
-void *hymn_pointer(Hymn *this, i32 index);
-i32 hymn_i32(Hymn *this, i32 index);
-u32 hymn_u32(Hymn *this, i32 index);
-i64 hymn_i64(Hymn *this, i32 index);
-u64 hymn_u64(Hymn *this, i32 index);
-f32 hymn_f32(Hymn *this, i32 index);
-f64 hymn_f64(Hymn *this, i32 index);
 
 void hymn_delete(Hymn *this);
 

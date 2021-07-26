@@ -5,19 +5,82 @@
 #include "file_io.h"
 
 String *working_directory() {
-    // char cwd[1024];
-    // if (getcwd(cwd, sizeof(cwd)) != NULL) {
-    //     return new_string(cwd);
-    // }
+    char path[PATH_MAX];
+    if (getcwd(path, sizeof(path)) != NULL) {
+        return new_string(path);
+    }
     return NULL;
 }
 
-String *absolute_path(char *path) {
-    // char *real = realpath(path, NULL);
-    // if (real != NULL) {
-    //     return new_string(real);
-    // }
+String *path_normalize(String *path) {
+    usize i = 0;
+    usize size = string_len(path);
+    if (size > 1 && path[0] == '.') {
+        if (path[1] == '.') {
+            if (size > 2 && path[2] == '/') {
+                i = 3;
+            }
+        } else if (path[1] == '/') {
+            i = 2;
+        }
+    }
+
+    usize n = 0;
+    char normal[PATH_MAX];
+
+    while (i < size) {
+
+        if (path[i] == '/') {
+            if (i + 2 < size) {
+                if (path[i + 1] == '.' && path[i + 2] == '/') {
+                    i += 2;
+                    continue;
+                } else if (path[i + 2] == '.' && i + 3 < size && path[i + 3] == '/') {
+                    if (n > 0) {
+                        n--;
+                        while (n > 0) {
+                            if (normal[n] == '/') {
+                                break;
+                            }
+                            n--;
+                        }
+                    }
+                    i += 3;
+                    continue;
+                }
+            }
+        }
+
+        normal[n] = path[i];
+        n++;
+        i++;
+    }
+
+    normal[n] = '\0';
+    return new_string(normal);
+}
+
+String *path_parent(String *path) {
     return path;
+}
+
+String *path_join(String *path, String *child) {
+    String *new = string_copy(path);
+    new = string_append_char(new, '/');
+    return string_append(new, child);
+}
+
+String *path_absolute(String *path) {
+    String *working = working_directory();
+    if (string_starts_with(path, working)) {
+        string_delete(working);
+        return path_normalize(path);
+    }
+    working = string_append_char(working, '/');
+    working = string_append(working, path);
+    String *normal = path_normalize(working);
+    string_delete(working);
+    return normal;
 }
 
 usize file_size(char *path) {

@@ -6,6 +6,13 @@
 
 #ifndef HYMN_TESTING
 
+static HymnValue null_pointer(Hymn *this, int count, HymnValue *arguments) {
+    (void)this;
+    (void)count;
+    (void)arguments;
+    return hymn_new_pointer(NULL);
+}
+
 static HymnValue read_file(Hymn *this, int count, HymnValue *arguments) {
     (void)this;
     if (count != 1) {
@@ -20,21 +27,34 @@ static HymnValue read_file(Hymn *this, int count, HymnValue *arguments) {
     return response;
 }
 
+void signal_handle(int signum) {
+    if (signum != 2) {
+        exit(signum);
+    }
+}
+
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
+
+    signal(SIGINT, signal_handle);
 
     Hymn *hymn = new_hymn();
 
+    hymn_add_function(hymn, "null", null_pointer);
     hymn_add_function(hymn, "read", read_file);
 
-    char *error = hymn_read(hymn, "test/scripts/test.hm");
+    char *error = NULL;
+    if (argc > 1) {
+        error = hymn_read(hymn, argv[1]);
+    } else {
+        error = hymn_repl(hymn);
+    }
+
+    hymn_delete(hymn);
+
     if (error != NULL) {
         fprintf(stderr, "%s\n", error);
         return 1;
     }
-
-    hymn_delete(hymn);
 
     return 0;
 }
