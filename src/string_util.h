@@ -52,6 +52,8 @@ bool string_starts_with(String *a, String *b);
 
 bool string_find(String *this, String *sub, usize *out);
 
+String *string_replace(String *this, const char *find, const char *replace);
+
 void string_zero(String *this);
 
 String *char_to_string(char ch);

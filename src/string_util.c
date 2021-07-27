@@ -238,6 +238,39 @@ bool string_find(String *this, String *sub, usize *out) {
     return false;
 }
 
+String *string_replace(String *this, const char *find, const char *replace) {
+    StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
+    usize len = head->length;
+    usize len_sub = strlen(find);
+    if (len_sub > len) {
+        return new_string("");
+    } else if (len == 0) {
+        return new_string("");
+    }
+    String *out = new_string("");
+    usize end = len - len_sub + 1;
+    usize p = 0;
+    for (usize i = 0; i < end; i++) {
+        bool match = true;
+        for (usize k = 0; k < len_sub; k++) {
+            if (find[k] != this[i + k]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            out = string_append_substring(out, this, p, i);
+            out = string_append(out, replace);
+            i += len_sub;
+            p = i;
+        }
+    }
+    if (p < len) {
+        out = string_append_substring(out, this, p, len);
+    }
+    return out;
+}
+
 void string_zero(String *this) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     head->length = 0;

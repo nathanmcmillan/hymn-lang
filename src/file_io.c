@@ -61,7 +61,17 @@ String *path_normalize(String *path) {
 }
 
 String *path_parent(String *path) {
-    return path;
+    usize size = string_len(path);
+    if (size < 2) {
+        return string_copy(path);
+    }
+    usize i = size - 2;
+    while (true) {
+        if (i == 0) break;
+        if (path[i] == '/') break;
+        i--;
+    }
+    return new_string_from_substring(path, 0, i);
 }
 
 String *path_join(String *path, String *child) {
@@ -83,7 +93,7 @@ String *path_absolute(String *path) {
     return normal;
 }
 
-usize file_size(char *path) {
+usize file_size(const char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file: %s\n", path);
@@ -98,22 +108,12 @@ usize file_size(char *path) {
     return num;
 }
 
-usize file_binary_size(char *path) {
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) {
-        fprintf(stderr, "Could not open file: %s\n", path);
-        exit(1);
-    }
-    usize num = 0;
-    int ch;
-    while ((ch = fgetc(fp)) != EOF) {
-        num++;
-    }
-    fclose(fp);
-    return num;
+bool file_exists(const char *path) {
+    struct stat b;
+    return stat(path, &b) == 0;
 }
 
-String *cat(char *path) {
+String *cat(const char *path) {
     usize size = file_size(path);
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
@@ -128,30 +128,4 @@ String *cat(char *path) {
     String *s = new_string_with_length(content, size);
     free(content);
     return s;
-}
-
-void core_write(char *path, char *content) {
-    FILE *fp = fopen(path, "a");
-    if (fp == NULL) {
-        fprintf(stderr, "Could not open file: %s\n", path);
-        exit(1);
-    }
-    fputs(content, fp);
-    fclose(fp);
-}
-
-char *read_binary(char *path, usize *size_pointer) {
-    usize size = file_binary_size(path);
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) {
-        fprintf(stderr, "Could not open file: %s\n", path);
-        exit(1);
-    }
-    char *content = safe_malloc(size * sizeof(char));
-    for (usize i = 0; i < size; i++) {
-        content[i] = (char)fgetc(fp);
-    }
-    fclose(fp);
-    *size_pointer = size;
-    return content;
 }

@@ -17,12 +17,8 @@ A small byte-code interpreted language with a focus on simplicty. [Visit the web
 
 ## Development
 
-1. Global `__dir` string to the present working directory
-1. Global `__paths` array used as import path priority-based resolver
-1. Global `__imports` table that holds current used files. deleting from here will allow reloading a file
 1. Expression `try` and `catch` blocks with string exceptions
-1. Cache string intern hash
-1. Initialize tables
+1. Tables and arrays with initialized items `[1, 2, 3]` `{foo: bar, hello: world}`
 
 ## Long Term Goals
 

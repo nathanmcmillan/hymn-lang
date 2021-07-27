@@ -410,7 +410,8 @@ struct Compiler {
     usize pos;
     int row;
     int column;
-    char *source;
+    const char *script;
+    const char *source;
     usize size;
     Token alpha;
     Token beta;
@@ -599,16 +600,20 @@ static String *debug_value_to_string(Value value) {
     String *string = new_string(value_name(value.is));
     string = string_append(string, ": ");
     switch (value.is) {
-    case HYMN_VALUE_UNDEFINED: return string_append(string, "UNDEFINED"); break;
-    case HYMN_VALUE_NONE: return string_append(string, "NONE"); break;
-    case HYMN_VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE"); break;
-    case HYMN_VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value)); break;
-    case HYMN_VALUE_FLOAT: return string_append_format(string, "%g", as_float(value)); break;
+    case HYMN_VALUE_UNDEFINED: return string_append(string, "UNDEFINED");
+    case HYMN_VALUE_NONE: return string_append(string, "NONE");
+    case HYMN_VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE");
+    case HYMN_VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value));
+    case HYMN_VALUE_FLOAT: return string_append_format(string, "%g", as_float(value));
     case HYMN_VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value));
-    case HYMN_VALUE_ARRAY: return string_append_format(string, "[%p]", as_array(value)); break;
-    case HYMN_VALUE_TABLE: return string_append_format(string, "[%p]", as_table(value)); break;
-    case HYMN_VALUE_FUNC: return string_append_format(string, "<%s>", as_func(value)->name); break;
-    case HYMN_VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name); break;
+    case HYMN_VALUE_ARRAY: return string_append_format(string, "[%p]", as_array(value));
+    case HYMN_VALUE_TABLE: return string_append_format(string, "[%p]", as_table(value));
+    case HYMN_VALUE_FUNC: {
+        Function *func = as_func(value);
+        if (func->name) return string_append_format(string, "<%s>", func->name);
+        return string_append_format(string, "<%s>", func->script);
+    }
+    case HYMN_VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name);
     default: return string_append_char(string, '?');
     }
 }
@@ -1044,7 +1049,7 @@ static void string_token(Compiler *this, usize start, usize end) {
     gamma->length = (int)(end - start);
 }
 
-static enum TokenType ident_trie(char *ident, int offset, const char *rest, enum TokenType type) {
+static enum TokenType ident_trie(const char *ident, int offset, const char *rest, enum TokenType type) {
     int i = 0;
     do {
         if (ident[offset + i] != rest[i]) {
@@ -1055,7 +1060,7 @@ static enum TokenType ident_trie(char *ident, int offset, const char *rest, enum
     return type;
 }
 
-static enum TokenType ident_keyword(char *ident, usize size) {
+static enum TokenType ident_keyword(const char *ident, usize size) {
     switch (ident[0]) {
     case 'o':
         if (size == 2) return ident_trie(ident, 1, "r", TOKEN_OR);
@@ -1161,7 +1166,7 @@ static enum TokenType ident_keyword(char *ident, usize size) {
 }
 
 static void push_ident_token(Compiler *this, usize start, usize end) {
-    char *ident = &this->source[start];
+    const char *ident = &this->source[start];
     usize size = end - start;
     enum TokenType keyword = ident_keyword(ident, size);
     if (keyword != TOKEN_UNDEFINED) {
@@ -1386,8 +1391,9 @@ static bool match_values(Value a, Value b) {
     return false;
 }
 
-static Function *new_function() {
+static Function *new_function(const char *script) {
     Function *func = safe_calloc(1, sizeof(Function));
+    func->script = new_string(script);
     byte_code_init(&func->code);
     return func;
 }
@@ -1627,7 +1633,7 @@ static void compiler_scope_init(Compiler *this, Scope *scope, enum FunctionType 
 
     scope->local_count = 0;
     scope->depth = 0;
-    scope->func = new_function();
+    scope->func = new_function(this->script);
     scope->type = type;
 
     if (type != TYPE_SCRIPT) {
@@ -1640,10 +1646,11 @@ static void compiler_scope_init(Compiler *this, Scope *scope, enum FunctionType 
     local->name.length = 0;
 }
 
-static inline Compiler new_compiler(char *source, Machine *machine, Scope *scope) {
+static inline Compiler new_compiler(const char *script, const char *source, Machine *machine, Scope *scope) {
     Compiler this = {0};
     this.row = 1;
     this.column = 1;
+    this.script = script;
     this.source = source;
     this.size = strlen(source);
     this.alpha.type = TOKEN_UNDEFINED;
@@ -1863,6 +1870,7 @@ static void compile_table(Compiler *this, bool assign) {
 static void function_delete(Function *this) {
     byte_code_delete(&this->code);
     string_delete(this->name);
+    string_delete(this->script);
     free(this);
 }
 
@@ -2848,13 +2856,11 @@ static void expression(Compiler *this) {
     compile_with_precedence(this, PRECEDENCE_ASSIGN);
 }
 
-static Function *compile(Machine *machine, char *source, char **error) {
+static Function *compile(Machine *machine, const char *script, const char *source, char **error) {
 
     Scope scope = {0};
 
-    // TODO: Need to pass in path to the source script, so that the directory can be known and used for relative imports
-
-    Compiler c = new_compiler(source, machine, &scope);
+    Compiler c = new_compiler(script, source, machine, &scope);
     Compiler *compiler = &c;
 
     advance(compiler);
@@ -3265,7 +3271,7 @@ static void machine_do(Machine *this, HymnString *source) {
 
     char *error = NULL;
 
-    Function *func = compile(this, source->string, &error);
+    Function *func = compile(this, NULL, source->string, &error);
 
     if (error) {
         printf("Error compiling: %s\n", error);
@@ -3285,27 +3291,63 @@ static void machine_do(Machine *this, HymnString *source) {
 }
 
 static void machine_import(Machine *this, HymnString *file) {
-    String *path = string_concat_const(file->string, ".hm");
-    HymnString *use = machine_intern_string(this, path_absolute(path));
-    reference_string(use);
-    string_delete(path);
 
-    printf("IMPORT: [%s] -> [%s]\n", file->string, use->string);
+    Table *imports = this->imports;
 
-    Table *imports = as_table(table_get(&this->globals, this->imports));
+    String *script = this->frames[this->frame_count - 1].func->script;
+    String *parent = NULL;
+    if (script) {
+        parent = path_parent(script);
+    }
 
-    if (table_get(imports, use).is != HYMN_VALUE_UNDEFINED) {
+    HymnString *module = NULL;
+
+    Array *paths = this->paths;
+    usize size = paths->length;
+    for (usize i = 0; i < size; i++) {
+        Value value = paths->items[i];
+        if (!is_string(value)) {
+            continue;
+        }
+        String *question = as_string(value);
+
+        String *replace = string_replace(question, "<path>", file->string);
+        String *path = string_replace(replace, "<parent>", parent);
+
+        HymnString *use = machine_intern_string(this, path_absolute(path));
+        reference_string(use);
+
+        string_delete(path);
+        string_delete(replace);
+
+        if (!is_undefined(table_get(imports, use))) {
+            dereference_string(this, use);
+            if (parent) string_delete(parent);
+            return;
+        }
+
+        if (file_exists(use->string)) {
+            module = use;
+            break;
+        }
+
         dereference_string(this, use);
+    }
+
+    if (parent) string_delete(parent);
+
+    if (module == NULL) {
+        machine_runtime_error(this, "Import not found: %s", file->string);
         return;
     }
 
-    table_put(imports, use, new_bool(true));
+    table_put(imports, module, new_bool(true));
 
-    String *source = cat(use->string);
+    String *source = cat(module->string);
 
     char *error = NULL;
 
-    Function *func = compile(this, source, &error);
+    Function *func = compile(this, module->string, source, &error);
     string_delete(source);
 
     if (error) {
@@ -4396,31 +4438,30 @@ Hymn *new_hymn() {
     Hymn *this = safe_calloc(1, sizeof(Hymn));
     machine_reset_stack(this);
 
-    table_init(&this->globals);
     set_init(&this->strings);
+    table_init(&this->globals);
 
-    this->dir = machine_intern_string(this, new_string("__dir"));
-    this->paths = machine_intern_string(this, new_string("__paths"));
-    this->imports = machine_intern_string(this, new_string("__imports"));
-
-    reference_string(this->dir);
-    reference_string(this->paths);
-    reference_string(this->imports);
-
-    HymnString *dir = machine_intern_string(this, working_directory());
-    Table *paths = new_table();
-    Table *imports = new_table();
-
-    Value dir_value = new_string_value(dir);
-    Value paths_value = new_table_value(paths);
-    Value imports_value = new_table_value(imports);
-
-    table_put(&this->globals, this->dir, dir_value);
-    table_put(&this->globals, this->paths, paths_value);
-    table_put(&this->globals, this->imports, imports_value);
-
-    reference(dir_value);
+    HymnString *question_this = machine_intern_string(this, new_string("<parent>/<path>.hm"));
+    HymnString *question_relative = machine_intern_string(this, new_string("./<path>.hm"));
+    HymnString *question_modules = machine_intern_string(this, new_string("./modules/<path>.hm"));
+    reference_string(question_this);
+    reference_string(question_relative);
+    reference_string(question_modules);
+    HymnString *paths = machine_intern_string(this, new_string("__paths"));
+    reference_string(paths);
+    this->paths = new_array(3);
+    this->paths->items[0] = new_string_value(question_this);
+    this->paths->items[1] = new_string_value(question_relative);
+    this->paths->items[2] = new_string_value(question_modules);
+    Value paths_value = new_array_value(this->paths);
+    table_put(&this->globals, paths, paths_value);
     reference(paths_value);
+
+    HymnString *imports = machine_intern_string(this, new_string("__imports"));
+    reference_string(imports);
+    this->imports = new_table();
+    Value imports_value = new_table_value(this->imports);
+    table_put(&this->globals, imports, imports_value);
     reference(imports_value);
 
     return this;
@@ -4511,13 +4552,13 @@ void hymn_add_function(Hymn *this, const char *name, NativeCall func) {
     table_put(&this->globals, intern, new_native(value));
 }
 
-void hymn_add_pointer(Hymn *this, char *name, void *pointer) {
+void hymn_add_pointer(Hymn *this, const char *name, void *pointer) {
     machine_set_global(this, name, new_pointer(pointer));
 }
 
-char *hymn_do(Hymn *this, char *source) {
+static char *hymn_do_script(Hymn *this, const char *script, const char *source) {
     char *error = NULL;
-    Function *func = compile(this, source, &error);
+    Function *func = compile(this, script, source, &error);
     if (error) {
         return error;
     }
@@ -4543,9 +4584,13 @@ char *hymn_do(Hymn *this, char *source) {
     return error;
 }
 
-char *hymn_read(Hymn *this, char *file) {
-    String *source = cat(file);
-    char *error = hymn_do(this, source);
+char *hymn_do(Hymn *this, const char *source) {
+    return hymn_do_script(this, NULL, source);
+}
+
+char *hymn_read(Hymn *this, const char *script) {
+    String *source = cat(script);
+    char *error = hymn_do_script(this, script, source);
     string_delete(source);
     return error;
 }
@@ -4571,7 +4616,7 @@ char *hymn_repl(Hymn *this) {
             continue;
         }
 
-        Function *func = compile(this, input, &error);
+        Function *func = compile(this, NULL, input, &error);
         if (error) {
             break;
         }

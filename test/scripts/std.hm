@@ -1,5 +1,4 @@
-use "test/scripts/util"
-# use "util"
+use "util"
 
 print("std.hm")
 

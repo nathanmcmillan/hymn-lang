@@ -18,7 +18,7 @@
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
-#define HYMN_DEBUG_REFERENCE
+// #define HYMN_DEBUG_REFERENCE
 // #define HYMN_DEBUG_CODE
 // #define HYMN_DEBUG_TOKEN
 
@@ -156,6 +156,7 @@ struct HymnByteCode {
 struct HymnFunction {
     HymnObject object;
     String *name;
+    String *script;
     int arity;
     HymnByteCode code;
 };
@@ -171,11 +172,10 @@ struct Hymn {
     usize stack_top;
     HymnFrame frames[HYMN_FRAMES_MAX];
     int frame_count;
-    HymnTable globals;
     HymnSet strings;
-    HymnString *dir;
-    HymnString *paths;
-    HymnString *imports;
+    HymnTable globals;
+    HymnArray *paths;
+    HymnTable *imports;
     String *error;
 };
 
@@ -183,12 +183,12 @@ HymnString *new_hymn_string(String *string);
 
 Hymn *new_hymn();
 
-char *hymn_do(Hymn *this, char *content);
-char *hymn_read(Hymn *this, char *file);
+char *hymn_do(Hymn *this, const char *source);
+char *hymn_read(Hymn *this, const char *script);
 char *hymn_repl(Hymn *this);
 
 void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
-void hymn_add_pointer(Hymn *this, char *name, void *pointer);
+void hymn_add_pointer(Hymn *this, const char *name, void *pointer);
 
 void hymn_delete(Hymn *this);
 
