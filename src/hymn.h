@@ -11,13 +11,12 @@
 #include <errno.h>
 
 #include "file_io.h"
-#include "log.h"
 #include "mem.h"
 #include "pie.h"
 #include "string_util.h"
 
-// #define HYMN_DEBUG_TRACE
-// #define HYMN_DEBUG_STACK
+#define HYMN_DEBUG_TRACE
+#define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_REFERENCE
 // #define HYMN_DEBUG_CODE
 // #define HYMN_DEBUG_TOKEN

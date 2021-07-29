@@ -1,0 +1,25 @@
+#!/usr/bin/env hymn
+
+let a = [5, 9, 13]
+print(a)
+print(a[0])
+print(a[1])
+print(a[2])
+
+let t = {foo: "bar", hello: "world"}
+print(t)
+print(t.foo)
+print(t.hello)
+
+let x = [
+  1,
+  2,
+  3
+]
+print(x)
+
+let b = {
+  foo: "bar",
+  hello: "world"
+}
+print(b)

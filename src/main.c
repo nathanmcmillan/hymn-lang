@@ -2,7 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "main.h"
+#include <inttypes.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "file_io.h"
+#include "hymn.h"
+#include "pie.h"
 
 #ifndef HYMN_TESTING
 
@@ -49,14 +58,17 @@ int main(int argc, char **argv) {
         error = hymn_repl(hymn);
     }
 
-    hymn_delete(hymn);
+    int code = 0;
 
     if (error != NULL) {
         fprintf(stderr, "%s\n", error);
-        return 1;
+        fflush(stderr);
+        code = 1;
     }
 
-    return 0;
+    hymn_delete(hymn);
+
+    return code;
 }
 
 #endif

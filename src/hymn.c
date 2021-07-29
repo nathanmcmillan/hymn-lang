@@ -1698,13 +1698,14 @@ static void write_two_op(ByteCode *this, u8 b, u8 n, int row) {
     this->count = count + 2;
 }
 
-static void write_constant(Compiler *this, Value value, int row) {
+static u8 write_constant(Compiler *this, Value value, int row) {
     int constant = byte_code_add_constant(current(this), value);
     if (constant > UINT8_MAX) {
         compile_error(this, &this->alpha, "Too many constants.");
         constant = 0;
     }
     write_two_op(current(this), OP_CONSTANT, (u8)constant, row);
+    return (u8)constant;
 }
 
 static Rule *token_rule(enum TokenType type) {
@@ -1787,6 +1788,20 @@ static void consume(Compiler *this, enum TokenType type, const char *error) {
     compile_error(this, &this->beta, error);
 }
 
+static u8 push_hidden_local(Compiler *this) {
+    Scope *scope = this->scope;
+    if (scope->local_count == HYMN_UINT8_COUNT) {
+        compile_error(this, &this->alpha, "Too many local variables in scope.");
+        return 0;
+    }
+    u8 index = (u8)scope->local_count++;
+    Local *local = &scope->locals[index];
+    local->name = (Token){0};
+    local->constant = true;
+    local->depth = scope->depth;
+    return index;
+}
+
 static u8 arguments(Compiler *this) {
     u8 count = 0;
     if (!check(this, TOKEN_RIGHT_PAREN)) {
@@ -1851,20 +1866,62 @@ static void compile_string(Compiler *this, bool assign) {
     write_constant(this, compile_intern_string(this->machine, s), alpha->row);
 }
 
+static u8 ident_constant(Compiler *this, Token *token) {
+    String *s = new_string_from_substring(this->source, token->start, token->start + token->length);
+    return (u8)byte_code_add_constant(current(this), compile_intern_string(this->machine, s));
+}
+
+static void begin_scope(Compiler *this) {
+    this->scope->depth++;
+}
+
+static void end_scope(Compiler *this) {
+    Scope *scope = this->scope;
+    scope->depth--;
+    while (scope->local_count > 0 and scope->locals[scope->local_count - 1].depth > scope->depth) {
+        emit(this, OP_POP);
+        scope->local_count--;
+    }
+}
+
 static void compile_array(Compiler *this, bool assign) {
     (void)assign;
-    consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.");
-    Token *alpha = &this->alpha;
+    if (match(this, TOKEN_RIGHT_SQUARE)) {
+        Array *array = new_array(0);
+        write_constant(this, new_array_value(array), this->alpha.row);
+        return;
+    }
     Array *array = new_array(0);
-    write_constant(this, new_array_value(array), alpha->row);
+    u8 constant = write_constant(this, new_array_value(array), this->alpha.row);
+    while (!check(this, TOKEN_RIGHT_SQUARE) and !check(this, TOKEN_EOF)) {
+        emit_two(this, OP_CONSTANT, constant);
+        expression(this);
+        emit_two(this, OP_ARRAY_PUSH, OP_POP);
+        if (!check(this, TOKEN_RIGHT_SQUARE)) consume(this, TOKEN_COMMA, "Expected ','.");
+    }
+    consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.");
 }
 
 static void compile_table(Compiler *this, bool assign) {
     (void)assign;
-    consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
-    Token *alpha = &this->alpha;
+    if (match(this, TOKEN_RIGHT_CURLY)) {
+        Table *table = new_table();
+        write_constant(this, new_table_value(table), this->alpha.row);
+        return;
+    }
     Table *table = new_table();
-    write_constant(this, new_table_value(table), alpha->row);
+    u8 constant = write_constant(this, new_table_value(table), this->alpha.row);
+    while (!check(this, TOKEN_RIGHT_CURLY) and !check(this, TOKEN_EOF)) {
+        emit_two(this, OP_CONSTANT, constant);
+        consume(this, TOKEN_IDENT, "Expected property name");
+        u8 name = ident_constant(this, &this->alpha);
+        consume(this, TOKEN_COLON, "Expected ':'.");
+        expression(this);
+        emit_two(this, OP_SET_PROPERTY, name);
+        emit(this, OP_POP);
+        if (!check(this, TOKEN_RIGHT_CURLY)) consume(this, TOKEN_COMMA, "Expected ','.");
+    }
+    consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
 }
 
 static void function_delete(Function *this) {
@@ -1904,24 +1961,6 @@ static void panic_halt(Compiler *this) {
         }
         advance(this);
     }
-}
-
-static void begin_scope(Compiler *this) {
-    this->scope->depth++;
-}
-
-static void end_scope(Compiler *this) {
-    Scope *scope = this->scope;
-    scope->depth--;
-    while (scope->local_count > 0 and scope->locals[scope->local_count - 1].depth > scope->depth) {
-        emit(this, OP_POP);
-        scope->local_count--;
-    }
-}
-
-static u8 ident_constant(Compiler *this, Token *token) {
-    String *s = new_string_from_substring(this->source, token->start, token->start + token->length);
-    return (u8)byte_code_add_constant(current(this), compile_intern_string(this->machine, s));
 }
 
 static void push_local(Compiler *this, Token name, bool constant) {
@@ -1968,20 +2007,6 @@ static void local_initialize(Compiler *this) {
         return;
     }
     scope->locals[scope->local_count - 1].depth = scope->depth;
-}
-
-static u8 push_hidden_local(Compiler *this) {
-    Scope *scope = this->scope;
-    if (scope->local_count == HYMN_UINT8_COUNT) {
-        compile_error(this, &this->alpha, "Too many local variables in scope.");
-        return 0;
-    }
-    u8 index = (u8)scope->local_count++;
-    Local *local = &scope->locals[index];
-    local->name = (Token){0};
-    local->constant = true;
-    local->depth = scope->depth;
-    return index;
 }
 
 static void finalize_variable(Compiler *this, u8 global) {
