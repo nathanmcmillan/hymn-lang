@@ -15,11 +15,11 @@
 #include "pie.h"
 #include "string_util.h"
 
-#define HYMN_DEBUG_TRACE
-#define HYMN_DEBUG_STACK
-// #define HYMN_DEBUG_REFERENCE
-// #define HYMN_DEBUG_CODE
 // #define HYMN_DEBUG_TOKEN
+#define HYMN_DEBUG_TRACE
+// #define HYMN_DEBUG_CODE
+#define HYMN_DEBUG_STACK
+#define HYMN_DEBUG_REFERENCE
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 
@@ -71,6 +71,7 @@ typedef struct HymnTable HymnTable;
 typedef struct HymnTableItem HymnTableItem;
 typedef struct HymnSet HymnSet;
 typedef struct HymnSetItem HymnSetItem;
+typedef struct HymnExceptList HymnExceptList;
 typedef struct HymnFunction HymnFunction;
 typedef struct HymnNativeFunction HymnNativeFunction;
 typedef struct HymnFrame HymnFrame;
@@ -152,12 +153,20 @@ struct HymnByteCode {
     HymnValuePool constants;
 };
 
+struct HymnExceptList {
+    usize start;
+    usize end;
+    usize stack;
+    struct HymnExceptList *next;
+};
+
 struct HymnFunction {
     HymnObject object;
     String *name;
     String *script;
     int arity;
     HymnByteCode code;
+    HymnExceptList *except;
 };
 
 struct HymnFrame {

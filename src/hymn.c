@@ -133,6 +133,7 @@ typedef HymnTableItem TableItem;
 typedef HymnSet Set;
 typedef HymnSetItem SetItem;
 typedef HymnNativeCall NativeCall;
+typedef HymnExceptList ExceptList;
 typedef HymnFunction Function;
 typedef HymnNativeFunction NativeFunction;
 typedef HymnFrame Frame;
@@ -145,6 +146,7 @@ typedef struct Rule Rule;
 typedef struct Script Script;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
+typedef struct Hymn Machine;
 
 static const float LOAD_FACTOR = 0.80f;
 
@@ -231,6 +233,7 @@ enum TokenType {
     TOKEN_BIT_RIGHT_SHIFT,
     TOKEN_TRY,
     TOKEN_EXCEPT,
+    TOKEN_THROW,
     TOKEN_SWITCH,
 };
 
@@ -294,6 +297,7 @@ enum OpCode {
     OP_NOT_EQUAL,
     OP_POP,
     OP_PRINT,
+    OP_THROW,
     OP_USE,
     OP_RETURN,
     OP_SET_DYNAMIC,
@@ -313,8 +317,6 @@ enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
 };
-
-typedef struct Hymn Machine;
 
 static void compile_with_precedence(Compiler *this, enum Precedence precedence);
 static void compile_call(Compiler *this, bool assign);
@@ -356,6 +358,10 @@ static inline void reference_string(HymnString *string);
 static inline void reference(Value value);
 static inline void dereference_string(Machine *this, HymnString *string);
 static inline void dereference(Machine *this, Value value);
+
+static void machine_push(Machine *this, Value value);
+static Value machine_peek(Machine *this, usize dist);
+static Value machine_pop(Machine *this);
 
 static char *machine_interpret(Machine *this);
 
@@ -498,6 +504,7 @@ Rule rules[] = {
     [TOKEN_TO_STRING] = {cast_string_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_TRUE] = {compile_true, NULL, PRECEDENCE_NONE},
     [TOKEN_TRY] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_THROW] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_TYPE] = {type_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_UNDEFINED] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_USE] = {NULL, NULL, PRECEDENCE_NONE},
@@ -589,6 +596,7 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_TO_STRING: return "TO_STRING";
     case TOKEN_TRUE: return "TRUE";
     case TOKEN_TRY: return "TRY";
+    case TOKEN_THROW: return "THROW";
     case TOKEN_TYPE: return "TYPE";
     case TOKEN_WHILE: return "WHILE";
     case TOKEN_USE: return "USE";
@@ -957,8 +965,12 @@ static void compiler_delete(Compiler *this) {
     string_delete(this->error);
 }
 
+static inline Function *current_func(Compiler *this) {
+    return this->scope->func;
+}
+
 static inline ByteCode *current(Compiler *this) {
-    return &this->scope->func->code;
+    return &current_func(this)->code;
 }
 
 static void compile_error(Compiler *this, Token *token, const char *format, ...) {
@@ -1085,7 +1097,7 @@ static enum TokenType ident_keyword(const char *ident, usize size) {
         break;
     case 'd':
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
-        if (size == 2 && ident[1] == 'o') return TOKEN_DO;
+        if (size == 2 and ident[1] == 'o') return TOKEN_DO;
         break;
     case 'r':
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
@@ -1117,6 +1129,7 @@ static enum TokenType ident_keyword(const char *ident, usize size) {
         break;
     case 't':
         if (size == 3) return ident_trie(ident, 1, "ry", TOKEN_TRY);
+        if (size == 5) return ident_trie(ident, 1, "hrow", TOKEN_THROW);
         if (size == 4) {
             if (ident[1] == 'r') return ident_trie(ident, 2, "ue", TOKEN_TRUE);
             if (ident[1] == 'y') return ident_trie(ident, 2, "pe", TOKEN_TYPE);
@@ -1928,6 +1941,12 @@ static void function_delete(Function *this) {
     byte_code_delete(&this->code);
     string_delete(this->name);
     string_delete(this->script);
+    ExceptList *except = this->except;
+    while (except != NULL) {
+        ExceptList *next = except->next;
+        free(except);
+        except = next;
+    }
     free(this);
 }
 
@@ -2018,10 +2037,10 @@ static void finalize_variable(Compiler *this, u8 global) {
 }
 
 static void define_new_variable(Compiler *this, bool constant) {
-    u8 global = variable(this, constant, "Expected variable name.");
+    u8 v = variable(this, constant, "Expected variable name.");
     consume(this, TOKEN_ASSIGN, "Expected '=' after variable");
     expression(this);
-    finalize_variable(this, global);
+    finalize_variable(this, v);
 }
 
 static int resolve_local(Compiler *this, Token *name, bool *constant) {
@@ -2722,6 +2741,46 @@ static void do_statement(Compiler *this) {
     emit(this, OP_DO);
 }
 
+static void try_statement(Compiler *this) {
+
+    ExceptList *except = safe_calloc(1, sizeof(ExceptList));
+    except->stack = this->scope->local_count;
+    except->start = (usize)current(this)->count;
+
+    Function *func = current_func(this);
+    except->next = func->except;
+    func->except = except;
+
+    begin_scope(this);
+    while (!check(this, TOKEN_EXCEPT) and !check(this, TOKEN_EOF)) {
+        declaration(this);
+    }
+    end_scope(this);
+
+    int jump = emit_jump(this, OP_JUMP);
+
+    consume(this, TOKEN_EXCEPT, "Expected 'except' after try.");
+
+    except->end = (usize)current(this)->count;
+
+    begin_scope(this);
+    u8 message = variable(this, false, "Expected variable after 'except'");
+    finalize_variable(this, message);
+    while (!check(this, TOKEN_END) and !check(this, TOKEN_EOF)) {
+        declaration(this);
+    }
+    end_scope(this);
+
+    consume(this, TOKEN_END, "Expected 'end' after except.");
+
+    patch_jump(this, jump);
+}
+
+static void throw_statement(Compiler *this) {
+    expression(this);
+    emit(this, OP_THROW);
+}
+
 static void statement(Compiler *this) {
     if (match(this, TOKEN_PRINT)) {
         print_statement(this);
@@ -2745,6 +2804,10 @@ static void statement(Compiler *this) {
         break_statement(this);
     } else if (match(this, TOKEN_CONTINUE)) {
         continue_statement(this);
+    } else if (match(this, TOKEN_TRY)) {
+        try_statement(this);
+    } else if (match(this, TOKEN_THROW)) {
+        throw_statement(this);
     } else if (match(this, TOKEN_PASS)) {
         // do nothing
     } else if (match(this, TOKEN_BEGIN)) {
@@ -2985,6 +3048,7 @@ static usize disassemble_instruction(String **debug, ByteCode *this, usize index
     case OP_NOT_EQUAL: return debug_instruction(debug, "OP_NOT_EQUAL", index);
     case OP_POP: return debug_instruction(debug, "OP_POP", index);
     case OP_PRINT: return debug_instruction(debug, "OP_PRINT", index);
+    case OP_THROW: return debug_instruction(debug, "OP_THROW", index);
     case OP_SET_DYNAMIC: return debug_instruction(debug, "OP_SET_DYNAMIC", index);
     case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", this, index);
     case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", this, index);
@@ -3020,41 +3084,6 @@ void disassemble_byte_code(ByteCode *this, const char *name) {
 static void machine_reset_stack(Machine *this) {
     this->stack_top = 0;
     this->frame_count = 0;
-}
-
-static void machine_runtime_error(Machine *this, const char *format, ...) {
-    if (this->error == NULL) {
-        this->error = new_string("");
-    }
-
-    va_list ap;
-    va_start(ap, format);
-    int len = vsnprintf(NULL, 0, format, ap);
-    va_end(ap);
-    char *chars = safe_malloc((len + 1) * sizeof(char));
-    va_start(ap, format);
-    len = vsnprintf(chars, len + 1, format, ap);
-    va_end(ap);
-    this->error = string_append(this->error, chars);
-    free(chars);
-
-    this->error = string_append_char(this->error, '\n');
-
-    for (int i = this->frame_count - 1; i >= 0; i--) {
-        Frame *frame = &this->frames[i];
-        Function *func = frame->func;
-        usize ip = frame->ip - 1;
-        int row = frame->func->code.rows[ip];
-
-        this->error = string_append_format(this->error, "[Line %d] in ", row);
-        if (func->name == NULL) {
-            this->error = string_append_format(this->error, "script\n");
-        } else {
-            this->error = string_append_format(this->error, "%s()\n", func->name);
-        }
-    }
-
-    machine_reset_stack(this);
 }
 
 static inline bool is_object(Value value) {
@@ -3114,6 +3143,9 @@ static void reference(Value value) {
 }
 
 static inline void dereference_string(Machine *this, HymnString *string) {
+#ifdef HYMN_DEBUG_REFERENCE
+    debug_dereference(new_string_value(string));
+#endif
     int count = --(string->object.count);
     assert(count >= 0);
     if (count == 0) {
@@ -3124,9 +3156,6 @@ static inline void dereference_string(Machine *this, HymnString *string) {
 }
 
 static void dereference(Machine *this, Value value) {
-#ifdef HYMN_DEBUG_REFERENCE
-    debug_dereference(value);
-#endif
     switch (value.is) {
     case HYMN_VALUE_STRING: {
         HymnString *string = as_hymn_string(value);
@@ -3134,6 +3163,9 @@ static void dereference(Machine *this, Value value) {
         break;
     }
     case HYMN_VALUE_ARRAY: {
+#ifdef HYMN_DEBUG_REFERENCE
+        debug_dereference(value);
+#endif
         Array *array = as_array(value);
         int count = --(array->object.count);
         assert(count >= 0);
@@ -3143,6 +3175,9 @@ static void dereference(Machine *this, Value value) {
         break;
     }
     case HYMN_VALUE_TABLE: {
+#ifdef HYMN_DEBUG_REFERENCE
+        debug_dereference(value);
+#endif
         Table *table = as_table(value);
         int count = --(table->object.count);
         assert(count >= 0);
@@ -3152,6 +3187,9 @@ static void dereference(Machine *this, Value value) {
         break;
     }
     case HYMN_VALUE_FUNC: {
+#ifdef HYMN_DEBUG_REFERENCE
+        debug_dereference(value);
+#endif
         Function *func = as_func(value);
         int count = --(func->object.count);
         assert(count >= 0);
@@ -3189,6 +3227,73 @@ static void machine_push_intern_string(Machine *this, String *string) {
     HymnString *intern = machine_intern_string(this, string);
     reference_string(intern);
     machine_push(this, new_string_value(intern));
+}
+
+static void machine_runtime_error(Machine *this, const char *format, ...) {
+    if (this->error == NULL) {
+        this->error = new_string("");
+    }
+
+    va_list ap;
+    va_start(ap, format);
+    int len = vsnprintf(NULL, 0, format, ap);
+    va_end(ap);
+    char *chars = safe_malloc((len + 1) * sizeof(char));
+    va_start(ap, format);
+    len = vsnprintf(chars, len + 1, format, ap);
+    va_end(ap);
+    this->error = string_append(this->error, chars);
+    free(chars);
+
+    this->error = string_append_char(this->error, '\n');
+
+    for (int i = this->frame_count - 1; i >= 0; i--) {
+        Frame *frame = &this->frames[i];
+        Function *func = frame->func;
+        usize ip = frame->ip - 1;
+        int row = frame->func->code.rows[ip];
+
+        this->error = string_append_format(this->error, "[Line %d] in ", row);
+        if (func->name == NULL) {
+            this->error = string_append_format(this->error, "script\n");
+        } else {
+            this->error = string_append_format(this->error, "%s()\n", func->name);
+        }
+    }
+
+    machine_reset_stack(this);
+}
+
+static bool machine_throw(Machine *this, Frame *frame) {
+    while (true) {
+        ExceptList *except = frame->func->except;
+        while (except != NULL) {
+            if (frame->ip >= except->start and frame->ip <= except->end) {
+                break;
+            }
+            except = except->next;
+        }
+        Value result = machine_pop(this);
+        if (except != NULL) {
+            while (this->stack_top > frame->stack + except->stack) {
+                dereference(this, this->stack[--this->stack_top]);
+            }
+            frame->ip = except->end;
+            machine_push(this, result);
+            return false;
+        }
+        this->frame_count--;
+        if (this->frame_count == 0 or frame->func->name == NULL) {
+            dereference(this, result);
+            dereference(this, machine_pop(this));
+            return true;
+        }
+        while (this->stack_top != frame->stack) {
+            dereference(this, this->stack[--this->stack_top]);
+        }
+        machine_push(this, result);
+        frame = &this->frames[this->frame_count - 1];
+    }
 }
 
 static bool machine_equal(Value a, Value b) {
@@ -3734,7 +3839,7 @@ static void machine_run(Machine *this) {
             HymnString *name = as_hymn_string(read_constant(frame));
             Value get = table_get(&this->globals, name);
             if (is_undefined(get)) {
-                machine_runtime_error(this, "Undefined variable '%s'.", name);
+                machine_runtime_error(this, "Undefined variable '%s'.", name->string);
                 return;
             }
             reference(get);
@@ -3745,7 +3850,6 @@ static void machine_run(Machine *this) {
             u8 slot = read_byte(frame);
             Value value = machine_peek(this, 1);
             reference(value);
-            // FIXME: OK TO DEREFERENCE THE STACK SLOT?
             dereference(this, this->stack[frame->stack + slot]);
             this->stack[frame->stack + slot] = value;
             break;
@@ -3959,13 +4063,16 @@ static void machine_run(Machine *this) {
             Value v = machine_pop(this);
             Value a = machine_pop(this);
             if (!is_array(a)) {
-                machine_runtime_error(this, "Expected array for push function.");
-                return;
+                HymnString *message = machine_intern_string(this, new_string("Expected array for push function."));
+                reference_string(message);
+                machine_push(this, new_string_value(message));
+                machine_throw(this, frame);
+            } else {
+                array_push(as_array(a), v);
+                machine_push(this, v);
+                reference(v);
+                dereference(this, a);
             }
-            array_push(as_array(a), v);
-            machine_push(this, v);
-            reference(v);
-            dereference(this, a);
             break;
         }
         case OP_ARRAY_INSERT: {
@@ -4418,6 +4525,10 @@ static void machine_run(Machine *this) {
                 dereference(this, value);
                 break;
             }
+            break;
+        }
+        case OP_THROW: {
+            if (machine_throw(this, frame)) return;
             break;
         }
         case OP_DO: {

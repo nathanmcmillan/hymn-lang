@@ -18,7 +18,10 @@ A small byte-code interpreted language with a focus on simplicty. [Visit the web
 ## Development
 
 1. Expression `try` and `catch` blocks with string exceptions
-1. Tables and arrays with initialized items `[1, 2, 3]` `{foo: bar, hello: world}`
+1. Handle memory leaks during compile and runtime exceptions
+1. More constants than 256
+1. Intern non-string constants
+1. Compile errors should be wrapped inside runtime errors so that they can be caught
 
 ## Long Term Goals
 
