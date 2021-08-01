@@ -3,11 +3,11 @@
 let x = 0
 
 while x < 8
-  print("x == " + x)
+  print "x == " + x
   let y = 0
   while y < 4
     let z = y + 1
-    print("z == " + z)
+    print "z == " + z
     if y == 1
       y = y + 4
       continue
@@ -21,4 +21,4 @@ while x < 8
   x = x + 1
 end
 
-print("done")
+print "done"

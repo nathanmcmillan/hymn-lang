@@ -5,4 +5,4 @@ function min(a, b)
   return b
 end
 
-print(min(4, 6))
+print min(4, 6)

@@ -17,11 +17,43 @@ A small byte-code interpreted language with a focus on simplicty. [Visit the web
 
 ## Development
 
-1. Expression `try` and `catch` blocks with string exceptions
 1. Handle memory leaks during compile and runtime exceptions
 1. More constants than 256
 1. Intern non-string constants
 1. Compile errors should be wrapped inside runtime errors so that they can be caught
+
+## Exceptions
+
+Compile errors are thrown as syntax errors so they can be caught at runtime during imports.
+
+Examples
+
+```
+/absolute/path/to/file.hm
+
+Expected 2 arguments for `index` function.
+
+7|  index(0)
+         ^^^
+
+Hint: The `index` function expects an array or table for the 1st argument, and an integer or string for the 2nd argument.
+
+```
+
+```
+/absolute/path/to/file.hm
+
+Expected 2 arguments for `index` function.
+
+7|  index(0)
+         ^^^
+
+Hint: The `index` function expects an array or table for the 1st argument, and an integer or string for the 2nd argument.
+
+/absolute/path/to/file.hm <function foo> line 28
+/absolute/path/to/file.hm <function bar> line 31
+
+```
 
 ## Long Term Goals
 

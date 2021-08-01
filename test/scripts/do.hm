@@ -1,5 +1,5 @@
-do "print(1 + 2)"
-do "function foobar(n) print('foo: ' + n) end foobar(6)"
+do "print 1 + 2"
+do "function foobar(n) print 'foo: ' + n) end foobar(6"
 
 do read("test/scripts/std.hm")
-do "print(min(4, 6))"
+do "print min(4, 6)"

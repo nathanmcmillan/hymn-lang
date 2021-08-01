@@ -6,11 +6,11 @@ a[1] = 7
 a[2] = 9
 
 iterate v in a
-  print(v)
+  print v
 end
 
 iterate i, v in a
-  print(i + ": " + v)
+  print i + ": " + v
 end
 
 let t = {}
@@ -19,9 +19,9 @@ t.b = 7
 t.c = 9
 
 iterate k in keys(t)
-  print(k)
+  print k
 end
 
 iterate i, k in keys(t)
-  print(i + ": " + k + " -> " + t[k])
+  print i + ": " + k + " -> " + t[k]
 end

@@ -1,6 +1,6 @@
 use "util"
 
-print("std.hm")
+print "std.hm"
 
 # param string or array
 # param value to find

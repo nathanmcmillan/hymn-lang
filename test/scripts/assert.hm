@@ -1,0 +1,11 @@
+function assert(expected, actual)
+  if expected != actual
+    throw "Assert Equals: Expected [" + expected + "] but was [" + actual + "]"
+  end
+end
+
+function assert_not(expected, actual)
+  if expected == actual
+    throw "Assert Not Equals: [" + actual + "]"
+  end
+end

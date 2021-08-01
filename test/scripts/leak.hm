@@ -5,6 +5,6 @@ begin
   let b = {}
   a.x = b
   b.y = a
-  print(a)
-  print(b)
+  print a
+  print b
 end

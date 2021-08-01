@@ -56,6 +56,37 @@
       ]
     },
     {
+      "begin": "\\b(function)\\s*(?:\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*)?(\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.hymn"
+        },
+        "2": {
+          "name": "entity.name.function.hymn"
+        },
+        "3": {
+          "name": "punctuation.definition.parameters.begin.hymn"
+        }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.parameters.end.hymn"
+        }
+      },
+      "name": "meta.function.hymn",
+      "patterns": [
+        {
+          "match": "[a-zA-Z_][a-zA-Z0-9_]*",
+          "name": "variable.parameter.hymn"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.arguments.hymn"
+        }
+      ]
+    },
+    {
       "match": "\\b(const|let)\\b",
       "captures": {
         "1": {
@@ -72,14 +103,6 @@
       }
     },
     {
-      "match": "\\b(true|false|none)\\b",
-      "captures": {
-        "1": {
-          "name": "constant.language.hymn"
-        }
-      }
-    },
-    {
       "match": "\\b(if|elif|else|for|while|iterate|return|break|continue|and|or|switch|case|pass|in|try|except|throw|begin|end)\\b",
       "captures": {
         "1": {
@@ -88,26 +111,15 @@
       }
     },
     {
-      "match": "\\b(func|function)\\b(\\w+(?:\\.\\w+)?)",
+      "match": "([a-zA-Z_][a-zA-Z0-9_]*) *(?=\\()",
       "captures": {
         "1": {
-          "name": "keyword.struct.hymn"
-        },
-        "2": {
-          "name": "entity.name.type.hymn"
+          "name": "entity.name.function.hymn"
         }
       }
     },
     {
-      "match": "\\b(func|function)\\b",
-      "captures": {
-        "1": {
-          "name": "keyword.struct.hymn"
-        }
-      }
-    },
-    {
-      "match": "(\\w+)(?=<.*>\\()",
+      "match": "\\b(print)\\b",
       "captures": {
         "1": {
           "name": "support.function.hymn"
@@ -115,10 +127,10 @@
       }
     },
     {
-      "match": "(?<=^| |\\+|\\(|\\.)(\\w+) *(?=\\()",
+      "match": "\\b(true|false|none)\\b",
       "captures": {
         "1": {
-          "name": "support.function.hymn"
+          "name": "constant.language.hymn"
         }
       }
     },
@@ -131,7 +143,7 @@
       }
     },
     {
-      "match": "(?<= )(>=|<=|!=|<|>|==)(?= +)",
+      "match": "(?<= )(\\+|\\-|\\*|\\/|&|\\||<<|>>)(?= +)",
       "captures": {
         "1": {
           "name": "keyword.operator.comparison.hymn"
@@ -139,7 +151,15 @@
       }
     },
     {
-      "match": "(\\w+(?:\\.\\w+)*)(=)",
+      "match": "(?<= )(>=|<=|!=|<|>|==)(?= +)",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.hymn"
+        }
+      }
+    },
+    {
+      "match": "([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*) *(=)\\b",
       "captures": {
         "1": {
           "name": "variable.other.assignment.hymn"

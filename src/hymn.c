@@ -999,6 +999,25 @@ static inline ByteCode *current(Compiler *this) {
     return &current_func(this)->code;
 }
 
+static usize beginning_of_line(const char *source, usize start) {
+    while (true) {
+        if (start == 0) return 0;
+        if (source[start] == '\n') return start;
+        start--;
+    }
+}
+
+static usize end_of_line(const char *source, usize size, usize start) {
+    while (true) {
+        if (start + 1 >= size) return size - 1;
+        if (source[start] == '\n') return start;
+        start++;
+    }
+}
+
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
 static void compile_error(Compiler *this, Token *token, const char *format, ...) {
     if (this->panic) {
         return;
@@ -1009,12 +1028,7 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
         this->error = new_string("");
     }
 
-    this->error = string_append_format(this->error, "[Line %d] Error", token->row);
-    if (token->type == TOKEN_EOF) {
-        this->error = string_append(this->error, ": ");
-    } else {
-        this->error = string_append_format(this->error, " at '%.*s': ", token->length, &this->source[token->start]);
-    }
+    this->error = string_append_format(this->error, "%s\n\n", this->script);
 
     va_list ap;
     va_start(ap, format);
@@ -1026,6 +1040,22 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     va_end(ap);
     this->error = string_append(this->error, chars);
     free(chars);
+    this->error = string_append(this->error, "\n\n");
+
+    usize begin = beginning_of_line(this->source, token->start) + 1;
+    usize end = end_of_line(this->source, this->size, token->start);
+
+    this->error = string_append_format(this->error, "%d| %.*s\n", token->row, end - begin, &this->source[begin]);
+
+    for (int i = 0; i < 3 + (int)(token->start - begin); i++) {
+        this->error = string_append_char(this->error, ' ');
+    }
+
+    this->error = string_append(this->error, ANSI_COLOR_RED);
+    for (int i = 0; i < token->length; i++) {
+        this->error = string_append_char(this->error, '^');
+    }
+    this->error = string_append(this->error, ANSI_COLOR_RESET);
 
     this->error = string_append_char(this->error, '\n');
 }
@@ -2750,23 +2780,6 @@ static void continue_statement(Compiler *this) {
     }
 }
 
-static void print_statement(Compiler *this) {
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after print.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after print expression.");
-    emit(this, OP_PRINT);
-}
-
-static void use_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_USE);
-}
-
-static void do_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_DO);
-}
-
 static void try_statement(Compiler *this) {
 
     ExceptList *except = safe_calloc(1, sizeof(ExceptList));
@@ -2800,6 +2813,21 @@ static void try_statement(Compiler *this) {
     consume(this, TOKEN_END, "Expected 'end' after except.");
 
     patch_jump(this, jump);
+}
+
+static void print_statement(Compiler *this) {
+    expression(this);
+    emit(this, OP_PRINT);
+}
+
+static void use_statement(Compiler *this) {
+    expression(this);
+    emit(this, OP_USE);
+}
+
+static void do_statement(Compiler *this) {
+    expression(this);
+    emit(this, OP_DO);
 }
 
 static void throw_statement(Compiler *this) {
@@ -2953,11 +2981,11 @@ static void keys_expression(Compiler *this, bool assign) {
 
 static void index_expression(Compiler *this, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after index.");
+    consume(this, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `index` function.");
     expression(this);
-    consume(this, TOKEN_COMMA, "Expected ',' between index arguments.");
+    consume(this, TOKEN_COMMA, "Expected 2 arguments for `index` function.");
     expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after index expression.");
+    consume(this, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function.");
     emit(this, OP_INDEX);
 }
 
@@ -4908,9 +4936,13 @@ void hymn_delete(Hymn *this) {
                 Value value = item->value;
                 if (is_object(value)) {
                     if (as_object(value)->count != 1) {
-                        printf("BAD GLOBAL: ");
-                        debug_value(item->value);
-                        printf("\n");
+                        if (is_string(value) && as_object(value)->count == 2) {
+                            // pass
+                        } else {
+                            printf("BAD GLOBAL: [%d]: ", as_object(value)->count);
+                            debug_value(item->value);
+                            printf("\n");
+                        }
                     }
                 }
                 item = item->next;

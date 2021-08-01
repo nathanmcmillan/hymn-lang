@@ -1,8 +1,15 @@
 #!/usr/bin/env hymn
 
+use "assert"
+
+let message = "empty"
 try
   index(0)
+  message = "no"
 except e
-  print(e)
+  message = e
 end
-print("done")
+assert_not("no", message)
+assert_not("empty", message)
+
+print "eof"

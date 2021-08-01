@@ -1,4 +1,4 @@
-print("util.hm")
+print "util.hm"
 
 function clamp(n, a, b)
   return min(max(n, a), b)

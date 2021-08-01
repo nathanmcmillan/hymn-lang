@@ -3,25 +3,25 @@
 let x = 3
 
 if x == 1
-  print("a")
+  print "a"
 elif x == 2
-  print("b")
+  print "b"
 else
-  print("c")
+  print "c"
 end
 
 if x == 2
-  print("d")
+  print "d"
 elif x == 3
-  print("e")
+  print "e"
 else
-  print("f")
+  print "f"
 end
 
 if x == 3
-  print("g")
+  print "g"
 elif x == 4
-  print("h")
+  print "h"
 else
-  print("i")
+  print "i"
 end

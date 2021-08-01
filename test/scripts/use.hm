@@ -2,8 +2,8 @@
 
 use "test/scripts/std"
 
-print(min(4, 6))
-print(max(4, 6))
-print(clamp(2, 4, 6))
-print(clamp(10, 4, 6))
-print(upper("foo"))
+print min(4, 6)
+print max(4, 6)
+print clamp(2, 4, 6)
+print clamp(10, 4, 6)
+print upper("foo")
