@@ -16,12 +16,12 @@
 #include "string_util.h"
 
 // #define HYMN_DEBUG_TOKEN
-// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_CODE
+// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_REFERENCE
 
-// #define HYMN_INCLUDE_STACKTRACE
+#define HYMN_INCLUDE_STACKTRACE
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 

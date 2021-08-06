@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
     hymn_add_function(hymn, "read", read_file);
 
     char *error = NULL;
+
     if (argc > 1) {
         error = hymn_read(hymn, argv[1]);
     } else {
@@ -63,6 +64,8 @@ int main(int argc, char **argv) {
     if (error != NULL) {
         fprintf(stderr, "%s\n", error);
         fflush(stderr);
+
+        free(error);
         code = 1;
     }
 

@@ -4,12 +4,13 @@ use "assert"
 
 let message = "empty"
 try
-  index(0)
+  index("not-an-array", 0)
   message = "no"
-except e
-  message = e
+except error
+  message = error
 end
 assert_not("no", message)
 assert_not("empty", message)
 
-print "eof"
+print message
+print "done"

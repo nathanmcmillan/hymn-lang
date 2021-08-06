@@ -1,13 +1,13 @@
 #!/usr/bin/env hymn
 
 try
-  use "runtime_error"
+  do "index(0)"
 except m
   print "runtime: " + m
 end
 
 try
-  use "compiler_error"
+  do "index(0, 1)"
 except m
   print "compile: " + m
 end

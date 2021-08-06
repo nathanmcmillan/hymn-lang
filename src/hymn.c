@@ -53,100 +53,103 @@
 #define STRING_NATIVE "Native"
 #define STRING_POINTER "Pointer"
 
-#define INTEGER_OP(_binary_)                                                       \
-    Value b = machine_pop(this);                                                   \
-    Value a = machine_pop(this);                                                   \
-    if (is_int(a)) {                                                               \
-        if (is_int(b)) {                                                           \
-            a.as.i _binary_ b.as.i;                                                \
-            machine_push(this, a);                                                 \
-        } else {                                                                   \
-            if (machine_throw_runtime_error(this, "Operands must be integers.")) { \
-                return;                                                            \
-            } else {                                                               \
-                frame = current_frame(this);                                       \
-            }                                                                      \
-        }                                                                          \
-    } else {                                                                       \
-        if (machine_throw_runtime_error(this, "Operands must be integers.")) {     \
-            return;                                                                \
-        } else {                                                                   \
-            frame = current_frame(this);                                           \
-        }                                                                          \
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
+#define INTEGER_OP(_binary_)                                                                \
+    Value b = machine_pop(this);                                                            \
+    Value a = machine_pop(this);                                                            \
+    if (is_int(a)) {                                                                        \
+        if (is_int(b)) {                                                                    \
+            a.as.i _binary_ b.as.i;                                                         \
+            machine_push(this, a);                                                          \
+        } else {                                                                            \
+            if (machine_throw_error(this, "Operands must be integers.") == MACHINE_FATAL) { \
+                return;                                                                     \
+            } else {                                                                        \
+                frame = current_frame(this);                                                \
+            }                                                                               \
+        }                                                                                   \
+    } else {                                                                                \
+        if (machine_throw_error(this, "Operands must be integers.") == MACHINE_FATAL) {     \
+            return;                                                                         \
+        } else {                                                                            \
+            frame = current_frame(this);                                                    \
+        }                                                                                   \
     }
 
-#define ARITHMETIC_OP(_binary_)                                                   \
-    Value b = machine_pop(this);                                                  \
-    Value a = machine_pop(this);                                                  \
-    if (is_int(a)) {                                                              \
-        if (is_int(b)) {                                                          \
-            a.as.i _binary_ b.as.i;                                               \
-            machine_push(this, a);                                                \
-        } else if (is_float(b)) {                                                 \
-            b.as.f _binary_ a.as.i;                                               \
-            machine_push(this, a);                                                \
-        } else {                                                                  \
-            if (machine_throw_runtime_error(this, "Operands must be numbers.")) { \
-                return;                                                           \
-            } else {                                                              \
-                frame = current_frame(this);                                      \
-            }                                                                     \
-        }                                                                         \
-    } else if (is_float(a)) {                                                     \
-        if (is_int(b)) {                                                          \
-            a.as.f _binary_ b.as.i;                                               \
-            machine_push(this, a);                                                \
-        } else if (is_float(b)) {                                                 \
-            a.as.f _binary_ b.as.f;                                               \
-            machine_push(this, a);                                                \
-        } else {                                                                  \
-            if (machine_throw_runtime_error(this, "Operands must be numbers.")) { \
-                return;                                                           \
-            } else {                                                              \
-                frame = current_frame(this);                                      \
-            }                                                                     \
-        }                                                                         \
-    } else {                                                                      \
-        if (machine_throw_runtime_error(this, "Operands must be numbers.")) {     \
-            return;                                                               \
-        } else {                                                                  \
-            frame = current_frame(this);                                          \
-        }                                                                         \
+#define ARITHMETIC_OP(_binary_)                                                            \
+    Value b = machine_pop(this);                                                           \
+    Value a = machine_pop(this);                                                           \
+    if (is_int(a)) {                                                                       \
+        if (is_int(b)) {                                                                   \
+            a.as.i _binary_ b.as.i;                                                        \
+            machine_push(this, a);                                                         \
+        } else if (is_float(b)) {                                                          \
+            b.as.f _binary_ a.as.i;                                                        \
+            machine_push(this, a);                                                         \
+        } else {                                                                           \
+            if (machine_throw_error(this, "Operands must be numbers.") == MACHINE_FATAL) { \
+                return;                                                                    \
+            } else {                                                                       \
+                frame = current_frame(this);                                               \
+            }                                                                              \
+        }                                                                                  \
+    } else if (is_float(a)) {                                                              \
+        if (is_int(b)) {                                                                   \
+            a.as.f _binary_ b.as.i;                                                        \
+            machine_push(this, a);                                                         \
+        } else if (is_float(b)) {                                                          \
+            a.as.f _binary_ b.as.f;                                                        \
+            machine_push(this, a);                                                         \
+        } else {                                                                           \
+            if (machine_throw_error(this, "Operands must be numbers.") == MACHINE_FATAL) { \
+                return;                                                                    \
+            } else {                                                                       \
+                frame = current_frame(this);                                               \
+            }                                                                              \
+        }                                                                                  \
+    } else {                                                                               \
+        if (machine_throw_error(this, "Operands must be numbers.") == MACHINE_FATAL) {     \
+            return;                                                                        \
+        } else {                                                                           \
+            frame = current_frame(this);                                                   \
+        }                                                                                  \
     }
 
-#define COMPARE_OP(_compare_)                                                      \
-    Value b = machine_pop(this);                                                   \
-    Value a = machine_pop(this);                                                   \
-    if (is_int(a)) {                                                               \
-        if (is_int(b)) {                                                           \
-            machine_push(this, new_bool(as_int(a) _compare_ as_int(b)));           \
-        } else if (is_float(b)) {                                                  \
-            machine_push(this, new_bool((double)as_int(a) _compare_ as_float(b))); \
-        } else {                                                                   \
-            if (machine_throw_runtime_error(this, "Operands must be numbers.")) {  \
-                return;                                                            \
-            } else {                                                               \
-                frame = current_frame(this);                                       \
-            }                                                                      \
-        }                                                                          \
-    } else if (is_float(a)) {                                                      \
-        if (is_int(b)) {                                                           \
-            machine_push(this, new_bool(as_float(a) _compare_(double) as_int(b))); \
-        } else if (is_float(b)) {                                                  \
-            machine_push(this, new_bool(as_float(a) _compare_ as_float(b)));       \
-        } else {                                                                   \
-            if (machine_throw_runtime_error(this, "Operands must be numbers.")) {  \
-                return;                                                            \
-            } else {                                                               \
-                frame = current_frame(this);                                       \
-            }                                                                      \
-        }                                                                          \
-    } else {                                                                       \
-        if (machine_throw_runtime_error(this, "Operands must be numbers.")) {      \
-            return;                                                                \
-        } else {                                                                   \
-            frame = current_frame(this);                                           \
-        }                                                                          \
+#define COMPARE_OP(_compare_)                                                              \
+    Value b = machine_pop(this);                                                           \
+    Value a = machine_pop(this);                                                           \
+    if (is_int(a)) {                                                                       \
+        if (is_int(b)) {                                                                   \
+            machine_push(this, new_bool(as_int(a) _compare_ as_int(b)));                   \
+        } else if (is_float(b)) {                                                          \
+            machine_push(this, new_bool((double)as_int(a) _compare_ as_float(b)));         \
+        } else {                                                                           \
+            if (machine_throw_error(this, "Operands must be numbers.") == MACHINE_FATAL) { \
+                return;                                                                    \
+            } else {                                                                       \
+                frame = current_frame(this);                                               \
+            }                                                                              \
+        }                                                                                  \
+    } else if (is_float(a)) {                                                              \
+        if (is_int(b)) {                                                                   \
+            machine_push(this, new_bool(as_float(a) _compare_(double) as_int(b)));         \
+        } else if (is_float(b)) {                                                          \
+            machine_push(this, new_bool(as_float(a) _compare_ as_float(b)));               \
+        } else {                                                                           \
+            if (machine_throw_error(this, "Operands must be numbers.") == MACHINE_FATAL) { \
+                return;                                                                    \
+            } else {                                                                       \
+                frame = current_frame(this);                                               \
+            }                                                                              \
+        }                                                                                  \
+    } else {                                                                               \
+        if (machine_throw_error(this, "Operands must be numbers.") == MACHINE_FATAL) {     \
+            return;                                                                        \
+        } else {                                                                           \
+            frame = current_frame(this);                                                   \
+        }                                                                                  \
     }
 
 typedef HymnValue Value;
@@ -343,9 +346,9 @@ enum FunctionType {
 };
 
 enum MachineCall {
-    MACHINE_OK,
     MACHINE_ERROR,
     MACHINE_FATAL,
+    MACHINE_OK,
 };
 
 static void compile_with_precedence(Compiler *this, enum Precedence precedence);
@@ -445,15 +448,13 @@ struct Compiler {
     const char *script;
     const char *source;
     usize size;
-    Token alpha;
-    Token beta;
-    Token gamma;
+    Token previous;
+    Token current;
     Machine *machine;
     Scope *scope;
     struct LoopList *loop;
     struct JumpList *jump;
     struct JumpList *iterator_jump;
-    bool panic;
     String *error;
 };
 
@@ -987,10 +988,6 @@ static void set_release(Machine *machine, Set *this) {
     free(this->items);
 }
 
-static void compiler_delete(Compiler *this) {
-    string_delete(this->error);
-}
-
 static inline Function *current_func(Compiler *this) {
     return this->scope->func;
 }
@@ -1002,33 +999,24 @@ static inline ByteCode *current(Compiler *this) {
 static usize beginning_of_line(const char *source, usize start) {
     while (true) {
         if (start == 0) return 0;
-        if (source[start] == '\n') return start;
+        if (source[start] == '\n') return start + 1;
         start--;
     }
 }
 
 static usize end_of_line(const char *source, usize size, usize start) {
     while (true) {
-        if (start + 1 >= size) return size - 1;
-        if (source[start] == '\n') return start;
+        if (start + 1 >= size) return size;
+        if (source[start] == '\n') return start - 1;
         start++;
     }
 }
 
-#define ANSI_COLOR_RED "\x1b[31m"
-#define ANSI_COLOR_RESET "\x1b[0m"
-
 static void compile_error(Compiler *this, Token *token, const char *format, ...) {
-    if (this->panic) {
-        return;
-    }
-    this->panic = true;
 
-    if (this->error == NULL) {
-        this->error = new_string("");
-    }
+    if (this->error != NULL) return;
 
-    this->error = string_append_format(this->error, "%s\n\n", this->script);
+    this->error = string_format("%s\n\n", this->script);
 
     va_list ap;
     va_start(ap, format);
@@ -1042,7 +1030,7 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     free(chars);
     this->error = string_append(this->error, "\n\n");
 
-    usize begin = beginning_of_line(this->source, token->start) + 1;
+    usize begin = beginning_of_line(this->source, token->start);
     usize end = end_of_line(this->source, this->size, token->start);
 
     this->error = string_append_format(this->error, "%d| %.*s\n", token->row, end - begin, &this->source[begin]);
@@ -1057,7 +1045,8 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     }
     this->error = string_append(this->error, ANSI_COLOR_RESET);
 
-    this->error = string_append_char(this->error, '\n');
+    this->previous.type = TOKEN_EOF;
+    this->current.type = TOKEN_EOF;
 }
 
 static char next_char(Compiler *this) {
@@ -1087,34 +1076,34 @@ static void token(Compiler *this, enum TokenType type) {
 #ifdef HYMN_DEBUG_TOKEN
     printf("TOKEN: %s\n", token_name(type));
 #endif
-    Token *gamma = &this->gamma;
-    gamma->type = type;
-    gamma->row = this->row;
-    gamma->column = this->column;
+    Token *current = &this->current;
+    current->type = type;
+    current->row = this->row;
+    current->column = this->column;
 }
 
 static void value_token(Compiler *this, enum TokenType type, usize start, usize end) {
 #ifdef HYMN_DEBUG_TOKEN
     printf("TOKEN: %s: %.*s\n", token_name(type), (int)(end - start), &this->source[start]);
 #endif
-    Token *gamma = &this->gamma;
-    gamma->type = type;
-    gamma->row = this->row;
-    gamma->column = this->column;
-    gamma->start = start;
-    gamma->length = (int)(end - start);
+    Token *current = &this->current;
+    current->type = type;
+    current->row = this->row;
+    current->column = this->column;
+    current->start = start;
+    current->length = (int)(end - start);
 }
 
 static void string_token(Compiler *this, usize start, usize end) {
 #ifdef HYMN_DEBUG_TOKEN
     printf("TOKEN: %s, \"%.*s\"\n", token_name(TOKEN_STRING), (int)(end - start), &this->source[start]);
 #endif
-    Token *gamma = &this->gamma;
-    gamma->type = TOKEN_STRING;
-    gamma->row = this->row;
-    gamma->column = this->column;
-    gamma->start = start;
-    gamma->length = (int)(end - start);
+    Token *current = &this->current;
+    current->type = TOKEN_STRING;
+    current->row = this->row;
+    current->column = this->column;
+    current->start = start;
+    current->length = (int)(end - start);
 }
 
 static enum TokenType ident_trie(const char *ident, int offset, const char *rest, enum TokenType type) {
@@ -1245,12 +1234,12 @@ static void push_ident_token(Compiler *this, usize start, usize end) {
 #ifdef HYMN_DEBUG_TOKEN
     printf("TOKEN: %s, %.*s\n", token_name(TOKEN_IDENT), (int)(end - start), &this->source[start]);
 #endif
-    Token *gamma = &this->gamma;
-    gamma->row = this->row;
-    gamma->column = this->column;
-    gamma->type = TOKEN_IDENT;
-    gamma->start = start;
-    gamma->length = (int)(end - start);
+    Token *current = &this->current;
+    current->row = this->row;
+    current->column = this->column;
+    current->type = TOKEN_IDENT;
+    current->start = start;
+    current->length = (int)(end - start);
 }
 
 static bool is_digit(char c) {
@@ -1262,9 +1251,8 @@ static bool is_ident(char c) {
 }
 
 static void advance(Compiler *this) {
-    this->alpha = this->beta;
-    this->beta = this->gamma;
-    if (this->beta.type == TOKEN_EOF) {
+    this->previous = this->current;
+    if (this->previous.type == TOKEN_EOF) {
         return;
     }
     while (true) {
@@ -1405,7 +1393,7 @@ static void advance(Compiler *this) {
                 push_ident_token(this, start, end);
                 return;
             } else {
-                compile_error(this, &this->beta, "Unknown character '%c'", c);
+                compile_error(this, &this->current, "Unknown character '%c'", c);
             }
         }
         }
@@ -1462,8 +1450,8 @@ static bool match_values(Value a, Value b) {
 
 static Function *new_function(const char *script) {
     Function *func = safe_calloc(1, sizeof(Function));
-    func->script = new_string(script);
     byte_code_init(&func->code);
+    if (script) func->script = new_string(script);
     return func;
 }
 
@@ -1706,7 +1694,7 @@ static void compiler_scope_init(Compiler *this, Scope *scope, enum FunctionType 
     scope->type = type;
 
     if (type != TYPE_SCRIPT) {
-        scope->func->name = new_string_from_substring(this->source, this->alpha.start, this->alpha.start + this->alpha.length);
+        scope->func->name = new_string_from_substring(this->source, this->previous.start, this->previous.start + this->previous.length);
     }
 
     Local *local = &scope->locals[scope->local_count++];
@@ -1722,9 +1710,8 @@ static inline Compiler new_compiler(const char *script, const char *source, Mach
     this.script = script;
     this.source = source;
     this.size = strlen(source);
-    this.alpha.type = TOKEN_UNDEFINED;
-    this.beta.type = TOKEN_UNDEFINED;
-    this.gamma.type = TOKEN_UNDEFINED;
+    this.previous.type = TOKEN_UNDEFINED;
+    this.current.type = TOKEN_UNDEFINED;
     this.machine = machine;
     compiler_scope_init(&this, scope, TYPE_SCRIPT);
     return this;
@@ -1770,7 +1757,7 @@ static void write_two_op(ByteCode *this, u8 b, u8 n, int row) {
 static u8 write_constant(Compiler *this, Value value, int row) {
     int constant = byte_code_add_constant(current(this), value);
     if (constant > UINT8_MAX) {
-        compile_error(this, &this->alpha, "Too many constants.");
+        compile_error(this, &this->previous, "Too many constants.");
         constant = 0;
     }
     write_two_op(current(this), OP_CONSTANT, (u8)constant, row);
@@ -1806,7 +1793,7 @@ static void machine_set_global(Machine *this, const char *name, Value value) {
 }
 
 static bool check(Compiler *this, enum TokenType type) {
-    return this->beta.type == type;
+    return this->current.type == type;
 }
 
 static bool match(Compiler *this, enum TokenType type) {
@@ -1818,49 +1805,49 @@ static bool match(Compiler *this, enum TokenType type) {
 }
 
 static inline void emit(Compiler *this, u8 b) {
-    write_op(current(this), b, this->alpha.row);
+    write_op(current(this), b, this->previous.row);
 }
 
 static inline void emit_two(Compiler *this, u8 b, u8 n) {
-    write_two_op(current(this), b, n, this->alpha.row);
+    write_two_op(current(this), b, n, this->previous.row);
 }
 
 static void compile_with_precedence(Compiler *this, enum Precedence precedence) {
     advance(this);
-    Rule *rule = token_rule(this->alpha.type);
+    Rule *rule = token_rule(this->previous.type);
     void (*prefix)(Compiler *, bool) = rule->prefix;
     if (prefix == NULL) {
-        compile_error(this, &this->alpha, "Expected expression.");
+        compile_error(this, &this->previous, "Expected expression.");
         return;
     }
     bool assign = precedence <= PRECEDENCE_ASSIGN;
     prefix(this, assign);
-    while (precedence <= token_rule(this->beta.type)->precedence) {
+    while (precedence <= token_rule(this->current.type)->precedence) {
         advance(this);
-        void (*infix)(Compiler *, bool) = token_rule(this->alpha.type)->infix;
+        void (*infix)(Compiler *, bool) = token_rule(this->previous.type)->infix;
         if (infix == NULL) {
-            compile_error(this, &this->alpha, "Expected infix.");
+            compile_error(this, &this->previous, "Expected infix.");
             return;
         }
         infix(this, assign);
     }
     if (assign and match(this, TOKEN_ASSIGN)) {
-        compile_error(this, &this->beta, "Invalid assignment target.");
+        compile_error(this, &this->current, "Invalid assignment target.");
     }
 }
 
 static void consume(Compiler *this, enum TokenType type, const char *error) {
-    if (this->beta.type == type) {
+    if (this->current.type == type) {
         advance(this);
         return;
     }
-    compile_error(this, &this->beta, error);
+    compile_error(this, &this->current, error);
 }
 
 static u8 push_hidden_local(Compiler *this) {
     Scope *scope = this->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
-        compile_error(this, &this->alpha, "Too many local variables in scope.");
+        compile_error(this, &this->previous, "Too many local variables in scope.");
         return 0;
     }
     u8 index = (u8)scope->local_count++;
@@ -1877,7 +1864,7 @@ static u8 arguments(Compiler *this) {
         do {
             expression(this);
             if (count == 255) {
-                compile_error(this, &this->alpha, "Can't have more than 255 function arguments.");
+                compile_error(this, &this->previous, "Can't have more than 255 function arguments.");
                 break;
             }
             count++;
@@ -1916,21 +1903,21 @@ static void compile_false(Compiler *this, bool assign) {
 
 static void compile_integer(Compiler *this, bool assign) {
     (void)assign;
-    Token *alpha = &this->alpha;
+    Token *alpha = &this->previous;
     i64 number = (i64)strtoll(&this->source[alpha->start], NULL, 10);
     write_constant(this, new_int(number), alpha->row);
 }
 
 static void compile_float(Compiler *this, bool assign) {
     (void)assign;
-    Token *alpha = &this->alpha;
+    Token *alpha = &this->previous;
     double number = strtod(&this->source[alpha->start], NULL);
     write_constant(this, new_float(number), alpha->row);
 }
 
 static void compile_string(Compiler *this, bool assign) {
     (void)assign;
-    Token *alpha = &this->alpha;
+    Token *alpha = &this->previous;
     String *s = new_string_from_substring(this->source, alpha->start, alpha->start + alpha->length);
     write_constant(this, compile_intern_string(this->machine, s), alpha->row);
 }
@@ -1957,11 +1944,11 @@ static void compile_array(Compiler *this, bool assign) {
     (void)assign;
     if (match(this, TOKEN_RIGHT_SQUARE)) {
         Array *array = new_array(0);
-        write_constant(this, new_array_value(array), this->alpha.row);
+        write_constant(this, new_array_value(array), this->previous.row);
         return;
     }
     Array *array = new_array(0);
-    u8 constant = write_constant(this, new_array_value(array), this->alpha.row);
+    u8 constant = write_constant(this, new_array_value(array), this->previous.row);
     while (!check(this, TOKEN_RIGHT_SQUARE) and !check(this, TOKEN_EOF)) {
         emit_two(this, OP_CONSTANT, constant);
         expression(this);
@@ -1975,15 +1962,15 @@ static void compile_table(Compiler *this, bool assign) {
     (void)assign;
     if (match(this, TOKEN_RIGHT_CURLY)) {
         Table *table = new_table();
-        write_constant(this, new_table_value(table), this->alpha.row);
+        write_constant(this, new_table_value(table), this->previous.row);
         return;
     }
     Table *table = new_table();
-    u8 constant = write_constant(this, new_table_value(table), this->alpha.row);
+    u8 constant = write_constant(this, new_table_value(table), this->previous.row);
     while (!check(this, TOKEN_RIGHT_CURLY) and !check(this, TOKEN_EOF)) {
         emit_two(this, OP_CONSTANT, constant);
         consume(this, TOKEN_IDENT, "Expected property name");
-        u8 name = ident_constant(this, &this->alpha);
+        u8 name = ident_constant(this, &this->previous);
         consume(this, TOKEN_COLON, "Expected ':'.");
         expression(this);
         emit_two(this, OP_SET_PROPERTY, name);
@@ -2011,33 +1998,6 @@ static void native_function_delete(NativeFunction *this) {
     free(this);
 }
 
-static void panic_halt(Compiler *this) {
-    this->panic = false;
-    while (true) {
-        switch (this->beta.type) {
-        case TOKEN_FOR:
-        case TOKEN_ITERATE:
-        case TOKEN_IF:
-        case TOKEN_WHILE:
-        case TOKEN_SWITCH:
-        case TOKEN_PRINT:
-        case TOKEN_PASS:
-        case TOKEN_POP:
-        case TOKEN_PUSH:
-        case TOKEN_INSERT:
-        case TOKEN_DELETE:
-        case TOKEN_LEN:
-        case TOKEN_RETURN:
-        case TOKEN_BEGIN:
-        case TOKEN_EOF:
-            return;
-        default:
-            break;
-        }
-        advance(this);
-    }
-}
-
 static void push_local(Compiler *this, Token name, bool constant) {
     Scope *scope = this->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
@@ -2061,9 +2021,9 @@ static u8 variable(Compiler *this, bool constant, const char *error) {
     consume(this, TOKEN_IDENT, error);
     Scope *scope = this->scope;
     if (scope->depth == 0) {
-        return ident_constant(this, &this->alpha);
+        return ident_constant(this, &this->previous);
     }
-    Token *name = &this->alpha;
+    Token *name = &this->previous;
     for (int i = scope->local_count - 1; i >= 0; i--) {
         Local *local = &scope->locals[i];
         if (local->depth != -1 and local->depth < scope->depth) {
@@ -2141,12 +2101,12 @@ static void named_variable(Compiler *this, Token token, bool assign) {
 }
 
 static void compile_variable(Compiler *this, bool assign) {
-    named_variable(this, this->alpha, assign);
+    named_variable(this, this->previous, assign);
 }
 
 static void compile_unary(Compiler *this, bool assign) {
     (void)assign;
-    enum TokenType type = this->alpha.type;
+    enum TokenType type = this->previous.type;
     compile_with_precedence(this, PRECEDENCE_UNARY);
     switch (type) {
     case TOKEN_NOT: emit(this, OP_NOT); break;
@@ -2158,7 +2118,7 @@ static void compile_unary(Compiler *this, bool assign) {
 
 static void compile_binary(Compiler *this, bool assign) {
     (void)assign;
-    enum TokenType type = this->alpha.type;
+    enum TokenType type = this->previous.type;
     Rule *rule = token_rule(type);
     compile_with_precedence(this, (enum Precedence)(rule->precedence + 1));
     switch (type) {
@@ -2184,7 +2144,7 @@ static void compile_binary(Compiler *this, bool assign) {
 
 static void compile_dot(Compiler *this, bool assign) {
     consume(this, TOKEN_IDENT, "Expected property name after '.'.");
-    u8 name = ident_constant(this, &this->alpha);
+    u8 name = ident_constant(this, &this->previous);
     if (assign and match(this, TOKEN_ASSIGN)) {
         expression(this);
         emit_two(this, OP_SET_PROPERTY, name);
@@ -2195,9 +2155,9 @@ static void compile_dot(Compiler *this, bool assign) {
 
 static void compile_square(Compiler *this, bool assign) {
     if (match(this, TOKEN_COLON)) {
-        write_constant(this, new_int(0), this->alpha.row);
+        write_constant(this, new_int(0), this->previous.row);
         if (match(this, TOKEN_RIGHT_SQUARE)) {
-            write_constant(this, new_none(), this->alpha.row);
+            write_constant(this, new_none(), this->previous.row);
         } else {
             expression(this);
             consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
@@ -2207,7 +2167,7 @@ static void compile_square(Compiler *this, bool assign) {
         expression(this);
         if (match(this, TOKEN_COLON)) {
             if (match(this, TOKEN_RIGHT_SQUARE)) {
-                write_constant(this, new_none(), this->alpha.row);
+                write_constant(this, new_none(), this->previous.row);
             } else {
                 expression(this);
                 consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
@@ -2235,7 +2195,7 @@ static void patch_jump(Compiler *this, int jump) {
     ByteCode *code = current(this);
     int offset = code->count - jump - 2;
     if (offset > UINT16_MAX) {
-        compile_error(this, &this->alpha, "Jump offset too large.");
+        compile_error(this, &this->previous, "Jump offset too large.");
         return;
     }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
@@ -2279,7 +2239,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
         do {
             this->scope->func->arity++;
             if (this->scope->func->arity > 255) {
-                compile_error(this, &this->alpha, "Can't have more than 255 function parameters.");
+                compile_error(this, &this->previous, "Can't have more than 255 function parameters.");
             }
             u8 parameter = variable(this, false, "Expected parameter name.");
             finalize_variable(this, parameter);
@@ -2296,7 +2256,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
     consume(this, TOKEN_END, "Expected 'end' after function body.");
 
     Function *func = end_function(this);
-    write_constant(this, new_func_value(func), this->alpha.row);
+    write_constant(this, new_func_value(func), this->previous.row);
 }
 
 static void declare_function(Compiler *this) {
@@ -2384,7 +2344,7 @@ static void if_statement(Compiler *this) {
 
 static bool compile_literal(Compiler *this) {
     advance(this);
-    switch (this->alpha.type) {
+    switch (this->previous.type) {
     case TOKEN_NONE:
         compile_none(this, false);
         return true;
@@ -2416,7 +2376,7 @@ static void switch_statement(Compiler *this) {
     expression(this);
 
     if (!check(this, TOKEN_CASE)) {
-        compile_error(this, &this->beta, "Expected case.");
+        compile_error(this, &this->current, "Expected case.");
         return;
     }
 
@@ -2433,7 +2393,7 @@ static void switch_statement(Compiler *this) {
         }
 
         if (!compile_literal(this)) {
-            compile_error(this, &this->beta, "Expected literal for case.");
+            compile_error(this, &this->current, "Expected literal for case.");
         }
         emit_two(this, OP_GET_LOCAL, local);
         emit(this, OP_EQUAL);
@@ -2448,7 +2408,7 @@ static void switch_statement(Compiler *this) {
 
             while (true) {
                 if (!compile_literal(this)) {
-                    compile_error(this, &this->beta, "Expected literal after 'or' in case.");
+                    compile_error(this, &this->current, "Expected literal after 'or' in case.");
                 }
                 emit_two(this, OP_GET_LOCAL, local);
                 emit(this, OP_EQUAL);
@@ -2520,7 +2480,7 @@ static void emit_loop(Compiler *this, int start) {
     emit(this, OP_LOOP);
     int offset = current(this)->count - start + 2;
     if (offset > UINT16_MAX) {
-        compile_error(this, &this->alpha, "Loop is too large.");
+        compile_error(this, &this->previous, "Loop is too large.");
     }
     emit_two(this, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
 }
@@ -2571,7 +2531,7 @@ static void iterate_statement(Compiler *this) {
 
     if (match(this, TOKEN_COMMA)) {
         index = value;
-        write_constant(this, new_int(0), this->alpha.row);
+        write_constant(this, new_int(0), this->previous.row);
 
         value = (u8)this->scope->local_count;
         variable(this, true, "Expected second parameter name.");
@@ -2581,7 +2541,7 @@ static void iterate_statement(Compiler *this) {
         emit(this, OP_NONE);
 
         index = push_hidden_local(this);
-        write_constant(this, new_int(0), this->alpha.row);
+        write_constant(this, new_int(0), this->previous.row);
     }
 
     consume(this, TOKEN_IN, "Expected 'in' after iterate parameters.");
@@ -2627,7 +2587,7 @@ static void iterate_statement(Compiler *this) {
     patch_iterator_jump_list(this);
 
     emit_two(this, OP_GET_LOCAL, index);
-    write_constant(this, new_int(1), this->alpha.row);
+    write_constant(this, new_int(1), this->previous.row);
     emit(this, OP_ADD);
     emit_two(this, OP_SET_LOCAL, index);
     emit(this, OP_POP);
@@ -2733,7 +2693,7 @@ static void while_statement(Compiler *this) {
 
 static void return_statement(Compiler *this) {
     if (this->scope->type == TYPE_SCRIPT) {
-        compile_error(this, &this->alpha, "Can't return from outside a function.");
+        compile_error(this, &this->previous, "Can't return from outside a function.");
     }
     expression(this);
     emit(this, OP_RETURN);
@@ -2752,7 +2712,7 @@ static void pop_stack_loop(Compiler *this) {
 
 static void break_statement(Compiler *this) {
     if (this->loop == NULL) {
-        compile_error(this, &this->alpha, "Can't use 'break' outside of a loop.");
+        compile_error(this, &this->previous, "Can't use 'break' outside of a loop.");
     }
     pop_stack_loop(this);
     struct JumpList *jump_next = this->jump;
@@ -2765,7 +2725,7 @@ static void break_statement(Compiler *this) {
 
 static void continue_statement(Compiler *this) {
     if (this->loop == NULL) {
-        compile_error(this, &this->alpha, "Can't use 'continue' outside of a loop.");
+        compile_error(this, &this->previous, "Can't use 'continue' outside of a loop.");
     }
     pop_stack_loop(this);
     if (this->loop->start == -1) {
@@ -2869,9 +2829,6 @@ static void statement(Compiler *this) {
         consume(this, TOKEN_END, "Expected 'end' after block.");
     } else {
         expression_statement(this);
-    }
-    if (this->panic) {
-        panic_halt(this);
     }
 }
 
@@ -2998,11 +2955,22 @@ static void expression(Compiler *this) {
     compile_with_precedence(this, PRECEDENCE_ASSIGN);
 }
 
+static inline Frame *parent_frame(Machine *this, int dist) {
+    int frame_count = this->frame_count;
+    if (dist > frame_count) return NULL;
+    return &this->frames[frame_count - dist];
+}
+
 static inline Frame *current_frame(Machine *this) {
     return &this->frames[this->frame_count - 1];
 }
 
-static Function *compile(Machine *machine, const char *script, const char *source, char **error) {
+struct CompileReturn {
+    Function *func;
+    char *error;
+};
+
+static struct CompileReturn compile(Machine *machine, const char *script, const char *source) {
 
     Scope scope = {0};
 
@@ -3010,20 +2978,19 @@ static Function *compile(Machine *machine, const char *script, const char *sourc
     Compiler *compiler = &c;
 
     advance(compiler);
-    advance(compiler);
     while (!match(compiler, TOKEN_EOF)) {
         declaration(compiler);
     }
 
+    Function *func = end_function(compiler);
+    char *error = NULL;
+
     if (compiler->error) {
-        *error = string_to_chars(compiler->error);
+        error = string_to_chars(compiler->error);
+        string_delete(compiler->error);
     }
 
-    Function *func = end_function(compiler);
-
-    compiler_delete(compiler);
-
-    return func;
+    return (struct CompileReturn){.func = func, .error = error};
 }
 
 #if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_CODE
@@ -3314,7 +3281,7 @@ static String *value_to_new_string(Value value) {
     return NULL;
 }
 
-static bool machine_throw(Machine *this) {
+static enum MachineCall machine_exception(Machine *this) {
     Frame *frame = current_frame(this);
     while (true) {
         ExceptList *except = NULL;
@@ -3333,14 +3300,15 @@ static bool machine_throw(Machine *this) {
             }
             frame->ip = except->end;
             machine_push(this, result);
-            return false;
+            return MACHINE_ERROR;
         }
         this->frame_count--;
         if (this->frame_count == 0 or frame->func->name == NULL) {
+            assert(this->error == NULL);
             this->error = value_to_new_string(result);
             dereference(this, result);
             dereference(this, machine_pop(this));
-            return true;
+            return MACHINE_FATAL;
         }
         while (this->stack_top != frame->stack) {
             dereference(this, this->stack[--this->stack_top]);
@@ -3350,7 +3318,47 @@ static bool machine_throw(Machine *this) {
     }
 }
 
-static bool machine_throw_runtime_error(Machine *this, const char *format, ...) {
+static String *machine_stacktrace(Machine *this) {
+    String *trace = new_string("");
+
+    for (int i = this->frame_count - 1; i >= 0; i--) {
+        Frame *frame = &this->frames[i];
+        Function *func = frame->func;
+        usize ip = frame->ip - 1;
+        int row = frame->func->code.rows[ip];
+
+        trace = string_append(trace, "at");
+
+        if (func->name != NULL) {
+            trace = string_append_format(trace, " %s", func->name);
+        }
+
+        if (func->script == NULL) {
+            trace = string_append_format(trace, " script:");
+        } else {
+            trace = string_append_format(trace, " %s:", func->script);
+        }
+
+        trace = string_append_format(trace, "%d\n", row);
+    }
+
+    return trace;
+}
+
+static enum MachineCall machine_push_error(Machine *this, String *error) {
+    HymnString *message = machine_intern_string(this, error);
+    reference_string(message);
+    machine_push(this, new_string_value(message));
+    return machine_exception(this);
+}
+
+static enum MachineCall machine_throw_existing_error(Machine *this, char *error) {
+    String *message = new_string(error);
+    free(error);
+    return machine_push_error(this, message);
+}
+
+static enum MachineCall machine_throw_error(Machine *this, const char *format, ...) {
 
     String *error = new_string("");
 
@@ -3366,27 +3374,13 @@ static bool machine_throw_runtime_error(Machine *this, const char *format, ...) 
     free(chars);
 
 #ifdef HYMN_INCLUDE_STACKTRACE
-    error = string_append_char(error, '\n');
-
-    for (int i = this->frame_count - 1; i >= 0; i--) {
-        Frame *frame = &this->frames[i];
-        Function *func = frame->func;
-        usize ip = frame->ip - 1;
-        int row = frame->func->code.rows[ip];
-
-        error = string_append_format(error, "[Line %d] in ", row);
-        if (func->name == NULL) {
-            error = string_append_format(error, "script\n");
-        } else {
-            error = string_append_format(error, "%s()\n", func->name);
-        }
-    }
+    String *trace = machine_stacktrace(this);
+    error = string_append(error, "\n\n");
+    error = string_append(error, trace);
+    string_delete(trace);
 #endif
 
-    HymnString *message = machine_intern_string(this, error);
-    reference_string(message);
-    machine_push(this, new_string_value(message));
-    return machine_throw(this);
+    return machine_push_error(this, error);
 }
 
 static bool machine_equal(Value a, Value b) {
@@ -3439,9 +3433,9 @@ static bool machine_false(Value value) {
 
 static enum MachineCall machine_call(Machine *this, Function *func, int count) {
     if (count != func->arity) {
-        return machine_throw_runtime_error(this, "Expected %d function arguments but found %d.", func->arity, count) ? MACHINE_FATAL : MACHINE_ERROR;
+        return machine_throw_error(this, "Expected %d function arguments but found %d.", func->arity, count);
     } else if (this->frame_count == HYMN_FRAMES_MAX) {
-        return machine_throw_runtime_error(this, "Stack overflow.") ? MACHINE_FATAL : MACHINE_ERROR;
+        return machine_throw_error(this, "Stack overflow.");
     }
 
     Frame *frame = &this->frames[this->frame_count++];
@@ -3468,7 +3462,7 @@ static enum MachineCall machine_call_value(Machine *this, Value call, int count)
         return MACHINE_OK;
     }
     default:
-        return machine_throw_runtime_error(this, "Only functions can be called.") ? MACHINE_FATAL : MACHINE_ERROR;
+        return machine_throw_error(this, "Only functions can be called.");
     }
 }
 
@@ -3487,13 +3481,14 @@ static inline Value read_constant(Frame *frame) {
 
 static enum MachineCall machine_do(Machine *this, HymnString *source) {
 
-    char *error = NULL;
+    struct CompileReturn result = compile(this, NULL, source->string);
 
-    Function *func = compile(this, NULL, source->string, &error);
+    Function *func = result.func;
+    char *error = result.error;
 
     if (error) {
-        printf("Error compiling: %s\n", error);
-        return MACHINE_OK;
+        function_delete(func);
+        return machine_throw_existing_error(this, error);
     }
 
     Value function = new_func_value(func);
@@ -3504,7 +3499,7 @@ static enum MachineCall machine_do(Machine *this, HymnString *source) {
 
     error = machine_interpret(this);
     if (error) {
-        printf("Error evaluating:\n%s\n", error);
+        return machine_throw_existing_error(this, error);
     }
 
     return MACHINE_OK;
@@ -3514,13 +3509,16 @@ static enum MachineCall machine_import(Machine *this, HymnString *file) {
 
     Table *imports = this->imports;
 
-    Frame *frame = current_frame(this);
-
-    String *script = frame->func->script;
-    String *parent = NULL;
-    if (script) {
-        parent = path_parent(script);
+    String *script = NULL;
+    int p = 1;
+    while (true) {
+        Frame *frame = parent_frame(this, p);
+        if (frame == NULL) break;
+        script = frame->func->script;
+        if (script) break;
+        p++;
     }
+    String *parent = script ? path_parent(script) : NULL;
 
     HymnString *module = NULL;
 
@@ -3534,7 +3532,7 @@ static enum MachineCall machine_import(Machine *this, HymnString *file) {
         String *question = as_string(value);
 
         String *replace = string_replace(question, "<path>", file->string);
-        String *path = string_replace(replace, "<parent>", parent);
+        String *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
 
         HymnString *use = machine_intern_string(this, path_absolute(path));
         reference_string(use);
@@ -3559,21 +3557,23 @@ static enum MachineCall machine_import(Machine *this, HymnString *file) {
     if (parent) string_delete(parent);
 
     if (module == NULL) {
-        return machine_throw_runtime_error(this, "Import not found: %s", file->string) ? MACHINE_FATAL : MACHINE_ERROR;
+        return machine_throw_error(this, "Import not found: %s", file->string);
     }
 
     table_put(imports, module, new_bool(true));
 
     String *source = cat(module->string);
 
-    char *error = NULL;
+    struct CompileReturn result = compile(this, module->string, source);
 
-    Function *func = compile(this, module->string, source, &error);
+    Function *func = result.func;
+    char *error = result.error;
+
     string_delete(source);
 
     if (error) {
-        printf("Error compiling import:\n%s\n", error);
-        return MACHINE_OK;
+        function_delete(func);
+        return machine_throw_existing_error(this, error);
     }
 
     Value function = new_func_value(func);
@@ -3584,7 +3584,7 @@ static enum MachineCall machine_import(Machine *this, HymnString *file) {
 
     error = machine_interpret(this);
     if (error) {
-        printf("Error evaluating import:\n%s\n", error);
+        return machine_throw_existing_error(this, error);
     }
 
     return MACHINE_OK;
@@ -3722,7 +3722,7 @@ static void machine_run(Machine *this) {
                     string_delete(temp);
                     machine_push_intern_string(this, add);
                 } else {
-                    if (machine_throw_runtime_error(this, "Operands can't be added.")) {
+                    if (machine_throw_error(this, "Operands can't be added.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -3736,7 +3736,7 @@ static void machine_run(Machine *this) {
                     string_delete(temp);
                     machine_push_intern_string(this, add);
                 } else {
-                    if (machine_throw_runtime_error(this, "Operands can't be added.")) {
+                    if (machine_throw_error(this, "Operands can't be added.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -3756,7 +3756,7 @@ static void machine_run(Machine *this) {
                     string_delete(temp);
                     machine_push_intern_string(this, add);
                 } else {
-                    if (machine_throw_runtime_error(this, "Operands can't be added.")) {
+                    if (machine_throw_error(this, "Operands can't be added.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -3776,7 +3776,7 @@ static void machine_run(Machine *this) {
                     string_delete(temp);
                     machine_push_intern_string(this, add);
                 } else {
-                    if (machine_throw_runtime_error(this, "Operands can't be added.")) {
+                    if (machine_throw_error(this, "Operands can't be added.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -3831,7 +3831,7 @@ static void machine_run(Machine *this) {
                     add = string_concat(s, as_native(b)->name);
                     break;
                 default:
-                    if (machine_throw_runtime_error(this, "Operands can't be added.")) {
+                    if (machine_throw_error(this, "Operands can't be added.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -3840,7 +3840,7 @@ static void machine_run(Machine *this) {
                 }
                 machine_push_intern_string(this, add);
             } else {
-                if (machine_throw_runtime_error(this, "Operands can't be added.")) {
+                if (machine_throw_error(this, "Operands can't be added.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -3873,7 +3873,7 @@ static void machine_run(Machine *this) {
                 value.as.i = ~value.as.i;
                 machine_push(this, value);
             } else {
-                if (machine_throw_runtime_error(this, "Bitwise operand must integer.")) {
+                if (machine_throw_error(this, "Bitwise operand must integer.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -3909,7 +3909,7 @@ static void machine_run(Machine *this) {
             } else if (is_float(value)) {
                 value.as.f = -value.as.f;
             } else {
-                if (machine_throw_runtime_error(this, "Operand must be a number.")) {
+                if (machine_throw_error(this, "Operand must be a number.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -3925,7 +3925,7 @@ static void machine_run(Machine *this) {
             if (is_bool(value)) {
                 value.as.b = !value.as.b;
             } else {
-                if (machine_throw_runtime_error(this, "Operand must be a boolean.")) {
+                if (machine_throw_error(this, "Operand must be a boolean.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -3952,7 +3952,7 @@ static void machine_run(Machine *this) {
             Value value = machine_peek(this, 1);
             Value exists = table_get(&this->globals, name);
             if (is_undefined(exists)) {
-                if (machine_throw_runtime_error(this, "Undefined variable '%s'.", name->string)) {
+                if (machine_throw_error(this, "Undefined variable '%s'.", name->string) == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -3965,13 +3965,14 @@ static void machine_run(Machine *this) {
                 dereference(this, previous);
             }
             table_put(&this->globals, name, value);
+            reference(value);
             break;
         }
         case OP_GET_GLOBAL: {
             HymnString *name = as_hymn_string(read_constant(frame));
             Value get = table_get(&this->globals, name);
             if (is_undefined(get)) {
-                if (machine_throw_runtime_error(this, "Undefined variable '%s'.", name->string)) {
+                if (machine_throw_error(this, "Undefined variable `%s`.", name->string) == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4001,7 +4002,7 @@ static void machine_run(Machine *this) {
             Value p = machine_pop(this);
             Value v = machine_pop(this);
             if (!is_table(v)) {
-                if (machine_throw_runtime_error(this, "Only tables can set properties.")) {
+                if (machine_throw_error(this, "Only tables can set properties.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4024,7 +4025,7 @@ static void machine_run(Machine *this) {
         case OP_GET_PROPERTY: {
             Value v = machine_pop(this);
             if (!is_table(v)) {
-                if (machine_throw_runtime_error(this, "Only tables can get properties.")) {
+                if (machine_throw_error(this, "Only tables can get properties.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4049,7 +4050,7 @@ static void machine_run(Machine *this) {
             Value v = machine_pop(this);
             if (is_array(v)) {
                 if (!is_int(i)) {
-                    if (machine_throw_runtime_error(this, "Integer required to set array index.")) {
+                    if (machine_throw_error(this, "Integer required to set array index.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4060,7 +4061,7 @@ static void machine_run(Machine *this) {
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index > size) {
-                    if (machine_throw_runtime_error(this, "Array index out of bounds %d > %d.", index, size)) {
+                    if (machine_throw_error(this, "Array index out of bounds %d > %d.", index, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4071,7 +4072,7 @@ static void machine_run(Machine *this) {
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
-                        if (machine_throw_runtime_error(this, "Array index out of bounds %d.", index)) {
+                        if (machine_throw_error(this, "Array index out of bounds %d.", index) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4087,7 +4088,7 @@ static void machine_run(Machine *this) {
                 }
             } else if (is_table(v)) {
                 if (!is_string(i)) {
-                    if (machine_throw_runtime_error(this, "String required to set table property.")) {
+                    if (machine_throw_error(this, "String required to set table property.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4099,7 +4100,7 @@ static void machine_run(Machine *this) {
                 table_put(table, name, s);
                 dereference(this, i);
             } else {
-                if (machine_throw_runtime_error(this, "Expected array or table to set inner s.")) {
+                if (machine_throw_error(this, "Expected array or table to set inner s.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4117,7 +4118,7 @@ static void machine_run(Machine *this) {
             switch (v.is) {
             case HYMN_VALUE_STRING: {
                 if (!is_int(i)) {
-                    if (machine_throw_runtime_error(this, "Integer required to get string character from index.")) {
+                    if (machine_throw_error(this, "Integer required to get string character from index.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4128,7 +4129,7 @@ static void machine_run(Machine *this) {
                 i64 size = (i64)string_len(string);
                 i64 index = as_int(i);
                 if (index >= size) {
-                    if (machine_throw_runtime_error(this, "String index out of bounds %d >= %d.", index, size)) {
+                    if (machine_throw_error(this, "String index out of bounds %d >= %d.", index, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4138,7 +4139,7 @@ static void machine_run(Machine *this) {
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
-                        if (machine_throw_runtime_error(this, "String index out of bounds %d.", index)) {
+                        if (machine_throw_error(this, "String index out of bounds %d.", index) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4153,7 +4154,7 @@ static void machine_run(Machine *this) {
             }
             case HYMN_VALUE_ARRAY: {
                 if (!is_int(i)) {
-                    if (machine_throw_runtime_error(this, "Integer required to get array index.")) {
+                    if (machine_throw_error(this, "Integer required to get array index.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4164,7 +4165,7 @@ static void machine_run(Machine *this) {
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index >= size) {
-                    if (machine_throw_runtime_error(this, "Array index out of bounds %d >= %d.", index, size)) {
+                    if (machine_throw_error(this, "Array index out of bounds %d >= %d.", index, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4174,7 +4175,7 @@ static void machine_run(Machine *this) {
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
-                        if (machine_throw_runtime_error(this, "Array index out of bounds %d.", index)) {
+                        if (machine_throw_error(this, "Array index out of bounds %d.", index) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4190,7 +4191,7 @@ static void machine_run(Machine *this) {
             }
             case HYMN_VALUE_TABLE: {
                 if (!is_string(i)) {
-                    if (machine_throw_runtime_error(this, "String required to get table property.")) {
+                    if (machine_throw_error(this, "String required to get table property.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4211,7 +4212,7 @@ static void machine_run(Machine *this) {
                 break;
             }
             default:
-                if (machine_throw_runtime_error(this, "Expected array or table to get inner value.")) {
+                if (machine_throw_error(this, "Expected array or table to get inner value.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4239,7 +4240,7 @@ static void machine_run(Machine *this) {
                 break;
             }
             default:
-                if (machine_throw_runtime_error(this, "Expected array or table for len function.")) {
+                if (machine_throw_error(this, "Expected array or table for `len` function.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4250,14 +4251,15 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_ARRAY_POP: {
-            Value array = machine_pop(this);
-            if (!is_array(array)) {
-                if (machine_throw_runtime_error(this, "Expected array for pop function.")) return;
+            Value a = machine_pop(this);
+            if (!is_array(a)) {
+                dereference(this, a);
+                if (machine_throw_error(this, "Expected array for `pop` function.") == MACHINE_FATAL) return;
                 frame = current_frame(this);
             } else {
-                Value value = array_pop(as_array(array));
+                Value value = array_pop(as_array(a));
                 machine_push(this, value);
-                dereference(this, array);
+                dereference(this, a);
             }
             break;
         }
@@ -4265,7 +4267,9 @@ static void machine_run(Machine *this) {
             Value v = machine_pop(this);
             Value a = machine_pop(this);
             if (!is_array(a)) {
-                if (machine_throw_runtime_error(this, "Expected array for push function.")) return;
+                dereference(this, a);
+                dereference(this, v);
+                if (machine_throw_error(this, "Expected array for `push` function.") == MACHINE_FATAL) return;
                 frame = current_frame(this);
             } else {
                 array_push(as_array(a), v);
@@ -4281,7 +4285,7 @@ static void machine_run(Machine *this) {
             Value v = machine_pop(this);
             if (is_array(v)) {
                 if (!is_int(i)) {
-                    if (machine_throw_runtime_error(this, "Integer required to insert into array index.")) {
+                    if (machine_throw_error(this, "Integer required to insert into array index.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4292,7 +4296,7 @@ static void machine_run(Machine *this) {
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index > size) {
-                    if (machine_throw_runtime_error(this, "Array index out of bounds %d > %d.", index, size)) {
+                    if (machine_throw_error(this, "Array index out of bounds %d > %d.", index, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4302,7 +4306,7 @@ static void machine_run(Machine *this) {
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
-                        if (machine_throw_runtime_error(this, "Array index out of bounds %d.", index)) {
+                        if (machine_throw_error(this, "Array index out of bounds %d.", index) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4319,7 +4323,7 @@ static void machine_run(Machine *this) {
                 reference(v);
                 dereference(this, v);
             } else {
-                if (machine_throw_runtime_error(this, "Expected array for insert function.")) {
+                if (machine_throw_error(this, "Expected array for insert function.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4333,7 +4337,7 @@ static void machine_run(Machine *this) {
             Value v = machine_pop(this);
             if (is_array(v)) {
                 if (!is_int(i)) {
-                    if (machine_throw_runtime_error(this, "Integer required to delete from array.")) {
+                    if (machine_throw_error(this, "Integer required to delete from array.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4344,7 +4348,7 @@ static void machine_run(Machine *this) {
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index >= size) {
-                    if (machine_throw_runtime_error(this, "Array index out of bounds %d > %d.", index, size)) {
+                    if (machine_throw_error(this, "Array index out of bounds %d > %d.", index, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4354,7 +4358,7 @@ static void machine_run(Machine *this) {
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
-                        if (machine_throw_runtime_error(this, "Array index out of bounds %d.", index)) {
+                        if (machine_throw_error(this, "Array index out of bounds %d.", index) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4367,7 +4371,7 @@ static void machine_run(Machine *this) {
                 dereference(this, v);
             } else if (is_table(v)) {
                 if (!is_string(i)) {
-                    if (machine_throw_runtime_error(this, "String required to delete from table.")) {
+                    if (machine_throw_error(this, "String required to delete from table.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4384,7 +4388,7 @@ static void machine_run(Machine *this) {
                 dereference(this, i);
                 dereference(this, v);
             } else {
-                if (machine_throw_runtime_error(this, "Expected array or table for function.")) {
+                if (machine_throw_error(this, "Expected array or table for function.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4430,7 +4434,7 @@ static void machine_run(Machine *this) {
             Value b = machine_pop(this);
             Value a = machine_pop(this);
             if (!is_int(a)) {
-                if (machine_throw_runtime_error(this, "Integer required for slice expression.")) {
+                if (machine_throw_error(this, "Integer required for slice expression.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4448,7 +4452,7 @@ static void machine_run(Machine *this) {
                 } else if (is_none(b)) {
                     right = size;
                 } else {
-                    if (machine_throw_runtime_error(this, "Integer required for slice expression.")) {
+                    if (machine_throw_error(this, "Integer required for slice expression.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4456,7 +4460,7 @@ static void machine_run(Machine *this) {
                     }
                 }
                 if (right > size) {
-                    if (machine_throw_runtime_error(this, "String index out of bounds %d > %d.", right, size)) {
+                    if (machine_throw_error(this, "String index out of bounds %d > %d.", right, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4466,7 +4470,7 @@ static void machine_run(Machine *this) {
                 if (right < 0) {
                     right = size + right;
                     if (right < 0) {
-                        if (machine_throw_runtime_error(this, "String index out of bounds %d.", right)) {
+                        if (machine_throw_error(this, "String index out of bounds %d.", right) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4475,7 +4479,7 @@ static void machine_run(Machine *this) {
                     }
                 }
                 if (left >= right) {
-                    if (machine_throw_runtime_error(this, "String start index %d > right index %d.", left, right)) {
+                    if (machine_throw_error(this, "String start index %d > right index %d.", left, right) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4493,7 +4497,7 @@ static void machine_run(Machine *this) {
                 } else if (is_none(b)) {
                     right = size;
                 } else {
-                    if (machine_throw_runtime_error(this, "Integer required for slice expression.")) {
+                    if (machine_throw_error(this, "Integer required for slice expression.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4501,7 +4505,7 @@ static void machine_run(Machine *this) {
                     }
                 }
                 if (right > size) {
-                    if (machine_throw_runtime_error(this, "Array index out of bounds %d > %d.", right, size)) {
+                    if (machine_throw_error(this, "Array index out of bounds %d > %d.", right, size) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4511,7 +4515,7 @@ static void machine_run(Machine *this) {
                 if (right < 0) {
                     right = size + right;
                     if (right < 0) {
-                        if (machine_throw_runtime_error(this, "Array index out of bounds %d.", right)) {
+                        if (machine_throw_error(this, "Array index out of bounds %d.", right) == MACHINE_FATAL) {
                             return;
                         } else {
                             frame = current_frame(this);
@@ -4520,7 +4524,7 @@ static void machine_run(Machine *this) {
                     }
                 }
                 if (left >= right) {
-                    if (machine_throw_runtime_error(this, "Array start index %d >= right index %d.", left, right)) {
+                    if (machine_throw_error(this, "Array start index %d >= right index %d.", left, right) == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4533,7 +4537,7 @@ static void machine_run(Machine *this) {
                 reference(new);
                 break;
             } else {
-                if (machine_throw_runtime_error(this, "Expected string or array for slice expression.")) {
+                if (machine_throw_error(this, "Expected string or array for slice expression.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4583,7 +4587,7 @@ static void machine_run(Machine *this) {
         case OP_KEYS: {
             Value value = machine_pop(this);
             if (!is_table(value)) {
-                if (machine_throw_runtime_error(this, "Expected table for keys function.")) return;
+                if (machine_throw_error(this, "Expected table for keys function.") == MACHINE_FATAL) return;
                 frame = current_frame(this);
             } else {
                 Table *table = as_table(value);
@@ -4601,7 +4605,9 @@ static void machine_run(Machine *this) {
             switch (a.is) {
             case HYMN_VALUE_STRING: {
                 if (!is_string(b)) {
-                    if (machine_throw_runtime_error(this, "Index function requires a string.")) {
+                    dereference(this, a);
+                    dereference(this, b);
+                    if (machine_throw_error(this, "Expected substring for 2nd argument of `index` function.") == MACHINE_FATAL) {
                         return;
                     } else {
                         frame = current_frame(this);
@@ -4636,7 +4642,9 @@ static void machine_run(Machine *this) {
                 break;
             }
             default:
-                if (machine_throw_runtime_error(this, "Expected string, array, or table for index function.")) {
+                dereference(this, a);
+                dereference(this, b);
+                if (machine_throw_error(this, "Expected string, array, or table for `index` function.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4703,7 +4711,7 @@ static void machine_run(Machine *this) {
                 }
                 dereference(this, value);
             } else {
-                if (machine_throw_runtime_error(this, "Can't cast to an integer.")) {
+                if (machine_throw_error(this, "Can't cast to an integer.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4729,7 +4737,7 @@ static void machine_run(Machine *this) {
                 }
                 dereference(this, value);
             } else {
-                if (machine_throw_runtime_error(this, "Can't cast to a float.")) {
+                if (machine_throw_error(this, "Can't cast to a float.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4821,18 +4829,20 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_THROW: {
-            if (machine_throw(this)) return;
+            if (machine_exception(this) == MACHINE_FATAL) return;
             frame = current_frame(this);
             break;
         }
         case OP_DO: {
             Value code = machine_pop(this);
             if (is_string(code)) {
-                if (machine_do(this, as_hymn_string(code)) == MACHINE_FATAL) return;
+                enum MachineCall response = machine_do(this, as_hymn_string(code));
                 dereference(this, code);
+                if (response == MACHINE_FATAL) return;
                 break;
             } else {
-                if (machine_throw_runtime_error(this, "Do requires a string to evaluate.")) {
+                dereference(this, code);
+                if (machine_throw_error(this, "Do requires a string to evaluate.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4843,11 +4853,13 @@ static void machine_run(Machine *this) {
         case OP_USE: {
             Value file = machine_pop(this);
             if (is_string(file)) {
-                if (machine_import(this, as_hymn_string(file)) == MACHINE_FATAL) return;
+                enum MachineCall response = machine_import(this, as_hymn_string(file));
                 dereference(this, file);
+                if (response == MACHINE_FATAL) return;
                 break;
             } else {
-                if (machine_throw_runtime_error(this, "Use requires a string.")) {
+                dereference(this, file);
+                if (machine_throw_error(this, "Use requires a string.") == MACHINE_FATAL) {
                     return;
                 } else {
                     frame = current_frame(this);
@@ -4864,10 +4876,11 @@ static void machine_run(Machine *this) {
 
 static char *machine_interpret(Machine *this) {
     machine_run(this);
-
     char *error = NULL;
     if (this->error) {
-        error = string_copy(this->error);
+        error = string_to_chars(this->error);
+        string_delete(this->error);
+        this->error = NULL;
     }
     return error;
 }
@@ -4998,10 +5011,15 @@ void hymn_add_pointer(Hymn *this, const char *name, void *pointer) {
     machine_set_global(this, name, new_pointer(pointer));
 }
 
-static char *hymn_do_script(Hymn *this, const char *script, const char *source) {
-    char *error = NULL;
-    Function *func = compile(this, script, source, &error);
+static char *hymn_exec(Hymn *this, const char *script, const char *source) {
+
+    struct CompileReturn result = compile(this, script, source);
+
+    Function *func = result.func;
+
+    char *error = result.error;
     if (error) {
+        function_delete(func);
         return error;
     }
 
@@ -5023,16 +5041,16 @@ static char *hymn_do_script(Hymn *this, const char *script, const char *source) 
     assert(this->stack_top == 0);
     machine_reset_stack(this);
 
-    return error;
+    return NULL;
 }
 
 char *hymn_do(Hymn *this, const char *source) {
-    return hymn_do_script(this, NULL, source);
+    return hymn_exec(this, NULL, source);
 }
 
 char *hymn_read(Hymn *this, const char *script) {
     String *source = cat(script);
-    char *error = hymn_do_script(this, script, source);
+    char *error = hymn_exec(this, script, source);
     string_delete(source);
     return error;
 }
@@ -5042,7 +5060,6 @@ char *hymn_repl(Hymn *this) {
     printf("Welcome to Hymn\n");
 
     char input[1024];
-    char *error = NULL;
 
     while (true) {
         printf("> ");
@@ -5058,9 +5075,14 @@ char *hymn_repl(Hymn *this) {
             continue;
         }
 
-        Function *func = compile(this, NULL, input, &error);
+        struct CompileReturn result = compile(this, NULL, input);
+
+        Function *func = result.func;
+
+        char *error = result.error;
         if (error) {
-            break;
+            function_delete(func);
+            return error;
         }
 
         Value function = new_func_value(func);
@@ -5070,13 +5092,11 @@ char *hymn_repl(Hymn *this) {
         machine_call(this, func, 0);
 
         error = machine_interpret(this);
-        if (error) {
-            return error;
-        }
+        if (error) return error;
 
         assert(this->stack_top == 0);
         machine_reset_stack(this);
     }
 
-    return error;
+    return NULL;
 }

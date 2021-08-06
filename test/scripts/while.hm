@@ -1,0 +1,7 @@
+#!/usr/bin/env hymn
+
+let i = 0
+while i < 4
+  print "i: " + i
+  i = i + 1
+end
