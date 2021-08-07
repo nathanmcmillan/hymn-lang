@@ -23,3 +23,42 @@ let b = {
   hello: "world"
 }
 print b
+
+function new_foo()
+  let a = [1, 2, 4]
+  return a
+end
+
+for let i = 0; i < 4; i = i + 1
+  const b = new_foo()
+  b[0] = b[0] * 2
+  b[1] = b[1] * 2
+  b[2] = b[2] * 2
+  print '(A): ' + b[0] + ', ' + b[1] + ', ' + b[2]
+end
+
+function new_zoo()
+  let a = [[1, 2], [3, 4]]
+  return a
+end
+
+for let i = 0; i < 4; i = i + 1
+  const b = new_zoo()
+  b[0][0] = b[0][0] * 2
+  b[0][1] = b[0][1] * 2
+  b[1][0] = b[1][0] * 2
+  b[1][1] = b[1][1] * 2
+  print '(B): ' + b[0][0] + ', ' + b[0][1] + ', ' + b[1][0] + ', ' + b[1][1]
+end
+
+function new_boo()
+  let t = {foo: 2, bar: 4}
+  return t
+end
+
+for let i = 0; i < 4; i = i + 1
+  const b = new_boo()
+  b.foo = b.foo * 10
+  b.bar = b.bar * 10
+  print '(C): ' + b.foo + ', ' + b.bar
+end

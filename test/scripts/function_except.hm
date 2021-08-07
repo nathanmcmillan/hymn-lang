@@ -1,0 +1,8 @@
+#!/usr/bin/env hymn
+
+function new_foo()
+  let a = [0, 2, 4]
+end
+
+const b = new_foo()
+b[0] = b[0] + 1
