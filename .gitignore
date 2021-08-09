@@ -3,6 +3,10 @@
 build/
 objects/
 testing/
+target/
+
+node_modules
+package-lock.json
 
 tags
 ctags.opts
@@ -14,8 +18,8 @@ run.bat
 test.bat
 
 .DS_Store
-
 test.hm
+tests
 
 hymn
-tests
+!hymn/

@@ -170,7 +170,6 @@ typedef HymnByteCode ByteCode;
 typedef struct Token Token;
 typedef struct Local Local;
 typedef struct Rule Rule;
-typedef struct Script Script;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
 typedef struct Hymn Machine;
@@ -186,13 +185,23 @@ enum TokenType {
     TOKEN_AND,
     TOKEN_ASSIGN,
     TOKEN_BEGIN,
+    TOKEN_BIT_AND,
+    TOKEN_BIT_LEFT_SHIFT,
+    TOKEN_BIT_NOT,
+    TOKEN_BIT_OR,
+    TOKEN_BIT_RIGHT_SHIFT,
+    TOKEN_BIT_XOR,
+    TOKEN_BREAK,
     TOKEN_CASE,
+    TOKEN_CLEAR,
     TOKEN_COLON,
     TOKEN_COMMA,
     TOKEN_CONST,
-    TOKEN_DO,
+    TOKEN_CONTINUE,
+    TOKEN_COPY,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
+    TOKEN_DO,
     TOKEN_DOT,
     TOKEN_ELIF,
     TOKEN_ELSE,
@@ -200,6 +209,7 @@ enum TokenType {
     TOKEN_EOF,
     TOKEN_EQUAL,
     TOKEN_ERROR,
+    TOKEN_EXCEPT,
     TOKEN_FALSE,
     TOKEN_FLOAT,
     TOKEN_FOR,
@@ -208,15 +218,18 @@ enum TokenType {
     TOKEN_GREATER_EQUAL,
     TOKEN_IDENT,
     TOKEN_IF,
+    TOKEN_IN,
+    TOKEN_INDEX,
     TOKEN_INSERT,
     TOKEN_INTEGER,
     TOKEN_ITERATE,
+    TOKEN_KEYS,
     TOKEN_LEFT_CURLY,
     TOKEN_LEFT_PAREN,
     TOKEN_LEFT_SQUARE,
+    TOKEN_LEN,
     TOKEN_LESS,
     TOKEN_LESS_EQUAL,
-    TOKEN_LEN,
     TOKEN_LET,
     TOKEN_LINE,
     TOKEN_MODULO,
@@ -227,8 +240,8 @@ enum TokenType {
     TOKEN_OR,
     TOKEN_PASS,
     TOKEN_POP,
-    TOKEN_PUSH,
     TOKEN_PRINT,
+    TOKEN_PUSH,
     TOKEN_RETURN,
     TOKEN_RIGHT_CURLY,
     TOKEN_RIGHT_PAREN,
@@ -236,32 +249,18 @@ enum TokenType {
     TOKEN_SEMICOLON,
     TOKEN_STRING,
     TOKEN_SUBTRACT,
+    TOKEN_SWITCH,
+    TOKEN_THROW,
+    TOKEN_TO_FLOAT,
+    TOKEN_TO_INTEGER,
+    TOKEN_TO_STRING,
     TOKEN_TRUE,
+    TOKEN_TRY,
+    TOKEN_TYPE,
     TOKEN_UNDEFINED,
     TOKEN_USE,
     TOKEN_VALUE,
     TOKEN_WHILE,
-    TOKEN_TYPE,
-    TOKEN_TO_INTEGER,
-    TOKEN_TO_FLOAT,
-    TOKEN_TO_STRING,
-    TOKEN_CLEAR,
-    TOKEN_COPY,
-    TOKEN_IN,
-    TOKEN_INDEX,
-    TOKEN_KEYS,
-    TOKEN_BREAK,
-    TOKEN_CONTINUE,
-    TOKEN_BIT_AND,
-    TOKEN_BIT_OR,
-    TOKEN_BIT_XOR,
-    TOKEN_BIT_NOT,
-    TOKEN_BIT_LEFT_SHIFT,
-    TOKEN_BIT_RIGHT_SHIFT,
-    TOKEN_TRY,
-    TOKEN_EXCEPT,
-    TOKEN_THROW,
-    TOKEN_SWITCH,
 };
 
 enum Precedence {
@@ -295,11 +294,11 @@ enum OpCode {
     OP_CONSTANT,
     OP_CONSTANT_TWO,
     OP_COPY,
-    OP_DUPLICATE,
-    OP_DO,
     OP_DEFINE_GLOBAL,
     OP_DELETE,
     OP_DIVIDE,
+    OP_DO,
+    OP_DUPLICATE,
     OP_EQUAL,
     OP_FALSE,
     OP_GET_DYNAMIC,
@@ -325,8 +324,6 @@ enum OpCode {
     OP_NOT_EQUAL,
     OP_POP,
     OP_PRINT,
-    OP_THROW,
-    OP_USE,
     OP_RETURN,
     OP_SET_DYNAMIC,
     OP_SET_GLOBAL,
@@ -334,11 +331,13 @@ enum OpCode {
     OP_SET_PROPERTY,
     OP_SLICE,
     OP_SUBTRACT,
+    OP_THROW,
     OP_TO_FLOAT,
     OP_TO_INTEGER,
     OP_TO_STRING,
     OP_TRUE,
     OP_TYPE,
+    OP_USE,
 };
 
 enum FunctionType {
@@ -425,12 +424,6 @@ struct Rule {
     void (*prefix)(Compiler *, bool);
     void (*infix)(Compiler *, bool);
     enum Precedence precedence;
-};
-
-struct Script {
-    const char *name;
-    Value **variables;
-    usize variable_count;
 };
 
 struct Scope {
@@ -1146,18 +1139,6 @@ static void value_token(Compiler *this, enum TokenType type, usize start, usize 
 #endif
 }
 
-static void string_token(Compiler *this, usize start, usize end) {
-    Token *current = &this->current;
-    current->type = TOKEN_STRING;
-    current->row = this->row;
-    current->column = this->column;
-    current->start = start;
-    current->length = (int)(end - start);
-#ifdef HYMN_DEBUG_TOKEN
-    printf("TOKEN: %s, \"%.*s\"\n", token_name(TOKEN_STRING), current->length, &this->source[start]);
-#endif
-}
-
 static enum TokenType ident_trie(const char *ident, int offset, const char *rest, enum TokenType type) {
     int i = 0;
     do {
@@ -1389,7 +1370,7 @@ static void advance(Compiler *this) {
                 }
             }
             usize end = this->pos - 1;
-            string_token(this, start, end);
+            value_token(this, TOKEN_STRING, start, end);
             return;
         }
         case '\'': {
@@ -1404,7 +1385,7 @@ static void advance(Compiler *this) {
                 }
             }
             usize end = this->pos - 1;
-            string_token(this, start, end);
+            value_token(this, TOKEN_STRING, start, end);
             return;
         }
         default: {
@@ -1451,12 +1432,13 @@ static void value_pool_init(ValuePool *this) {
 }
 
 static void value_pool_add(ValuePool *this, Value value) {
-    if (this->count + 1 > this->capacity) {
+    int count = this->count;
+    if (count + 1 > this->capacity) {
         this->capacity *= 2;
         this->values = safe_realloc(this->values, this->capacity * sizeof(Value));
     }
-    this->values[this->count] = value;
-    this->count++;
+    this->values[count] = value;
+    this->count = count + 1;
 }
 
 static void byte_code_init(ByteCode *this) {
@@ -1728,7 +1710,7 @@ static void value_pool_delete(ValuePool *this) {
     free(this->values);
 }
 
-static void compiler_scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
+static void scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
     scope->enclosing = this->scope;
     this->scope = scope;
 
@@ -1757,7 +1739,7 @@ static inline Compiler new_compiler(const char *script, const char *source, Mach
     this.previous.type = TOKEN_UNDEFINED;
     this.current.type = TOKEN_UNDEFINED;
     this.machine = machine;
-    compiler_scope_init(&this, scope, TYPE_SCRIPT);
+    scope_init(&this, scope, TYPE_SCRIPT);
     return this;
 }
 
@@ -2036,7 +2018,7 @@ static void native_function_delete(NativeFunction *this) {
     free(this);
 }
 
-static void push_local(Compiler *this, Token name, bool constant) {
+static void push_local(Compiler *this, Token name, bool is_constant) {
     Scope *scope = this->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
         compile_error(this, &name, "Too many local variables in scope.");
@@ -2044,7 +2026,7 @@ static void push_local(Compiler *this, Token name, bool constant) {
     }
     Local *local = &scope->locals[scope->local_count++];
     local->name = name;
-    local->constant = constant;
+    local->constant = is_constant;
     local->depth = -1;
 }
 
@@ -2055,7 +2037,7 @@ static bool ident_match(Compiler *this, Token *a, Token *b) {
     return memcmp(&this->source[a->start], &this->source[b->start], a->length) == 0;
 }
 
-static u8 variable(Compiler *this, bool constant, const char *error) {
+static u8 variable(Compiler *this, bool is_constant, const char *error) {
     consume(this, TOKEN_IDENT, error);
     Scope *scope = this->scope;
     if (scope->depth == 0) {
@@ -2070,7 +2052,7 @@ static u8 variable(Compiler *this, bool constant, const char *error) {
             compile_error(this, name, "Scope Error: Variable `%.*s` already exists in this scope.", name->length, &this->source[name->start]);
         }
     }
-    push_local(this, *name, constant);
+    push_local(this, *name, is_constant);
     return 0;
 }
 
@@ -2090,14 +2072,14 @@ static void finalize_variable(Compiler *this, u8 global) {
     emit_two(this, OP_DEFINE_GLOBAL, global);
 }
 
-static void define_new_variable(Compiler *this, bool constant) {
-    u8 v = variable(this, constant, "Syntax Error: Expected variable name.");
+static void define_new_variable(Compiler *this, bool is_constant) {
+    u8 v = variable(this, is_constant, "Syntax Error: Expected variable name.");
     consume(this, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.");
     expression(this);
     finalize_variable(this, v);
 }
 
-static int resolve_local(Compiler *this, Token *name, bool *constant) {
+static int resolve_local(Compiler *this, Token *name, bool *is_constant) {
     Scope *scope = this->scope;
     for (int i = scope->local_count - 1; i >= 0; i--) {
         Local *local = &scope->locals[i];
@@ -2105,7 +2087,7 @@ static int resolve_local(Compiler *this, Token *name, bool *constant) {
             if (local->depth == -1) {
                 compile_error(this, name, "Reference Error: Local variable `%.*s` referenced before assignment.", name->length, &this->source[name->start]);
             }
-            *constant = local->constant;
+            *is_constant = local->constant;
             return i;
         }
     }
@@ -2267,7 +2249,7 @@ static Function *end_function(Compiler *this) {
 
 static void compile_function(Compiler *this, enum FunctionType type) {
     Scope scope = {0};
-    compiler_scope_init(this, &scope, type);
+    scope_init(this, &scope, type);
 
     begin_scope(this);
 
@@ -2993,10 +2975,10 @@ static void expression(Compiler *this) {
     compile_with_precedence(this, PRECEDENCE_ASSIGN);
 }
 
-static inline Frame *parent_frame(Machine *this, int dist) {
+static inline Frame *parent_frame(Machine *this, int offset) {
     int frame_count = this->frame_count;
-    if (dist > frame_count) return NULL;
-    return &this->frames[frame_count - dist];
+    if (offset > frame_count) return NULL;
+    return &this->frames[frame_count - offset];
 }
 
 static inline Frame *current_frame(Machine *this) {

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hymn</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="index.css" />
+  </head>
+  <body>
+    <script src="hymn.js"></script>
+    <section id="top"><button onclick="run()">Run</button></section>
+    <section id="play">
+      <div id="code"><textarea id="source" autocorrect="off" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea></div>
+      <p id="out"></p>
+    </section>
+    <script>
+      function run() {
+        const source = document.getElementById('source').value
+        const hymn = new Hymn()
+        hymnInterpret(hymn, source)
+      }
+    </script>
+  </body>
+</html>
