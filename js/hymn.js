@@ -1,4 +1,6 @@
-const HYMN_UINT8_COUNT = 256
+const UINT8_MAX = 255
+const UINT16_MAX = 65535
+const HYMN_UINT8_COUNT = UINT8_MAX + 1
 const HYMN_FRAMES_MAX = 64
 const HYMN_STACK_MAX = HYMN_FRAMES_MAX * HYMN_UINT8_COUNT
 
@@ -15,9 +17,9 @@ const HYMN_VALUE_FUNC_NATIVE = 9
 const HYMN_VALUE_POINTER = 10
 
 class HymnValue {
-  constructor() {
-    this.is = HYMN_VALUE_UNDEFINED
-    this.value = null
+  constructor(is, value) {
+    this.is = is
+    this.value = value
   }
 }
 
@@ -264,7 +266,8 @@ function copyToken(dest, src) {
 
 class Local {
   constructor() {
-    this.name = null
+    this.nameStart = 0
+    this.nameLen = 0
     this.depth = 0
     this.constant = false
   }
@@ -413,6 +416,38 @@ function valueName(type) {
   }
 }
 
+function sourceSubstring(compiler, len, start) {
+  return compiler.source.substring(start, start + len)
+}
+
+function newNone() {
+  return new HymnValue(HYMN_VALUE_NONE, null)
+}
+
+function newBool(boolean) {
+  return new HymnValue(HYMN_VALUE_BOOL, boolean)
+}
+
+function newInt(number) {
+  return new HymnValue(HYMN_VALUE_INTEGER, number)
+}
+
+function newFloat(number) {
+  return new HymnValue(HYMN_VALUE_FLOAT, number)
+}
+
+function newString(string) {
+  return new HymnValue(HYMN_VALUE_STRING, string)
+}
+
+function newArrayValue(array) {
+  return new HymnValue(HYMN_VALUE_ARRAY, array)
+}
+
+function newTableValue(table) {
+  return new HymnValue(HYMN_VALUE_TABLE, table)
+}
+
 function currentFunc(compiler) {
   return compiler.scope.func
 }
@@ -452,7 +487,7 @@ function peekChar(compiler) {
 }
 
 function token(compiler, type) {
-  let token = compiler.token
+  let token = compiler.current
   token.type = type
   token.row = compiler.row
   token.column = compiler.column
@@ -461,7 +496,7 @@ function token(compiler, type) {
 }
 
 function tokenSpecial(compiler, type, offset, len) {
-  let token = compiler.token
+  let token = compiler.current
   token.type = type
   token.row = compiler.row
   token.column = compiler.column
@@ -470,7 +505,7 @@ function tokenSpecial(compiler, type, offset, len) {
 }
 
 function valueToken(compiler, type, start, end) {
-  let token = compiler.token
+  let token = compiler.current
   token.type = type
   token.row = compiler.row
   token.column = compiler.column
@@ -833,6 +868,15 @@ function newTable() {
   return new Map()
 }
 
+function scopeGetLocal(scope, index) {
+  if (index < scope.locals.length) {
+    return scope.locals[index]
+  }
+  const local = new Local()
+  scope.locals.push(local)
+  return local
+}
+
 function scopeInit(compiler, scope, type) {
   scope.enclosing = compiler.scope
   compiler.scope = scope
@@ -846,10 +890,10 @@ function scopeInit(compiler, scope, type) {
     scope.func.name = sourceSubstring(compiler, compiler.previous.len, compiler.previous.start)
   }
 
-  const local = scope.locals[scope.localCount++]
+  const local = scopeGetLocal(scope, scope.localCount++)
   local.depth = 0
-  local.name.start = 0
-  local.name.length = 0
+  local.nameStart = 0
+  local.nameLen = 0
 }
 
 function newCompiler(script, source, hymn, scope) {
@@ -881,11 +925,11 @@ function writeTwoOp(code, byteOne, byteTwo, row) {
 
 function writeConstant(compiler, value, row) {
   let constant = byteCodeAddConstant(current(compiler), value)
-  if (constant > 255) {
+  if (constant > UINT8_MAX) {
     compileError(compiler, compiler.previous, 'Too many constants.')
     constant = 0
   }
-  writeTwoOp(current(this), OP_CONSTANT, constant, row)
+  writeTwoOp(current(compiler), OP_CONSTANT, constant, row)
   return constant
 }
 
@@ -913,11 +957,7 @@ function emitTwo(compiler, byteOne, byteTwo) {
   writeTwoOp(current(compiler), byteOne, byteTwo, compiler.previous.row)
 }
 
-function sourceSubstring(compiler, len, start) {
-  return compiler.source.substring(start, start + len)
-}
-
-function compileWithPrecedence(compiler, assign) {
+function compileWithPrecedence(compiler, precedence) {
   advance(compiler)
   const rule = rules[compiler.previous.type]
   const prefix = rule.prefix
@@ -925,57 +965,268 @@ function compileWithPrecedence(compiler, assign) {
     compileError(compiler, compiler.previous, 'Syntax Error: Expected expression following `' + sourceSubstring(compiler, compiler.previous.len, compiler.previous.start) + '`.')
     return
   }
+  const assign = precedence <= PRECEDENCE_ASSIGN
+  prefix(compiler, assign)
+  while (compiler <= rules[compiler.current.type].precedence) {
+    advance(compiler)
+    const infix = rules[compiler.previous.type].infix
+    if (infix === NULL) {
+      compileError(compiler, compiler.previous, 'Expected infix.')
+    }
+    infix(compiler, assign)
+  }
+  if (assign && match(compiler, TOKEN_ASSIGN)) {
+    compileError(compiler, compiler.current, 'Invalid assignment target.')
+  }
 }
 
-function consume(compiler, type, error) {}
+function consume(compiler, type, error) {
+  if (compiler.current.type === type) {
+    advance(compiler)
+    return
+  }
+  compileError(compiler, compiler.current, error)
+}
 
-function pushHiddenLocal(compiler) {}
+function pushHiddenLocal(compiler) {
+  const scope = compiler.scope
+  if (scope.localCount === HYMN_UINT8_COUNT) {
+    compileError(compiler, compiler.previous, 'Too many local variables in scope.')
+    return 0
+  }
+  const index = scope.localCount++
+  const local = scopeGetLocal(scope, index)
+  local.nameStart = 0
+  local.nameLen = 0
+  local.constant = true
+  local.depth = scope.depth
+  return index
+}
 
-function args(compiler) {}
+function args(compiler) {
+  let count = 0
+  if (!check(compiler, TOKEN_RIGHT_PAREN)) {
+    do {
+      expression(compiler)
+      if (count === UINT8_MAX) {
+        compileError(compiler, compiler.previous, "Can't have more than 255 function arguments.")
+        break
+      }
+      count++
+    } while (match(compiler, TOKEN_COMMA))
+  }
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments.")
+  return count
+}
 
-function compileCall(compiler, assign) {}
+function compileCall(compiler, assign) {
+  emitTwo(compiler, OP_CALL, args(compiler))
+}
 
-function compileGroup(compiler, assign) {}
+function compileGroup(compiler, assign) {
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, 'Expected right parenthesis.')
+}
 
-function compileNone(compiler, assign) {}
+function compileNone(compiler, assign) {
+  emit(compiler, OP_NONE)
+}
 
-function compileTrue(compiler, assign) {}
+function compileTrue(compiler, assign) {
+  emit(compiler, OP_TRUE)
+}
 
-function compileFalse(compiler, assign) {}
+function compileFalse(compiler, assign) {
+  emit(compiler, OP_FALSE)
+}
 
-function compileInteger(compiler, assign) {}
+function compileInteger(compiler, assign) {
+  const alpha = compiler.previous
+  const number = parseInt(sourceSubstring(compiler, alpha.len, alpha.start))
+  writeConstant(compiler, newInt(number), alpha.row)
+}
 
-function compileFloat(compiler, assign) {}
+function compileFloat(compiler, assign) {
+  const alpha = compiler.previous
+  const number = parseFloat(sourceSubstring(compiler, alpha.len, alpha.start))
+  writeConstant(compiler, newFloat(number), alpha.row)
+}
 
-function compileString(compiler, assign) {}
+function compileString(compiler, assign) {
+  const alpha = compiler.previous
+  const string = sourceSubstring(compiler, alpha.len, alpha.start)
+  writeConstant(compiler, newString(string), alpha.row)
+}
 
-function identConstant(compiler, token) {}
+function identConstant(compiler, token) {
+  const string = sourceSubstring(compiler, token.len, token.start)
+  return byteCodeAddConstant(current(compiler), newString(string))
+}
 
-function beginScope(compiler) {}
+function beginScope(compiler) {
+  compiler.scope.depth++
+}
 
-function endScope(compiler) {}
+function endScope(compiler) {
+  const scope = compiler.scope
+  scope.depth--
+  while (scope.localCount > 0 && scope.locals[scope.localCount - 1].depth > scope.depth) {
+    emit(compiler, OP_POP)
+    scope.localCount--
+  }
+}
 
-function compileArray(compiler, assign) {}
+function compileArray(compiler, assign) {
+  writeConstant(compiler, newArrayValue(null), compiler.previous.row)
+  if (match(compiler, TOKEN_RIGHT_SQUARE)) {
+    return
+  }
+  while (!check(compiler, TOKEN_RIGHT_SQUARE) && !check(compiler, TOKEN_EOF)) {
+    emit(compiler, OP_DUPLICATE)
+    expression(compiler)
+    emitTwo(compiler, OP_ARRAY_PUSH, OP_POP)
+    if (!check(compiler, TOKEN_RIGHT_SQUARE)) {
+      consume(compiler, TOKEN_COMMA, "Expected ','.")
+    }
+  }
+  consume(compiler, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.")
+}
 
-function compileTable(compiler, assign) {}
+function compileTable(compiler, assign) {
+  writeConstant(compiler, new_table_value(NULL), compiler.previous.row)
+  if (match(compiler, TOKEN_RIGHT_CURLY)) {
+    return
+  }
+  while (!check(compiler, TOKEN_RIGHT_CURLY) && !check(compiler, TOKEN_EOF)) {
+    emit(compiler, OP_DUPLICATE)
+    consume(compiler, TOKEN_IDENT, 'Expected property name')
+    const name = ident_constant(compiler, compiler.previous)
+    consume(compiler, TOKEN_COLON, "Expected ':'.")
+    expression(compiler)
+    emit_two(compiler, OP_SET_PROPERTY, name)
+    emit(compiler, OP_POP)
+    if (!check(compiler, TOKEN_RIGHT_CURLY)) {
+      consume(compiler, TOKEN_COMMA, "Expected ','.")
+    }
+  }
+  consume(compiler, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.")
+}
 
-function pushLocal(compiler, name, isConstant) {}
+function pushLocal(compiler, name, isConstant) {
+  const scope = compiler.scope
+  if (scope.localCount === HYMN_UINT8_COUNT) {
+    compileError(compiler, name, 'Too many local variables in scope')
+    return
+  }
+  const local = scope.locals[scope.localCount++]
+  local.name = name
+  local.constant = isConstant
+  local.depth = -1
+}
 
-function variable(compiler, isConstant, error) {}
+function variable(compiler, isConstant, error) {
+  consume(compiler, TOKEN_IDENT, error)
+  const scope = compiler.scope
+  if (scope.depth === 0) {
+    return identConstant(compiler, compiler.previous)
+  }
+  const name = compiler.previous
+  for (let i = scope.localCount - 1; i >= 0; i--) {
+    const local = scope.locals[i]
+    if (local.depth !== -1 && local.depth < scope.depth) {
+      break
+    } else if (name === local.name) {
+      compileError(compiler, name, 'Scope Error: Variable `' + sourceSubstring(compiler, name.len, name.start) + '` already exists in compiler scope.')
+    }
+  }
+  pushLocal(compiler, name, isConstant)
+  return 0
+}
 
-function localInitialize(compiler) {}
+function localInitialize(compiler) {
+  const scope = compiler.scope
+  if (scope.depth === 0) {
+    return
+  }
+  scope.locals[scope.localCount - 1].depth = scope.depth
+}
 
-function finalizeVariable(compiler, global) {}
+function finalizeVariable(compiler, global) {
+  if (compiler.scope.depth > 0) {
+    localInitialize(compiler)
+    return
+  }
+  emitTwo(compiler, OP_DEFINE_GLOBAL, global)
+}
 
-function defineNewVariable(compiler, isConstant) {}
+function defineNewVariable(compiler, isConstant) {
+  const v = variable(compiler, isConstant, 'Syntax Error: Expected variable name.')
+  consume(compiler, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.")
+  expression(compiler)
+  finalizeVariable(compiler, v)
+}
 
-function resolveLocal(compiler, name, isConstant) {}
+function resolveLocal(compiler, name) {
+  const scope = compiler.scope
+  for (let i = scope.localCount - 1; i >= 0; i--) {
+    const local = scope.locals[i]
+    if (name === local.name) {
+      if (local.depth == -1) {
+        compileError(compiler, name, 'Reference Error: Local variable `' + sourceSubstring(name.len, name.start) + '` referenced before assignment.')
+      }
+      return [i, local.constant]
+    }
+  }
+  return [-1, false]
+}
 
-function namedVariable(compiler, token, assign) {}
+function namedVariable(compiler, token, assign) {
+  let get
+  let set
+  let r = resolveLocal(compiler, token)
+  let v = r[0]
+  let constant = r[1]
+  if (v != -1) {
+    get = OP_GET_LOCAL
+    set = OP_SET_LOCAL
+  } else {
+    get = OP_GET_GLOBAL
+    set = OP_SET_GLOBAL
+    v = identConstant(compiler, token)
+  }
+  if (assign && match(compiler, TOKEN_ASSIGN)) {
+    if (constant) {
+      compileError(compiler, token, "Constant variable can't be modified.")
+    }
+    expression(compiler)
+    emit(compiler, set)
+  } else {
+    emit(compiler, get)
+  }
+  emit(compiler, v)
+}
 
-function compileVariable(compiler, assign) {}
+function compileVariable(compiler, assign) {
+  namedVariable(compiler, compiler.previous, assign)
+}
 
-function compileUnary(compiler, assign) {}
+function compileUnary(compiler, assign) {
+  const type = compiler.previous.type
+  compile_with_precedence(compiler, PRECEDENCE_UNARY)
+  switch (type) {
+    case TOKEN_NOT:
+      emit(compiler, OP_NOT)
+      break
+    case TOKEN_SUBTRACT:
+      emit(compiler, OP_NEGATE)
+      break
+    case TOKEN_BIT_NOT:
+      emit(compiler, OP_BIT_NOT)
+      break
+    default:
+      return
+  }
+}
 
 function compileBinary(compiler, assign) {
   const type = compiler.previous.type
@@ -1035,38 +1286,112 @@ function compileBinary(compiler, assign) {
   }
 }
 
-function compileDot(compiler, assign) {}
+function compileDot(compiler, assign) {
+  consume(compiler, TOKEN_IDENT, "Expected property name after '.'.")
+  const name = identConstant(compiler, compiler.previous)
+  if (assign && match(compiler, TOKEN_ASSIGN)) {
+    expression(compiler)
+    emitTwo(compiler, OP_SET_PROPERTY, compiler)
+  } else {
+    emitTwo(compiler, OP_GET_PROPERTY, compiler)
+  }
+}
 
-function compileSquare(compiler, assign) {}
+function compileSquare(compiler, assign) {
+  if (match(compiler, TOKEN_COLON)) {
+    writeConstant(compiler, newInt(0), compiler.previous.row)
+    if (match(compiler, TOKEN_RIGHT_SQUARE)) {
+      writeConstant(compiler, newNone(), compiler.previous.row)
+    } else {
+      expression(compiler)
+      consume(compiler, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.")
+    }
+    emit(compiler, OP_SLICE)
+  } else {
+    expression(compiler)
+    if (match(compiler, TOKEN_COLON)) {
+      if (match(compiler, TOKEN_RIGHT_SQUARE)) {
+        writeConstant(compiler, newNone(), compiler.previous.row)
+      } else {
+        expression(compiler)
+        consume(compiler, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.")
+      }
+      emit(compiler, OP_SLICE)
+    } else {
+      consume(compiler, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.")
+      if (assign && match(compiler, TOKEN_ASSIGN)) {
+        expression(compiler)
+        emit(compiler, OP_SET_DYNAMIC)
+      } else {
+        emit(compiler, OP_GET_DYNAMIC)
+      }
+    }
+  }
+}
 
-function emitJump(compiler, instruction) {}
+function emitJump(compiler, instruction) {
+  emit(compiler, instruction)
+  emitTwo(compiler, UINT8_MAX, UINT8_MAX)
+  return current(compiler).count - 2
+}
 
-function patchJump(compiler, jump) {}
+function patchJump(compiler, jump) {
+  const code = current(compiler)
+  const offset = code.count - jump - 2
+  if (offset > UINT16_MAX) {
+    compileError(compiler, compiler.previous, 'Jump offset too large.')
+    return
+  }
+  code.instructions[jump] = (offset >> 8) & UINT8_MAX
+  code.instructions[jump + 1] = offset & UINT8_MAX
+}
 
-function compileAnd(compiler, assign) {}
+function compileAnd(compiler, assign) {
+  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
+  emit(compiler, OP_POP)
+  compileWithPrecedence(compiler, PRECEDENCE_AND)
+  patchJump(compiler, jump)
+}
 
-function compileOr(compiler, assign) {}
+function compileOr(compiler, assign) {
+  const jumpElse = emitJump(compiler, OP_JUMP_IF_FALSE)
+  const jump = emitJump(compiler, OP_JUMP)
+  patchJump(compiler, jumpElse)
+  emit(compiler, OP_POP)
+  compileWithPrecedence(compiler, PRECEDENCE_OR)
+  patchJump(compiler, jump)
+}
 
-function endFunction(compiler) {}
+function endFunction(compiler) {
+  emitTwo(compiler, OP_NONE, OP_RETURN)
+  const func = compiler.scope.func
+  compiler.scope = compiler.scope.enclosing
+  return func
+}
 
 function compileFunction(compiler, type) {}
 
 function declareFunction(compiler) {}
 
 function declaration(compiler) {
-  advance(compiler)
-  // if (match(compiler, TOKEN_LET)) {
-  //   defineNewVariable(compiler, false)
-  // } else if (match(compiler, TOKEN_CONST)) {
-  //   defineNewVariable(compiler, true)
-  // } else if (match(compiler, TOKEN_FUNCTION)) {
-  //   declareFunction(compiler)
-  // } else {
-  //   statement(compiler)
-  // }
+  if (match(compiler, TOKEN_LET)) {
+    defineNewVariable(compiler, false)
+  } else if (match(compiler, TOKEN_CONST)) {
+    defineNewVariable(compiler, true)
+  } else if (match(compiler, TOKEN_FUNCTION)) {
+    declareFunction(compiler)
+  } else {
+    statement(compiler)
+  }
 }
 
-function block(compiler) {}
+function block(compiler) {
+  beginScope(compiler)
+  while (!check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
+    declaration(compiler)
+  }
+  endScope(compiler)
+}
 
 function ifStatement(compiler) {}
 
@@ -1096,13 +1421,25 @@ function continueStatement(compiler) {}
 
 function tryStatement(compiler) {}
 
-function printStatement(compiler) {}
+function printStatement(compiler) {
+  expression(compiler)
+  emit(compiler, OP_PRINT)
+}
 
-function useStatement(compiler) {}
+function useStatement(compiler) {
+  expression(compiler)
+  emit(compiler, OP_USE)
+}
 
-function doStatement(compiler) {}
+function doStatement(compiler) {
+  expression(compiler)
+  emit(compiler, OP_DO)
+}
 
-function throwStatement(compiler) {}
+function throwStatement(compiler) {
+  expression(compiler)
+  emit(compiler, OP_THROW)
+}
 
 function statement(compiler) {
   if (match(compiler, TOKEN_PRINT)) {
@@ -1141,35 +1478,115 @@ function statement(compiler) {
   }
 }
 
-function arrayPushExpression(compiler, assign) {}
+function arrayPushExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after push.")
+  expression(compiler)
+  consume(compiler, TOKEN_COMMA, "Expected ',' between push arguments.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after push expression.")
+  emit(compiler, OP_ARRAY_PUSH)
+}
 
-function arrayInsertExpression(compiler, assign) {}
+function arrayInsertExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after insert.")
+  expression(compiler)
+  consume(compiler, TOKEN_COMMA, "Expected ',' between insert arguments.")
+  expression(compiler)
+  consume(compiler, TOKEN_COMMA, "Expected ',' between insert arguments.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after insert expression.")
+  emit(compiler, OP_ARRAY_INSERT)
+}
 
-function arrayPopExpression(compiler, assign) {}
+function arrayPopExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after pop.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after pop expression.")
+  emit(compiler, OP_ARRAY_POP)
+}
 
-function deleteExpression(compiler, assign) {}
+function deleteExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after delete.")
+  expression(compiler)
+  consume(compiler, TOKEN_COMMA, "Expected ',' between delete arguments.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after delete expression.")
+  emit(compiler, OP_DELETE)
+}
 
-function lenExpression(compiler, assign) {}
+function lenExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after len.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after len expression.")
+  emit(compiler, OP_LEN)
+}
 
-function castIntegerExpression(compiler, assign) {}
+function castIntegerExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after integer.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after integer expression.")
+  emit(compiler, OP_TO_INTEGER)
+}
 
-function castFloatExpression(compiler, assign) {}
+function castFloatExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after float.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after float expression.")
+  emit(compiler, OP_TO_FLOAT)
+}
 
-function castStringExpression(compiler, assign) {}
+function castStringExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after string.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after string expression.")
+  emit(compiler, OP_TO_STRING)
+}
 
-function typeExpression(compiler, assign) {}
+function typeExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after type.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after type expression.")
+  emit(compiler, OP_TYPE)
+}
 
-function clearExpression(compiler, assign) {}
+function clearExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after clear.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after clear expression.")
+  emit(compiler, OP_CLEAR)
+}
 
-function copyExpression(compiler, assign) {}
+function copyExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after copy.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after copy expression.")
+  emit(compiler, OP_COPY)
+}
 
-function keysExpression(compiler, assign) {}
+function keysExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after keys.")
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after keys expression.")
+  emit(compiler, OP_KEYS)
+}
 
-function indexExpression(compiler, assign) {}
+function indexExpression(compiler, assign) {
+  consume(compiler, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `index` function.")
+  expression(compiler)
+  consume(compiler, TOKEN_COMMA, 'Expected 2 arguments for `index` function.')
+  expression(compiler)
+  consume(compiler, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function.")
+  emit(compiler, OP_INDEX)
+}
 
-function expressionStatement(compiler) {}
+function expressionStatement(compiler) {
+  expression(compiler)
+  emit(compiler, OP_POP)
+}
 
-function expression(compiler) {}
+function expression(compiler) {
+  compile_with_precedence(compiler, PRECEDENCE_ASSIGN)
+}
 
 function parentFrame(hymn, offset) {}
 
@@ -1179,7 +1596,7 @@ function compile(hymn, script, source) {
   const scope = new Scope()
   const compiler = newCompiler(script, source, hymn, scope)
   advance(compiler)
-  while (!match(compiler, TOKEN_EOR)) {
+  while (!match(compiler, TOKEN_EOF)) {
     declaration(compiler)
   }
   const func = endFunction(compiler)

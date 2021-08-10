@@ -1976,7 +1976,9 @@ static void compile_array(Compiler *this, bool assign) {
         emit(this, OP_DUPLICATE);
         expression(this);
         emit_two(this, OP_ARRAY_PUSH, OP_POP);
-        if (!check(this, TOKEN_RIGHT_SQUARE)) consume(this, TOKEN_COMMA, "Expected ','.");
+        if (!check(this, TOKEN_RIGHT_SQUARE)) {
+            consume(this, TOKEN_COMMA, "Expected ','.");
+        }
     }
     consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.");
 }
@@ -1995,7 +1997,9 @@ static void compile_table(Compiler *this, bool assign) {
         expression(this);
         emit_two(this, OP_SET_PROPERTY, name);
         emit(this, OP_POP);
-        if (!check(this, TOKEN_RIGHT_CURLY)) consume(this, TOKEN_COMMA, "Expected ','.");
+        if (!check(this, TOKEN_RIGHT_CURLY)) {
+            consume(this, TOKEN_COMMA, "Expected ','.");
+        }
     }
     consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
 }
