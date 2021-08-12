@@ -13,10 +13,23 @@
       <p id="out"></p>
     </section>
     <script>
+      const source = localStorage.getItem('source')
+      if (source) {
+        document.getElementById('source').value = source
+      }
       function run() {
         const source = document.getElementById('source').value
+        localStorage.setItem('source', source)
         const hymn = new Hymn()
-        hymnInterpret(hymn, source)
+        try {
+          const error = hymnInterpret(hymn, source)
+          if (error !== null) {
+            document.getElementById('out').textContent = error
+          }
+        } catch (exception) {
+          document.getElementById('out').textContent = exception
+          console.error(exception)
+        }
       }
     </script>
   </body>

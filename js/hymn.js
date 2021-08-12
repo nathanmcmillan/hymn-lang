@@ -1,3 +1,7 @@
+const HYMN_DEBUG_TOKEN = true
+const HYMN_DEBUG_TRACE = true
+const HYMN_DEBUG_STACK = true
+
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
 const HYMN_UINT8_COUNT = UINT8_MAX + 1
@@ -23,6 +27,11 @@ class HymnValue {
   }
 }
 
+function copyValue(dest, src) {
+  dest.is = src.is
+  dest.value = src.value
+}
+
 class HymnNativeFunction {
   constructor(name, call) {
     this.name = name
@@ -32,9 +41,19 @@ class HymnNativeFunction {
 
 class HymnByteCode {
   constructor() {
+    this.count = 0
     this.instructions = new Uint8Array()
     this.rows = new Uint16Array()
-    this.constants = null
+    this.constants = []
+  }
+}
+
+class ExceptList {
+  constructor() {
+    this.start = 0
+    this.end = 0
+    this.stack = 0
+    this.next = null
   }
 }
 
@@ -63,7 +82,6 @@ class Hymn {
     this.stackTop = 0
     this.frames = []
     this.frameCount = 0
-    this.strings = null
     this.globals = null
     this.paths = null
     this.imports = null
@@ -310,86 +328,101 @@ class Compiler {
   }
 }
 
-const rules = {
-  TOKEN_ADD: new Rule(null, compileBinary, PRECEDENCE_TERM),
-  TOKEN_AND: new Rule(null, compileAnd, PRECEDENCE_AND),
-  TOKEN_ASSIGN: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_BEGIN: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_BIT_AND: new Rule(null, compileBinary, PRECEDENCE_BITS),
-  TOKEN_BIT_LEFT_SHIFT: new Rule(null, compileBinary, PRECEDENCE_BITS),
-  TOKEN_BIT_NOT: new Rule(compileUnary, null, PRECEDENCE_NONE),
-  TOKEN_BIT_OR: new Rule(null, compileBinary, PRECEDENCE_BITS),
-  TOKEN_BIT_RIGHT_SHIFT: new Rule(null, compileBinary, PRECEDENCE_BITS),
-  TOKEN_BIT_XOR: new Rule(null, compileBinary, PRECEDENCE_BITS),
-  TOKEN_BREAK: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_CASE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_CLEAR: new Rule(clearExpression, null, PRECEDENCE_NONE),
-  TOKEN_COMMA: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_CONST: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_CONTINUE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_COPY: new Rule(copyExpression, null, PRECEDENCE_NONE),
-  TOKEN_DO: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_DELETE: new Rule(deleteExpression, null, PRECEDENCE_NONE),
-  TOKEN_DIVIDE: new Rule(null, compileBinary, PRECEDENCE_FACTOR),
-  TOKEN_DOT: new Rule(null, compileDot, PRECEDENCE_CALL),
-  TOKEN_ELIF: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_ELSE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_END: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_EOF: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_EQUAL: new Rule(null, compileBinary, PRECEDENCE_EQUALITY),
-  TOKEN_ERROR: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_EXCEPT: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_FALSE: new Rule(compileFalse, null, PRECEDENCE_NONE),
-  TOKEN_FLOAT: new Rule(compileFloat, null, PRECEDENCE_NONE),
-  TOKEN_FOR: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_FUNCTION: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_GREATER: new Rule(null, compileBinary, PRECEDENCE_COMPARE),
-  TOKEN_GREATER_EQUAL: new Rule(null, compileBinary, PRECEDENCE_COMPARE),
-  TOKEN_IDENT: new Rule(compileVariable, null, PRECEDENCE_NONE),
-  TOKEN_IF: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_IN: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_INDEX: new Rule(indexExpression, null, PRECEDENCE_NONE),
-  TOKEN_INSERT: new Rule(arrayInsertExpression, null, PRECEDENCE_NONE),
-  TOKEN_INTEGER: new Rule(compileInteger, null, PRECEDENCE_NONE),
-  TOKEN_ITERATE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_KEYS: new Rule(keysExpression, null, PRECEDENCE_NONE),
-  TOKEN_LEFT_CURLY: new Rule(compileTable, null, PRECEDENCE_NONE),
-  TOKEN_LEFT_PAREN: new Rule(compileGroup, compileCall, PRECEDENCE_CALL),
-  TOKEN_LEFT_SQUARE: new Rule(compileArray, compileSquare, PRECEDENCE_CALL),
-  TOKEN_LEN: new Rule(lenExpression, null, PRECEDENCE_NONE),
-  TOKEN_LESS: new Rule(null, compileBinary, PRECEDENCE_COMPARE),
-  TOKEN_LESS_EQUAL: new Rule(null, compileBinary, PRECEDENCE_COMPARE),
-  TOKEN_LET: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_LINE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_MODULO: new Rule(null, compileBinary, PRECEDENCE_FACTOR),
-  TOKEN_MULTIPLY: new Rule(null, compileBinary, PRECEDENCE_FACTOR),
-  TOKEN_NONE: new Rule(compileNone, null, PRECEDENCE_NONE),
-  TOKEN_NOT: new Rule(compileUnary, null, PRECEDENCE_NONE),
-  TOKEN_NOT_EQUAL: new Rule(null, compileBinary, PRECEDENCE_EQUALITY),
-  TOKEN_OR: new Rule(null, compileOr, PRECEDENCE_OR),
-  TOKEN_PASS: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_POP: new Rule(arrayPopExpression, null, PRECEDENCE_NONE),
-  TOKEN_PRINT: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_PUSH: new Rule(arrayPushExpression, null, PRECEDENCE_NONE),
-  TOKEN_RETURN: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_RIGHT_CURLY: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_RIGHT_PAREN: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_RIGHT_SQUARE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_STRING: new Rule(compileString, null, PRECEDENCE_NONE),
-  TOKEN_SUBTRACT: new Rule(compileUnary, compileBinary, PRECEDENCE_TERM),
-  TOKEN_SWITCH: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_TO_FLOAT: new Rule(castFloatExpression, null, PRECEDENCE_NONE),
-  TOKEN_TO_INTEGER: new Rule(castIntegerExpression, null, PRECEDENCE_NONE),
-  TOKEN_TO_STRING: new Rule(castStringExpression, null, PRECEDENCE_NONE),
-  TOKEN_TRUE: new Rule(compileTrue, null, PRECEDENCE_NONE),
-  TOKEN_TRY: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_THROW: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_TYPE: new Rule(typeExpression, null, PRECEDENCE_NONE),
-  TOKEN_UNDEFINED: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_USE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_VALUE: new Rule(null, null, PRECEDENCE_NONE),
-  TOKEN_WHILE: new Rule(null, null, PRECEDENCE_NONE),
+class JumpList {
+  constructor() {
+    this.jump = 0
+    this.depth = 0
+    this.next = null
+  }
 }
+
+class LoopList {
+  constructor() {
+    this.start = 0
+    this.depth = 0
+    this.next = null
+  }
+}
+
+const rules = []
+rules[TOKEN_ADD] = new Rule(null, compileBinary, PRECEDENCE_TERM)
+rules[TOKEN_AND] = new Rule(null, compileAnd, PRECEDENCE_AND)
+rules[TOKEN_ASSIGN] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_BEGIN] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_BIT_AND] = new Rule(null, compileBinary, PRECEDENCE_BITS)
+rules[TOKEN_BIT_LEFT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
+rules[TOKEN_BIT_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
+rules[TOKEN_BIT_OR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
+rules[TOKEN_BIT_RIGHT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
+rules[TOKEN_BIT_XOR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
+rules[TOKEN_BREAK] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_CASE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_CLEAR] = new Rule(clearExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_CONST] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_DO] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_DIVIDE] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
+rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
+rules[TOKEN_ELIF] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ELSE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_END] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_EOF] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
+rules[TOKEN_ERROR] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_EXCEPT] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_FALSE] = new Rule(compileFalse, null, PRECEDENCE_NONE)
+rules[TOKEN_FLOAT] = new Rule(compileFloat, null, PRECEDENCE_NONE)
+rules[TOKEN_FOR] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_FUNCTION] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_GREATER] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
+rules[TOKEN_GREATER_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
+rules[TOKEN_IDENT] = new Rule(compileVariable, null, PRECEDENCE_NONE)
+rules[TOKEN_IF] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_IN] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_INDEX] = new Rule(indexExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_INSERT] = new Rule(arrayInsertExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_INTEGER] = new Rule(compileInteger, null, PRECEDENCE_NONE)
+rules[TOKEN_ITERATE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_KEYS] = new Rule(keysExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_LEFT_CURLY] = new Rule(compileTable, null, PRECEDENCE_NONE)
+rules[TOKEN_LEFT_PAREN] = new Rule(compileGroup, compileCall, PRECEDENCE_CALL)
+rules[TOKEN_LEFT_SQUARE] = new Rule(compileArray, compileSquare, PRECEDENCE_CALL)
+rules[TOKEN_LEN] = new Rule(lenExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_LESS] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
+rules[TOKEN_LESS_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
+rules[TOKEN_LET] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_LINE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_MODULO] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
+rules[TOKEN_MULTIPLY] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
+rules[TOKEN_NONE] = new Rule(compileNone, null, PRECEDENCE_NONE)
+rules[TOKEN_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
+rules[TOKEN_NOT_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
+rules[TOKEN_OR] = new Rule(null, compileOr, PRECEDENCE_OR)
+rules[TOKEN_PASS] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_POP] = new Rule(arrayPopExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_PRINT] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_PUSH] = new Rule(arrayPushExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_RETURN] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_RIGHT_CURLY] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_RIGHT_PAREN] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_RIGHT_SQUARE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_STRING] = new Rule(compileString, null, PRECEDENCE_NONE)
+rules[TOKEN_SUBTRACT] = new Rule(compileUnary, compileBinary, PRECEDENCE_TERM)
+rules[TOKEN_SWITCH] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_TO_FLOAT] = new Rule(castFloatExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_TO_INTEGER] = new Rule(castIntegerExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_TO_STRING] = new Rule(castStringExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_TRUE] = new Rule(compileTrue, null, PRECEDENCE_NONE)
+rules[TOKEN_TRY] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_THROW] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_TYPE] = new Rule(typeExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_UNDEFINED] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_USE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_VALUE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_WHILE] = new Rule(null, null, PRECEDENCE_NONE)
 
 function valueName(type) {
   switch (type) {
@@ -448,6 +481,62 @@ function newTableValue(table) {
   return new HymnValue(HYMN_VALUE_TABLE, table)
 }
 
+function newFuncValue(func) {
+  return new HymnValue(HYMN_VALUE_FUNC, func)
+}
+
+function newFuncNativeValue(func) {
+  return new HymnValue(HYMN_VALUE_FUNC_NATIVE, func)
+}
+
+function newPointerValue(pointer) {
+  return new HymnValue(HYMN_VALUE_POINTER, pointer)
+}
+
+function isUndefined(value) {
+  return value === HYMN_VALUE_UNDEFINED
+}
+
+function isNone(value) {
+  return value === HYMN_VALUE_NONE
+}
+
+function isBool(value) {
+  return value === HYMN_VALUE_BOOL
+}
+
+function isInt(value) {
+  return value === HYMN_VALUE_INTEGER
+}
+
+function isFloat(value) {
+  return value === HYMN_VALUE_FLOAT
+}
+
+function isString(value) {
+  return value === HYMN_VALUE_STRING
+}
+
+function isArray(value) {
+  return value === HYMN_VALUE_ARRAY
+}
+
+function isTable(value) {
+  return value === HYMN_VALUE_TABLE
+}
+
+function isFunc(value) {
+  return value === HYMN_VALUE_FUNC
+}
+
+function isFuncNative(value) {
+  return value === HYMN_VALUE_FUNC_NATIVE
+}
+
+function isPointer(value) {
+  return value === HYMN_VALUE_POINTER
+}
+
 function currentFunc(compiler) {
   return compiler.scope.func
 }
@@ -486,6 +575,10 @@ function peekChar(compiler) {
   return compiler.source[compiler.pos]
 }
 
+function debugToken(compiler, token) {
+  return 'TOKEN: ' + sourceSubstring(compiler, token.len, token.start)
+}
+
 function token(compiler, type) {
   let token = compiler.current
   token.type = type
@@ -493,6 +586,7 @@ function token(compiler, type) {
   token.column = compiler.column
   token.start = compiler.pos - 1
   token.len = 1
+  if (HYMN_DEBUG_TOKEN) console.debug(debugToken(compiler, token))
 }
 
 function tokenSpecial(compiler, type, offset, len) {
@@ -502,6 +596,7 @@ function tokenSpecial(compiler, type, offset, len) {
   token.column = compiler.column
   token.start = compiler.pos - offset
   token.len = len
+  if (HYMN_DEBUG_TOKEN) console.debug(debugToken(compiler, token))
 }
 
 function valueToken(compiler, type, start, end) {
@@ -511,6 +606,7 @@ function valueToken(compiler, type, start, end) {
   token.column = compiler.column
   token.start = start
   token.len = end - start
+  if (HYMN_DEBUG_TOKEN) console.debug(debugToken(compiler, token))
 }
 
 function identTrie(ident, offset, rest, type) {
@@ -942,7 +1038,7 @@ function check(compiler, type) {
 }
 
 function match(compiler, type) {
-  if (!check(compiler.type)) {
+  if (!check(compiler, type)) {
     return false
   }
   advance(compiler)
@@ -970,7 +1066,7 @@ function compileWithPrecedence(compiler, precedence) {
   while (compiler <= rules[compiler.current.type].precedence) {
     advance(compiler)
     const infix = rules[compiler.previous.type].infix
-    if (infix === NULL) {
+    if (infix === null) {
       compileError(compiler, compiler.previous, 'Expected infix.')
     }
     infix(compiler, assign)
@@ -1093,7 +1189,7 @@ function compileArray(compiler, assign) {
 }
 
 function compileTable(compiler, assign) {
-  writeConstant(compiler, new_table_value(NULL), compiler.previous.row)
+  writeConstant(compiler, new_table_value(null), compiler.previous.row)
   if (match(compiler, TOKEN_RIGHT_CURLY)) {
     return
   }
@@ -1103,7 +1199,7 @@ function compileTable(compiler, assign) {
     const name = ident_constant(compiler, compiler.previous)
     consume(compiler, TOKEN_COLON, "Expected ':'.")
     expression(compiler)
-    emit_two(compiler, OP_SET_PROPERTY, name)
+    emitTwo(compiler, OP_SET_PROPERTY, name)
     emit(compiler, OP_POP)
     if (!check(compiler, TOKEN_RIGHT_CURLY)) {
       consume(compiler, TOKEN_COMMA, "Expected ','.")
@@ -1171,7 +1267,7 @@ function resolveLocal(compiler, name) {
   for (let i = scope.localCount - 1; i >= 0; i--) {
     const local = scope.locals[i]
     if (name === local.name) {
-      if (local.depth == -1) {
+      if (local.depth === -1) {
         compileError(compiler, name, 'Reference Error: Local variable `' + sourceSubstring(name.len, name.start) + '` referenced before assignment.')
       }
       return [i, local.constant]
@@ -1186,7 +1282,7 @@ function namedVariable(compiler, token, assign) {
   let r = resolveLocal(compiler, token)
   let v = r[0]
   let constant = r[1]
-  if (v != -1) {
+  if (v !== -1) {
     get = OP_GET_LOCAL
     set = OP_SET_LOCAL
   } else {
@@ -1212,7 +1308,7 @@ function compileVariable(compiler, assign) {
 
 function compileUnary(compiler, assign) {
   const type = compiler.previous.type
-  compile_with_precedence(compiler, PRECEDENCE_UNARY)
+  compileWithPrecedence(compiler, PRECEDENCE_UNARY)
   switch (type) {
     case TOKEN_NOT:
       emit(compiler, OP_NOT)
@@ -1369,9 +1465,44 @@ function endFunction(compiler) {
   return func
 }
 
-function compileFunction(compiler, type) {}
+function compileFunction(compiler, type) {
+  const scope = new Scope()
+  scopeInit(compiler, scope, type)
 
-function declareFunction(compiler) {}
+  beginScope(compiler)
+
+  consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after function name.")
+
+  if (!check(compiler, TOKEN_RIGHT_PAREN)) {
+    do {
+      compiler.scope.func.arity++
+      if (compiler.scope.func.arity > 255) {
+        compileError(compiler, compiler.previous, "Can't have more than 255 function parameters.")
+      }
+      const parameter = variable(compiler, false, 'Expected parameter name.')
+      finalizeVariable(compiler, parameter)
+    } while (match(compiler, TOKEN_COMMA))
+  }
+
+  consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after function parameters.")
+
+  while (!check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
+    declaration(compiler)
+  }
+
+  endScope(compiler)
+  consume(compiler, TOKEN_END, "Expected 'end' after function body.")
+
+  const func = endFunction(compiler)
+  writeConstant(compiler, newFuncValue(func), compiler.previous.row)
+}
+
+function declareFunction(compiler) {
+  const global = variable(compiler, false, 'Expected function name.')
+  localInitialize(compiler)
+  compileFunction(compiler, TYPE_FUNCTION)
+  finalizeVariable(compiler, global)
+}
 
 function declaration(compiler) {
   if (match(compiler, TOKEN_LET)) {
@@ -1393,33 +1524,488 @@ function block(compiler) {
   endScope(compiler)
 }
 
-function ifStatement(compiler) {}
+function ifStatement(compiler) {
+  expression(compiler)
+  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
 
-function compileLiteral(compiler) {}
+  emit(compiler, OP_POP)
+  beginScope(compiler)
+  while (!check(compiler, TOKEN_ELIF) && !check(compiler, TOKEN_ELSE) && !check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
+    declaration(compiler)
+  }
+  endScope(compiler)
 
-function switchStatement(compiler) {}
+  const jumpEnd = new JumpList()
+  jumpEnd.jump = emitJump(compiler, OP_JUMP)
+  let tail = jumpEnd
 
-function emitLoop(compiler) {}
+  while (match(compiler, TOKEN_ELIF)) {
+    patchJump(compiler, jump)
+    emit(compiler, OP_POP)
 
-function patchJumpList(compiler) {}
+    expression(compiler)
+    jump = emitJump(compiler, OP_JUMP_IF_FALSE)
 
-function patchIteratorJumpList(compiler) {}
+    emit(compiler, OP_POP)
+    beginScope(compiler)
+    while (!check(compiler, TOKEN_ELIF) && !check(compiler, TOKEN_ELSE) && !check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
+      declaration(compiler)
+    }
+    endScope(compiler)
 
-function iterateStatement(compiler) {}
+    const next = new JumpList()
+    next.jump = emitJump(compiler, OP_JUMP)
 
-function forStatement(compiler) {}
+    tail.next = next
+    tail = next
+  }
 
-function whileStatement(compiler) {}
+  patchJump(compiler, jump)
+  emit(compiler, OP_POP)
 
-function returnStatement(compiler) {}
+  if (match(compiler, TOKEN_ELSE)) {
+    block(compiler)
+  }
 
-function popStackLoop(compiler) {}
+  patchJump(compiler, jumpEnd.jump)
+  let current = jumpEnd.next
+  while (current !== null) {
+    patchJump(compiler, current.jump)
+    current = current.next
+  }
 
-function breakStatement(compiler) {}
+  consume(compiler, TOKEN_END, "Expected 'end' after if statement.")
+}
 
-function continueStatement(compiler) {}
+function compileLiteral(compiler) {
+  advance(compiler)
+  switch (compiler.previous.type) {
+    case TOKEN_NONE:
+      compileNone(compiler, false)
+      return true
+    case TOKEN_TRUE:
+      compileTrue(compiler, false)
+      return true
+    case TOKEN_FALSE:
+      compileFalse(compiler, false)
+      return true
+    case TOKEN_INTEGER:
+      compileInteger(compiler, false)
+      return true
+    case TOKEN_FLOAT:
+      compileFloat(compiler, false)
+      return true
+    case TOKEN_STRING:
+      compileString(compiler, false)
+      return true
+    default:
+      return false
+  }
+}
 
-function tryStatement(compiler) {}
+function switchStatement(compiler) {
+  beginScope(compiler)
+
+  const local = pushHiddenLocal(compiler)
+  expression(compiler)
+
+  if (!check(compiler, TOKEN_CASE)) {
+    compileError(compiler, compiler.current, 'Expected case.')
+    return
+  }
+
+  let jump = -1
+
+  let head = null
+  let tail = null
+
+  while (match(compiler, TOKEN_CASE)) {
+    if (jump !== -1) {
+      patchJump(compiler, jump)
+      emit(compiler, OP_POP)
+    }
+
+    if (!compileLiteral(compiler)) {
+      compileError(compiler, compiler.current, 'Expected literal for case.')
+    }
+    emitTwo(compiler, OP_GET_LOCAL, local)
+    emit(compiler, OP_EQUAL)
+
+    let body = null
+
+    if (match(compiler, TOKEN_OR)) {
+      body = new JumpList()
+      let link = body
+      body.jump = emitJump(compiler, OP_JUMP_IF_TRUE)
+      emit(compiler, OP_POP)
+
+      while (true) {
+        if (!compileLiteral(compiler)) {
+          compileError(compiler, compiler.current, "Expected literal after 'or' in case.")
+        }
+        emitTwo(compiler, OP_GET_LOCAL, local)
+        emit(compiler, OP_EQUAL)
+
+        if (match(compiler, TOKEN_OR)) {
+          let next = new JumpList()
+          next.jump = emitJump(compiler, OP_JUMP_IF_TRUE)
+          emit(compiler, OP_POP)
+
+          link.next = next
+          link = next
+        } else {
+          break
+        }
+      }
+    }
+
+    jump = emitJump(compiler, OP_JUMP_IF_FALSE)
+
+    while (body !== null) {
+      patchJump(compiler, body.jump)
+      body = body.next
+    }
+
+    emit(compiler, OP_POP)
+
+    beginScope(compiler)
+    while (!check(compiler, TOKEN_CASE) && !check(compiler, TOKEN_ELSE) && !check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
+      declaration(compiler)
+    }
+    endScope(compiler)
+
+    let next = new JumpList()
+    next.jump = emitJump(compiler, OP_JUMP)
+
+    if (head === null) {
+      head = next
+      tail = next
+    } else {
+      tail.next = next
+      tail = next
+    }
+  }
+
+  if (jump !== -1) {
+    patchJump(compiler, jump)
+    emit(compiler, OP_POP)
+  }
+
+  if (match(compiler, TOKEN_ELSE)) {
+    block(compiler)
+  }
+
+  while (head !== null) {
+    patchJump(compiler, head.jump)
+    head = head.next
+  }
+
+  endScope(compiler)
+
+  consume(compiler, TOKEN_END, "Expected 'end' after switch statement.")
+}
+
+function emitLoop(compiler, start) {
+  emit(compiler, OP_LOOP)
+  const offset = current(compiler).count - start + 2
+  if (offset > UINT16_MAX) {
+    compileError(compiler, compiler.previous, 'Loop is too large.')
+  }
+  emitTwo(compiler, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
+}
+
+function patchJumpList(compiler) {
+  while (compiler.jump !== null) {
+    let depth = 1
+    if (compiler.loop !== null) {
+      depth = compiler.loop.depth + 1
+    }
+    if (compiler.jump.depth < depth) {
+      break
+    }
+    patchJump(compiler, compiler.jump.jump)
+    compiler.jump = compiler.jump.next
+  }
+}
+
+function patchIteratorJumpList(compiler) {
+  while (compiler.iteratorJump !== null) {
+    let depth = 1
+    if (compiler.loop !== null) {
+      depth = compiler.loop.depth + 1
+    }
+    if (compiler.iteratorJump.depth < depth) {
+      break
+    }
+    patchJump(compiler, compiler.iteratorJump.jump)
+    compiler.iteratorJump = compiler.iteratorJump.next
+  }
+}
+
+function iterateStatement(compiler) {
+  beginScope(compiler)
+
+  // parameters
+
+  let index
+
+  let value = compiler.scope.localCount
+  variable(compiler, true, 'Expected parameter name.')
+  localInitialize(compiler)
+
+  if (match(compiler, TOKEN_COMMA)) {
+    index = value
+    writeConstant(compiler, newInt(0), compiler.previous.row)
+
+    value = compiler.scope.local_count
+    variable(compiler, true, 'Expected second parameter name.')
+    localInitialize(compiler)
+    emit(compiler, OP_NONE)
+  } else {
+    emit(compiler, OP_NONE)
+
+    index = pushHiddenLocal(compiler)
+    writeConstant(compiler, newInt(0), compiler.previous.row)
+  }
+
+  consume(compiler, TOKEN_IN, "Expected 'in' after iterate parameters.")
+
+  // setup
+
+  const local = pushHiddenLocal(compiler)
+  expression(compiler)
+
+  const len = pushHiddenLocal(compiler)
+  emitTwo(compiler, OP_GET_LOCAL, local)
+  emit(compiler, OP_LEN)
+
+  // compare
+
+  const compare = current(compiler).count
+
+  const loop = new LoopList()
+  loop.start = -1
+  loop.depth = compiler.scope.depth + 1
+  loop.next = compiler.loop
+  compiler.loop = loop
+
+  emitTwo(compiler, OP_GET_LOCAL, index)
+  emitTwo(compiler, OP_GET_LOCAL, len)
+  emit(compiler, OP_LESS)
+
+  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
+  emit(compiler, OP_POP)
+
+  // update
+
+  emitTwo(compiler, OP_GET_LOCAL, local)
+  emitTwo(compiler, OP_GET_LOCAL, index)
+  emit(compiler, OP_GET_DYNAMIC)
+
+  emitTwo(compiler, OP_SET_LOCAL, value)
+  emit(compiler, OP_POP)
+
+  // inside
+
+  block(compiler)
+
+  // increment
+
+  patchIteratorJumpList(compiler)
+
+  emitTwo(compiler, OP_GET_LOCAL, index)
+  writeConstant(compiler, newInt(1), compiler.previous.row)
+  emit(compiler, OP_ADD)
+  emitTwo(compiler, OP_SET_LOCAL, index)
+  emit(compiler, OP_POP)
+
+  // next
+
+  emitLoop(compiler, compare)
+
+  // end
+
+  compiler.loop = loop.next
+
+  patchJump(compiler, jump)
+  emit(compiler, OP_POP)
+
+  patchJumpList(compiler)
+  endScope(compiler)
+
+  consume(compiler, TOKEN_END, "Expected 'end'.")
+}
+
+function forStatement(compiler) {
+  beginScope(compiler)
+
+  // assign
+
+  if (match(compiler, TOKEN_LET)) {
+    defineNewVariable(compiler, false)
+  } else if (match(compiler, TOKEN_CONST)) {
+    defineNewVariable(compiler, true)
+  } else if (!check(compiler, TOKEN_SEMICOLON)) {
+    expression_statement(compiler)
+  }
+
+  consume(compiler, TOKEN_SEMICOLON, "Expected ';' in for.")
+
+  // compare
+
+  const compare = current(compiler).count
+
+  expression(compiler)
+
+  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
+  emit(compiler, OP_POP)
+
+  consume(compiler, TOKEN_SEMICOLON, "Expected ';' in for.")
+
+  // increment
+
+  const body = emitJump(compiler, OP_JUMP)
+  const increment = current(compiler).count
+
+  const loop = new LoopList()
+  loop.start = increment
+  loop.depth = compiler.scope.depth + 1
+  loop.next = compiler.loop
+  compiler.loop = loop
+
+  expression(compiler)
+
+  emit(compiler, OP_POP)
+  emitLoop(compiler, compare)
+
+  // body
+
+  patchJump(compiler, body)
+
+  block(compiler)
+  emitLoop(compiler, increment)
+
+  // end
+
+  compiler.loop = loop.next
+
+  patchJump(compiler, jump)
+  emit(compiler, OP_POP)
+
+  patchJumpList(compiler)
+  endScope(compiler)
+
+  consume(compiler, TOKEN_END, "Expected 'end' after for loop.")
+}
+
+function whileStatement(compiler) {
+  const start = current(compiler).count
+
+  const loop = new LoopList()
+  loop.start = start
+  loop.depth = compiler.scope.depth + 1
+  loop.next = compiler.loop
+  compiler.loop = loop
+
+  expression(compiler)
+  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
+
+  emit(compiler, OP_POP)
+  block(compiler)
+  emitLoop(compiler, start)
+
+  compiler.loop = loop.next
+
+  patchJump(compiler, jump)
+  emit(compiler, OP_POP)
+
+  patchJumpList(compiler)
+
+  consume(compiler, TOKEN_END, "Expected 'end' after while loop.")
+}
+
+function returnStatement(compiler) {
+  if (compiler.scope.type === TYPE_SCRIPT) {
+    compileError(compiler, compiler.previous, "Can't return from outside a function.")
+  }
+  expression(compiler)
+  emit(compiler, OP_RETURN)
+}
+
+function popStackLoop(compiler) {
+  const depth = compiler.loop.depth
+  const scope = compiler.scope
+  for (let i = scope.localCount; i > 0; i--) {
+    if (scope.locals[i - 1].depth < depth) {
+      return
+    }
+    emit(compiler, OP_POP)
+  }
+}
+
+function breakStatement(compiler) {
+  if (compiler.loop === null) {
+    compileError(compiler, compiler.previous, "Can't use 'break' outside of a loop.")
+  }
+  popStackLoop(compiler)
+  const jumpNext = compiler.jump
+  const jump = new JumpList()
+  jump.jump = emitJump(compiler, OP_JUMP)
+  jump.depth = compiler.loop.depth
+  jump.next = jumpNext
+  compiler.jump = jump
+}
+
+function continueStatement(compiler) {
+  if (compiler.loop === null) {
+    compileError(compiler, compiler.previous, "Can't use 'continue' outside of a loop.")
+  }
+  popStackLoop(compiler)
+  if (compiler.loop.start === -1) {
+    const jumpNext = compiler.iterator_jump
+    const jump = new JumpList()
+    jump.jump = emitJump(compiler, OP_JUMP)
+    jump.depth = compiler.loop.depth
+    jump.next = jumpNext
+    compiler.iterator_jump = jump
+  } else {
+    emit_loop(compiler, compiler.loop.start)
+  }
+}
+
+function tryStatement(compiler) {
+  const except = new ExceptList()
+  except.stack = compiler.scope.localCount
+  except.start = current(compiler).count
+
+  const func = currentFunc(compiler)
+  except.next = func.except
+  func.except = except
+
+  beginScope(compiler)
+  while (!check(compiler, TOKEN_EXCEPT) && !check(compiler, TOKEN_EOF)) {
+    declaration(compiler)
+  }
+  endScope(compiler)
+
+  const jump = emitJump(compiler, OP_JUMP)
+
+  consume(compiler, TOKEN_EXCEPT, "Expected 'except' after 'try'.")
+
+  except.end = current(compiler).count
+
+  beginScope(compiler)
+  const message = variable(compiler, false, "Expected variable after 'except'.")
+  finalize_variable(compiler, message)
+  while (!check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
+    declaration(compiler)
+  }
+  endScope(compiler)
+
+  consume(compiler, TOKEN_END, "Expected 'end' after 'except'.")
+
+  patchJump(compiler, jump)
+}
 
 function printStatement(compiler) {
   expression(compiler)
@@ -1585,54 +2171,323 @@ function expressionStatement(compiler) {
 }
 
 function expression(compiler) {
-  compile_with_precedence(compiler, PRECEDENCE_ASSIGN)
+  compileWithPrecedence(compiler, PRECEDENCE_ASSIGN)
 }
 
-function parentFrame(hymn, offset) {}
+function parentFrame(hymn, offset) {
+  const frameCount = hymn.frameCount
+  if (offset > frameCount) {
+    return null
+  }
+  return hymn.frames[frameCount - offset]
+}
 
-function currentFrame(hymn) {}
+function currentFrame(hymn) {
+  return hymn.frames[hymn.frameCount - 1]
+}
 
 function compile(hymn, script, source) {
   const scope = new Scope()
   const compiler = newCompiler(script, source, hymn, scope)
+
   advance(compiler)
   while (!match(compiler, TOKEN_EOF)) {
     declaration(compiler)
   }
+
   const func = endFunction(compiler)
   return { func: func, error: compiler.error }
 }
 
-function hymnPush(hymn, value) {}
-
-function hymnCall(hymn, func, arity) {}
-
-function hymnInterpretInternal(hymn) {}
-
-function hymnResetStack(hymn) {}
-
-function newHymn() {
-  return new Hymn()
+function hymnResetStack(hymn) {
+  hymn.stackTop = 0
+  hymn.frameCount = 0
 }
+
+function isObject(value) {
+  switch (value.is) {
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
+      return true
+    default:
+      return false
+  }
+}
+
+function hymnStackGet(hymn, index) {
+  if (index < hymn.stack.length) {
+    return hymn.stack[index]
+  }
+  const value = new HymnValue(HYMN_VALUE_UNDEFINED, null)
+  hymn.stack.push(value)
+  return value
+}
+
+function hymnPush(hymn, value) {
+  copyValue(hymnStackGet(hymn, hymn.stackTop++), value)
+}
+
+function hymnPeek(hymn, dist) {
+  if (dist > hymn.stackTop) {
+    console.error('Nothing on stack to peek')
+    return newNone()
+  }
+  return hymn.stack[hymn.stackTop - dist]
+}
+
+function hymnPop(hymn) {
+  if (hymn.stackTop === 0) {
+    console.error('Nothing on stack to pop')
+    return newNone()
+  }
+  return hymn.stack[--hymn.stackTop]
+}
+
+function valueToNewString(value) {
+  switch (value.is) {
+    case HYMN_VALUE_UNDEFINED:
+    case HYMN_VALUE_NONE:
+      return STRING_NONE
+    case HYMN_VALUE_BOOL:
+      return value.value ? STRING_TRUE : STRING_FALSE
+    case HYMN_VALUE_INTEGER:
+    case HYMN_VALUE_FLOAT:
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
+    case HYMN_VALUE_POINTER:
+      return value.value.toString()
+  }
+  return null
+}
+
+function hymnException(hymn) {
+  const frame = currentFrame(hymn)
+  while (true) {
+    let except = null
+    let range = frame.func.except
+    while (range !== null) {
+      if (frame.ip >= range.start && frame.ip <= range.end) {
+        except = range
+        break
+      }
+      range = range.next
+    }
+    const result = hymnPop(hymn)
+    if (except !== null) {
+      while (hymn.stack_top > frame.stack + except.stack) {
+        hymn.stack[--hymn.stack_top]
+      }
+      frame.ip = except.end
+      hymnPush(hymn, result)
+      return MACHINE_ERROR
+    }
+    while (hymn.stack_top != frame.stack) {
+      hymn.stack[--hymn.stack_top]
+    }
+    hymn.frame_count--
+    if (hymn.frame_count == 0 || frame.func.name === null) {
+      hymn.error = valueToNewString(result)
+      return MACHINE_FATAL
+    }
+    hymnPush(hymn, result)
+    frame = currentFrame(hymn)
+  }
+}
+
+function hymnStacktrace(hymn) {
+  let trace = ''
+
+  for (let i = hymn.frameCount - 1; i >= 0; i--) {
+    const frame = hymn.frames[i]
+    const func = frame.func
+    const ip = frame.ip - 1
+    const row = func.code.rows[ip]
+
+    trace += 'at'
+
+    if (func.name !== null) {
+      trace += ' ' + func.name
+    }
+
+    if (func.script === null) {
+      trace += ' script:'
+    } else {
+      trace += ' ' + func.script + ':'
+    }
+
+    trace += row
+  }
+
+  return trace
+}
+
+function hymnPushError(hymn, error) {
+  hymnPush(hymn, newString(error))
+  return hymnException(hymn)
+}
+
+function hymnThrowExistingError(hymn, error) {
+  return machinePushError(hymn, error)
+}
+
+function hymnThrowError(hymn, error) {
+  error += '\n\n'
+  error += hymnStacktrace(hymn)
+  return hymnPushError(hymn, error)
+}
+
+function hymnEqual(a, b) {
+  switch (a.is) {
+    case HYMN_VALUE_NONE:
+      return isNone(b)
+    case HYMN_VALUE_BOOL:
+      return isBool(b) && a.value === b.value
+    case HYMN_VALUE_INTEGER:
+      switch (b.is) {
+        case HYMN_VALUE_INTEGER:
+          return a.value === b.value
+        case HYMN_VALUE_FLOAT:
+          return a.value === b.value
+        default:
+          return false
+      }
+    case HYMN_VALUE_FLOAT:
+      switch (b.is) {
+        case HYMN_VALUE_INTEGER:
+          return a.value === b.value
+        case HYMN_VALUE_FLOAT:
+          return a.value === b.value
+        default:
+          return false
+      }
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
+      if (b.is === a.is) {
+        return a.value === b.value
+      }
+      return false
+    default:
+      return false
+  }
+}
+
+function hymnFalse(hymn) {
+  switch (value.is) {
+    case HYMN_VALUE_NONE:
+      return true
+    case HYMN_VALUE_BOOL:
+      return !value.value
+    case HYMN_VALUE_INTEGER:
+      return value.value === 0
+    case HYMN_VALUE_FLOAT:
+      return value.value === 0.0
+    case HYMN_VALUE_STRING:
+      return value.length === 0
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
+      return value.value === null
+    default:
+      return false
+  }
+}
+
+function hymnCall(hymn, func, count) {}
+
+function hymnCallValue(hymn, call, count) {}
+
+function readByte(frame) {}
+
+function readShort(frame) {}
+
+function readConstant(frame) {}
+
+function hymnDo(hymn, source) {}
+
+function hymnImport(hymn, file) {}
+
+function debugInstruction(name) {
+  return name
+}
+
+function disassembleInstruction(code, index) {
+  switch (code.instructions[index]) {
+    case OP_ADD:
+      return 'OP_ADD'
+    case OP_NONE:
+      return 'OP_NONE'
+    case OP_RETURN:
+      return 'OP_RETURN'
+  }
+  return ''
+}
+
+function hymnRun(hymn) {
+  let frame = currentFrame(hymn)
+  const op = readByte(frame)
+  if (HYMN_DEBUG_TRACE) console.debug(disassembleInstruction(frame.func.code, frame.ip))
+  switch (op) {
+    case OP_RETURN: {
+      const result = hymnPop(this)
+      hymn.frameCount--
+      if (hymn.frameCount === 0 || frame.func.name === null) {
+        hymnPop(hymn)
+        return
+      }
+      while (hymn.stackTop !== frame.stack) {
+        --hymn.stackTop
+      }
+      hymnPush(hymn, result)
+      frame = currentFrame(hymn)
+    }
+    case OP_POP:
+      hymnPop(hymn)
+    case OP_TRUE:
+      hymnPush(newBool(true))
+    case OP_FALSE:
+      hymnPush(newBool(false))
+    case OP_NONE:
+      hymnPush(newNone())
+    default:
+      console.error('Unknown instruction:', op)
+      return
+  }
+}
+
+function hymnAddFunction(hymn, name, func) {}
+
+function hymnAddPointer(hymn, name, pointer) {}
 
 function hymnInterpret(hymn, source) {
   const result = compile(hymn, null, source)
+
   const func = result.func
-  let error = result.error
-  if (error) {
-    functionDelete(func)
-    return error
+  if (result.error !== null) {
+    return result.error
   }
 
   const funcVal = newFuncValue(func)
   hymnPush(hymn, funcVal)
   hymnCall(hymn, func, 0)
 
-  error = hymnInterpetInternal(hymn)
-  if (error) {
-    return error
+  hymnRun(hymn)
+  if (hymn.error !== null) {
+    return hymn.error
   }
 
   hymnResetStack(hymn)
   return null
+}
+
+function newHymn() {
+  return new Hymn()
 }

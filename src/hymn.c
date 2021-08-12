@@ -2981,7 +2981,9 @@ static void expression(Compiler *this) {
 
 static inline Frame *parent_frame(Machine *this, int offset) {
     int frame_count = this->frame_count;
-    if (offset > frame_count) return NULL;
+    if (offset > frame_count) {
+        return NULL;
+    }
     return &this->frames[frame_count - offset];
 }
 
@@ -3349,7 +3351,7 @@ static String *machine_stacktrace(Machine *this) {
         Frame *frame = &this->frames[i];
         Function *func = frame->func;
         usize ip = frame->ip - 1;
-        int row = frame->func->code.rows[ip];
+        int row = func->code.rows[ip];
 
         trace = string_append(trace, "at");
 
@@ -3410,7 +3412,7 @@ static enum MachineCall machine_throw_error(Machine *this, const char *format, .
 static bool machine_equal(Value a, Value b) {
     switch (a.is) {
     case HYMN_VALUE_NONE: return is_none(b);
-    case HYMN_VALUE_BOOL: return is_bool(b) ? as_bool(a) == as_bool(b) : false;
+    case HYMN_VALUE_BOOL: return is_bool(b) && as_bool(a) == as_bool(b);
     case HYMN_VALUE_INTEGER:
         switch (b.is) {
         case HYMN_VALUE_INTEGER: return as_int(a) == as_int(b);
@@ -3427,15 +3429,9 @@ static bool machine_equal(Value a, Value b) {
     case HYMN_VALUE_ARRAY:
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
-        if (b.is == a.is) {
-            return as_object(a) == as_object(b);
-        }
-        return false;
+        return b.is == a.is && as_object(a) == as_object(b);
     case HYMN_VALUE_FUNC_NATIVE:
-        switch (b.is) {
-        case HYMN_VALUE_FUNC_NATIVE: return as_native(a) == as_native(b);
-        default: return false;
-        }
+        return is_native(b) && as_native(a) == as_native(b);
     default: return false;
     }
 }
@@ -4687,7 +4683,7 @@ static void machine_run(Machine *this) {
             }
         }
         default:
-            fprintf(stderr, "Unknown instruction.");
+            fprintf(stderr, "Unknown instruction: %" PRId8, op);
             return;
         }
     }
