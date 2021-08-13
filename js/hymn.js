@@ -266,7 +266,7 @@ const MACHINE_OK = 2
 
 class Token {
   constructor() {
-    this.type = TOKEN_EOF
+    this.type = TOKEN_UNDEFINED
     this.row = 0
     this.column = 0
     this.start = 0
@@ -449,6 +449,182 @@ function valueName(type) {
   }
 }
 
+function tokenName(token) {
+  switch (token.type) {
+    case TOKEN_ADD:
+      return 'ADD'
+    case TOKEN_AND:
+      return 'AND'
+    case TOKEN_ASSIGN:
+      return 'ASSIGN'
+    case TOKEN_BEGIN:
+      return 'BEGIN'
+    case TOKEN_BIT_AND:
+      return 'BTIWISE_AND'
+    case TOKEN_BIT_LEFT_SHIFT:
+      return 'BTIWISE_LEFT_SHIFT'
+    case TOKEN_BIT_NOT:
+      return 'BTIWISE_NOT'
+    case TOKEN_BIT_OR:
+      return 'BTIWISE_OR'
+    case TOKEN_BIT_RIGHT_SHIFT:
+      return 'BTIWISE_RIGHT_SHIFT'
+    case TOKEN_BIT_XOR:
+      return 'BTIWISE_XOR'
+    case TOKEN_BREAK:
+      return 'BREAK'
+    case TOKEN_CASE:
+      return 'CASE'
+    case TOKEN_CLEAR:
+      return 'CLEAR'
+    case TOKEN_COLON:
+      return 'COLON'
+    case TOKEN_CONST:
+      return 'CONST'
+    case TOKEN_CONTINUE:
+      return 'CONTINUE'
+    case TOKEN_COPY:
+      return 'COPY'
+    case TOKEN_DO:
+      return 'DO'
+    case TOKEN_DELETE:
+      return 'DELETE'
+    case TOKEN_DIVIDE:
+      return 'DIVIDE'
+    case TOKEN_ELIF:
+      return 'ELIF'
+    case TOKEN_ELSE:
+      return 'ELSE'
+    case TOKEN_END:
+      return 'END'
+    case TOKEN_EOF:
+      return 'EOF'
+    case TOKEN_EQUAL:
+      return 'EQUAL'
+    case TOKEN_EXCEPT:
+      return 'EXCEPT'
+    case TOKEN_FALSE:
+      return 'FALSE'
+    case TOKEN_FLOAT:
+      return 'FLOAT'
+    case TOKEN_FOR:
+      return 'FOR'
+    case TOKEN_FUNCTION:
+      return 'FUNCTION'
+    case TOKEN_GREATER:
+      return 'GREATER'
+    case TOKEN_GREATER_EQUAL:
+      return 'GREATER_EQUAL'
+    case TOKEN_IDENT:
+      return 'IDENTITY'
+    case TOKEN_IF:
+      return 'IF'
+    case TOKEN_IN:
+      return 'IN'
+    case TOKEN_INDEX:
+      return 'INDEX'
+    case TOKEN_INSERT:
+      return 'INSERT'
+    case TOKEN_INTEGER:
+      return 'INTEGER'
+    case TOKEN_ITERATE:
+      return 'ITERATE'
+    case TOKEN_KEYS:
+      return 'KEYS'
+    case TOKEN_LEFT_PAREN:
+      return 'LEFT_PAREN'
+    case TOKEN_LEN:
+      return 'LEN'
+    case TOKEN_LESS:
+      return 'LESS'
+    case TOKEN_LESS_EQUAL:
+      return 'LESS_EQUAL'
+    case TOKEN_LET:
+      return 'LET'
+    case TOKEN_MODULO:
+      return 'MODULO'
+    case TOKEN_MULTIPLY:
+      return 'MULTIPLY'
+    case TOKEN_NONE:
+      return 'NONE'
+    case TOKEN_NOT:
+      return 'NOT'
+    case TOKEN_NOT_EQUAL:
+      return 'NOT_EQUAL'
+    case TOKEN_OR:
+      return 'OR'
+    case TOKEN_PASS:
+      return 'PASS'
+    case TOKEN_POP:
+      return 'POP'
+    case TOKEN_PRINT:
+      return 'PRINT'
+    case TOKEN_PUSH:
+      return 'PUSH'
+    case TOKEN_RETURN:
+      return 'RETURN'
+    case TOKEN_RIGHT_PAREN:
+      return 'RIGHT_PAREN'
+    case TOKEN_SEMICOLON:
+      return 'SEMICOLON'
+    case TOKEN_STRING:
+      return 'STRING'
+    case TOKEN_SUBTRACT:
+      return 'SUBTRACT'
+    case TOKEN_SWITCH:
+      return 'SWITCH'
+    case TOKEN_TO_FLOAT:
+      return 'FLOAT'
+    case TOKEN_TO_INTEGER:
+      return 'INT'
+    case TOKEN_TO_STRING:
+      return 'STRING'
+    case TOKEN_TRUE:
+      return 'TRUE'
+    case TOKEN_TRY:
+      return 'TRY'
+    case TOKEN_THROW:
+      return 'THROW'
+    case TOKEN_TYPE:
+      return 'TYPE'
+    case TOKEN_WHILE:
+      return 'WHILE'
+    case TOKEN_USE:
+      return 'USE'
+    case TOKEN_LEFT_CURLY:
+      return 'LEFT_CURLY'
+    case TOKEN_RIGHT_CURLY:
+      return 'RIGHT_CURLY'
+    case TOKEN_LEFT_SQUARE:
+      return 'LEFT_SQUARE'
+    case TOKEN_RIGHT_SQUARE:
+      return 'RIGHT_SQUARE'
+    default:
+      return '?'
+  }
+}
+
+function debugValueToString(value) {
+  let string = valueName(value.is) + ': '
+  switch (value.is) {
+    case HYMN_VALUE_UNDEFINED:
+      return string + STRING_UNDEFINED
+    case HYMN_VALUE_NONE:
+      return string + STRING_NONE
+    case HYMN_VALUE_BOOL:
+    case HYMN_VALUE_INTEGER:
+    case HYMN_VALUE_FLOAT:
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+      return string + value.value
+    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
+      return string + value.value.name
+    default:
+      return string + '?'
+  }
+}
+
 function sourceSubstring(compiler, len, start) {
   return compiler.source.substring(start, start + len)
 }
@@ -576,7 +752,7 @@ function peekChar(compiler) {
 }
 
 function debugToken(compiler, token) {
-  return 'TOKEN: ' + sourceSubstring(compiler, token.len, token.start)
+  return 'TOKEN: ' + tokenName(token) + ': ' + sourceSubstring(compiler, token.len, token.start)
 }
 
 function token(compiler, type) {
@@ -744,7 +920,7 @@ function isIdent(c) {
 
 function advance(compiler) {
   copyToken(compiler.previous, compiler.current)
-  if (compiler.previous === TOKEN_EOF) {
+  if (compiler.previous.type === TOKEN_EOF) {
     return
   }
   while (true) {
@@ -1063,7 +1239,7 @@ function compileWithPrecedence(compiler, precedence) {
   }
   const assign = precedence <= PRECEDENCE_ASSIGN
   prefix(compiler, assign)
-  while (compiler <= rules[compiler.current.type].precedence) {
+  while (precedence <= rules[compiler.current.type].precedence) {
     advance(compiler)
     const infix = rules[compiler.previous.type].infix
     if (infix === null) {
@@ -2401,7 +2577,29 @@ function hymnFalse(hymn) {
   }
 }
 
-function hymnCall(hymn, func, count) {}
+function hymnFrameGet(hymn, index) {
+  if (index < hymn.frames.length) {
+    return hymn.frames[index]
+  }
+  const frame = new HymnFrame()
+  hymn.frames.push(frame)
+  return frame
+}
+
+function hymnCall(hymn, func, count) {
+  if (count !== func.arity) {
+    return hymnThrowError(hymn, 'Expected ' + func.arity + ' function arguments but found ' + count + '.')
+  } else if (hymn.frameCount === HYMN_FRAMES_MAX) {
+    return hymnThrowError(hymn, 'Stack overflow.')
+  }
+
+  const frame = hymnFrameGet(hymn, hymn.frameCount++)
+  frame.func = func
+  frame.ip = 0
+  frame.stack = hymn.stackTop - count - 1
+
+  return MACHINE_OK
+}
 
 function hymnCallValue(hymn, call, count) {}
 
@@ -2427,39 +2625,54 @@ function disassembleInstruction(code, index) {
       return 'OP_NONE'
     case OP_RETURN:
       return 'OP_RETURN'
+    default:
+      return '?'
   }
-  return ''
+}
+
+function debugStack(hymn) {
+  if (hymn.stackTop === 0) {
+    return
+  }
+  let debug = ''
+  for (let i = 0; i < hymn.stackTop; i++) {
+    debug += '[' + debugValueToString(hymn.stack[i]) + '] '
+  }
+  console.debug(debug)
 }
 
 function hymnRun(hymn) {
   let frame = currentFrame(hymn)
-  const op = readByte(frame)
-  if (HYMN_DEBUG_TRACE) console.debug(disassembleInstruction(frame.func.code, frame.ip))
-  switch (op) {
-    case OP_RETURN: {
-      const result = hymnPop(this)
-      hymn.frameCount--
-      if (hymn.frameCount === 0 || frame.func.name === null) {
+  while (true) {
+    if (HYMN_DEBUG_TRACE) console.debug(disassembleInstruction(frame.func.code, frame.ip))
+    if (HYMN_DEBUG_STACK) console.debug(debugStack(hymn))
+    const op = readByte(frame)
+    switch (op) {
+      case OP_RETURN: {
+        const result = hymnPop(this)
+        hymn.frameCount--
+        if (hymn.frameCount === 0 || frame.func.name === null) {
+          hymnPop(hymn)
+          return
+        }
+        while (hymn.stackTop !== frame.stack) {
+          --hymn.stackTop
+        }
+        hymnPush(hymn, result)
+        frame = currentFrame(hymn)
+      }
+      case OP_POP:
         hymnPop(hymn)
+      case OP_TRUE:
+        hymnPush(newBool(true))
+      case OP_FALSE:
+        hymnPush(newBool(false))
+      case OP_NONE:
+        hymnPush(newNone())
+      default:
+        console.error('Unknown instruction:', op)
         return
-      }
-      while (hymn.stackTop !== frame.stack) {
-        --hymn.stackTop
-      }
-      hymnPush(hymn, result)
-      frame = currentFrame(hymn)
     }
-    case OP_POP:
-      hymnPop(hymn)
-    case OP_TRUE:
-      hymnPush(newBool(true))
-    case OP_FALSE:
-      hymnPush(newBool(false))
-    case OP_NONE:
-      hymnPush(newNone())
-    default:
-      console.error('Unknown instruction:', op)
-      return
   }
 }
 
