@@ -42,8 +42,8 @@ class HymnNativeFunction {
 class HymnByteCode {
   constructor() {
     this.count = 0
-    this.instructions = new Uint8Array()
-    this.rows = new Uint16Array()
+    this.instructions = new Uint8Array(128)
+    this.rows = new Uint32Array(128)
     this.constants = []
   }
 }
@@ -669,6 +669,25 @@ function newPointerValue(pointer) {
   return new HymnValue(HYMN_VALUE_POINTER, pointer)
 }
 
+function newFunction(script) {
+  const func = new HymnFunction()
+  func.code = new HymnByteCode()
+  if (script) func.script = script
+  return func
+}
+
+function newNativeFunction(name, func) {
+  return new HymnNativeFunction(name, func)
+}
+
+function newArray() {
+  return []
+}
+
+function newTable() {
+  return new Map()
+}
+
 function isUndefined(value) {
   return value === HYMN_VALUE_UNDEFINED
 }
@@ -1121,25 +1140,6 @@ function valueMatch(a, b) {
   }
 }
 
-function newFunction(script) {
-  const func = new HymnFunction()
-  func.code = new HymnByteCode()
-  if (script) func.script = script
-  return func
-}
-
-function newNativeFunction(name, func) {
-  return new HymnNativeFunction(name, func)
-}
-
-function newArray() {
-  return []
-}
-
-function newTable() {
-  return new Map()
-}
-
 function scopeGetLocal(scope, index) {
   if (index < scope.locals.length) {
     return scope.locals[index]
@@ -1181,18 +1181,23 @@ function byteCodeAddConstant(code, value) {
 
 function writeOp(code, byte, row) {
   const count = code.count
+  const size = code.instructions.length
+  if (count + 1 > size) {
+    const instructions = new Uint8Array(size * 2)
+    const rows = new Uint32Array(size * 2)
+    for (let i = 0; i < size; i++) instructions[i] = code.instructions[i]
+    for (let i = 0; i < size; i++) rows[i] = code.rows[i]
+    code.instructions = instructions
+    code.rows = rows
+  }
   code.instructions[count] = byte
   code.rows[count] = row
   code.count = count + 1
 }
 
 function writeTwoOp(code, byteOne, byteTwo, row) {
-  const count = code.count
-  code.instructions[count] = byteOne
-  code.instructions[count + 1] = byteTwo
-  code.rows[count] = row
-  code.rows[count + 1] = row
-  code.count = count + 2
+  writeOp(code, byteOne, row)
+  writeOp(code, byteTwo, row)
 }
 
 function writeConstant(compiler, value, row) {
@@ -2601,32 +2606,212 @@ function hymnCall(hymn, func, count) {
   return MACHINE_OK
 }
 
-function hymnCallValue(hymn, call, count) {}
+function hymnCallValue(hymn, call, count) {
+  switch (call.is) {
+    case HYMN_VALUE_FUNC:
+      return hymnCall(hymn, call.value, count)
+    case HYMN_VALUE_FUNC_NATIVE: {
+      const func = call.value.func
+      const result = func(hymn, count, hymn.stack[hymn.stackTop - count])
+      const top = hymn.stackTop - (count + 1)
+      while (hymn.stackTop !== top) {
+        --hymn.stackTop
+      }
+      hymnPush(hymn, result)
+      return MACHINE_OK
+    }
+    default:
+      return hymnThrowError(hymn, 'Only functions can be called.')
+  }
+}
 
-function readByte(frame) {}
+function readByte(frame) {
+  return frame.func.code.instructions[frame.ip++]
+}
 
-function readShort(frame) {}
+function readShort(frame) {
+  frame.ip += 2
+  return (frame.func.code.instructions[frame.ip - 2] << 8) | frame.func.code.instructions[frame.ip - 1]
+}
 
-function readConstant(frame) {}
+function readConstant(frame) {
+  return frame.func.code.constants[readByte(frame)]
+}
 
-function hymnDo(hymn, source) {}
+function hymnDo(hymn, source) {
+  const result = compile(hymn, null, source)
 
-function hymnImport(hymn, file) {}
+  const func = result.func
+  const error = result.error
 
-function debugInstruction(name) {
+  if (error) {
+    return machineThrowExistingError(hymn, error)
+  }
+
+  const funcValue = newFuncValue(func)
+
+  hymnPush(hymn, funcValue)
+  hymnCall(hymn, func, 0)
+
+  error = machineInterpretInternal(hymn)
+  if (error) {
+    return machineThrowExistingError(hymn, error)
+  }
+
+  return MACHINE_OK
+}
+
+function hymnImport(hymn, file) {
+  throw 'Import not implemented'
+}
+
+function debugConstantInstruction(name, code, index) {
+  const constant = code.instructions[index + 1]
+  console.warn('--.', code.constants)
+  return name + ': [' + debugValueToString(code.constants[constant]) + ']'
+}
+
+function debugByteInstruction(name, code, index) {
+  const b = code.instructions[index + 1]
+  return name + ': [' + b + ']'
+}
+
+function debugJumpInstruction(name, sign, code, index) {
+  const jump = (code.instructions[index + 1] << 8) | code.instructions[index + 2]
+  return name + ': [' + index + '] . [' + (index + 3 + sign * jump) + ']'
+}
+
+function debugJumpInstruction(name) {
   return name
 }
 
 function disassembleInstruction(code, index) {
-  switch (code.instructions[index]) {
+  let debug = null
+  if (index > 0 && code.rows[index] === code.rows[index - 1]) {
+    debug = '   | '
+  } else {
+    debug = String(code.rows[index]).padStart(4, ' ') + ' '
+  }
+  const op = code.instructions[index]
+  switch (op) {
     case OP_ADD:
-      return 'OP_ADD'
+      return debug + debugInstruction('OP_ADD', index)
+    case OP_ARRAY_INSERT:
+      return debug + debugInstruction('OP_ARRAY_INSERT', index)
+    case OP_ARRAY_POP:
+      return debug + debugInstruction('OP_ARRAY_POP', index)
+    case OP_ARRAY_PUSH:
+      return debug + debugInstruction('OP_ARRAY_PUSH', index)
+    case OP_BIT_AND:
+      return debug + debugInstruction('OP_BIT_AND', index)
+    case OP_BIT_LEFT_SHIFT:
+      return debug + debugInstruction('OP_BIT_LEFT_SHIFT', index)
+    case OP_BIT_NOT:
+      return debug + debugInstruction('OP_BIT_NOT', index)
+    case OP_BIT_OR:
+      return debug + debugInstruction('OP_BIT_OR', index)
+    case OP_BIT_RIGHT_SHIFT:
+      return debug + debugInstruction('OP_BIT_RIGHT_SHIFT', index)
+    case OP_BIT_XOR:
+      return debug + debugInstruction('OP_BIT_XOR', index)
+    case OP_CALL:
+      return debug + debugByteInstruction('OP_CALL', code, index)
+    case OP_CLEAR:
+      return debug + debugInstruction('OP_CLEAR', index)
+    case OP_CONSTANT:
+      return debug + debugConstantInstruction('OP_CONSTANT', code, index)
+    case OP_COPY:
+      return debug + debugInstruction('OP_COPY', index)
+    case OP_DO:
+      return debug + debugInstruction('OP_DO', index)
+    case OP_DUPLICATE:
+      return debug + debugInstruction('OP_DUPLICATE', index)
+    case OP_DEFINE_GLOBAL:
+      return debug + debugConstantInstruction('OP_DEFINE_GLOBAL', code, index)
+    case OP_DELETE:
+      return debug + debugInstruction('OP_DELETE', index)
+    case OP_DIVIDE:
+      return debug + debugInstruction('OP_DIVIDE', index)
+    case OP_EQUAL:
+      return debug + debugInstruction('OP_EQUAL', index)
+    case OP_FALSE:
+      return debug + debugInstruction('OP_FALSE', index)
+    case OP_GET_DYNAMIC:
+      return debug + debugInstruction('OP_GET_DYNAMIC', index)
+    case OP_GET_GLOBAL:
+      return debug + debugConstantInstruction('OP_GET_GLOBAL', code, index)
+    case OP_GET_LOCAL:
+      return debug + debugByteInstruction('OP_GET_LOCAL', code, index)
+    case OP_GET_PROPERTY:
+      return debug + debugConstantInstruction('OP_GET_PROPERTY', code, index)
+    case OP_GREATER:
+      return debug + debugInstruction('OP_GREATER', index)
+    case OP_GREATER_EQUAL:
+      return debug + debugInstruction('OP_GREATER_EQUAL', index)
+    case OP_INDEX:
+      return debug + debugInstruction('OP_INDEX', index)
+    case OP_JUMP:
+      return debug + debug_jump_instruction('OP_JUMP', 1, code, index)
+    case OP_JUMP_IF_FALSE:
+      return debug + debug_jump_instruction('OP_JUMP_IF_FALSE', 1, code, index)
+    case OP_JUMP_IF_TRUE:
+      return debug + debug_jump_instruction('OP_JUMP_IF_TRUE', 1, code, index)
+    case OP_KEYS:
+      return debug + debugInstruction('OP_KEYS', index)
+    case OP_LEN:
+      return debug + debugInstruction('OP_LEN', index)
+    case OP_LESS:
+      return debug + debugInstruction('OP_LESS', index)
+    case OP_LESS_EQUAL:
+      return debug + debugInstruction('OP_LESS_EQUAL', index)
+    case OP_LOOP:
+      return debug + debug_jump_instruction('OP_LOOP', -1, code, index)
+    case OP_MODULO:
+      return debug + debugInstruction('OP_MODULO', index)
+    case OP_MULTIPLY:
+      return debug + debugInstruction('OP_MULTIPLY', index)
+    case OP_NEGATE:
+      return debug + debugInstruction('OP_NEGATE', index)
     case OP_NONE:
-      return 'OP_NONE'
+      return debug + debugInstruction('OP_NONE', index)
+    case OP_NOT:
+      return debug + debugInstruction('OP_NOT', index)
+    case OP_NOT_EQUAL:
+      return debug + debugInstruction('OP_NOT_EQUAL', index)
+    case OP_POP:
+      return debug + debugInstruction('OP_POP', index)
+    case OP_PRINT:
+      return debug + debugInstruction('OP_PRINT', index)
+    case OP_THROW:
+      return debug + debugInstruction('OP_THROW', index)
+    case OP_SET_DYNAMIC:
+      return debug + debugInstruction('OP_SET_DYNAMIC', index)
+    case OP_SET_GLOBAL:
+      return debug + debugConstantInstruction('OP_SET_GLOBAL', code, index)
+    case OP_SET_LOCAL:
+      return debug + debugByteInstruction('OP_SET_LOCAL', code, index)
+    case OP_SET_PROPERTY:
+      return debug + debugConstantInstruction('OP_SET_PROPERTY', code, index)
+    case OP_SLICE:
+      return debug + debugInstruction('OP_SLICE', index)
+    case OP_SUBTRACT:
+      return debug + debugInstruction('OP_SUBTRACT', index)
+    case OP_TO_FLOAT:
+      return debug + debugInstruction('OP_TO_FLOAT', index)
+    case OP_TO_INTEGER:
+      return debug + debugInstruction('OP_TO_INTEGER', index)
+    case OP_TO_STRING:
+      return debug + debugInstruction('OP_TO_STRING', index)
+    case OP_TRUE:
+      return debug + debugInstruction('OP_TRUE', index)
+    case OP_TYPE:
+      return debug + debugInstruction('OP_TYPE', index)
+    case OP_USE:
+      return debug + debugInstruction('OP_USE', index)
     case OP_RETURN:
-      return 'OP_RETURN'
+      return debug + debugInstruction('OP_RETURN', index)
     default:
-      return '?'
+      return debug + 'UNKNOWN OPCODE ' + op
   }
 }
 
@@ -2638,7 +2823,7 @@ function debugStack(hymn) {
   for (let i = 0; i < hymn.stackTop; i++) {
     debug += '[' + debugValueToString(hymn.stack[i]) + '] '
   }
-  console.debug(debug)
+  return debug
 }
 
 function hymnRun(hymn) {
@@ -2649,7 +2834,7 @@ function hymnRun(hymn) {
     const op = readByte(frame)
     switch (op) {
       case OP_RETURN: {
-        const result = hymnPop(this)
+        const result = hymnPop(hymn)
         hymn.frameCount--
         if (hymn.frameCount === 0 || frame.func.name === null) {
           hymnPop(hymn)
@@ -2669,6 +2854,81 @@ function hymnRun(hymn) {
         hymnPush(newBool(false))
       case OP_NONE:
         hymnPush(newNone())
+      case OP_CALL: {
+        const count = readByte(frame)
+        const call = hymnPeek(hymn, count + 1)
+        const response = hymnCallValue(hymn, call, count)
+        if (response == MACHINE_FATAL) return
+        if (response == MACHINE_OK) frame = currentFrame(hymn)
+        break
+      }
+      case OP_JUMP: {
+        const jump = readShort(frame)
+        frame.ip += jump
+        break
+      }
+      case OP_JUMP_IF_FALSE: {
+        const jump = readShort(frame)
+        if (hymnFalse(hymnPeek(hymn, 1))) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_TRUE: {
+        const jump = readShort(frame)
+        if (!hymnFalse(hymnPeek(hymn, 1))) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_LOOP: {
+        const jump = readShort(frame)
+        frame.ip -= jump
+        break
+      }
+      case OP_EQUAL: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        hymnPush(hymn, newBool(machineEqual(a, b)))
+        break
+      }
+      case OP_NOT_EQUAL: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        hymnPush(hymn, newBool(!machineEqual(a, b)))
+        break
+      }
+      case OP_LESS: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value < b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value < b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value < b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value < b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+          }
+        } else {
+          if (hymnThrowError(hymn, 'Operands must be numbers.') == MACHINE_FATAL) {
+            return
+          } else {
+            frame = currentFrame(hymn)
+            break
+          }
+        }
+        break
+      }
       default:
         console.error('Unknown instruction:', op)
         return
@@ -2676,9 +2936,14 @@ function hymnRun(hymn) {
   }
 }
 
-function hymnAddFunction(hymn, name, func) {}
+function hymnAddFunction(hymn, name, func) {
+  const value = newNativeFunction(name, func)
+  hymn.globals.put(name, newFuncNativeValue(value))
+}
 
-function hymnAddPointer(hymn, name, pointer) {}
+function hymnAddPointer(hymn, name, pointer) {
+  hymn.globals.put(name, newPointerValue(pointer))
+}
 
 function hymnInterpret(hymn, source) {
   const result = compile(hymn, null, source)

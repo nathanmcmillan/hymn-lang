@@ -61,12 +61,12 @@
 
 #define PUSH(v) machine_push(this, v);
 
-#define THROW(...)                                                   \
-    if (machine_throw_error(this, ##__VA_ARGS__) == MACHINE_FATAL) { \
-        return;                                                      \
-    } else {                                                         \
-        frame = current_frame(this);                                 \
-        break;                                                       \
+#define THROW(...)                                    \
+    frame = machine_throw_error(this, ##__VA_ARGS__); \
+    if (frame == NULL) {                              \
+        return;                                       \
+    } else {                                          \
+        break;                                        \
     }
 
 #define DEREF(x) dereference(this, x);
@@ -343,12 +343,6 @@ enum OpCode {
 enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
-};
-
-enum MachineCall {
-    MACHINE_ERROR,
-    MACHINE_FATAL,
-    MACHINE_OK,
 };
 
 static void compile_with_precedence(Compiler *this, enum Precedence precedence);
@@ -3308,7 +3302,7 @@ static String *value_to_new_string(Value value) {
     return NULL;
 }
 
-static enum MachineCall machine_exception(Machine *this) {
+static Frame *machine_exception(Machine *this) {
     Frame *frame = current_frame(this);
     while (true) {
         ExceptList *except = NULL;
@@ -3327,7 +3321,7 @@ static enum MachineCall machine_exception(Machine *this) {
             }
             frame->ip = except->end;
             PUSH(result)
-            return MACHINE_ERROR;
+            return frame;
         }
         while (this->stack_top != frame->stack) {
             DEREF(this->stack[--this->stack_top])
@@ -3337,7 +3331,7 @@ static enum MachineCall machine_exception(Machine *this) {
             assert(this->error == NULL);
             this->error = value_to_new_string(result);
             DEREF(result)
-            return MACHINE_FATAL;
+            return NULL;
         }
         PUSH(result)
         frame = current_frame(this);
@@ -3371,20 +3365,20 @@ static String *machine_stacktrace(Machine *this) {
     return trace;
 }
 
-static enum MachineCall machine_push_error(Machine *this, String *error) {
+static Frame *machine_push_error(Machine *this, String *error) {
     HymnString *message = machine_intern_string(this, error);
     reference_string(message);
     PUSH(new_string_value(message))
     return machine_exception(this);
 }
 
-static enum MachineCall machine_throw_existing_error(Machine *this, char *error) {
+static Frame *machine_throw_existing_error(Machine *this, char *error) {
     String *message = new_string(error);
     free(error);
     return machine_push_error(this, message);
 }
 
-static enum MachineCall machine_throw_error(Machine *this, const char *format, ...) {
+static Frame *machine_throw_error(Machine *this, const char *format, ...) {
 
     String *error = new_string("");
 
@@ -3451,7 +3445,7 @@ static bool machine_false(Value value) {
     }
 }
 
-static enum MachineCall machine_call(Machine *this, Function *func, int count) {
+static Frame *machine_call(Machine *this, Function *func, int count) {
     if (count != func->arity) {
         return machine_throw_error(this, "Expected %d function arguments but found %d.", func->arity, count);
     } else if (this->frame_count == HYMN_FRAMES_MAX) {
@@ -3463,10 +3457,10 @@ static enum MachineCall machine_call(Machine *this, Function *func, int count) {
     frame->ip = 0;
     frame->stack = this->stack_top - count - 1;
 
-    return MACHINE_OK;
+    return frame;
 }
 
-static enum MachineCall machine_call_value(Machine *this, Value call, int count) {
+static Frame *machine_call_value(Machine *this, Value call, int count) {
     switch (call.is) {
     case HYMN_VALUE_FUNC:
         return machine_call(this, as_func(call), count);
@@ -3479,7 +3473,7 @@ static enum MachineCall machine_call_value(Machine *this, Value call, int count)
             DEREF(this->stack[--this->stack_top])
         }
         PUSH(result)
-        return MACHINE_OK;
+        return current_frame(this);
     }
     default:
         return machine_throw_error(this, "Only functions can be called.");
@@ -3499,7 +3493,7 @@ static inline Value read_constant(Frame *frame) {
     return frame->func->code.constants.values[read_byte(frame)];
 }
 
-static enum MachineCall machine_do(Machine *this, HymnString *source) {
+static Frame *machine_do(Machine *this, HymnString *source) {
 
     struct CompileReturn result = compile(this, NULL, source->string);
 
@@ -3522,10 +3516,10 @@ static enum MachineCall machine_do(Machine *this, HymnString *source) {
         return machine_throw_existing_error(this, error);
     }
 
-    return MACHINE_OK;
+    return current_frame(this);
 }
 
-static enum MachineCall machine_import(Machine *this, HymnString *file) {
+static Frame *machine_import(Machine *this, HymnString *file) {
 
     Table *imports = this->imports;
 
@@ -3563,7 +3557,7 @@ static enum MachineCall machine_import(Machine *this, HymnString *file) {
         if (!is_undefined(table_get(imports, use))) {
             dereference_string(this, use);
             if (parent) string_delete(parent);
-            return MACHINE_OK;
+            return current_frame(this);
         }
 
         if (file_exists(use->string)) {
@@ -3607,7 +3601,7 @@ static enum MachineCall machine_import(Machine *this, HymnString *file) {
         return machine_throw_existing_error(this, error);
     }
 
-    return MACHINE_OK;
+    return current_frame(this);
 }
 
 static void machine_run(Machine *this) {
@@ -3671,9 +3665,8 @@ static void machine_run(Machine *this) {
         case OP_CALL: {
             int count = read_byte(frame);
             Value call = machine_peek(this, count + 1);
-            enum MachineCall response = machine_call_value(this, call, count);
-            if (response == MACHINE_FATAL) return;
-            if (response == MACHINE_OK) frame = current_frame(this);
+            frame = machine_call_value(this, call, count);
+            if (frame == NULL) return;
             break;
         }
         case OP_JUMP: {
@@ -4648,8 +4641,8 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_THROW: {
-            if (machine_exception(this) == MACHINE_FATAL) return;
-            frame = current_frame(this);
+            frame = machine_exception(this);
+            if (frame == NULL) return;
             break;
         }
         case OP_DUPLICATE: {
@@ -4661,26 +4654,26 @@ static void machine_run(Machine *this) {
         case OP_DO: {
             POP(code)
             if (is_string(code)) {
-                enum MachineCall response = machine_do(this, as_hymn_string(code));
+                frame = machine_do(this, as_hymn_string(code));
                 DEREF(code)
-                if (response == MACHINE_FATAL) return;
-                break;
+                if (frame == NULL) return;
             } else {
                 DEREF(code)
                 THROW("Expected string for 'do' command.")
             }
+            break;
         }
         case OP_USE: {
             POP(file)
             if (is_string(file)) {
-                enum MachineCall response = machine_import(this, as_hymn_string(file));
+                frame = machine_import(this, as_hymn_string(file));
                 DEREF(file)
-                if (response == MACHINE_FATAL) return;
-                break;
+                if (frame == NULL) return;
             } else {
                 DEREF(file)
                 THROW("Expected string for 'use' command.")
             }
+            break;
         }
         default:
             fprintf(stderr, "Unknown instruction: %" PRId8, op);
