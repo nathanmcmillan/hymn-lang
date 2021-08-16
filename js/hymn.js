@@ -260,10 +260,6 @@ const OP_USE = 58
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
 
-const MACHINE_ERROR = 0
-const MACHINE_FATAL = 1
-const MACHINE_OK = 2
-
 class Token {
   constructor() {
     this.type = TOKEN_UNDEFINED
@@ -2465,15 +2461,15 @@ function hymnException(hymn) {
       }
       frame.ip = except.end
       hymnPush(hymn, result)
-      return MACHINE_ERROR
+      return frame
     }
-    while (hymn.stack_top != frame.stack) {
+    while (hymn.stack_top !== frame.stack) {
       hymn.stack[--hymn.stack_top]
     }
     hymn.frame_count--
-    if (hymn.frame_count == 0 || frame.func.name === null) {
+    if (hymn.frame_count === 0 || frame.func.name === null) {
       hymn.error = valueToNewString(result)
-      return MACHINE_FATAL
+      return null
     }
     hymnPush(hymn, result)
     frame = currentFrame(hymn)
@@ -2603,7 +2599,7 @@ function hymnCall(hymn, func, count) {
   frame.ip = 0
   frame.stack = hymn.stackTop - count - 1
 
-  return MACHINE_OK
+  return currentFrame(frame)
 }
 
 function hymnCallValue(hymn, call, count) {
@@ -2618,7 +2614,7 @@ function hymnCallValue(hymn, call, count) {
         --hymn.stackTop
       }
       hymnPush(hymn, result)
-      return MACHINE_OK
+      return currentFrame(frame)
     }
     default:
       return hymnThrowError(hymn, 'Only functions can be called.')
@@ -2658,7 +2654,7 @@ function hymnDo(hymn, source) {
     return machineThrowExistingError(hymn, error)
   }
 
-  return MACHINE_OK
+  return currentFrame(frame)
 }
 
 function hymnImport(hymn, file) {
@@ -2857,9 +2853,8 @@ function hymnRun(hymn) {
       case OP_CALL: {
         const count = readByte(frame)
         const call = hymnPeek(hymn, count + 1)
-        const response = hymnCallValue(hymn, call, count)
-        if (response == MACHINE_FATAL) return
-        if (response == MACHINE_OK) frame = currentFrame(hymn)
+        frame = hymnCallValue(hymn, call, count)
+        if (response === null) return
         break
       }
       case OP_JUMP: {
@@ -2909,6 +2904,7 @@ function hymnRun(hymn) {
           } else {
             frame = hymnThrowError(hymn, 'Operands must be numbers.')
             if (frame === null) return
+            else break
           }
         } else if (isFloat(a)) {
           if (isInt(b)) {
@@ -2918,14 +2914,12 @@ function hymnRun(hymn) {
           } else {
             frame = hymnThrowError(hymn, 'Operands must be numbers.')
             if (frame === null) return
+            else break
           }
         } else {
-          if (hymnThrowError(hymn, 'Operands must be numbers.') == MACHINE_FATAL) {
-            return
-          } else {
-            frame = currentFrame(hymn)
-            break
-          }
+          frame = hymnThrowError(hymn, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
         }
         break
       }
