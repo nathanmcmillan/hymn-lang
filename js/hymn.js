@@ -685,47 +685,47 @@ function newTable() {
 }
 
 function isUndefined(value) {
-  return value === HYMN_VALUE_UNDEFINED
+  return value.is === HYMN_VALUE_UNDEFINED
 }
 
 function isNone(value) {
-  return value === HYMN_VALUE_NONE
+  return value.is === HYMN_VALUE_NONE
 }
 
 function isBool(value) {
-  return value === HYMN_VALUE_BOOL
+  return value.is === HYMN_VALUE_BOOL
 }
 
 function isInt(value) {
-  return value === HYMN_VALUE_INTEGER
+  return value.is === HYMN_VALUE_INTEGER
 }
 
 function isFloat(value) {
-  return value === HYMN_VALUE_FLOAT
+  return value.is === HYMN_VALUE_FLOAT
 }
 
 function isString(value) {
-  return value === HYMN_VALUE_STRING
+  return value.is === HYMN_VALUE_STRING
 }
 
 function isArray(value) {
-  return value === HYMN_VALUE_ARRAY
+  return value.is === HYMN_VALUE_ARRAY
 }
 
 function isTable(value) {
-  return value === HYMN_VALUE_TABLE
+  return value.is === HYMN_VALUE_TABLE
 }
 
 function isFunc(value) {
-  return value === HYMN_VALUE_FUNC
+  return value.is === HYMN_VALUE_FUNC
 }
 
 function isFuncNative(value) {
-  return value === HYMN_VALUE_FUNC_NATIVE
+  return value.is === HYMN_VALUE_FUNC_NATIVE
 }
 
 function isPointer(value) {
-  return value === HYMN_VALUE_POINTER
+  return value.is === HYMN_VALUE_POINTER
 }
 
 function currentFunc(compiler) {
@@ -2599,7 +2599,7 @@ function hymnCall(hymn, func, count) {
   frame.ip = 0
   frame.stack = hymn.stackTop - count - 1
 
-  return currentFrame(frame)
+  return frame
 }
 
 function hymnCallValue(hymn, call, count) {
@@ -2663,7 +2663,6 @@ function hymnImport(hymn, file) {
 
 function debugConstantInstruction(name, code, index) {
   const constant = code.instructions[index + 1]
-  console.warn('--.', code.constants)
   return name + ': [' + debugValueToString(code.constants[constant]) + ']'
 }
 
@@ -2921,6 +2920,491 @@ function hymnRun(hymn) {
           if (frame === null) return
           else break
         }
+        break
+      }
+      case OP_LESS_EQUAL: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value <= b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value <= b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value <= b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value <= b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_GREATER: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value > b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value > b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value > b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value > b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_GREATER_EQUAL: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value >= b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value >= b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            hymnPush(hymn, newBool(a.value >= b.value))
+          } else if (isFloat(b)) {
+            hymnPush(hymn, newBool(a.value >= b.value))
+          } else {
+            frame = hymnThrowError(hymn, 'Operands must be numbers.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_ADD: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isNone(a)) {
+          if (isString(b)) {
+            hymnPush(hymn, STRING_NONE + b.value)
+          } else {
+            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isBool(a)) {
+          if (isString(b)) {
+            hymnPush(hymn, (a.value ? STRING_TRUE : STRING_FALSE) + b.value)
+          } else {
+            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isInt(a)) {
+          if (isInt(b)) {
+            a.value += b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            b.value += a.value
+            hymnPush(hymn, a)
+          } else if (isString(b)) {
+            hymnPush(hymn, String(a.value) + String(b.value))
+          } else {
+            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            a.value += b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            a.value += b.value
+            hymnPush(hymn, a)
+          } else if (isString(b)) {
+            hymnPush(hymn, String(a.value) + String(b.value))
+          } else {
+            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isString(a)) {
+          const s = a.value
+          let add = null
+          switch (b.is) {
+            case HYMN_VALUE_NONE:
+              add = s + STRING_NONE
+              break
+            case HYMN_VALUE_BOOL:
+              add = s + (b.value ? STRING_TRUE : STRING_FALSE)
+              break
+            case HYMN_VALUE_INTEGER:
+            case HYMN_VALUE_FLOAT:
+            case HYMN_VALUE_STRING:
+              add = s + b.value
+              break
+            case HYMN_VALUE_ARRAY:
+            case HYMN_VALUE_TABLE:
+              add = s + '[' + b.value + ']'
+              break
+            case HYMN_VALUE_FUNC:
+            case HYMN_VALUE_FUNC_NATIVE:
+              add = s + b.value.name
+              break
+            default:
+              frame = hymnThrowError(hymn, "Operands can't be added.")
+              if (frame === null) return
+              else break
+          }
+          hymnPush(hymn, add)
+        } else {
+          frame = hymnThrowError(hymn, "Operands can't be added.")
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_SUBTRACT: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value -= b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            b.value -= a.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            a.value -= b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            a.value -= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_MULTIPLY: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value *= b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            b.value *= a.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            a.value *= b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            a.value *= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_DIVIDE: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value /= b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            b.value /= a.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            a.value /= b.value
+            hymnPush(hymn, a)
+          } else if (isFloat(b)) {
+            a.value /= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_MODULO: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value %= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_BIT_NOT: {
+        const value = hymnPop(hymn)
+        if (isInt(value)) {
+          value.value = ~value.value
+          hymnPush(hymn, value)
+        } else {
+          frame = hymnThrowError(hymn, 'Bitwise operand must integer.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_BIT_OR: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value |= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_BIT_AND: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value &= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_BIT_XOR: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value ^= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_BIT_LEFT_SHIFT: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value <<= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_BIT_RIGHT_SHIFT: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (isInt(a)) {
+          if (isInt(b)) {
+            a.value >>= b.value
+            hymnPush(hymn, a)
+          } else {
+            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            if (frame === null) return
+            else break
+          }
+        } else {
+          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_NEGATE: {
+        const value = hymnPop(hymn)
+        if (isInt(value)) {
+          value.value = -value.value
+        } else if (isFloat(value)) {
+          value.value = -value.value
+        } else {
+          frame = hymnThrowError(hymn, 'Operand must be a number.')
+          if (frame === null) return
+          else break
+        }
+        hymnPush(hymn, value)
+        break
+      }
+      case OP_NOT: {
+        const value = hymnPop(hymn)
+        if (isBool(value)) {
+          value.value = !value.value
+        } else {
+          frame = hymnThrowError(hymn, 'Operand must be a boolean.')
+          if (frame === null) return
+          else break
+        }
+        hymnPush(hymn, value)
+        break
+      }
+      case OP_CONSTANT: {
+        const constant = readConstant(frame)
+        switch (constant.is) {
+          case HYMN_VALUE_ARRAY: {
+            constant = newArrayValue(newArray())
+            break
+          }
+          case HYMN_VALUE_TABLE: {
+            constant = newTableValue(newTable())
+            break
+          }
+          default:
+            break
+        }
+        hymnPush(hymn, constant)
+        break
+      }
+      case OP_DEFINE_GLOBAL: {
+        const name = readConstant(frame).value
+        const value = hymnPop(hymn)
+        hymn.globals.put(name, value)
+        break
+      }
+      case OP_SET_GLOBAL: {
+        const name = readConstant(frame).value
+        const value = hymnPeek(hymn, 1)
+        const exists = hymn.globals.get(name)
+        if (isUndefined(exists)) {
+          frame = hymnThrowError(hymn, "Undefined variable '%s'.", name.string)
+          if (frame === null) return
+          else break
+        }
+        hymn.globals.put(name, value)
+        break
+      }
+      case OP_GET_GLOBAL: {
+        const name = readConstant(frame).value
+        const get = hymn.globals.get(name)
+        if (isUndefined(get)) {
+          frame = hymnThrowError(hymn, 'Undefined variable `%s`.', name.string)
+          if (frame === null) return
+          else break
+        }
+        hymnPush(hymn, get)
+        break
+      }
+      case OP_SET_LOCAL: {
+        const slot = readByte(frame)
+        const value = hymnPeek(hymn, 1)
+        hymn.stack[frame.stack + slot] = value
+        break
+      }
+      case OP_GET_LOCAL: {
+        const slot = readByte(frame)
+        const value = hymn.stack[frame.stack + slot]
+        hymnPush(hymn, value)
         break
       }
       default:

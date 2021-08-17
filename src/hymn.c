@@ -80,12 +80,12 @@
     dereference(this, y);    \
     dereference(this, z);
 
-#define INTEGER_OP(_binary_)                                            \
+#define INTEGER_OP(_do_)                                                \
     POP(b)                                                              \
     POP(a)                                                              \
     if (is_int(a)) {                                                    \
         if (is_int(b)) {                                                \
-            a.as.i _binary_ b.as.i;                                     \
+            a.as.i _do_ b.as.i;                                         \
             PUSH(a)                                                     \
         } else {                                                        \
             DEREF_TWO(a, b)                                             \
