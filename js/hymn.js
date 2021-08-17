@@ -82,9 +82,9 @@ class Hymn {
     this.stackTop = 0
     this.frames = []
     this.frameCount = 0
-    this.globals = null
-    this.paths = null
-    this.imports = null
+    this.globals = new Map()
+    this.paths = []
+    this.imports = new Map()
     this.error = null
   }
 }
@@ -801,12 +801,11 @@ function valueToken(compiler, type, start, end) {
 }
 
 function identTrie(ident, offset, rest, type) {
-  let i = 0
-  do {
-    if (ident[offset + 1] !== rest[i]) {
+  for (let i = 0; i < rest.length; i++) {
+    if (ident[offset + i] !== rest[i]) {
       return TOKEN_UNDEFINED
     }
-  } while (rest[i] !== '\0')
+  }
   return type
 }
 
@@ -921,8 +920,9 @@ function pushIdentToken(compiler, start, end) {
   const keyword = identKey(ident, end - start)
   if (keyword !== TOKEN_UNDEFINED) {
     valueToken(compiler, keyword, start, end)
+  } else {
+    valueToken(compiler, TOKEN_IDENT, start, end)
   }
-  valueToken(compiler, TOKEN_IDENT, start, end)
 }
 
 function isDigit(c) {
@@ -2456,18 +2456,14 @@ function hymnException(hymn) {
     }
     const result = hymnPop(hymn)
     if (except !== null) {
-      while (hymn.stack_top > frame.stack + except.stack) {
-        hymn.stack[--hymn.stack_top]
-      }
+      hymn.stackTop = frame.stack + except.stack
       frame.ip = except.end
       hymnPush(hymn, result)
       return frame
     }
-    while (hymn.stack_top !== frame.stack) {
-      hymn.stack[--hymn.stack_top]
-    }
-    hymn.frame_count--
-    if (hymn.frame_count === 0 || frame.func.name === null) {
+    hymn.stackTop = frame.stack
+    hymn.frameCount--
+    if (hymn.frameCount === 0 || frame.func.name === null) {
       hymn.error = valueToNewString(result)
       return null
     }
@@ -2610,9 +2606,7 @@ function hymnCallValue(hymn, call, count) {
       const func = call.value.func
       const result = func(hymn, count, hymn.stack[hymn.stackTop - count])
       const top = hymn.stackTop - (count + 1)
-      while (hymn.stackTop !== top) {
-        --hymn.stackTop
-      }
+      hymn.stackTop = top
       hymnPush(hymn, result)
       return currentFrame(frame)
     }
@@ -2676,7 +2670,7 @@ function debugJumpInstruction(name, sign, code, index) {
   return name + ': [' + index + '] . [' + (index + 3 + sign * jump) + ']'
 }
 
-function debugJumpInstruction(name) {
+function debugInstruction(name) {
   return name
 }
 
@@ -2746,11 +2740,11 @@ function disassembleInstruction(code, index) {
     case OP_INDEX:
       return debug + debugInstruction('OP_INDEX', index)
     case OP_JUMP:
-      return debug + debug_jump_instruction('OP_JUMP', 1, code, index)
+      return debug + debugJumpInstruction('OP_JUMP', 1, code, index)
     case OP_JUMP_IF_FALSE:
-      return debug + debug_jump_instruction('OP_JUMP_IF_FALSE', 1, code, index)
+      return debug + debugJumpInstruction('OP_JUMP_IF_FALSE', 1, code, index)
     case OP_JUMP_IF_TRUE:
-      return debug + debug_jump_instruction('OP_JUMP_IF_TRUE', 1, code, index)
+      return debug + debugJumpInstruction('OP_JUMP_IF_TRUE', 1, code, index)
     case OP_KEYS:
       return debug + debugInstruction('OP_KEYS', index)
     case OP_LEN:
@@ -2760,7 +2754,7 @@ function disassembleInstruction(code, index) {
     case OP_LESS_EQUAL:
       return debug + debugInstruction('OP_LESS_EQUAL', index)
     case OP_LOOP:
-      return debug + debug_jump_instruction('OP_LOOP', -1, code, index)
+      return debug + debugJumpInstruction('OP_LOOP', -1, code, index)
     case OP_MODULO:
       return debug + debugInstruction('OP_MODULO', index)
     case OP_MULTIPLY:
@@ -2835,9 +2829,7 @@ function hymnRun(hymn) {
           hymnPop(hymn)
           return
         }
-        while (hymn.stackTop !== frame.stack) {
-          --hymn.stackTop
-        }
+        hymn.stackTop = frame.stack
         hymnPush(hymn, result)
         frame = currentFrame(hymn)
       }
@@ -3373,11 +3365,13 @@ function hymnRun(hymn) {
         break
       }
       case OP_SET_GLOBAL: {
-        const name = readConstant(frame).value
+        const constant = readConstant(frame)
+        console.debug(constant)
+        const name = constant.value
         const value = hymnPeek(hymn, 1)
         const exists = hymn.globals.get(name)
-        if (isUndefined(exists)) {
-          frame = hymnThrowError(hymn, "Undefined variable '%s'.", name.string)
+        if (exists === undefined) {
+          frame = hymnThrowError(hymn, 'Undefined variable `' + name + '`.')
           if (frame === null) return
           else break
         }
@@ -3385,10 +3379,12 @@ function hymnRun(hymn) {
         break
       }
       case OP_GET_GLOBAL: {
-        const name = readConstant(frame).value
+        const constant = readConstant(frame)
+        console.debug(constant)
+        const name = constant.value
         const get = hymn.globals.get(name)
-        if (isUndefined(get)) {
-          frame = hymnThrowError(hymn, 'Undefined variable `%s`.', name.string)
+        if (get === undefined) {
+          frame = hymnThrowError(hymn, 'Undefined variable `' + name + '`.')
           if (frame === null) return
           else break
         }
@@ -3405,6 +3401,36 @@ function hymnRun(hymn) {
         const slot = readByte(frame)
         const value = hymn.stack[frame.stack + slot]
         hymnPush(hymn, value)
+        break
+      }
+      case OP_PRINT: {
+        const value = hymnPop(hymn)
+        switch (value.is) {
+          case HYMN_VALUE_UNDEFINED:
+          case HYMN_VALUE_NONE:
+            console.log(STRING_NONE)
+            break
+          case HYMN_VALUE_BOOL:
+            console.log(value.value ? STRING_TRUE : STRING_FALSE)
+            break
+          case HYMN_VALUE_INTEGER:
+          case HYMN_VALUE_FLOAT:
+          case HYMN_VALUE_STRING:
+            console.log(value.value)
+          case HYMN_VALUE_ARRAY:
+            console.log('[array ' + value.value + ']')
+            break
+          case HYMN_VALUE_TABLE:
+            console.log('[table ' + value.value + ']')
+            break
+          case HYMN_VALUE_FUNC:
+          case HYMN_VALUE_FUNC_NATIVE:
+            console.log(value.value.name)
+            break
+          case HYMN_VALUE_POINTER:
+            console.log('[pointer ' + value.value + ']')
+            break
+        }
         break
       }
       default:

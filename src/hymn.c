@@ -1256,9 +1256,9 @@ static void push_ident_token(Compiler *this, usize start, usize end) {
     enum TokenType keyword = ident_keyword(ident, size);
     if (keyword != TOKEN_UNDEFINED) {
         value_token(this, keyword, start, end);
-        return;
+    } else {
+        value_token(this, TOKEN_IDENT, start, end);
     }
-    value_token(this, TOKEN_IDENT, start, end);
 }
 
 static bool is_digit(char c) {
