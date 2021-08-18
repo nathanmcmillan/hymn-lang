@@ -96,26 +96,25 @@
         THROW("Operation Error: 1st and 2nd values must be `Integer`.") \
     }
 
-#define ARITHMETIC_OP(_binary_)                                                        \
+#define ARITHMETIC_OP(_arithmetic_)                                                    \
     POP(b)                                                                             \
     POP(a)                                                                             \
     if (is_int(a)) {                                                                   \
         if (is_int(b)) {                                                               \
-            a.as.i _binary_ b.as.i;                                                    \
+            a.as.i _arithmetic_ b.as.i;                                                \
             PUSH(a)                                                                    \
         } else if (is_float(b)) {                                                      \
-            b.as.f _binary_ a.as.i;                                                    \
-            PUSH(a)                                                                    \
+            PUSH(new_float((double)a.as.i _arithmetic_ b.as.f))                        \
         } else {                                                                       \
             DEREF_TWO(a, b)                                                            \
             THROW("Operation Error: 2nd value must be `Integer` or `Float`.")          \
         }                                                                              \
     } else if (is_float(a)) {                                                          \
         if (is_int(b)) {                                                               \
-            a.as.f _binary_ b.as.i;                                                    \
+            a.as.f _arithmetic_(double) b.as.i;                                        \
             PUSH(a)                                                                    \
         } else if (is_float(b)) {                                                      \
-            a.as.f _binary_ b.as.f;                                                    \
+            a.as.f _arithmetic_ b.as.f;                                                \
             PUSH(a)                                                                    \
         } else {                                                                       \
             DEREF_TWO(a, b)                                                            \
@@ -563,6 +562,7 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_CONTINUE: return "CONTINUE";
     case TOKEN_COPY: return "COPY";
     case TOKEN_DO: return "DO";
+    case TOKEN_DOT: return "DOT";
     case TOKEN_DELETE: return "DELETE";
     case TOKEN_DIVIDE: return "DIVIDE";
     case TOKEN_ELIF: return "ELIF";

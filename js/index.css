@@ -78,4 +78,5 @@ body {
   padding: 1rem;
   font-family: monospace;
   background-color: white;
+  white-space: pre;
 }

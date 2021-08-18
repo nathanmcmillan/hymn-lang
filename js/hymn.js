@@ -27,9 +27,15 @@ class HymnValue {
   }
 }
 
-function copyValue(dest, src) {
+function copy(dest, src) {
   dest.is = src.is
   dest.value = src.value
+}
+
+function clone(value) {
+  const same = new HymnValue()
+  copy(same, value)
+  return same
 }
 
 class HymnNativeFunction {
@@ -76,6 +82,10 @@ class HymnFrame {
   }
 }
 
+function print(text) {
+  console.log(text)
+}
+
 class Hymn {
   constructor() {
     this.stack = []
@@ -86,6 +96,7 @@ class Hymn {
     this.paths = []
     this.imports = new Map()
     this.error = null
+    this.print = print
   }
 }
 
@@ -483,6 +494,8 @@ function tokenName(token) {
       return 'COPY'
     case TOKEN_DO:
       return 'DO'
+    case TOKEN_DOT:
+      return 'DOT'
     case TOKEN_DELETE:
       return 'DELETE'
     case TOKEN_DIVIDE:
@@ -1366,14 +1379,14 @@ function compileArray(compiler, assign) {
 }
 
 function compileTable(compiler, assign) {
-  writeConstant(compiler, new_table_value(null), compiler.previous.row)
+  writeConstant(compiler, newTableValue(null), compiler.previous.row)
   if (match(compiler, TOKEN_RIGHT_CURLY)) {
     return
   }
   while (!check(compiler, TOKEN_RIGHT_CURLY) && !check(compiler, TOKEN_EOF)) {
     emit(compiler, OP_DUPLICATE)
     consume(compiler, TOKEN_IDENT, 'Expected property name')
-    const name = ident_constant(compiler, compiler.previous)
+    const name = identConstant(compiler, compiler.previous)
     consume(compiler, TOKEN_COLON, "Expected ':'.")
     expression(compiler)
     emitTwo(compiler, OP_SET_PROPERTY, name)
@@ -2403,7 +2416,7 @@ function hymnStackGet(hymn, index) {
 }
 
 function hymnPush(hymn, value) {
-  copyValue(hymnStackGet(hymn, hymn.stackTop++), value)
+  copy(hymnStackGet(hymn, hymn.stackTop++), value)
 }
 
 function hymnPeek(hymn, dist) {
@@ -2411,7 +2424,7 @@ function hymnPeek(hymn, dist) {
     console.error('Nothing on stack to peek')
     return newNone()
   }
-  return hymn.stack[hymn.stackTop - dist]
+  return clone(hymn.stack[hymn.stackTop - dist])
 }
 
 function hymnPop(hymn) {
@@ -2419,7 +2432,7 @@ function hymnPop(hymn) {
     console.error('Nothing on stack to pop')
     return newNone()
   }
-  return hymn.stack[--hymn.stackTop]
+  return clone(hymn.stack[--hymn.stackTop])
 }
 
 function valueToNewString(value) {
@@ -2505,7 +2518,7 @@ function hymnPushError(hymn, error) {
 }
 
 function hymnThrowExistingError(hymn, error) {
-  return machinePushError(hymn, error)
+  return hymnPushError(hymn, error)
 }
 
 function hymnThrowError(hymn, error) {
@@ -2632,10 +2645,10 @@ function hymnDo(hymn, source) {
   const result = compile(hymn, null, source)
 
   const func = result.func
-  const error = result.error
+  let error = result.error
 
   if (error) {
-    return machineThrowExistingError(hymn, error)
+    return hymnThrowExistingError(hymn, error)
   }
 
   const funcValue = newFuncValue(func)
@@ -2643,12 +2656,12 @@ function hymnDo(hymn, source) {
   hymnPush(hymn, funcValue)
   hymnCall(hymn, func, 0)
 
-  error = machineInterpretInternal(hymn)
+  error = hymnRun(hymn)
   if (error) {
-    return machineThrowExistingError(hymn, error)
+    return hymnThrowExistingError(hymn, error)
   }
 
-  return currentFrame(frame)
+  return currentFrame(hymn)
 }
 
 function hymnImport(hymn, file) {
@@ -2808,18 +2821,24 @@ function debugStack(hymn) {
   if (hymn.stackTop === 0) {
     return
   }
-  let debug = ''
+  let debug = 'STACK: '
   for (let i = 0; i < hymn.stackTop; i++) {
     debug += '[' + debugValueToString(hymn.stack[i]) + '] '
   }
   return debug
 }
 
+function debugTrace(hymn, code, ip) {
+  let debug = disassembleInstruction(code, ip)
+  if (HYMN_DEBUG_STACK) debug += ' ' + debugStack(hymn)
+  return debug
+}
+
 function hymnRun(hymn) {
   let frame = currentFrame(hymn)
   while (true) {
-    if (HYMN_DEBUG_TRACE) console.debug(disassembleInstruction(frame.func.code, frame.ip))
-    if (HYMN_DEBUG_STACK) console.debug(debugStack(hymn))
+    if (HYMN_DEBUG_TRACE) console.debug(debugTrace(hymn, frame.func.code, frame.ip))
+    else if (HYMN_DEBUG_STACK) console.debug(debugStack(hymn))
     const op = readByte(frame)
     switch (op) {
       case OP_RETURN: {
@@ -2832,15 +2851,20 @@ function hymnRun(hymn) {
         hymn.stackTop = frame.stack
         hymnPush(hymn, result)
         frame = currentFrame(hymn)
+        break
       }
       case OP_POP:
         hymnPop(hymn)
+        break
       case OP_TRUE:
-        hymnPush(newBool(true))
+        hymnPush(hymn, newBool(true))
+        break
       case OP_FALSE:
-        hymnPush(newBool(false))
+        hymnPush(hymn, newBool(false))
+        break
       case OP_NONE:
-        hymnPush(newNone())
+        hymnPush(hymn, newNone())
+        break
       case OP_CALL: {
         const count = readByte(frame)
         const call = hymnPeek(hymn, count + 1)
@@ -2875,13 +2899,13 @@ function hymnRun(hymn) {
       case OP_EQUAL: {
         const b = hymnPop(hymn)
         const a = hymnPop(hymn)
-        hymnPush(hymn, newBool(machineEqual(a, b)))
+        hymnPush(hymn, newBool(hymnEqual(a, b)))
         break
       }
       case OP_NOT_EQUAL: {
         const b = hymnPop(hymn)
         const a = hymnPop(hymn)
-        hymnPush(hymn, newBool(!machineEqual(a, b)))
+        hymnPush(hymn, newBool(!hymnEqual(a, b)))
         break
       }
       case OP_LESS: {
@@ -3009,7 +3033,7 @@ function hymnRun(hymn) {
         const a = hymnPop(hymn)
         if (isNone(a)) {
           if (isString(b)) {
-            hymnPush(hymn, STRING_NONE + b.value)
+            hymnPush(hymn, newString(STRING_NONE + b.value))
           } else {
             frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
             if (frame === null) return
@@ -3017,7 +3041,7 @@ function hymnRun(hymn) {
           }
         } else if (isBool(a)) {
           if (isString(b)) {
-            hymnPush(hymn, (a.value ? STRING_TRUE : STRING_FALSE) + b.value)
+            hymnPush(hymn, newString((a.value ? STRING_TRUE : STRING_FALSE) + b.value))
           } else {
             frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
             if (frame === null) return
@@ -3031,7 +3055,7 @@ function hymnRun(hymn) {
             b.value += a.value
             hymnPush(hymn, a)
           } else if (isString(b)) {
-            hymnPush(hymn, String(a.value) + String(b.value))
+            hymnPush(hymn, newString(String(a.value) + b.value))
           } else {
             frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
             if (frame === null) return
@@ -3045,7 +3069,7 @@ function hymnRun(hymn) {
             a.value += b.value
             hymnPush(hymn, a)
           } else if (isString(b)) {
-            hymnPush(hymn, String(a.value) + String(b.value))
+            hymnPush(hymn, newString(String(a.value) + b.value))
           } else {
             frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
             if (frame === null) return
@@ -3079,7 +3103,7 @@ function hymnRun(hymn) {
               if (frame === null) return
               else break
           }
-          hymnPush(hymn, add)
+          hymnPush(hymn, newString(add))
         } else {
           frame = hymnThrowError(hymn, "Operands can't be added.")
           if (frame === null) return
@@ -3095,7 +3119,7 @@ function hymnRun(hymn) {
             a.value -= b.value
             hymnPush(hymn, a)
           } else if (isFloat(b)) {
-            b.value -= a.value
+            a.value -= b.value
             hymnPush(hymn, a)
           } else {
             frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
@@ -3129,7 +3153,7 @@ function hymnRun(hymn) {
             a.value *= b.value
             hymnPush(hymn, a)
           } else if (isFloat(b)) {
-            b.value *= a.value
+            a.value *= b.value
             hymnPush(hymn, a)
           } else {
             frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
@@ -3163,7 +3187,7 @@ function hymnRun(hymn) {
             a.value /= b.value
             hymnPush(hymn, a)
           } else if (isFloat(b)) {
-            b.value /= a.value
+            a.value /= b.value
             hymnPush(hymn, a)
           } else {
             frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
@@ -3342,32 +3366,30 @@ function hymnRun(hymn) {
         break
       }
       case OP_CONSTANT: {
-        const constant = readConstant(frame)
-        switch (constant.is) {
+        let value = readConstant(frame)
+        switch (value.is) {
           case HYMN_VALUE_ARRAY: {
-            constant = newArrayValue(newArray())
+            value = newArrayValue(newArray())
             break
           }
           case HYMN_VALUE_TABLE: {
-            constant = newTableValue(newTable())
+            value = newTableValue(newTable())
             break
           }
           default:
             break
         }
-        hymnPush(hymn, constant)
+        hymnPush(hymn, value)
         break
       }
       case OP_DEFINE_GLOBAL: {
         const name = readConstant(frame).value
         const value = hymnPop(hymn)
-        hymn.globals.put(name, value)
+        hymn.globals.set(name, value)
         break
       }
       case OP_SET_GLOBAL: {
-        const constant = readConstant(frame)
-        console.debug(constant)
-        const name = constant.value
+        const name = readConstant(frame).value
         const value = hymnPeek(hymn, 1)
         const exists = hymn.globals.get(name)
         if (exists === undefined) {
@@ -3375,13 +3397,11 @@ function hymnRun(hymn) {
           if (frame === null) return
           else break
         }
-        hymn.globals.put(name, value)
+        hymn.globals.set(name, value)
         break
       }
       case OP_GET_GLOBAL: {
-        const constant = readConstant(frame)
-        console.debug(constant)
-        const name = constant.value
+        const name = readConstant(frame).value
         const get = hymn.globals.get(name)
         if (get === undefined) {
           frame = hymnThrowError(hymn, 'Undefined variable `' + name + '`.')
@@ -3403,33 +3423,99 @@ function hymnRun(hymn) {
         hymnPush(hymn, value)
         break
       }
+      case OP_SET_PROPERTY: {
+        const p = hymnPop(hymn)
+        const v = hymnPop(hymn)
+        if (!isTable(v)) {
+          frame = hymnThrowError(hymn, 'Only tables can set properties.')
+          if (frame === null) return
+          else break
+        }
+        const table = v.value
+        const name = readConstant(frame).value
+        const previous = table.get(name)
+        table.set(name, p)
+        hymnPush(hymn, p)
+        break
+      }
+      case OP_GET_PROPERTY: {
+        const v = hymnPop(hymn)
+        if (!isTable(v)) {
+          frame = hymnThrowError(hymn, 'Only tables can get properties.')
+          if (frame === null) return
+          else break
+        }
+        const table = v.value
+        const name = readConstant(frame).value
+        let g = table.get(name)
+        if (g === undefined) {
+          g = newNone()
+        }
+        hymnPush(hymn, g)
+        break
+      }
       case OP_PRINT: {
         const value = hymnPop(hymn)
         switch (value.is) {
           case HYMN_VALUE_UNDEFINED:
           case HYMN_VALUE_NONE:
-            console.log(STRING_NONE)
+            hymn.print(STRING_NONE)
             break
           case HYMN_VALUE_BOOL:
-            console.log(value.value ? STRING_TRUE : STRING_FALSE)
+            hymn.print(value.value ? STRING_TRUE : STRING_FALSE)
             break
           case HYMN_VALUE_INTEGER:
           case HYMN_VALUE_FLOAT:
           case HYMN_VALUE_STRING:
-            console.log(value.value)
+            hymn.print(value.value)
+            break
           case HYMN_VALUE_ARRAY:
-            console.log('[array ' + value.value + ']')
+            hymn.print('[array ' + value.value + ']')
             break
           case HYMN_VALUE_TABLE:
-            console.log('[table ' + value.value + ']')
+            hymn.print('[table ' + value.value + ']')
             break
           case HYMN_VALUE_FUNC:
           case HYMN_VALUE_FUNC_NATIVE:
-            console.log(value.value.name)
+            hymn.print(value.value.name)
             break
           case HYMN_VALUE_POINTER:
-            console.log('[pointer ' + value.value + ']')
+            hymn.print('[pointer ' + value.value + ']')
             break
+        }
+        break
+      }
+      case OP_THROW: {
+        frame = hymnException(hymn)
+        if (frame === null) return
+        break
+      }
+      case OP_DUPLICATE: {
+        const top = hymnPeek(hymn, 1)
+        hymnPush(hymn, top)
+        break
+      }
+      case OP_DO: {
+        const code = hymnPop(hymn)
+        if (isString(code)) {
+          frame = hymnDo(hymn, code.value)
+          if (frame === null) return
+        } else {
+          frame = hymnThrowError(hymn, "Expected string for 'do' command.")
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_USE: {
+        const file = hymnPop(hymn)
+        if (isString(file)) {
+          frame = hymnImport(hymn, file.value)
+          if (frame === null) return
+        } else {
+          frame = hymnThrowError(hymn, "Expected string for 'use' command.")
+          if (frame === null) return
+          else break
         }
         break
       }
@@ -3442,11 +3528,11 @@ function hymnRun(hymn) {
 
 function hymnAddFunction(hymn, name, func) {
   const value = newNativeFunction(name, func)
-  hymn.globals.put(name, newFuncNativeValue(value))
+  hymn.globals.set(name, newFuncNativeValue(value))
 }
 
 function hymnAddPointer(hymn, name, pointer) {
-  hymn.globals.put(name, newPointerValue(pointer))
+  hymn.globals.set(name, newPointerValue(pointer))
 }
 
 function hymnInterpret(hymn, source) {

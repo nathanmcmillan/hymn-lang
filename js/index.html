@@ -17,17 +17,28 @@
       if (source) {
         document.getElementById('source').value = source
       }
+      let once = false
       function run() {
+        if (once) {
+          console.log('----------------------------------------')
+        } else {
+          once = true
+        }
         const source = document.getElementById('source').value
         localStorage.setItem('source', source)
+        const out = document.getElementById('out')
+        out.textContent = ''
         const hymn = new Hymn()
+        hymn.print = (text) => {
+          out.textContent += text + '\r\n'
+        }
         try {
           const error = hymnInterpret(hymn, source)
           if (error !== null) {
-            document.getElementById('out').textContent = error
+            out.textContent += error
           }
         } catch (exception) {
-          document.getElementById('out').textContent = exception
+          out.textContent += exception
           console.error(exception)
         }
       }
