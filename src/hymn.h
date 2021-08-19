@@ -187,6 +187,7 @@ struct Hymn {
     HymnArray *paths;
     HymnTable *imports;
     String *error;
+    void (*print)(const char *format, ...);
 };
 
 HymnString *new_hymn_string(String *string);

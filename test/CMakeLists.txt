@@ -12,6 +12,5 @@ else()
 endif()
 
 add_definitions(-DHYMN_TESTING)
-add_definitions(-DHYMN_DEBUG_NONE)
 
 add_executable(${PROJECT_NAME} ${SOURCE})

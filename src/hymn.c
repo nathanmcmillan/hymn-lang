@@ -104,7 +104,9 @@
             a.as.i _arithmetic_ b.as.i;                                                \
             PUSH(a)                                                                    \
         } else if (is_float(b)) {                                                      \
-            PUSH(new_float((double)a.as.i _arithmetic_ b.as.f))                        \
+            Value new = new_float((double)a.as.i);                                     \
+            new.as.f _arithmetic_ b.as.f;                                              \
+            PUSH(new)                                                                  \
         } else {                                                                       \
             DEREF_TWO(a, b)                                                            \
             THROW("Operation Error: 2nd value must be `Integer` or `Float`.")          \
@@ -2537,6 +2539,44 @@ static void patch_iterator_jump_list(Compiler *this) {
 
 static void iterate_statement(Compiler *this) {
 
+    // FIXME: ITERATE should be shorthand for creating and going through an ITERATOR object
+    // An ITERATOR object will be a table
+    // array iterator {"i":0, "object":<reference>}
+    // string iterator {"i":0, "object":<reference>}
+    // table iterator {"i":0, "object":<keys list reference>, "table":<table reference>}
+
+    /*
+    let t = {}
+
+    let i = iterator(t)
+    while true
+        let value = next(i)
+        if value === undefined break end
+    end
+
+    iterate key, value in t
+        print key + ", " + value
+    end
+
+    -- compiles to
+
+    let _object = t
+    let _table = none
+    if type(t) === "Table"
+      _table = _object
+      _object = keys(_table)
+    end
+    let _size = len(_object)
+    for let _id = 0; _id < _size; _id = _id + 1
+        let key = _id
+        let value = _object[_id]
+        if _table != none
+            key = value
+            value = _table[value]
+        end
+    end
+    */
+
     begin_scope(this);
 
     // parameters
@@ -4603,38 +4643,38 @@ static void machine_run(Machine *this) {
             switch (value.is) {
             case HYMN_VALUE_UNDEFINED:
             case HYMN_VALUE_NONE:
-                printf("%s\n", STRING_NONE);
+                this->print("%s\n", STRING_NONE);
                 break;
             case HYMN_VALUE_BOOL:
-                printf("%s\n", as_bool(value) ? STRING_TRUE : STRING_FALSE);
+                this->print("%s\n", as_bool(value) ? STRING_TRUE : STRING_FALSE);
                 break;
             case HYMN_VALUE_INTEGER:
-                printf("%" PRId64 "\n", as_int(value));
+                this->print("%" PRId64 "\n", as_int(value));
                 break;
             case HYMN_VALUE_FLOAT:
-                printf("%g\n", as_float(value));
+                this->print("%g\n", as_float(value));
                 break;
             case HYMN_VALUE_STRING:
-                printf("%s\n", as_string(value));
+                this->print("%s\n", as_string(value));
                 DEREF(value)
                 break;
             case HYMN_VALUE_ARRAY:
-                printf("[array %p]\n", (void *)as_array(value));
+                this->print("[array %p]\n", (void *)as_array(value));
                 DEREF(value)
                 break;
             case HYMN_VALUE_TABLE:
-                printf("[table %p]\n", (void *)as_table(value));
+                this->print("[table %p]\n", (void *)as_table(value));
                 DEREF(value)
                 break;
             case HYMN_VALUE_FUNC:
-                printf("%s\n", as_func(value)->name);
+                this->print("%s\n", as_func(value)->name);
                 DEREF(value)
                 break;
             case HYMN_VALUE_FUNC_NATIVE:
-                printf("%s\n", as_native(value)->name);
+                this->print("%s\n", as_native(value)->name);
                 break;
             case HYMN_VALUE_POINTER:
-                printf("[pointer %p]\n", as_pointer(value));
+                this->print("[pointer %p]\n", as_pointer(value));
                 DEREF(value)
                 break;
             }
@@ -4693,6 +4733,14 @@ static char *machine_interpret(Machine *this) {
     return error;
 }
 
+static void print_stdout(const char *format, ...) {
+    va_list args;
+
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+}
+
 Hymn *new_hymn() {
     Hymn *this = safe_calloc(1, sizeof(Hymn));
     machine_reset_stack(this);
@@ -4722,6 +4770,8 @@ Hymn *new_hymn() {
     Value imports_value = new_table_value(this->imports);
     table_put(&this->globals, imports, imports_value);
     reference(imports_value);
+
+    this->print = print_stdout;
 
     return this;
 }

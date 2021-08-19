@@ -94,27 +94,27 @@ String *string_concat_list(String **list, int size) {
 }
 
 String *string_concat_varg(int size, ...) {
-    va_list ap;
+    va_list args;
 
     usize len = 0;
-    va_start(ap, size);
+    va_start(args, size);
     for (int i = 0; i < size; i++) {
-        len += string_len(va_arg(ap, String *));
+        len += string_len(va_arg(args, String *));
     }
-    va_end(ap);
+    va_end(args);
 
     StringHead *head = string_head_init(len, len);
     char *s = (char *)(head + 1);
 
     usize pos = 0;
-    va_start(ap, size);
+    va_start(args, size);
     for (int i = 0; i < size; i++) {
-        String *param = va_arg(ap, String *);
+        String *param = va_arg(args, String *);
         usize len_i = string_len(param);
         memcpy(s + pos, param, len_i);
         pos += len_i;
     }
-    va_end(ap);
+    va_end(args);
 
     s[len] = '\0';
     return (String *)s;
@@ -485,28 +485,30 @@ char *string_to_chars(String *this) {
 }
 
 String *string_format(const char *format, ...) {
-    va_list ap;
-    va_start(ap, format);
-    int len = vsnprintf(NULL, 0, format, ap);
-    va_end(ap);
+    va_list args;
+
+    va_start(args, format);
+    int len = vsnprintf(NULL, 0, format, args);
+    va_end(args);
     char *chars = safe_malloc((len + 1) * sizeof(char));
-    va_start(ap, format);
-    len = vsnprintf(chars, len + 1, format, ap);
-    va_end(ap);
+    va_start(args, format);
+    len = vsnprintf(chars, len + 1, format, args);
+    va_end(args);
     String *str = new_string_with_length(chars, len);
     free(chars);
     return str;
 }
 
 String *string_append_format(String *this, const char *format, ...) {
-    va_list ap;
-    va_start(ap, format);
-    int len = vsnprintf(NULL, 0, format, ap);
-    va_end(ap);
+    va_list args;
+
+    va_start(args, format);
+    int len = vsnprintf(NULL, 0, format, args);
+    va_end(args);
     char *chars = safe_malloc((len + 1) * sizeof(char));
-    va_start(ap, format);
-    len = vsnprintf(chars, len + 1, format, ap);
-    va_end(ap);
+    va_start(args, format);
+    len = vsnprintf(chars, len + 1, format, args);
+    va_end(args);
     this = string_append(this, chars);
     free(chars);
     return this;
