@@ -20,7 +20,7 @@ char *run_test(char *message, void(test)());
         if (!(test)) {            \
             return message;       \
         }                         \
-        printf("done!\n");        \
+        printf("Done!\n");        \
     } while (0)
 #else
 
@@ -49,7 +49,7 @@ char *run_test(char *message, void(test)());
         printf("%s\n", #test_set);             \
         char *result = test_set();             \
         if (result != 0) {                     \
-            printf("    ERROR: %s\n", result); \
+            printf("    Error: %s\n", result); \
         }                                      \
         printf("\n");                          \
     } while (0);

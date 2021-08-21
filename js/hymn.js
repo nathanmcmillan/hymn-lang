@@ -1,6 +1,10 @@
-const HYMN_DEBUG_TOKEN = true
-const HYMN_DEBUG_TRACE = true
-const HYMN_DEBUG_STACK = true
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+const HYMN_DEBUG_TOKEN = false
+const HYMN_DEBUG_TRACE = false
+const HYMN_DEBUG_STACK = false
 
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
@@ -3482,7 +3486,7 @@ function hymnRun(hymn) {
             }
           }
           if (index == size) {
-            array_push(array, s)
+            array.push(s)
           } else {
             array.items[index] = s
           }
@@ -3496,7 +3500,7 @@ function hymnRun(hymn) {
           const name = i.value
           table_put(table, name, s)
         } else {
-          const is = value_name(v.is)
+          const is = valueName(v.is)
           frame = hymnThrowError(hymn, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.', is)
           if (frame === null) return
           else break
@@ -3515,7 +3519,7 @@ function hymnRun(hymn) {
               else break
             }
             const string = v.value
-            const size = string_len(string)
+            const size = string.length
             const index = i.value
             if (index >= size) {
               frame = hymnThrowError(hymn, 'String index out of bounds %d >= %d.', index, size)
@@ -3531,7 +3535,7 @@ function hymnRun(hymn) {
               }
             }
             const c = string[index]
-            hymnPush(hymn, char_to_string(c))
+            hymnPush(hymn, newString(String(c)))
             break
           }
           case HYMN_VALUE_ARRAY: {
@@ -3556,22 +3560,20 @@ function hymnRun(hymn) {
                 else break
               }
             }
-            const g = array_get(array, index)
-
+            const g = array[index]
             hymnPush(hymn, g)
-
             break
           }
           case HYMN_VALUE_TABLE: {
             if (!isString(i)) {
-              const is = value_name(i.is)
+              const is = valueName(i.is)
               frame = hymnThrowError(hymn, 'Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.', is)
               if (frame === null) return
               else break
             }
             const table = v.value
             const name = i.value
-            const g = table_get(table, name)
+            const g = table.get(name)
             if (isUndefined(g)) {
               g.is = HYMN_VALUE_NONE
             } else {
@@ -3580,7 +3582,7 @@ function hymnRun(hymn) {
             break
           }
           default: {
-            const is = value_name(v.is)
+            const is = valueName(v.is)
             frame = hymnThrowError(hymn, 'Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.', is)
             if (frame === null) return
             else break
@@ -3592,7 +3594,7 @@ function hymnRun(hymn) {
         const value = hymnPop(hymn)
         switch (value.is) {
           case HYMN_VALUE_STRING: {
-            const len = string_len(value.value)
+            const len = value.value.length
             hymnPush(hymn, newInt(len))
             break
           }
@@ -3617,12 +3619,12 @@ function hymnRun(hymn) {
       case OP_ARRAY_POP: {
         const a = hymnPop(hymn)
         if (!isArray(a)) {
-          const is = value_name(a.is)
+          const is = valueName(a.is)
           frame = hymnThrowError(hymn, 'Pop Function: Expected `Array` for 1st argument, but was `%s`.', is)
           if (frame === null) return
           else break
         } else {
-          const value = array_pop(a.value)
+          const value = a.value.pop()
           hymnPush(hymn, value)
         }
         break
@@ -3631,12 +3633,12 @@ function hymnRun(hymn) {
         const v = hymnPop(hymn)
         const a = hymnPop(hymn)
         if (!isArray(a)) {
-          const is = value_name(v.is)
+          const is = valueName(v.is)
           frame = hymnThrowError(hymn, 'Push Function: Expected `Array` for 1st argument, but was `%s`.', is)
           if (frame === null) return
           else break
         } else {
-          array_push(a.value, v)
+          a.value.push(v)
           hymnPush(hymn, v)
         }
         break
@@ -3647,7 +3649,7 @@ function hymnRun(hymn) {
         const v = hymnPop(hymn)
         if (isArray(v)) {
           if (!isInt(i)) {
-            const is = value_name(i.is)
+            const is = valueName(i.is)
             frame = hymnThrowError(hymn, 'Insert Function: Expected `Integer` for 2nd argument, but was `%s`.', is)
             if (frame === null) return
             else break
@@ -3669,13 +3671,13 @@ function hymnRun(hymn) {
             }
           }
           if (index == size) {
-            array_push(array, p)
+            array.push(p)
           } else {
-            array_insert(array, index, p)
+            array[index] = p
           }
           hymnPush(hymn, p)
         } else {
-          const is = value_name(v.is)
+          const is = valueName(v.is)
           frame = hymnThrowError(hymn, 'Insert Function: Expected `Array` for 1st argument, but was `%s`.', is)
           if (frame === null) return
           else break
@@ -3707,7 +3709,7 @@ function hymnRun(hymn) {
               else break
             }
           }
-          const value = array_remove_index(array, index)
+          const value = array.splice(index)[0]
           hymnPush(hymn, value)
         } else if (isTable(v)) {
           if (!isString(i)) {
@@ -3717,7 +3719,7 @@ function hymnRun(hymn) {
           }
           const table = v.value
           const name = i.value
-          const value = table_remove(table, name)
+          const value = table.delete(name)
           if (isUndefined(value)) {
             value.is = HYMN_VALUE_NONE
           }
@@ -3768,7 +3770,7 @@ function hymnRun(hymn) {
         const left = a.value
         if (isString(v)) {
           const original = v.value
-          const size = string_len(original)
+          const size = original.length
           let right
           if (isInt(b)) {
             right = b.value
@@ -3977,7 +3979,7 @@ function hymnRun(hymn) {
           hymnPush(hymn, newInt(push))
         } else if (isString(value)) {
           const s = value.value
-          if (string_len(s) == 1) {
+          if (s.length == 1) {
             const c = s[0]
             hymnPush(hymn, newInt(c))
           } else {
@@ -3999,7 +4001,7 @@ function hymnRun(hymn) {
           hymnPush(hymn, value)
         } else if (isString(value)) {
           const s = value.value
-          if (string_len(s) == 1) {
+          if (s.length == 1) {
             const c = Number(s[0])
             hymnPush(hymn, newFloat(c))
           } else {
@@ -4023,28 +4025,28 @@ function hymnRun(hymn) {
             hymnPush(hymn, value.value ? newString(STRING_TRUE) : newString(STRING_FALSE))
             break
           case HYMN_VALUE_INTEGER:
-            hymnPush(hymn, int64_to_string(value.value))
+            hymnPush(hymn, newString(String(value.value)))
             break
           case HYMN_VALUE_FLOAT:
-            hymnPush(hymn, float64_to_string(value.value))
+            hymnPush(hymn, newString(String(value.value)))
             break
           case HYMN_VALUE_STRING:
             hymnPush(hymn, value)
             break
           case HYMN_VALUE_ARRAY:
-            hymnPush(hymn, string_format('[array %p]', value.value))
+            hymnPush(hymn, newString('[array ' + value.value + ']'))
             break
           case HYMN_VALUE_TABLE:
-            hymnPush(hymn, string_format('[table %p]', value.value))
+            hymnPush(hymn, newString('[table ' + value.value + ']'))
             break
           case HYMN_VALUE_FUNC:
-            hymnPush(hymn, value.value.name)
+            hymnPush(hymn, newString(value.value.name))
             break
           case HYMN_VALUE_FUNC_NATIVE:
-            hymnPush(hymn, value.value.name)
+            hymnPush(hymn, newString(value.value.name))
             break
           case HYMN_VALUE_POINTER:
-            hymnPush(hymn, string_format('[pointer %p]', value.value))
+            hymnPush(hymn, newString('[pointer ' + value.value + ']'))
             break
         }
         break
