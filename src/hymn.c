@@ -4635,6 +4635,7 @@ static void machine_run(Machine *this) {
             case HYMN_VALUE_POINTER:
                 machine_push_intern_string(this, string_format("[pointer %p]", as_pointer(value)));
                 DEREF(value)
+                break;
             }
             break;
         }

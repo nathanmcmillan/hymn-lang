@@ -3454,6 +3454,602 @@ function hymnRun(hymn) {
         hymnPush(hymn, g)
         break
       }
+      // FIXME
+      case OP_SET_DYNAMIC: {
+        const s = hymnPop(hymn)
+        const i = hymnPop(hymn)
+        const v = hymnPop(hymn)
+        if (isArray(v)) {
+          if (!isInt(i)) {
+            frame = hymnThrowError(hymn, 'Integer required to set array index.')
+            if (frame === null) return
+            else break
+          }
+          const array = v.value
+          const size = array.length
+          const index = i.value
+          if (index > size) {
+            frame = hymnThrowError(hymn, 'Array index out of bounds %d > %d.', index, size)
+            if (frame === null) return
+            else break
+          }
+          if (index < 0) {
+            index = size + index
+            if (index < 0) {
+              frame = hymnThrowError(hymn, 'Array index out of bounds %d.', index)
+              if (frame === null) return
+              else break
+            }
+          }
+          if (index == size) {
+            array_push(array, s)
+          } else {
+            array.items[index] = s
+          }
+        } else if (isTable(v)) {
+          if (!isString(i)) {
+            frame = hymnThrowError(hymn, 'String required to set table property.')
+            if (frame === null) return
+            else break
+          }
+          const table = v.value
+          const name = i.value
+          table_put(table, name, s)
+        } else {
+          const is = value_name(v.is)
+          frame = hymnThrowError(hymn, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.', is)
+          if (frame === null) return
+          else break
+        }
+        hymnPush(hymn, s)
+        break
+      }
+      case OP_GET_DYNAMIC: {
+        const i = hymnPop(hymn)
+        const v = hymnPop(hymn)
+        switch (v.is) {
+          case HYMN_VALUE_STRING: {
+            if (!isInt(i)) {
+              frame = hymnThrowError(hymn, 'Integer required to get string character from index.')
+              if (frame === null) return
+              else break
+            }
+            const string = v.value
+            const size = string_len(string)
+            const index = i.value
+            if (index >= size) {
+              frame = hymnThrowError(hymn, 'String index out of bounds %d >= %d.', index, size)
+              if (frame === null) return
+              else break
+            }
+            if (index < 0) {
+              index = size + index
+              if (index < 0) {
+                frame = hymnThrowError(hymn, 'String index out of bounds %d.', index)
+                if (frame === null) return
+                else break
+              }
+            }
+            const c = string[index]
+            hymnPush(hymn, char_to_string(c))
+            break
+          }
+          case HYMN_VALUE_ARRAY: {
+            if (!isInt(i)) {
+              frame = hymnThrowError(hymn, 'Integer required to get array index.')
+              if (frame === null) return
+              else break
+            }
+            const array = v.value
+            const size = array.length
+            const index = i.value
+            if (index >= size) {
+              frame = hymnThrowError(hymn, 'Array index out of bounds %d >= %d.', index, size)
+              if (frame === null) return
+              else break
+            }
+            if (index < 0) {
+              index = size + index
+              if (index < 0) {
+                frame = hymnThrowError(hymn, 'Array index out of bounds %d.', index)
+                if (frame === null) return
+                else break
+              }
+            }
+            const g = array_get(array, index)
+
+            hymnPush(hymn, g)
+
+            break
+          }
+          case HYMN_VALUE_TABLE: {
+            if (!isString(i)) {
+              const is = value_name(i.is)
+              frame = hymnThrowError(hymn, 'Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.', is)
+              if (frame === null) return
+              else break
+            }
+            const table = v.value
+            const name = i.value
+            const g = table_get(table, name)
+            if (isUndefined(g)) {
+              g.is = HYMN_VALUE_NONE
+            } else {
+            }
+            hymnPush(hymn, g)
+            break
+          }
+          default: {
+            const is = value_name(v.is)
+            frame = hymnThrowError(hymn, 'Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.', is)
+            if (frame === null) return
+            else break
+          }
+        }
+        break
+      }
+      case OP_LEN: {
+        const value = hymnPop(hymn)
+        switch (value.is) {
+          case HYMN_VALUE_STRING: {
+            const len = string_len(value.value)
+            hymnPush(hymn, newInt(len))
+            break
+          }
+          case HYMN_VALUE_ARRAY: {
+            const len = value.value.length
+            hymnPush(hymn, newInt(len))
+            break
+          }
+          case HYMN_VALUE_TABLE: {
+            const len = value.value.size
+            hymnPush(hymn, newInt(len))
+            break
+          }
+          default:
+            frame = hymnThrowError(hymn, 'Expected array or table for `len` function.')
+            if (frame === null) return
+            else break
+        }
+
+        break
+      }
+      case OP_ARRAY_POP: {
+        const a = hymnPop(hymn)
+        if (!isArray(a)) {
+          const is = value_name(a.is)
+          frame = hymnThrowError(hymn, 'Pop Function: Expected `Array` for 1st argument, but was `%s`.', is)
+          if (frame === null) return
+          else break
+        } else {
+          const value = array_pop(a.value)
+          hymnPush(hymn, value)
+        }
+        break
+      }
+      case OP_ARRAY_PUSH: {
+        const v = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        if (!isArray(a)) {
+          const is = value_name(v.is)
+          frame = hymnThrowError(hymn, 'Push Function: Expected `Array` for 1st argument, but was `%s`.', is)
+          if (frame === null) return
+          else break
+        } else {
+          array_push(a.value, v)
+          hymnPush(hymn, v)
+        }
+        break
+      }
+      case OP_ARRAY_INSERT: {
+        const p = hymnPop(hymn)
+        const i = hymnPop(hymn)
+        const v = hymnPop(hymn)
+        if (isArray(v)) {
+          if (!isInt(i)) {
+            const is = value_name(i.is)
+            frame = hymnThrowError(hymn, 'Insert Function: Expected `Integer` for 2nd argument, but was `%s`.', is)
+            if (frame === null) return
+            else break
+          }
+          const array = v.value
+          const size = array.length
+          const index = i.value
+          if (index > size) {
+            frame = hymnThrowError(hymn, 'Insert Function: Array index out of bounds: %d > %d', index, size)
+            if (frame === null) return
+            else break
+          }
+          if (index < 0) {
+            index = size + index
+            if (index < 0) {
+              frame = hymnThrowError(hymn, 'Insert Function: Array index less than zero: %d', index)
+              if (frame === null) return
+              else break
+            }
+          }
+          if (index == size) {
+            array_push(array, p)
+          } else {
+            array_insert(array, index, p)
+          }
+          hymnPush(hymn, p)
+        } else {
+          const is = value_name(v.is)
+          frame = hymnThrowError(hymn, 'Insert Function: Expected `Array` for 1st argument, but was `%s`.', is)
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_DELETE: {
+        const i = hymnPop(hymn)
+        const v = hymnPop(hymn)
+        if (isArray(v)) {
+          if (!isInt(i)) {
+            frame = hymnThrowError(hymn, 'Integer required to delete from array.')
+            if (frame === null) return
+            else break
+          }
+          const array = v.value
+          const size = array.length
+          const index = i.value
+          if (index >= size) {
+            frame = hymnThrowError(hymn, 'Array index out of bounds %d > %d.', index, size)
+            if (frame === null) return
+            else break
+          }
+          if (index < 0) {
+            index = size + index
+            if (index < 0) {
+              frame = hymnThrowError(hymn, 'Array index out of bounds %d.', index)
+              if (frame === null) return
+              else break
+            }
+          }
+          const value = array_remove_index(array, index)
+          hymnPush(hymn, value)
+        } else if (isTable(v)) {
+          if (!isString(i)) {
+            frame = hymnThrowError(hymn, 'String required to delete from table.')
+            if (frame === null) return
+            else break
+          }
+          const table = v.value
+          const name = i.value
+          const value = table_remove(table, name)
+          if (isUndefined(value)) {
+            value.is = HYMN_VALUE_NONE
+          }
+          hymnPush(hymn, value)
+        } else {
+          frame = hymnThrowError(hymn, 'Expected array or table for `delete` function.')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_COPY: {
+        const value = hymnPop(hymn)
+        switch (value.is) {
+          case HYMN_VALUE_NONE:
+          case HYMN_VALUE_BOOL:
+          case HYMN_VALUE_INTEGER:
+          case HYMN_VALUE_FLOAT:
+          case HYMN_VALUE_STRING:
+          case HYMN_VALUE_FUNC:
+          case HYMN_VALUE_FUNC_NATIVE:
+            hymnPush(hymn, value)
+            break
+          case HYMN_VALUE_ARRAY: {
+            const copy = new_array_copy(value.value)
+            hymnPush(hymn, new_array_value(copy))
+            break
+          }
+          case HYMN_VALUE_TABLE: {
+            const copy = new_table_copy(value.value)
+            hymnPush(hymn, new_table_value(copy))
+            break
+          }
+          default:
+            hymnPush(hymn, newNone())
+        }
+        break
+      }
+      case OP_SLICE: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        const v = hymnPop(hymn)
+        if (!isInt(a)) {
+          frame = hymnThrowError(hymn, 'Integer required for slice expression.')
+          if (frame === null) return
+          else break
+        }
+        const left = a.value
+        if (isString(v)) {
+          const original = v.value
+          const size = string_len(original)
+          let right
+          if (isInt(b)) {
+            right = b.value
+          } else if (isNone(b)) {
+            right = size
+          } else {
+            frame = hymnThrowError(hymn, 'Integer required for slice expression.')
+            if (frame === null) return
+            else break
+          }
+          if (right > size) {
+            frame = hymnThrowError(hymn, 'String index out of bounds %d > %d.', right, size)
+            if (frame === null) return
+            else break
+          }
+          if (right < 0) {
+            right = size + right
+            if (right < 0) {
+              frame = hymnThrowError(hymn, 'String index out of bounds %d.', right)
+              if (frame === null) return
+              else break
+            }
+          }
+          if (left >= right) {
+            frame = hymnThrowError(hymn, 'String start index %d > right index %d.', left, right)
+            if (frame === null) return
+            else break
+          }
+          const sub = newString_from_substring(original, left, right)
+          hymnPush(hymn, sub)
+        } else if (isArray(v)) {
+          const array = v.value
+          const size = array.length
+          let right
+          if (isInt(b)) {
+            right = b.value
+          } else if (isNone(b)) {
+            right = size
+          } else {
+            frame = hymnThrowError(hymn, 'Integer required for slice expression.')
+            if (frame === null) return
+            else break
+          }
+          if (right > size) {
+            frame = hymnThrowError(hymn, 'Array index out of bounds %d > %d.', right, size)
+            if (frame === null) return
+            else break
+          }
+          if (right < 0) {
+            right = size + right
+            if (right < 0) {
+              frame = hymnThrowError(hymn, 'Array index out of bounds %d.', right)
+              if (frame === null) return
+              else break
+            }
+          }
+          if (left >= right) {
+            frame = hymnThrowError(hymn, 'Array start index %d >= right index %d.', left, right)
+            if (frame === null) return
+            else break
+          }
+          const copy = new_array_slice(array, left, right)
+          hymnPush(hymn, new_array_value(copy))
+
+          break
+        } else {
+          frame = hymnThrowError(hymn, 'Expected string or array for `slice` function.')
+          if (frame === null) return
+          else break
+        }
+
+        break
+      }
+      case OP_CLEAR: {
+        const value = hymnPop(hymn)
+        switch (value.is) {
+          case HYMN_VALUE_BOOL:
+            hymnPush(hymn, new_bool(false))
+            break
+          case HYMN_VALUE_INTEGER:
+            hymnPush(hymn, newInt(0))
+            break
+          case HYMN_VALUE_FLOAT:
+            hymnPush(hymn, newFloat(0.0))
+            break
+          case HYMN_VALUE_STRING:
+            hymnPush(hymn, newString(''))
+            break
+          case HYMN_VALUE_ARRAY: {
+            const array = value.value
+            array_clear(hymn, array)
+            hymnPush(hymn, value)
+            break
+          }
+          case HYMN_VALUE_TABLE: {
+            const table = value.value
+            table_clear(hymn, table)
+            hymnPush(hymn, value)
+            break
+          }
+          case HYMN_VALUE_UNDEFINED:
+          case HYMN_VALUE_NONE:
+          case HYMN_VALUE_FUNC:
+          case HYMN_VALUE_FUNC_NATIVE:
+          case HYMN_VALUE_POINTER:
+            hymnPush(hymn, newNone())
+            break
+        }
+        break
+      }
+      case OP_KEYS: {
+        const value = hymnPop(hymn)
+        if (!isTable(value)) {
+          frame = hymnThrowError(hymn, 'Expected table for `keys` function.')
+          if (frame === null) return
+          else break
+        } else {
+          const table = value.value
+          const array = table_keys(table)
+          const keys = new_array_value(array)
+          hymnPush(hymn, keys)
+        }
+        break
+      }
+      case OP_INDEX: {
+        const b = hymnPop(hymn)
+        const a = hymnPop(hymn)
+        switch (a.is) {
+          case HYMN_VALUE_STRING: {
+            if (!isString(b)) {
+              frame = hymnThrowError(hymn, 'Expected substring for 2nd argument of `index` function.')
+              if (frame === null) return
+              else break
+            }
+            const index = 0
+            const found = string_find(a.value, b.value, index)
+            if (found) {
+              hymnPush(hymn, newInt(index))
+            } else {
+              hymnPush(hymn, newInt(-1))
+            }
+            break
+          }
+          case HYMN_VALUE_ARRAY:
+            hymnPush(hymn, newInt(array_index_of(a.value, b)))
+            break
+          case HYMN_VALUE_TABLE: {
+            const key = table_key_of(a.value, b)
+            if (key == NULL) {
+              hymnPush(hymn, newNone())
+            } else {
+              hymnPush(hymn, newString_value(key))
+            }
+            break
+          }
+          default:
+            frame = hymnThrowError(hymn, 'Expected string, array, or table for `index` function.')
+            if (frame === null) return
+            else break
+        }
+        break
+      }
+      case OP_TYPE: {
+        const value = hymnPop(hymn)
+        switch (value.is) {
+          case HYMN_VALUE_UNDEFINED:
+          case HYMN_VALUE_NONE:
+            hymnPush(hymn, newString(STRING_NONE))
+            break
+          case HYMN_VALUE_BOOL:
+            hymnPush(hymn, newString(STRING_BOOL))
+            break
+          case HYMN_VALUE_INTEGER:
+            hymnPush(hymn, newString(STRING_INTEGER))
+            break
+          case HYMN_VALUE_FLOAT:
+            hymnPush(hymn, newString(STRING_FLOAT))
+            break
+          case HYMN_VALUE_STRING:
+            hymnPush(hymn, newString(STRING_STRING))
+            break
+          case HYMN_VALUE_ARRAY:
+            hymnPush(hymn, newString(STRING_ARRAY))
+            break
+          case HYMN_VALUE_TABLE:
+            hymnPush(hymn, newString(STRING_TABLE))
+            break
+          case HYMN_VALUE_FUNC:
+            hymnPush(hymn, newString(STRING_FUNC))
+            break
+          case HYMN_VALUE_FUNC_NATIVE:
+            hymnPush(hymn, newString(STRING_NATIVE))
+            break
+          case HYMN_VALUE_POINTER:
+            hymnPush(hymn, newString(STRING_POINTER))
+            break
+        }
+        break
+      }
+      case OP_TO_INTEGER: {
+        const value = hymnPop(hymn)
+        if (isInt(value)) {
+          hymnPush(hymn, value)
+        } else if (isFloat(value)) {
+          const push = value.value
+          hymnPush(hymn, newInt(push))
+        } else if (isString(value)) {
+          const s = value.value
+          if (string_len(s) == 1) {
+            const c = s[0]
+            hymnPush(hymn, newInt(c))
+          } else {
+            hymnPush(hymn, newInt(-1))
+          }
+        } else {
+          frame = hymnThrowError(hymn, "Can't cast to an integer.")
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_TO_FLOAT: {
+        const value = hymnPop(hymn)
+        if (isInt(value)) {
+          const push = value.value
+          hymnPush(hymn, newFloat(push))
+        } else if (isFloat(value)) {
+          hymnPush(hymn, value)
+        } else if (isString(value)) {
+          const s = value.value
+          if (string_len(s) == 1) {
+            const c = Number(s[0])
+            hymnPush(hymn, newFloat(c))
+          } else {
+            hymnPush(hymn, newFloat(-1))
+          }
+        } else {
+          frame = hymnThrowError(hymn, "Can't cast to a float.")
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_TO_STRING: {
+        const value = hymnPop(hymn)
+        switch (value.is) {
+          case HYMN_VALUE_UNDEFINED:
+          case HYMN_VALUE_NONE:
+            hymnPush(hymn, newString(STRING_NONE))
+            break
+          case HYMN_VALUE_BOOL:
+            hymnPush(hymn, value.value ? newString(STRING_TRUE) : newString(STRING_FALSE))
+            break
+          case HYMN_VALUE_INTEGER:
+            hymnPush(hymn, int64_to_string(value.value))
+            break
+          case HYMN_VALUE_FLOAT:
+            hymnPush(hymn, float64_to_string(value.value))
+            break
+          case HYMN_VALUE_STRING:
+            hymnPush(hymn, value)
+            break
+          case HYMN_VALUE_ARRAY:
+            hymnPush(hymn, string_format('[array %p]', value.value))
+            break
+          case HYMN_VALUE_TABLE:
+            hymnPush(hymn, string_format('[table %p]', value.value))
+            break
+          case HYMN_VALUE_FUNC:
+            hymnPush(hymn, value.value.name)
+            break
+          case HYMN_VALUE_FUNC_NATIVE:
+            hymnPush(hymn, value.value.name)
+            break
+          case HYMN_VALUE_POINTER:
+            hymnPush(hymn, string_format('[pointer %p]', value.value))
+            break
+        }
+        break
+      }
+      // END FIXME
       case OP_PRINT: {
         const value = hymnPop(hymn)
         switch (value.is) {
