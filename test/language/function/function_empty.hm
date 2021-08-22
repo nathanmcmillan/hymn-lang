@@ -1,0 +1,8 @@
+# None
+# None
+
+function a() return end
+function b() pass end
+
+print a()
+print b()

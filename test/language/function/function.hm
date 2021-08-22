@@ -1,0 +1,36 @@
+# None
+# True
+# False
+# 1
+# 0.01
+#
+# [1]
+# { hello: "world" }
+# bar
+# 2
+
+function a() return none end
+function b() return true end
+function c() return false end
+function d() return 1 end
+function e() return 0.01 end
+function f() return "" end
+function g() return [1] end
+function h() return { hello: "world" } end
+
+function bar()
+  return 2
+end
+
+function foo() return bar end
+
+print a()
+print b()
+print c()
+print d()
+print e()
+print f()
+print g()
+print h()
+print foo()
+print foo()()

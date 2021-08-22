@@ -1,0 +1,11 @@
+# else
+# block
+# end
+
+if false
+  print "bad"
+else
+  print "else"
+  print "block"
+  print "end"
+end

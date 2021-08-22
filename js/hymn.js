@@ -617,6 +617,59 @@ function tokenName(token) {
   }
 }
 
+function valueToString(value, quote) {
+  switch (value.is) {
+    case HYMN_VALUE_UNDEFINED:
+    case HYMN_VALUE_NONE:
+      return STRING_NONE
+    case HYMN_VALUE_BOOL:
+      return value.value ? STRING_TRUE : STRING_FALSE
+    case HYMN_VALUE_INTEGER:
+    case HYMN_VALUE_FLOAT:
+      return value.value
+    case HYMN_VALUE_STRING:
+      if (quote) {
+        return '"' + value.value + '"'
+      }
+      return value.value
+    case HYMN_VALUE_ARRAY: {
+      const array = value.value
+      let more = false
+      let print = '['
+      for (const item of array) {
+        if (more) {
+          print += ', '
+        }
+        more = true
+        print += valueToString(item, true)
+      }
+      print += ']'
+      return print
+    }
+    case HYMN_VALUE_TABLE: {
+      const table = value.value
+      const keys = Array.from(table.keys())
+      keys.sort()
+      let more = false
+      let print = '{ '
+      for (const key of keys) {
+        if (more) {
+          print += ', '
+        }
+        more = true
+        print += key + ': ' + valueToString(table.get(key), true)
+      }
+      print += ' }'
+      return print
+    }
+    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
+      return value.value.name
+    case HYMN_VALUE_POINTER:
+      return '[pointer ' + value.value + ']'
+  }
+}
+
 function debugValueToString(value) {
   let string = valueName(value.is) + ': '
   switch (value.is) {
@@ -629,6 +682,7 @@ function debugValueToString(value) {
     case HYMN_VALUE_FLOAT:
     case HYMN_VALUE_STRING:
     case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
       return string + value.value
     case HYMN_VALUE_FUNC:
     case HYMN_VALUE_FUNC_NATIVE:
@@ -2569,7 +2623,7 @@ function hymnEqual(a, b) {
   }
 }
 
-function hymnFalse(hymn) {
+function hymnFalse(value) {
   switch (value.is) {
     case HYMN_VALUE_NONE:
       return true
@@ -2580,12 +2634,10 @@ function hymnFalse(hymn) {
     case HYMN_VALUE_FLOAT:
       return value.value === 0.0
     case HYMN_VALUE_STRING:
-      return value.length === 0
     case HYMN_VALUE_ARRAY:
+      return value.value.length === 0
     case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC:
-    case HYMN_VALUE_FUNC_NATIVE:
-      return value.value === null
+      return value.value.size === 0
     default:
       return false
   }
@@ -2873,7 +2925,7 @@ function hymnRun(hymn) {
         const count = readByte(frame)
         const call = hymnPeek(hymn, count + 1)
         frame = hymnCallValue(hymn, call, count)
-        if (response === null) return
+        if (frame === null) return
         break
       }
       case OP_JUMP: {
@@ -3458,7 +3510,6 @@ function hymnRun(hymn) {
         hymnPush(hymn, g)
         break
       }
-      // FIXME
       case OP_SET_DYNAMIC: {
         const s = hymnPop(hymn)
         const i = hymnPop(hymn)
@@ -4051,36 +4102,9 @@ function hymnRun(hymn) {
         }
         break
       }
-      // END FIXME
       case OP_PRINT: {
         const value = hymnPop(hymn)
-        switch (value.is) {
-          case HYMN_VALUE_UNDEFINED:
-          case HYMN_VALUE_NONE:
-            hymn.print(STRING_NONE)
-            break
-          case HYMN_VALUE_BOOL:
-            hymn.print(value.value ? STRING_TRUE : STRING_FALSE)
-            break
-          case HYMN_VALUE_INTEGER:
-          case HYMN_VALUE_FLOAT:
-          case HYMN_VALUE_STRING:
-            hymn.print(value.value)
-            break
-          case HYMN_VALUE_ARRAY:
-            hymn.print('[array ' + value.value + ']')
-            break
-          case HYMN_VALUE_TABLE:
-            hymn.print('[table ' + value.value + ']')
-            break
-          case HYMN_VALUE_FUNC:
-          case HYMN_VALUE_FUNC_NATIVE:
-            hymn.print(value.value.name)
-            break
-          case HYMN_VALUE_POINTER:
-            hymn.print('[pointer ' + value.value + ']')
-            break
-        }
+        hymn.print(valueToString(value, false))
         break
       }
       case OP_THROW: {

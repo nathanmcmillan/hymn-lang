@@ -1,0 +1,14 @@
+# 0
+# 0
+# 0
+# 3
+# 4
+# 2
+
+print len("")
+print len([])
+print len({})
+
+print len("foo")
+print len([1, 2, 3, 4])
+print len({ x: "hello", y: "world"})

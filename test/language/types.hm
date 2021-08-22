@@ -1,0 +1,23 @@
+# Integer
+# Integer
+# Float
+# None
+# Bool
+# Bool
+# String
+# Array
+# Table
+# Function
+
+function example() pass end
+
+print type(0)
+print type(-1)
+print type(0.01)
+print type(none)
+print type(true)
+print type(false)
+print type("foo")
+print type([])
+print type({})
+print type(example)
