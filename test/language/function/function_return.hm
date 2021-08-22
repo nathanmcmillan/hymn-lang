@@ -18,10 +18,7 @@ function f() return "" end
 function g() return [1] end
 function h() return { hello: "world" } end
 
-function bar()
-  return 2
-end
-
+function bar() return 2 end
 function foo() return bar end
 
 print a()
@@ -32,5 +29,6 @@ print e()
 print f()
 print g()
 print h()
+
 print foo()
 print foo()()

@@ -2753,7 +2753,11 @@ static void return_statement(Compiler *this) {
     if (this->scope->type == TYPE_SCRIPT) {
         compile_error(this, &this->previous, "Can't return from outside a function.");
     }
-    expression(this);
+    if (check(this, TOKEN_END)) {
+        emit(this, OP_NONE);
+    } else {
+        expression(this);
+    }
     emit(this, OP_RETURN);
 }
 

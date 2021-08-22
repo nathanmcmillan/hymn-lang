@@ -1,3 +1,5 @@
-# error
+# None
 
 function foo() end
+
+print foo()

@@ -620,6 +620,7 @@ function tokenName(token) {
 function valueToString(value, quote) {
   switch (value.is) {
     case HYMN_VALUE_UNDEFINED:
+      return STRING_UNDEFINED
     case HYMN_VALUE_NONE:
       return STRING_NONE
     case HYMN_VALUE_BOOL:
@@ -666,30 +667,12 @@ function valueToString(value, quote) {
     case HYMN_VALUE_FUNC_NATIVE:
       return value.value.name
     case HYMN_VALUE_POINTER:
-      return '[pointer ' + value.value + ']'
+      return '[Pointer ' + value.value + ']'
   }
 }
 
 function debugValueToString(value) {
-  let string = valueName(value.is) + ': '
-  switch (value.is) {
-    case HYMN_VALUE_UNDEFINED:
-      return string + STRING_UNDEFINED
-    case HYMN_VALUE_NONE:
-      return string + STRING_NONE
-    case HYMN_VALUE_BOOL:
-    case HYMN_VALUE_INTEGER:
-    case HYMN_VALUE_FLOAT:
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-      return string + value.value
-    case HYMN_VALUE_FUNC:
-    case HYMN_VALUE_FUNC_NATIVE:
-      return string + value.value.name
-    default:
-      return string + '?'
-  }
+  return valueName(value.is) + ': ' + valueToString(value, false)
 }
 
 function sourceSubstring(compiler, len, start) {
@@ -1462,7 +1445,7 @@ function pushLocal(compiler, name, isConstant) {
     compileError(compiler, name, 'Too many local variables in scope')
     return
   }
-  const local = scope.locals[scope.localCount++]
+  const local = scopeGetLocal(scope, scope.localCount++)
   local.name = name
   local.constant = isConstant
   local.depth = -1
@@ -2176,7 +2159,11 @@ function returnStatement(compiler) {
   if (compiler.scope.type === TYPE_SCRIPT) {
     compileError(compiler, compiler.previous, "Can't return from outside a function.")
   }
-  expression(compiler)
+  if (check(compiler, TOKEN_END)) {
+    emit(compiler, OP_NONE)
+  } else {
+    expression(compiler)
+  }
   emit(compiler, OP_RETURN)
 }
 
@@ -2493,28 +2480,8 @@ function hymnPop(hymn) {
   return clone(hymn.stack[--hymn.stackTop])
 }
 
-function valueToNewString(value) {
-  switch (value.is) {
-    case HYMN_VALUE_UNDEFINED:
-    case HYMN_VALUE_NONE:
-      return STRING_NONE
-    case HYMN_VALUE_BOOL:
-      return value.value ? STRING_TRUE : STRING_FALSE
-    case HYMN_VALUE_INTEGER:
-    case HYMN_VALUE_FLOAT:
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC:
-    case HYMN_VALUE_FUNC_NATIVE:
-    case HYMN_VALUE_POINTER:
-      return value.value.toString()
-  }
-  return null
-}
-
 function hymnException(hymn) {
-  const frame = currentFrame(hymn)
+  let frame = currentFrame(hymn)
   while (true) {
     let except = null
     let range = frame.func.except
@@ -2535,7 +2502,7 @@ function hymnException(hymn) {
     hymn.stackTop = frame.stack
     hymn.frameCount--
     if (hymn.frameCount === 0 || frame.func.name === null) {
-      hymn.error = valueToNewString(result)
+      hymn.error = valueToString(result, false)
       return null
     }
     hymnPush(hymn, result)
