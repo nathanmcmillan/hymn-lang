@@ -1,0 +1,29 @@
+# if
+# elif
+# else
+
+let x = 3
+
+if x == 3
+  print "if"
+elif x == 4
+  print "bad"
+else
+  print "bad"
+end
+
+if x == 2
+  print "bad"
+elif x == 3
+  print "elif"
+else
+  print "bad"
+end
+
+if x == 1
+  print "bad"
+elif x == 2
+  print "bad"
+else
+  print "else"
+end

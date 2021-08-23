@@ -526,6 +526,7 @@ Rule rules[] = {
     [TOKEN_USE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_VALUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_SEMICOLON] = {NULL, NULL, PRECEDENCE_NONE},
 };
 
 static const char *value_name(enum HymnValueType type) {
@@ -1723,6 +1724,7 @@ static void scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
     local->depth = 0;
     local->name.start = 0;
     local->name.length = 0;
+    local->constant = false;
 }
 
 static inline Compiler new_compiler(const char *script, const char *source, Machine *machine, Scope *scope) {
@@ -1898,8 +1900,8 @@ static u8 arguments(Compiler *this) {
 
 static void compile_call(Compiler *this, bool assign) {
     (void)assign;
-    u8 args = arguments(this);
-    emit_two(this, OP_CALL, args);
+    u8 count = arguments(this);
+    emit_two(this, OP_CALL, count);
 }
 
 static void compile_group(Compiler *this, bool assign) {
@@ -3519,8 +3521,10 @@ static Frame *machine_call_value(Machine *this, Value call, int count) {
         PUSH(result)
         return current_frame(this);
     }
-    default:
-        return machine_throw_error(this, "Only functions can be called.");
+    default: {
+        const char *is = value_name(call.is);
+        return machine_throw_error(this, "Call: Requires `Function`, but was `%s`.", is);
+    }
     }
 }
 

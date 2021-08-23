@@ -101,7 +101,7 @@ function testSource(file) {
       }
     } else {
       if (error) {
-        return indent(4, error)
+        return indent(4, error.trim())
       } else if (out !== expected) {
         return indent(4, 'Expected:') + '\n' + indent(8, expected) + '\n' + indent(4, 'But was:') + '\n' + indent(8, out.trim())
       }
@@ -112,9 +112,18 @@ function testSource(file) {
   return null
 }
 
+function hymnFiles() {
+  let files = find(scripts)
+  if (process.argv.length >= 3) {
+    const filter = process.argv[2]
+    files = files.filter((file) => file.includes(filter))
+  }
+  files.sort()
+  return files
+}
+
 function testHymn() {
-  const tests = find(scripts)
-  tests.sort()
+  const tests = hymnFiles()
   for (const test of tests) {
     const file = path.basename(test)
     const start = process.hrtime.bigint()

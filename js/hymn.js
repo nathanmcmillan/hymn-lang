@@ -295,8 +295,7 @@ function copyToken(dest, src) {
 
 class Local {
   constructor() {
-    this.nameStart = 0
-    this.nameLen = 0
+    this.name = null
     this.depth = 0
     this.constant = false
   }
@@ -434,6 +433,7 @@ rules[TOKEN_UNDEFINED] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_USE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_VALUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_WHILE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_SEMICOLON] = new Rule(null, null, PRECEDENCE_NONE)
 
 function valueName(type) {
   switch (type) {
@@ -958,7 +958,7 @@ function identKey(ident, size) {
       }
       break
     case 'f':
-      if (size === 3) return identTrie(ident, 1, '||', TOKEN_FOR)
+      if (size === 3) return identTrie(ident, 1, 'or', TOKEN_FOR)
       if (size === 8) return identTrie(ident, 1, 'unction', TOKEN_FUNCTION)
       if (size === 5) {
         if (ident[1] === 'a') return identTrie(ident, 2, 'lse', TOKEN_FALSE)
@@ -1214,8 +1214,8 @@ function scopeInit(compiler, scope, type) {
 
   const local = scopeGetLocal(scope, scope.localCount++)
   local.depth = 0
-  local.nameStart = 0
-  local.nameLen = 0
+  local.name = null
+  local.constant = false
 }
 
 function newCompiler(script, source, hymn, scope) {
@@ -1323,8 +1323,7 @@ function pushHiddenLocal(compiler) {
   }
   const index = scope.localCount++
   const local = scopeGetLocal(scope, index)
-  local.nameStart = 0
-  local.nameLen = 0
+  local.name = null
   local.constant = true
   local.depth = scope.depth
   return index
@@ -1347,7 +1346,8 @@ function args(compiler) {
 }
 
 function compileCall(compiler, assign) {
-  emitTwo(compiler, OP_CALL, args(compiler))
+  const count = args(compiler)
+  emitTwo(compiler, OP_CALL, count)
 }
 
 function compileGroup(compiler, assign) {
@@ -1457,7 +1457,8 @@ function variable(compiler, isConstant, error) {
   if (scope.depth === 0) {
     return identConstant(compiler, compiler.previous)
   }
-  const name = compiler.previous
+  const token = compiler.previous
+  const name = sourceSubstring(compiler, token.len, token.start)
   for (let i = scope.localCount - 1; i >= 0; i--) {
     const local = scope.locals[i]
     if (local.depth !== -1 && local.depth < scope.depth) {
@@ -1493,7 +1494,8 @@ function defineNewVariable(compiler, isConstant) {
   finalizeVariable(compiler, v)
 }
 
-function resolveLocal(compiler, name) {
+function resolveLocal(compiler, token) {
+  const name = sourceSubstring(compiler, token.len, token.start)
   const scope = compiler.scope
   for (let i = scope.localCount - 1; i >= 0; i--) {
     const local = scope.locals[i]
@@ -1757,7 +1759,7 @@ function block(compiler) {
 
 function ifStatement(compiler) {
   expression(compiler)
-  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
+  let jump = emitJump(compiler, OP_JUMP_IF_FALSE)
 
   emit(compiler, OP_POP)
   beginScope(compiler)
@@ -1988,7 +1990,7 @@ function iterateStatement(compiler) {
     index = value
     writeConstant(compiler, newInt(0), compiler.previous.row)
 
-    value = compiler.scope.local_count
+    value = compiler.scope.localCount
     variable(compiler, true, 'Expected second parameter name.')
     localInitialize(compiler)
     emit(compiler, OP_NONE)
@@ -2077,7 +2079,7 @@ function forStatement(compiler) {
   } else if (match(compiler, TOKEN_CONST)) {
     defineNewVariable(compiler, true)
   } else if (!check(compiler, TOKEN_SEMICOLON)) {
-    expression_statement(compiler)
+    expressionStatement(compiler)
   }
 
   consume(compiler, TOKEN_SEMICOLON, "Expected ';' in for.")
@@ -2197,14 +2199,14 @@ function continueStatement(compiler) {
   }
   popStackLoop(compiler)
   if (compiler.loop.start === -1) {
-    const jumpNext = compiler.iterator_jump
+    const jumpNext = compiler.iteratorJump
     const jump = new JumpList()
     jump.jump = emitJump(compiler, OP_JUMP)
     jump.depth = compiler.loop.depth
     jump.next = jumpNext
-    compiler.iterator_jump = jump
+    compiler.iteratorJump = jump
   } else {
-    emit_loop(compiler, compiler.loop.start)
+    emitLoop(compiler, compiler.loop.start)
   }
 }
 
@@ -2231,7 +2233,7 @@ function tryStatement(compiler) {
 
   beginScope(compiler)
   const message = variable(compiler, false, "Expected variable after 'except'.")
-  finalize_variable(compiler, message)
+  finalizeVariable(compiler, message)
   while (!check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
     declaration(compiler)
   }
@@ -2531,7 +2533,7 @@ function hymnStacktrace(hymn) {
       trace += ' ' + func.script + ':'
     }
 
-    trace += row
+    trace += row + '\n'
   }
 
   return trace
@@ -2634,20 +2636,22 @@ function hymnCall(hymn, func, count) {
   return frame
 }
 
-function hymnCallValue(hymn, call, count) {
-  switch (call.is) {
+function hymnCallValue(hymn, value, count) {
+  switch (value.is) {
     case HYMN_VALUE_FUNC:
-      return hymnCall(hymn, call.value, count)
+      return hymnCall(hymn, value.value, count)
     case HYMN_VALUE_FUNC_NATIVE: {
-      const func = call.value.func
+      const func = value.value.func
       const result = func(hymn, count, hymn.stack[hymn.stackTop - count])
       const top = hymn.stackTop - (count + 1)
       hymn.stackTop = top
       hymnPush(hymn, result)
       return currentFrame(frame)
     }
-    default:
-      return hymnThrowError(hymn, 'Only functions can be called.')
+    default: {
+      const is = valueName(value.is)
+      return hymnThrowError(hymn, 'Call: Requires `Function`, but was `' + is + '`.')
+    }
   }
 }
 
@@ -2703,7 +2707,7 @@ function debugByteInstruction(name, code, index) {
 
 function debugJumpInstruction(name, sign, code, index) {
   const jump = (code.instructions[index + 1] << 8) | code.instructions[index + 2]
-  return name + ': [' + index + '] . [' + (index + 3 + sign * jump) + ']'
+  return name + ': [' + index + '] -> [' + (index + 3 + sign * jump) + ']'
 }
 
 function debugInstruction(name) {
@@ -3516,7 +3520,7 @@ function hymnRun(hymn) {
           }
           const table = v.value
           const name = i.value
-          table_put(table, name, s)
+          table.set(name, s)
         } else {
           const is = valueName(v.is)
           frame = hymnThrowError(hymn, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.', is)
@@ -3762,13 +3766,13 @@ function hymnRun(hymn) {
             hymnPush(hymn, value)
             break
           case HYMN_VALUE_ARRAY: {
-            const copy = new_array_copy(value.value)
-            hymnPush(hymn, new_array_value(copy))
+            const copy = newArrayCopy(value.value)
+            hymnPush(hymn, newArrayValue(copy))
             break
           }
           case HYMN_VALUE_TABLE: {
-            const copy = new_table_copy(value.value)
-            hymnPush(hymn, new_table_value(copy))
+            const copy = newTableCopy(value.value)
+            hymnPush(hymn, newTableValue(copy))
             break
           }
           default:
@@ -3817,8 +3821,8 @@ function hymnRun(hymn) {
             if (frame === null) return
             else break
           }
-          const sub = newString_from_substring(original, left, right)
-          hymnPush(hymn, sub)
+          const sub = original.substring(left, right - left)
+          hymnPush(hymn, newString(sub))
         } else if (isArray(v)) {
           const array = v.value
           const size = array.length
@@ -3850,8 +3854,8 @@ function hymnRun(hymn) {
             if (frame === null) return
             else break
           }
-          const copy = new_array_slice(array, left, right)
-          hymnPush(hymn, new_array_value(copy))
+          const copy = newArraySlice(array, left, right)
+          hymnPush(hymn, newArrayValue(copy))
 
           break
         } else {
@@ -3866,7 +3870,7 @@ function hymnRun(hymn) {
         const value = hymnPop(hymn)
         switch (value.is) {
           case HYMN_VALUE_BOOL:
-            hymnPush(hymn, new_bool(false))
+            hymnPush(hymn, newBool(false))
             break
           case HYMN_VALUE_INTEGER:
             hymnPush(hymn, newInt(0))
@@ -3879,13 +3883,13 @@ function hymnRun(hymn) {
             break
           case HYMN_VALUE_ARRAY: {
             const array = value.value
-            array_clear(hymn, array)
+            arrayClear(hymn, array)
             hymnPush(hymn, value)
             break
           }
           case HYMN_VALUE_TABLE: {
             const table = value.value
-            table_clear(hymn, table)
+            tableClear(hymn, table)
             hymnPush(hymn, value)
             break
           }
@@ -3907,8 +3911,8 @@ function hymnRun(hymn) {
           else break
         } else {
           const table = value.value
-          const array = table_keys(table)
-          const keys = new_array_value(array)
+          const array = tableKeys(table)
+          const keys = newArrayValue(array)
           hymnPush(hymn, keys)
         }
         break
@@ -3924,7 +3928,7 @@ function hymnRun(hymn) {
               else break
             }
             const index = 0
-            const found = string_find(a.value, b.value, index)
+            const found = stringFind(a.value, b.value, index)
             if (found) {
               hymnPush(hymn, newInt(index))
             } else {
@@ -3933,14 +3937,14 @@ function hymnRun(hymn) {
             break
           }
           case HYMN_VALUE_ARRAY:
-            hymnPush(hymn, newInt(array_index_of(a.value, b)))
+            hymnPush(hymn, newInt(arrayIndexOf(a.value, b)))
             break
           case HYMN_VALUE_TABLE: {
-            const key = table_key_of(a.value, b)
+            const key = tableKeyOf(a.value, b)
             if (key == NULL) {
               hymnPush(hymn, newNone())
             } else {
-              hymnPush(hymn, newString_value(key))
+              hymnPush(hymn, newString(key))
             }
             break
           }

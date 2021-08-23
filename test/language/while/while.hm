@@ -1,0 +1,18 @@
+# 0
+# 1
+# 2
+# 3
+#
+# 4
+# 6
+# 8
+
+let i = 0
+while i < 4
+  print i
+  i = i + 1
+end
+print ""
+
+i = 2
+while (i < 8) print i = i + 2 end
