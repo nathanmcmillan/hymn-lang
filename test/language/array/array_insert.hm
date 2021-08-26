@@ -1,0 +1,18 @@
+# [2.1, 6.8]
+# 4.2
+# [2.1, 4.2, 6.8]
+# [0.1, 2.1, 4.2, 6.8]
+# [0.1, 2.1, 4.2, 6.8, 8.1]
+
+let array = [2.1, 6.8]
+print array
+
+let top = insert(array, 1, 4.2)
+print top
+print array
+
+insert(array, 0, 0.1)
+print array
+
+insert(array, 4, 8.1)
+print array

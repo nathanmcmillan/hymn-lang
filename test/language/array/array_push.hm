@@ -1,0 +1,10 @@
+# ["hello"]
+# world
+# ["hello", "world"]
+
+let array = ["hello"]
+print array
+
+let top = push(array, "world")
+print top
+print array

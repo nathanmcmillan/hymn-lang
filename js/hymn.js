@@ -3680,7 +3680,7 @@ function hymnRun(hymn) {
           const size = array.length
           const index = i.value
           if (index > size) {
-            frame = hymnThrowError(hymn, 'Insert Function: Array index out of bounds: %d > %d', index, size)
+            frame = hymnThrowError(hymn, `Insert Function: Array index out of bounds: ${index} > ${size}`)
             if (frame === null) return
             else break
           }
@@ -3695,7 +3695,7 @@ function hymnRun(hymn) {
           if (index == size) {
             array.push(p)
           } else {
-            array[index] = p
+            array.splice(index, 0, p)
           }
           hymnPush(hymn, p)
         } else {
@@ -3719,7 +3719,7 @@ function hymnRun(hymn) {
           const size = array.length
           const index = i.value
           if (index >= size) {
-            frame = hymnThrowError(hymn, 'Array index out of bounds %d > %d.', index, size)
+            frame = hymnThrowError(hymn, `Delete Function: Array index out of bounds ${index} > ${size}.`)
             if (frame === null) return
             else break
           }
@@ -3731,7 +3731,7 @@ function hymnRun(hymn) {
               else break
             }
           }
-          const value = array.splice(index)[0]
+          const value = array.splice(index, 1)[0]
           hymnPush(hymn, value)
         } else if (isTable(v)) {
           if (!isString(i)) {

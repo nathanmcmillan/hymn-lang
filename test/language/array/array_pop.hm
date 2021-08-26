@@ -1,0 +1,10 @@
+# [2, 4, 6]
+# 6
+# [2, 4]
+
+let array = [2, 4, 6]
+print array
+
+let top = pop(array)
+print top
+print array
