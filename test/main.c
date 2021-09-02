@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     (void)argv;
 
     printf("\n");
-    TEST_SET(test_hymn_all);
+    test_hymn();
     printf("Success: %d, Failed: %d, Total: %d\n\n", tests_success, tests_fail, tests_count);
 
     return 0;

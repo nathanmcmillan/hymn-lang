@@ -129,3 +129,57 @@ String *cat(const char *path) {
     free(content);
     return s;
 }
+
+static void file_list_add(struct FileList *list, String *file) {
+    int count = list->count;
+    if (count + 1 > list->capacity) {
+        if (list->capacity == 0) {
+            list->capacity = 1;
+            list->files = safe_malloc(sizeof(String *));
+        } else {
+            list->capacity *= 2;
+            list->files = safe_realloc(list->files, list->capacity * sizeof(String *));
+        }
+    }
+    list->files[count] = file;
+    list->count = count + 1;
+}
+
+#ifdef __GNUC__
+static bool recurse_directories(const char *path, struct FileList *list) {
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        return true;
+    }
+    struct dirent *d;
+    char file[PATH_MAX];
+    while ((d = readdir(dir)) != NULL) {
+        if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0) {
+            strcpy(file, path);
+            strcat(file, PATH_SEP_STRING);
+            strcat(file, d->d_name);
+            if (recurse_directories(file, list)) {
+                file_list_add(list, new_string(file));
+            }
+        }
+    }
+    closedir(dir);
+    return false;
+}
+#endif
+
+struct FileList directories(const char *path) {
+    struct FileList list = {.count = 0, .capacity = 0, .files = NULL};
+#ifdef __GNUC__
+    recurse_directories(path, &list);
+#elif _MSC_VER
+#else
+#endif
+    return list;
+}
+
+void delete_file_list(struct FileList *list) {
+    for (int i = 0; i < list->count; i++) {
+        string_delete(list->files[i]);
+    }
+}

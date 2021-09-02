@@ -21,24 +21,30 @@ static String *parse_expected(String *source) {
     usize size = string_len(source);
     for (usize pos = 0; pos < size; pos++) {
         char c = source[pos];
-        if (c == '#' && pos + 1 < size && source[pos + 1] == ' ') {
-            pos += 2;
-            while (pos < size) {
-                c = source[pos];
-                expected = string_append_char(expected, c);
-                if (c == '\n') {
-                    break;
+        if (c == '#' && pos + 1 < size) {
+            if (source[pos + 1] == ' ') {
+                pos += 2;
+                while (pos < size) {
+                    c = source[pos];
+                    expected = string_append_char(expected, c);
+                    if (c == '\n') {
+                        break;
+                    }
+                    pos++;
                 }
+                continue;
+            } else if (source[pos + 1] == '\n') {
                 pos++;
+                expected = string_append_char(expected, '\n');
+                continue;
             }
-            continue;
         }
         break;
     }
     return expected;
 }
 
-static char *test(char *script) {
+static String *test_source(String *script) {
     String *source = cat(script);
     String *expected = parse_expected(source);
     Hymn *hymn = new_hymn();
@@ -47,58 +53,45 @@ static char *test(char *script) {
     char *error = hymn_do(hymn, source);
     hymn_delete(hymn);
     string_delete(source);
-    ASSERT(error, error == NULL);
-    ASSERT(out, string_equal(out, expected));
+    String *result = NULL;
+    if (strcmp(expected, "error\n") == 0) {
+        result = new_string("Expected an error.\n");
+    } else {
+        if (error != NULL) {
+            result = new_string(error);
+            free(error);
+        } else if (!string_equal(out, expected)) {
+            result = string_format("Expected:\n%s\nBut was:\n%s", expected, out);
+        }
+    }
     string_delete(expected);
-    return NULL;
+    return result;
 }
 
-static char *test_exception(char *script) {
-    string_zero(out);
-    Hymn *hymn = new_hymn();
-    hymn->print = console;
-    char *error = hymn_read(hymn, script);
-    hymn_delete(hymn);
-    ASSERT("Expected an exception.", error != NULL);
-    return NULL;
-}
-
-static char *test_arithmetic() {
-    return test("test/language/arithmetic.hm");
-}
-
-static char *test_runtime_error() {
-    return test_exception("test/language/runtime_error.hm");
-}
-
-static char *test_if() {
-    return test("test/language/if.hm");
-}
-
-static char *test_break() {
-    return test("test/language/break.hm");
-}
-
-static char *test_switch() {
-    return test("test/language/switch.hm");
-}
-
-static char *test_functions() {
-    return test("test/language/functions.hm");
-}
-
-static char *benchmark_fib() {
-    return test("test/language/fib.hm");
-}
-
-char *test_hymn_all() {
+void test_hymn() {
     out = new_string("");
-    TEST(test_arithmetic);
-    TEST(test_runtime_error);
-    TEST(test_if);
-    TEST(test_break);
-    TEST(test_switch);
-    TEST(test_functions);
-    BENCHMARK(benchmark_fib);
-    return NULL;
+
+    struct FileList all = directories("test/language");
+
+    String *end = new_string(".hm");
+    struct FilterList scripts = string_filter_ends_with(all.files, all.count, end);
+
+    for (int i = 0; i < scripts.count; i++) {
+        tests_count++;
+        String *script = scripts.filtered[i];
+        String *result = test_source(script);
+        if (result != NULL) {
+            printf("⨯ %s\n%s\n", script, result);
+            tests_fail++;
+        } else {
+            printf("✓ %s\n", script);
+            tests_success++;
+        }
+        string_delete(result);
+    }
+
+    delete_file_list(&all);
+    delete_filter_list(&scripts);
+    string_delete(end);
+    // BENCHMARK(benchmark_fib);
 }

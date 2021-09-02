@@ -210,6 +210,12 @@ bool string_starts_with(String *s, String *p) {
     return slen < plen ? false : memcmp(s, p, plen) == 0;
 }
 
+bool string_ends_with(String *s, String *p) {
+    usize slen = string_len(s);
+    usize plen = string_len(p);
+    return slen < plen ? false : memcmp(&s[slen - plen], p, plen) == 0;
+}
+
 bool string_find(String *this, String *sub, usize *out) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     StringHead *head_sub = (StringHead *)((char *)sub - sizeof(StringHead));
@@ -386,9 +392,9 @@ String *uint64_to_string(u64 number) {
 }
 
 String *float_to_string(float number) {
-    int len = snprintf(NULL, 0, "%f", number);
+    int len = snprintf(NULL, 0, "%g", number);
     char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%f", number);
+    snprintf(str, len + 1, "%g", number);
     String *s = new_string_with_length(str, len);
     free(str);
     return s;
@@ -399,9 +405,9 @@ String *float32_to_string(float number) {
 }
 
 String *float64_to_string(double number) {
-    int len = snprintf(NULL, 0, "%f", number);
+    int len = snprintf(NULL, 0, "%g", number);
     char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%f", number);
+    snprintf(str, len + 1, "%g", number);
     String *s = new_string_with_length(str, len);
     free(str);
     return s;
@@ -512,4 +518,25 @@ String *string_append_format(String *this, const char *format, ...) {
     this = string_append(this, chars);
     free(chars);
     return this;
+}
+
+struct FilterList string_filter(String **input, int count, bool (*filter)(String *a, String *b), String *with) {
+    int size = 0;
+    String **filtered = safe_calloc(count, sizeof(String *));
+    for (int i = 0; i < count; i++) {
+        if (filter(input[i], with)) {
+            filtered[size++] = string_copy(input[i]);
+        }
+    }
+    return (struct FilterList){.count = size, .filtered = filtered};
+}
+
+struct FilterList string_filter_ends_with(String **input, int count, String *with) {
+    return string_filter(input, count, string_ends_with, with);
+}
+
+void delete_filter_list(struct FilterList *list) {
+    for (int i = 0; i < list->count; i++) {
+        string_delete(list->filtered[i]);
+    }
 }

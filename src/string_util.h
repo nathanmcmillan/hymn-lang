@@ -48,7 +48,8 @@ String *string_append_substring(String *this, const char *b, usize start, usize 
 
 int string_compare(String *a, String *b);
 bool string_equal(String *a, String *b);
-bool string_starts_with(String *a, String *b);
+bool string_starts_with(String *s, String *p);
+bool string_ends_with(String *s, String *p);
 
 bool string_find(String *this, String *sub, usize *out);
 
@@ -98,5 +99,14 @@ char *string_to_chars(String *this);
 
 String *string_format(const char *format, ...);
 String *string_append_format(String *this, const char *format, ...);
+
+struct FilterList {
+    int count;
+    String **filtered;
+};
+
+struct FilterList string_filter(String **input, int count, bool (*filter)(String *a, String *b), String *with);
+struct FilterList string_filter_ends_with(String **input, int count, String *with);
+void delete_filter_list(struct FilterList *list);
 
 #endif

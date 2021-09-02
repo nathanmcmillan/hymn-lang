@@ -650,6 +650,9 @@ function valueToString(value, quote) {
     case HYMN_VALUE_TABLE: {
       const table = value.value
       const keys = Array.from(table.keys())
+      if (keys.length === 0) {
+        return '{}'
+      }
       keys.sort()
       let more = false
       let print = '{ '
@@ -4038,39 +4041,7 @@ function hymnRun(hymn) {
       }
       case OP_TO_STRING: {
         const value = hymnPop(hymn)
-        switch (value.is) {
-          case HYMN_VALUE_UNDEFINED:
-          case HYMN_VALUE_NONE:
-            hymnPush(hymn, newString(STRING_NONE))
-            break
-          case HYMN_VALUE_BOOL:
-            hymnPush(hymn, value.value ? newString(STRING_TRUE) : newString(STRING_FALSE))
-            break
-          case HYMN_VALUE_INTEGER:
-            hymnPush(hymn, newString(String(value.value)))
-            break
-          case HYMN_VALUE_FLOAT:
-            hymnPush(hymn, newString(String(value.value)))
-            break
-          case HYMN_VALUE_STRING:
-            hymnPush(hymn, value)
-            break
-          case HYMN_VALUE_ARRAY:
-            hymnPush(hymn, newString('[array ' + value.value + ']'))
-            break
-          case HYMN_VALUE_TABLE:
-            hymnPush(hymn, newString('[table ' + value.value + ']'))
-            break
-          case HYMN_VALUE_FUNC:
-            hymnPush(hymn, newString(value.value.name))
-            break
-          case HYMN_VALUE_FUNC_NATIVE:
-            hymnPush(hymn, newString(value.value.name))
-            break
-          case HYMN_VALUE_POINTER:
-            hymnPush(hymn, newString('[pointer ' + value.value + ']'))
-            break
-        }
+        hymnPush(hymn, newString(valueToString(value, false)))
         break
       }
       case OP_PRINT: {

@@ -3,19 +3,13 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 extern int tests_success;
 extern int tests_fail;
 extern int tests_count;
 
-#define ASSERT(message, test) \
-    do {                      \
-        if (!(test)) {        \
-            return message;   \
-        }                     \
-    } while (0)
-#endif
-
+#ifdef IGNORE_ME
 #define TEST(test)                 \
     do {                           \
         printf("    %s\n", #test); \
@@ -43,7 +37,7 @@ extern int tests_count;
         clock_t start = clock();                                     \
         char *message = test();                                      \
         double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC; \
-        printf("    %s: %f seconds\n", #test, elapsed);              \
+        printf("    %s: %g seconds\n", #test, elapsed);              \
         tests_count++;                                               \
         if (message) {                                               \
             tests_fail++;                                            \
@@ -51,3 +45,6 @@ extern int tests_count;
         }                                                            \
         tests_success++;                                             \
     } while (0)
+#endif
+
+#endif

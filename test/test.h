@@ -7,6 +7,6 @@
 
 #include "../src/hymn.h"
 
-char *test_hymn_all();
+void test_hymn();
 
 #endif

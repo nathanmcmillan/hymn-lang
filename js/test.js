@@ -62,7 +62,6 @@ function parseExpected(source) {
   for (let pos = 0; pos < size; pos++) {
     let c = source[pos]
     if (c === '#' && pos + 1 < size) {
-      const n = source[pos + 1]
       if (source[pos + 1] === ' ') {
         pos += 2
         while (pos < size) {

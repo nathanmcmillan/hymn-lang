@@ -626,26 +626,78 @@ static const char *token_name(enum TokenType type) {
     }
 }
 
-static String *debug_value_to_string(Value value) {
-    String *string = new_string(value_name(value.is));
-    string = string_append(string, ": ");
+static String *value_to_string(Value value, bool quote) {
     switch (value.is) {
-    case HYMN_VALUE_UNDEFINED: return string_append(string, "UNDEFINED");
-    case HYMN_VALUE_NONE: return string_append(string, "NONE");
-    case HYMN_VALUE_BOOL: return string_append(string, as_bool(value) ? "TRUE" : "FALSE");
-    case HYMN_VALUE_INTEGER: return string_append_format(string, "%" PRId64, as_int(value));
-    case HYMN_VALUE_FLOAT: return string_append_format(string, "%g", as_float(value));
-    case HYMN_VALUE_STRING: return string_append_format(string, "\"%s\"", as_string(value));
-    case HYMN_VALUE_ARRAY: return string_append_format(string, "[%p]", as_array(value));
-    case HYMN_VALUE_TABLE: return string_append_format(string, "[%p]", as_table(value));
+    case HYMN_VALUE_UNDEFINED: return new_string(STRING_UNDEFINED);
+    case HYMN_VALUE_NONE: return new_string(STRING_NONE);
+    case HYMN_VALUE_BOOL: return as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE);
+    case HYMN_VALUE_INTEGER: return int64_to_string(as_int(value));
+    case HYMN_VALUE_FLOAT: return float64_to_string(as_float(value));
+    case HYMN_VALUE_STRING: {
+        if (quote) return string_format("\"%s\"", as_string(value));
+        return string_copy(as_string(value));
+    }
+    case HYMN_VALUE_ARRAY: {
+        Array *array = as_array(value);
+        bool more = false;
+        String *string = new_string("[");
+        for (i64 i = 0; i < array->length; i++) {
+            if (more) {
+                string = string_append(string, ", ");
+            }
+            more = true;
+            String *add = value_to_string(array->items[i], true);
+            string = string_append(string, add);
+            string_delete(add);
+        }
+        string = string_append_char(string, ']');
+        return string;
+    }
+    case HYMN_VALUE_TABLE: {
+        Table *table = as_table(value);
+        bool more = false;
+        String *string = new_string("{");
+        unsigned int bins = table->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            TableItem *item = table->items[i];
+            while (item != NULL) {
+                if (more) {
+                    string = string_append(string, ", ");
+                } else {
+                    string = string_append_char(string, ' ');
+                }
+                more = true;
+
+                String *add = value_to_string(item->value, true);
+                string = string_append(string, add);
+                string_delete(add);
+
+                item = item->next;
+            }
+        }
+        if (string_len(string) == 1) {
+            string = string_append_char(string, '}');
+        } else {
+            string = string_append(string, " }");
+        }
+        return string;
+    }
     case HYMN_VALUE_FUNC: {
         Function *func = as_func(value);
-        if (func->name) return string_append_format(string, "<%s>", func->name);
-        return string_append_format(string, "<%s>", func->script);
+        if (func->name) return string_copy(func->name);
+        return string_copy(func->script);
     }
-    case HYMN_VALUE_FUNC_NATIVE: return string_append_format(string, "<%s>", as_native(value)->name);
-    default: return string_append_char(string, '?');
+    case HYMN_VALUE_FUNC_NATIVE: return string_copy(as_native(value)->name);
+    case HYMN_VALUE_POINTER: return string_format("[Pointer %p]", as_pointer(value));
     }
+    return new_string("?");
+}
+
+static String *debug_value_to_string(Value value) {
+    String *string = value_to_string(value, false);
+    String *format = string_format("%s: %s", value_name(value.is), string);
+    string_delete(string);
+    return format;
 }
 
 static void debug_value(Value value) {
@@ -3321,33 +3373,6 @@ static void machine_push_intern_string(Machine *this, String *string) {
     PUSH(new_string_value(intern))
 }
 
-static String *value_to_new_string(Value value) {
-    switch (value.is) {
-    case HYMN_VALUE_UNDEFINED:
-    case HYMN_VALUE_NONE:
-        return new_string(STRING_NONE);
-    case HYMN_VALUE_BOOL:
-        return as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE);
-    case HYMN_VALUE_INTEGER:
-        return int64_to_string(as_int(value));
-    case HYMN_VALUE_FLOAT:
-        return float64_to_string(as_float(value));
-    case HYMN_VALUE_STRING:
-        return string_copy(as_string(value));
-    case HYMN_VALUE_ARRAY:
-        return string_format("[array %p]", as_array(value));
-    case HYMN_VALUE_TABLE:
-        return string_format("[table %p]", as_table(value));
-    case HYMN_VALUE_FUNC:
-        return string_format("%s", as_func(value)->name);
-    case HYMN_VALUE_FUNC_NATIVE:
-        return string_format("%s", as_native(value)->name);
-    case HYMN_VALUE_POINTER:
-        return string_format("[pointer %p]", as_pointer(value));
-    }
-    return NULL;
-}
-
 static Frame *machine_exception(Machine *this) {
     Frame *frame = current_frame(this);
     while (true) {
@@ -3375,7 +3400,7 @@ static Frame *machine_exception(Machine *this) {
         this->frame_count--;
         if (this->frame_count == 0 or frame->func->name == NULL) {
             assert(this->error == NULL);
-            this->error = value_to_new_string(result);
+            this->error = value_to_string(result, false);
             DEREF(result)
             return NULL;
         }
@@ -3483,8 +3508,8 @@ static bool machine_false(Value value) {
     case HYMN_VALUE_INTEGER: return as_int(value) == 0;
     case HYMN_VALUE_FLOAT: return as_float(value) == 0.0;
     case HYMN_VALUE_STRING: return string_len(as_string(value)) == 0;
-    case HYMN_VALUE_ARRAY: return as_array(value) == NULL;
-    case HYMN_VALUE_TABLE: return as_table(value) == NULL;
+    case HYMN_VALUE_ARRAY: return as_array(value)->length == 0;
+    case HYMN_VALUE_TABLE: return as_table(value)->size == 0;
     case HYMN_VALUE_FUNC: return as_func(value) == NULL;
     case HYMN_VALUE_FUNC_NATIVE: return as_native(value) == NULL;
     default: return false;
@@ -4608,85 +4633,16 @@ static void machine_run(Machine *this) {
         }
         case OP_TO_STRING: {
             POP(value)
-            switch (value.is) {
-            case HYMN_VALUE_UNDEFINED:
-            case HYMN_VALUE_NONE:
-                machine_push_intern_string(this, new_string(STRING_NONE));
-                break;
-            case HYMN_VALUE_BOOL:
-                machine_push_intern_string(this, as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE));
-                break;
-            case HYMN_VALUE_INTEGER:
-                machine_push_intern_string(this, int64_to_string(as_int(value)));
-                break;
-            case HYMN_VALUE_FLOAT:
-                machine_push_intern_string(this, float64_to_string(as_float(value)));
-                break;
-            case HYMN_VALUE_STRING:
-                PUSH(value)
-                break;
-            case HYMN_VALUE_ARRAY:
-                machine_push_intern_string(this, string_format("[array %p]", as_array(value)));
-                DEREF(value)
-                break;
-            case HYMN_VALUE_TABLE:
-                machine_push_intern_string(this, string_format("[table %p]", as_table(value)));
-                DEREF(value)
-                break;
-            case HYMN_VALUE_FUNC:
-                machine_push_intern_string(this, as_func(value)->name);
-                DEREF(value)
-                break;
-            case HYMN_VALUE_FUNC_NATIVE:
-                machine_push_intern_string(this, as_native(value)->name);
-                break;
-            case HYMN_VALUE_POINTER:
-                machine_push_intern_string(this, string_format("[pointer %p]", as_pointer(value)));
-                DEREF(value)
-                break;
-            }
+            machine_push_intern_string(this, value_to_string(value, false));
+            DEREF(value)
             break;
         }
         case OP_PRINT: {
             POP(value)
-            switch (value.is) {
-            case HYMN_VALUE_UNDEFINED:
-            case HYMN_VALUE_NONE:
-                this->print("%s\n", STRING_NONE);
-                break;
-            case HYMN_VALUE_BOOL:
-                this->print("%s\n", as_bool(value) ? STRING_TRUE : STRING_FALSE);
-                break;
-            case HYMN_VALUE_INTEGER:
-                this->print("%" PRId64 "\n", as_int(value));
-                break;
-            case HYMN_VALUE_FLOAT:
-                this->print("%g\n", as_float(value));
-                break;
-            case HYMN_VALUE_STRING:
-                this->print("%s\n", as_string(value));
-                DEREF(value)
-                break;
-            case HYMN_VALUE_ARRAY:
-                this->print("[array %p]\n", (void *)as_array(value));
-                DEREF(value)
-                break;
-            case HYMN_VALUE_TABLE:
-                this->print("[table %p]\n", (void *)as_table(value));
-                DEREF(value)
-                break;
-            case HYMN_VALUE_FUNC:
-                this->print("%s\n", as_func(value)->name);
-                DEREF(value)
-                break;
-            case HYMN_VALUE_FUNC_NATIVE:
-                this->print("%s\n", as_native(value)->name);
-                break;
-            case HYMN_VALUE_POINTER:
-                this->print("[pointer %p]\n", as_pointer(value));
-                DEREF(value)
-                break;
-            }
+            String *string = value_to_string(value, false);
+            this->print("%s\n", string);
+            string_delete(string);
+            DEREF(value)
             break;
         }
         case OP_THROW: {
@@ -4819,7 +4775,7 @@ void hymn_delete(Hymn *this) {
                         if (is_string(value) && as_object(value)->count == 2) {
                             // pass
                         } else {
-                            printf("BAD GLOBAL: [%d]: ", as_object(value)->count);
+                            printf("GLOBAL NOT FREE (COUNT = %d): ", as_object(value)->count);
                             debug_value(item->value);
                             printf("\n");
                         }
@@ -4849,9 +4805,7 @@ void hymn_delete(Hymn *this) {
             for (unsigned int i = 0; i < bins; i++) {
                 SetItem *item = strings->items[i];
                 while (item != NULL) {
-                    printf("BAD STRING: ");
-                    debug_value(new_string_value(item->string));
-                    printf("\n");
+                    printf("STRING NOT FREE (COUNT = %d): %s\n", item->string->object.count, item->string->string);
                     item = item->next;
                 }
             }
