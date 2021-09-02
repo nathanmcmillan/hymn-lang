@@ -28,7 +28,7 @@ endif
 
 all: $(NAME)
 
-test: COMPILER_FLAGS += -DHYMN_TESTING
+test: COMPILER_FLAGS += -DHYMN_TESTING -g
 test: $(TEST_NAME)
 
 -include $(DEPENDENCY)

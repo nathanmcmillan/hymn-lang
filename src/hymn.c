@@ -639,6 +639,9 @@ static String *value_to_string(Value value, bool quote) {
     }
     case HYMN_VALUE_ARRAY: {
         Array *array = as_array(value);
+        if (array == NULL) {
+            return new_string("[]");
+        }
         bool more = false;
         String *string = new_string("[");
         for (i64 i = 0; i < array->length; i++) {
@@ -655,6 +658,9 @@ static String *value_to_string(Value value, bool quote) {
     }
     case HYMN_VALUE_TABLE: {
         Table *table = as_table(value);
+        if (table == NULL) {
+            return new_string("{}");
+        }
         bool more = false;
         String *string = new_string("{");
         unsigned int bins = table->bins;
@@ -669,7 +675,7 @@ static String *value_to_string(Value value, bool quote) {
                 more = true;
 
                 String *add = value_to_string(item->value, true);
-                string = string_append(string, add);
+                string = string_append_format(string, "%s: %s", item->key->string, add);
                 string_delete(add);
 
                 item = item->next;
@@ -685,10 +691,11 @@ static String *value_to_string(Value value, bool quote) {
     case HYMN_VALUE_FUNC: {
         Function *func = as_func(value);
         if (func->name) return string_copy(func->name);
-        return string_copy(func->script);
+        if (func->script) return string_copy(func->script);
+        return new_string("Script");
     }
     case HYMN_VALUE_FUNC_NATIVE: return string_copy(as_native(value)->name);
-    case HYMN_VALUE_POINTER: return string_format("[Pointer %p]", as_pointer(value));
+    case HYMN_VALUE_POINTER: return string_format("%p", as_pointer(value));
     }
     return new_string("?");
 }
@@ -1467,7 +1474,7 @@ static void advance(Compiler *this) {
                 push_ident_token(this, start, end);
                 return;
             } else {
-                compile_error(this, &this->current, "Unknown Character: `%c`", c);
+                compile_error(this, &this->current, "Unknown character: `%c`", c);
             }
         }
         }
@@ -4292,7 +4299,7 @@ static void machine_run(Machine *this) {
                     array_insert(array, index, p);
                 }
                 PUSH(p)
-                reference(v);
+                reference(p);
                 DEREF(v)
             } else {
                 const char *is = value_name(v.is);
@@ -4770,16 +4777,10 @@ void hymn_delete(Hymn *this) {
             TableItem *item = globals->items[i];
             while (item != NULL) {
                 Value value = item->value;
-                if (is_object(value)) {
-                    if (as_object(value)->count != 1) {
-                        if (is_string(value) && as_object(value)->count == 2) {
-                            // pass
-                        } else {
-                            printf("GLOBAL NOT FREE (COUNT = %d): ", as_object(value)->count);
-                            debug_value(item->value);
-                            printf("\n");
-                        }
-                    }
+                if (is_object(value) && as_object(value)->count != 1 && !is_string(value)) {
+                    printf("GLOBAL NOT FREE (COUNT = %d): ", as_object(value)->count);
+                    debug_value(item->value);
+                    printf("\n");
                 }
                 item = item->next;
             }

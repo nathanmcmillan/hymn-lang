@@ -539,4 +539,5 @@ void delete_filter_list(struct FilterList *list) {
     for (int i = 0; i < list->count; i++) {
         string_delete(list->filtered[i]);
     }
+    free(list->filtered);
 }

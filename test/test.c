@@ -55,7 +55,11 @@ static String *test_source(String *script) {
     string_delete(source);
     String *result = NULL;
     if (strcmp(expected, "error\n") == 0) {
-        result = new_string("Expected an error.\n");
+        if (error == NULL) {
+            result = new_string("Expected an error.\n");
+        } else {
+            free(error);
+        }
     } else {
         if (error != NULL) {
             result = new_string(error);
@@ -93,5 +97,8 @@ void test_hymn() {
     delete_file_list(&all);
     delete_filter_list(&scripts);
     string_delete(end);
+
     // BENCHMARK(benchmark_fib);
+
+    string_delete(out);
 }

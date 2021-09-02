@@ -635,6 +635,9 @@ function valueToString(value, quote) {
       return value.value
     case HYMN_VALUE_ARRAY: {
       const array = value.value
+      if (!array) {
+        return '[]'
+      }
       let more = false
       let print = '['
       for (const item of array) {
@@ -649,6 +652,9 @@ function valueToString(value, quote) {
     }
     case HYMN_VALUE_TABLE: {
       const table = value.value
+      if (!table) {
+        return '{}'
+      }
       const keys = Array.from(table.keys())
       if (keys.length === 0) {
         return '{}'
@@ -666,11 +672,20 @@ function valueToString(value, quote) {
       print += ' }'
       return print
     }
-    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC: {
+      const func = value.value
+      if (func.name) {
+        return func.name
+      }
+      if (func.script) {
+        return func.script
+      }
+      return 'Script'
+    }
     case HYMN_VALUE_FUNC_NATIVE:
       return value.value.name
     case HYMN_VALUE_POINTER:
-      return '[Pointer ' + value.value + ']'
+      return '' + value.value
   }
 }
 
@@ -1173,7 +1188,7 @@ function advance(compiler) {
           pushIdentToken(compiler, start, end)
           return
         } else {
-          compileError(compiler, compiler.current, 'Unknown Character: `' + c + '`')
+          compileError(compiler, compiler.current, 'Unknown character: `' + c + '`')
         }
       }
     }

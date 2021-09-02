@@ -182,4 +182,5 @@ void delete_file_list(struct FileList *list) {
     for (int i = 0; i < list->count; i++) {
         string_delete(list->files[i]);
     }
+    free(list->files);
 }

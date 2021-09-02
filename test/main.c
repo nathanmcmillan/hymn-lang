@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
 
     printf("\n");
     test_hymn();
-    printf("Success: %d, Failed: %d, Total: %d\n\n", tests_success, tests_fail, tests_count);
+    printf("\nSuccess: %d, Failed: %d, Total: %d\n\n", tests_success, tests_fail, tests_count);
 
     return 0;
 }
