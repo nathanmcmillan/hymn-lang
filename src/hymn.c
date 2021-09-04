@@ -460,6 +460,7 @@ Rule rules[] = {
     [TOKEN_BIT_XOR] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BREAK] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CASE] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CLEAR] = {clear_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CONST] = {NULL, NULL, PRECEDENCE_NONE},
@@ -624,99 +625,6 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_RIGHT_SQUARE: return "RIGHT_SQUARE";
     default: return "token";
     }
-}
-
-static String *value_to_string(Value value, bool quote) {
-    switch (value.is) {
-    case HYMN_VALUE_UNDEFINED: return new_string(STRING_UNDEFINED);
-    case HYMN_VALUE_NONE: return new_string(STRING_NONE);
-    case HYMN_VALUE_BOOL: return as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE);
-    case HYMN_VALUE_INTEGER: return int64_to_string(as_int(value));
-    case HYMN_VALUE_FLOAT: return float64_to_string(as_float(value));
-    case HYMN_VALUE_STRING: {
-        if (quote) return string_format("\"%s\"", as_string(value));
-        return string_copy(as_string(value));
-    }
-    case HYMN_VALUE_ARRAY: {
-        Array *array = as_array(value);
-        if (array == NULL) {
-            return new_string("[]");
-        }
-        bool more = false;
-        String *string = new_string("[");
-        for (i64 i = 0; i < array->length; i++) {
-            if (more) {
-                string = string_append(string, ", ");
-            }
-            more = true;
-            String *add = value_to_string(array->items[i], true);
-            string = string_append(string, add);
-            string_delete(add);
-        }
-        string = string_append_char(string, ']');
-        return string;
-    }
-    case HYMN_VALUE_TABLE: {
-        Table *table = as_table(value);
-        if (table == NULL) {
-            return new_string("{}");
-        }
-        bool more = false;
-        String *string = new_string("{");
-        unsigned int bins = table->bins;
-        for (unsigned int i = 0; i < bins; i++) {
-            TableItem *item = table->items[i];
-            while (item != NULL) {
-                if (more) {
-                    string = string_append(string, ", ");
-                } else {
-                    string = string_append_char(string, ' ');
-                }
-                more = true;
-
-                String *add = value_to_string(item->value, true);
-                string = string_append_format(string, "%s: %s", item->key->string, add);
-                string_delete(add);
-
-                item = item->next;
-            }
-        }
-        if (string_len(string) == 1) {
-            string = string_append_char(string, '}');
-        } else {
-            string = string_append(string, " }");
-        }
-        return string;
-    }
-    case HYMN_VALUE_FUNC: {
-        Function *func = as_func(value);
-        if (func->name) return string_copy(func->name);
-        if (func->script) return string_copy(func->script);
-        return new_string("Script");
-    }
-    case HYMN_VALUE_FUNC_NATIVE: return string_copy(as_native(value)->name);
-    case HYMN_VALUE_POINTER: return string_format("%p", as_pointer(value));
-    }
-    return new_string("?");
-}
-
-static String *debug_value_to_string(Value value) {
-    String *string = value_to_string(value, false);
-    String *format = string_format("%s: %s", value_name(value.is), string);
-    string_delete(string);
-    return format;
-}
-
-static void debug_value(Value value) {
-    String *string = debug_value_to_string(value);
-    printf("%s", string);
-    string_delete(string);
-}
-
-static void debug_value_message(const char *prefix, Value value) {
-    printf("%s", prefix);
-    debug_value(value);
-    printf("\n");
 }
 
 static usize string_hashcode(String *key) {
@@ -1686,43 +1594,19 @@ static Table *new_table_copy(Table *from) {
 static Array *table_keys(Table *this) {
     Array *array = new_array_with_capacity(0, this->size);
 
-    unsigned int bin = 0;
-    TableItem *item = NULL;
+    if (this->size == 0) {
+        return array;
+    }
 
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        TableItem *start = this->items[i];
-        if (start) {
-            bin = i;
-            item = start;
-            break;
+        TableItem *item = this->items[i];
+        while (item != NULL) {
+            Value value = new_string_value(item->key);
+            reference(value);
+            array_push(array, value);
+            item = item->next;
         }
-    }
-
-    if (item == NULL) return array;
-
-    {
-        Value value = new_string_value(item->key);
-        reference(value);
-        array_push(array, value);
-    }
-
-    while (true) {
-        item = item->next;
-        if (item == NULL) {
-            for (bin = bin + 1; bin < bins; bin++) {
-                TableItem *start = this->items[bin];
-                if (start) {
-                    item = start;
-                    break;
-                }
-            }
-            if (item == NULL) return array;
-        }
-
-        Value value = new_string_value(item->key);
-        reference(value);
-        array_push(array, value);
     }
 
     return array;
@@ -3118,6 +3002,109 @@ static struct CompileReturn compile(Machine *machine, const char *script, const 
     return (struct CompileReturn){.func = func, .error = error};
 }
 
+static String *value_to_string(Value value, bool quote) {
+    switch (value.is) {
+    case HYMN_VALUE_UNDEFINED: return new_string(STRING_UNDEFINED);
+    case HYMN_VALUE_NONE: return new_string(STRING_NONE);
+    case HYMN_VALUE_BOOL: return as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE);
+    case HYMN_VALUE_INTEGER: return int64_to_string(as_int(value));
+    case HYMN_VALUE_FLOAT: return float64_to_string(as_float(value));
+    case HYMN_VALUE_STRING: {
+        if (quote) return string_format("\"%s\"", as_string(value));
+        return string_copy(as_string(value));
+    }
+    case HYMN_VALUE_ARRAY: {
+        Array *array = as_array(value);
+        if (array == NULL || array->length == 0) {
+            return new_string("[]");
+        }
+        String *string = new_string("[");
+        for (i64 i = 0; i < array->length; i++) {
+            if (i != 0) {
+                string = string_append(string, ", ");
+            }
+            String *add = value_to_string(array->items[i], true);
+            string = string_append(string, add);
+            string_delete(add);
+        }
+        string = string_append_char(string, ']');
+        return string;
+    }
+    case HYMN_VALUE_TABLE: {
+        Table *table = as_table(value);
+        if (table == NULL || table->size == 0) {
+            return new_string("{}");
+        }
+        HymnString **keys = safe_malloc(table->size * sizeof(HymnString *));
+        unsigned int total = 0;
+        unsigned int bins = table->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            TableItem *item = table->items[i];
+            while (item != NULL) {
+                String *string = item->key->string;
+                unsigned int insert = -1;
+                while (true) {
+                    insert++;
+                    if (insert == total) {
+                        break;
+                    }
+                    if (string_compare(string, keys[insert]->string) < 0) {
+                        for (unsigned int swap = total; swap > insert; swap--) {
+                            keys[swap] = keys[swap - 1];
+                        }
+                        break;
+                    }
+                }
+                keys[insert] = item->key;
+                total++;
+                item = item->next;
+            }
+        }
+        String *string = new_string("{ ");
+        for (unsigned int i = 0; i < table->size; i++) {
+            if (i != 0) {
+                string = string_append(string, ", ");
+            }
+            Value value = table_get(table, keys[i]);
+            String *add = value_to_string(value, true);
+            string = string_append_format(string, "%s: %s", keys[i]->string, add);
+            string_delete(add);
+        }
+        string = string_append(string, " }");
+        free(keys);
+        return string;
+    }
+    case HYMN_VALUE_FUNC: {
+        Function *func = as_func(value);
+        if (func->name) return string_copy(func->name);
+        if (func->script) return string_copy(func->script);
+        return new_string("Script");
+    }
+    case HYMN_VALUE_FUNC_NATIVE: return string_copy(as_native(value)->name);
+    case HYMN_VALUE_POINTER: return string_format("%p", as_pointer(value));
+    }
+    return new_string("?");
+}
+
+static String *debug_value_to_string(Value value) {
+    String *string = value_to_string(value, false);
+    String *format = string_format("%s: %s", value_name(value.is), string);
+    string_delete(string);
+    return format;
+}
+
+static void debug_value(Value value) {
+    String *string = debug_value_to_string(value);
+    printf("%s", string);
+    string_delete(string);
+}
+
+static void debug_value_message(const char *prefix, Value value) {
+    printf("%s", prefix);
+    debug_value(value);
+    printf("\n");
+}
+
 #if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_CODE
 static usize debug_constant_instruction(String **debug, const char *name, ByteCode *this, usize index) {
     u8 constant = this->instructions[index + 1];
@@ -4393,64 +4380,64 @@ static void machine_run(Machine *this) {
                 DEREF_THREE(a, b, v)
                 THROW("Integer required for slice expression.")
             }
-            i64 left = as_int(a);
+            i64 start = as_int(a);
             if (is_string(v)) {
                 String *original = as_string(v);
                 i64 size = (i64)string_len(original);
-                i64 right;
+                i64 end;
                 if (is_int(b)) {
-                    right = as_int(b);
+                    end = as_int(b);
                 } else if (is_none(b)) {
-                    right = size;
+                    end = size;
                 } else {
                     DEREF_THREE(a, b, v)
                     THROW("Integer required for slice expression.")
                 }
-                if (right > size) {
+                if (end > size) {
                     DEREF_THREE(a, b, v)
-                    THROW("String index out of bounds %d > %d.", right, size)
+                    THROW("String index out of bounds %d > %d.", end, size)
                 }
-                if (right < 0) {
-                    right = size + right;
-                    if (right < 0) {
+                if (end < 0) {
+                    end = size + end;
+                    if (end < 0) {
                         DEREF_THREE(a, b, v)
-                        THROW("String index out of bounds %d.", right)
+                        THROW("String index out of bounds %d.", end)
                     }
                 }
-                if (left >= right) {
+                if (start >= end) {
                     DEREF_THREE(a, b, v)
-                    THROW("String start index %d > right index %d.", left, right)
+                    THROW("String start index %d > end index %d.", start, end)
                 }
-                String *sub = new_string_from_substring(original, left, right);
+                String *sub = new_string_from_substring(original, start, end);
                 machine_push_intern_string(this, sub);
             } else if (is_array(v)) {
                 Array *array = as_array(v);
                 i64 size = array->length;
-                i64 right;
+                i64 end;
                 if (is_int(b)) {
-                    right = as_int(b);
+                    end = as_int(b);
                 } else if (is_none(b)) {
-                    right = size;
+                    end = size;
                 } else {
                     DEREF_THREE(a, b, v)
                     THROW("Integer required for slice expression.")
                 }
-                if (right > size) {
+                if (end > size) {
                     DEREF_THREE(a, b, v)
-                    THROW("Array index out of bounds %d > %d.", right, size)
+                    THROW("Array index out of bounds %d > %d.", end, size)
                 }
-                if (right < 0) {
-                    right = size + right;
-                    if (right < 0) {
+                if (end < 0) {
+                    end = size + end;
+                    if (end < 0) {
                         DEREF_THREE(a, b, v)
-                        THROW("Array index out of bounds %d.", right)
+                        THROW("Array index out of bounds %d.", end)
                     }
                 }
-                if (left >= right) {
+                if (start >= end) {
                     DEREF_THREE(a, b, v)
-                    THROW("Array start index %d >= right index %d.", left, right)
+                    THROW("Array start index %d >= end index %d.", start, end)
                 }
-                Array *copy = new_array_slice(array, left, right);
+                Array *copy = new_array_slice(array, start, end);
                 Value new = new_array_value(copy);
                 PUSH(new)
                 reference(new);

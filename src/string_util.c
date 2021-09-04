@@ -216,6 +216,21 @@ bool string_ends_with(String *s, String *p) {
     return slen < plen ? false : memcmp(&s[slen - plen], p, plen) == 0;
 }
 
+bool string_contains(String *s, const char *p) {
+    usize slen = string_len(s);
+    usize plen = strlen(p);
+    if (plen > slen) {
+        return false;
+    }
+    usize diff = slen - plen;
+    for (usize i = 0; i <= diff; i++) {
+        if (memcmp(&s[i], p, plen) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool string_find(String *this, String *sub, usize *out) {
     StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
     StringHead *head_sub = (StringHead *)((char *)sub - sizeof(StringHead));

@@ -367,6 +367,7 @@ rules[TOKEN_BIT_RIGHT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_XOR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BREAK] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CASE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CLEAR] = new Rule(clearExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONST] = new Rule(null, null, PRECEDENCE_NONE)
@@ -617,82 +618,6 @@ function tokenName(token) {
   }
 }
 
-function valueToString(value, quote) {
-  switch (value.is) {
-    case HYMN_VALUE_UNDEFINED:
-      return STRING_UNDEFINED
-    case HYMN_VALUE_NONE:
-      return STRING_NONE
-    case HYMN_VALUE_BOOL:
-      return value.value ? STRING_TRUE : STRING_FALSE
-    case HYMN_VALUE_INTEGER:
-    case HYMN_VALUE_FLOAT:
-      return value.value
-    case HYMN_VALUE_STRING:
-      if (quote) {
-        return '"' + value.value + '"'
-      }
-      return value.value
-    case HYMN_VALUE_ARRAY: {
-      const array = value.value
-      if (!array) {
-        return '[]'
-      }
-      let more = false
-      let print = '['
-      for (const item of array) {
-        if (more) {
-          print += ', '
-        }
-        more = true
-        print += valueToString(item, true)
-      }
-      print += ']'
-      return print
-    }
-    case HYMN_VALUE_TABLE: {
-      const table = value.value
-      if (!table) {
-        return '{}'
-      }
-      const keys = Array.from(table.keys())
-      if (keys.length === 0) {
-        return '{}'
-      }
-      keys.sort()
-      let more = false
-      let print = '{ '
-      for (const key of keys) {
-        if (more) {
-          print += ', '
-        }
-        more = true
-        print += key + ': ' + valueToString(table.get(key), true)
-      }
-      print += ' }'
-      return print
-    }
-    case HYMN_VALUE_FUNC: {
-      const func = value.value
-      if (func.name) {
-        return func.name
-      }
-      if (func.script) {
-        return func.script
-      }
-      return 'Script'
-    }
-    case HYMN_VALUE_FUNC_NATIVE:
-      return value.value.name
-    case HYMN_VALUE_POINTER:
-      return '' + value.value
-  }
-}
-
-function debugValueToString(value) {
-  return valueName(value.is) + ': ' + valueToString(value, false)
-}
-
 function sourceSubstring(compiler, len, start) {
   return compiler.source.substring(start, start + len)
 }
@@ -746,14 +671,6 @@ function newFunction(script) {
 
 function newNativeFunction(name, func) {
   return new HymnNativeFunction(name, func)
-}
-
-function newArray() {
-  return []
-}
-
-function newTable() {
-  return new Map()
 }
 
 function isUndefined(value) {
@@ -2454,6 +2371,77 @@ function compile(hymn, script, source) {
   return { func: func, error: compiler.error }
 }
 
+function valueToString(value, quote) {
+  switch (value.is) {
+    case HYMN_VALUE_UNDEFINED:
+      return STRING_UNDEFINED
+    case HYMN_VALUE_NONE:
+      return STRING_NONE
+    case HYMN_VALUE_BOOL:
+      return value.value ? STRING_TRUE : STRING_FALSE
+    case HYMN_VALUE_INTEGER:
+    case HYMN_VALUE_FLOAT:
+      return value.value
+    case HYMN_VALUE_STRING:
+      if (quote) {
+        return '"' + value.value + '"'
+      }
+      return value.value
+    case HYMN_VALUE_ARRAY: {
+      const array = value.value
+      if (!array || array.length === 0) {
+        return '[]'
+      }
+      let print = '['
+      for (let i = 0; i < array.length; i++) {
+        const item = array[i]
+        if (i !== 0) {
+          print += ', '
+        }
+        print += valueToString(item, true)
+      }
+      print += ']'
+      return print
+    }
+    case HYMN_VALUE_TABLE: {
+      const table = value.value
+      if (!table || table.size === 0) {
+        return '{}'
+      }
+      const keys = Array.from(table.keys())
+      keys.sort()
+      let print = '{ '
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i]
+        if (i !== 0) {
+          print += ', '
+        }
+        print += key + ': ' + valueToString(table.get(key), true)
+      }
+      print += ' }'
+      return print
+    }
+    case HYMN_VALUE_FUNC: {
+      const func = value.value
+      if (func.name) {
+        return func.name
+      }
+      if (func.script) {
+        return func.script
+      }
+      return 'Script'
+    }
+    case HYMN_VALUE_FUNC_NATIVE:
+      return value.value.name
+    case HYMN_VALUE_POINTER:
+      return '' + value.value
+  }
+}
+
+function debugValueToString(value) {
+  return valueName(value.is) + ': ' + valueToString(value, false)
+}
+
 function hymnResetStack(hymn) {
   hymn.stackTop = 0
   hymn.frameCount = 0
@@ -3414,11 +3402,11 @@ function hymnRun(hymn) {
         let value = readConstant(frame)
         switch (value.is) {
           case HYMN_VALUE_ARRAY: {
-            value = newArrayValue(newArray())
+            value = newArrayValue([])
             break
           }
           case HYMN_VALUE_TABLE: {
-            value = newTableValue(newTable())
+            value = newTableValue(new Map())
             break
           }
           default:
@@ -3528,7 +3516,7 @@ function hymnRun(hymn) {
           if (index == size) {
             array.push(s)
           } else {
-            array.items[index] = s
+            array[index] = s
           }
         } else if (isTable(v)) {
           if (!isString(i)) {
@@ -3586,7 +3574,7 @@ function hymnRun(hymn) {
             }
             const array = v.value
             const size = array.length
-            const index = i.value
+            let index = i.value
             if (index >= size) {
               frame = hymnThrowError(hymn, 'Array index out of bounds %d >= %d.', index, size)
               if (frame === null) return
@@ -3759,11 +3747,13 @@ function hymnRun(hymn) {
           }
           const table = v.value
           const name = i.value
-          const value = table.delete(name)
-          if (isUndefined(value)) {
-            value.is = HYMN_VALUE_NONE
+          const value = table.get(name)
+          if (value) {
+            table.delete(name)
+            hymnPush(hymn, value)
+          } else {
+            hymnPush(hymn, newNone())
           }
-          hymnPush(hymn, value)
         } else {
           frame = hymnThrowError(hymn, 'Expected array or table for `delete` function.')
           if (frame === null) return
@@ -3784,12 +3774,12 @@ function hymnRun(hymn) {
             hymnPush(hymn, value)
             break
           case HYMN_VALUE_ARRAY: {
-            const copy = newArrayCopy(value.value)
+            const copy = value.value.slice()
             hymnPush(hymn, newArrayValue(copy))
             break
           }
           case HYMN_VALUE_TABLE: {
-            const copy = newTableCopy(value.value)
+            const copy = new Map(value.value)
             hymnPush(hymn, newTableValue(copy))
             break
           }
@@ -3807,72 +3797,72 @@ function hymnRun(hymn) {
           if (frame === null) return
           else break
         }
-        const left = a.value
+        const start = a.value
         if (isString(v)) {
           const original = v.value
           const size = original.length
-          let right
+          let end
           if (isInt(b)) {
-            right = b.value
+            end = b.value
           } else if (isNone(b)) {
-            right = size
+            end = size
           } else {
             frame = hymnThrowError(hymn, 'Integer required for slice expression.')
             if (frame === null) return
             else break
           }
-          if (right > size) {
-            frame = hymnThrowError(hymn, 'String index out of bounds %d > %d.', right, size)
+          if (end > size) {
+            frame = hymnThrowError(hymn, 'String index out of bounds %d > %d.', end, size)
             if (frame === null) return
             else break
           }
-          if (right < 0) {
-            right = size + right
-            if (right < 0) {
-              frame = hymnThrowError(hymn, 'String index out of bounds %d.', right)
+          if (end < 0) {
+            end = size + end
+            if (end < 0) {
+              frame = hymnThrowError(hymn, 'String index out of bounds %d.', end)
               if (frame === null) return
               else break
             }
           }
-          if (left >= right) {
-            frame = hymnThrowError(hymn, 'String start index %d > right index %d.', left, right)
+          if (start >= end) {
+            frame = hymnThrowError(hymn, 'String start index %d > end index %d.', start, end)
             if (frame === null) return
             else break
           }
-          const sub = original.substring(left, right - left)
+          const sub = original.substring(start, end)
           hymnPush(hymn, newString(sub))
         } else if (isArray(v)) {
           const array = v.value
           const size = array.length
-          let right
+          let end
           if (isInt(b)) {
-            right = b.value
+            end = b.value
           } else if (isNone(b)) {
-            right = size
+            end = size
           } else {
             frame = hymnThrowError(hymn, 'Integer required for slice expression.')
             if (frame === null) return
             else break
           }
-          if (right > size) {
-            frame = hymnThrowError(hymn, 'Array index out of bounds %d > %d.', right, size)
+          if (end > size) {
+            frame = hymnThrowError(hymn, 'Array index out of bounds %d > %d.', end, size)
             if (frame === null) return
             else break
           }
-          if (right < 0) {
-            right = size + right
-            if (right < 0) {
-              frame = hymnThrowError(hymn, 'Array index out of bounds %d.', right)
+          if (end < 0) {
+            end = size + end
+            if (end < 0) {
+              frame = hymnThrowError(hymn, 'Array index out of bounds %d.', end)
               if (frame === null) return
               else break
             }
           }
-          if (left >= right) {
-            frame = hymnThrowError(hymn, 'Array start index %d >= right index %d.', left, right)
+          if (start >= end) {
+            frame = hymnThrowError(hymn, 'Array start index %d >= end index %d.', start, end)
             if (frame === null) return
             else break
           }
-          const copy = newArraySlice(array, left, right)
+          const copy = array.slice(start, end)
           hymnPush(hymn, newArrayValue(copy))
 
           break
@@ -3881,7 +3871,6 @@ function hymnRun(hymn) {
           if (frame === null) return
           else break
         }
-
         break
       }
       case OP_CLEAR: {
@@ -3901,13 +3890,13 @@ function hymnRun(hymn) {
             break
           case HYMN_VALUE_ARRAY: {
             const array = value.value
-            arrayClear(hymn, array)
+            array.length = 0
             hymnPush(hymn, value)
             break
           }
           case HYMN_VALUE_TABLE: {
             const table = value.value
-            tableClear(hymn, table)
+            table.clear()
             hymnPush(hymn, value)
             break
           }

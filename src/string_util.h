@@ -50,6 +50,7 @@ int string_compare(String *a, String *b);
 bool string_equal(String *a, String *b);
 bool string_starts_with(String *s, String *p);
 bool string_ends_with(String *s, String *p);
+bool string_contains(String *s, const char *p);
 
 bool string_find(String *this, String *sub, usize *out);
 

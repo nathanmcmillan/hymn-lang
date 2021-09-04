@@ -6,12 +6,16 @@ int tests_fail = 0;
 int tests_count = 0;
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
+    const char *filter = NULL;
+    if (argc >= 2) {
+        filter = argv[1];
+    }
 
     printf("\n");
-    test_hymn();
-    printf("\nSuccess: %d, Failed: %d, Total: %d\n\n", tests_success, tests_fail, tests_count);
+    clock_t start = clock();
+    test_hymn(filter);
+    double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC;
+    printf("\nSuccess: %d, Failed: %d, Total: %d, Time: %g s\n\n", tests_success, tests_fail, tests_count, elapsed);
 
     return 0;
 }

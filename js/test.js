@@ -17,7 +17,6 @@ const scripts = path.join('..', 'test', 'language')
 let success = 0
 let fail = 0
 let count = 0
-let time = BigInt(0)
 
 function testFile(test, file) {
   count++
@@ -125,10 +124,7 @@ function testHymn() {
   const tests = hymnFiles()
   for (const test of tests) {
     const file = path.basename(test)
-    const start = process.hrtime.bigint()
     const result = testFile(testSource, test)
-    const end = process.hrtime.bigint()
-    time += end - start
     if (result) {
       console.error('⨯ ' + file)
       console.error(result)
@@ -140,7 +136,9 @@ function testHymn() {
 }
 
 console.log()
+const start = process.hrtime.bigint()
 testHymn()
+const end = process.hrtime.bigint()
 console.log()
-console.log(`Success: ${success}, Failed: ${fail}, Total: ${count}, Time: ${time / BigInt(1000000)} ms`)
+console.log(`Success: ${success}, Failed: ${fail}, Total: ${count}, Time: ${(end - start) / BigInt(1000000)} ms`)
 console.log()

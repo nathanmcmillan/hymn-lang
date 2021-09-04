@@ -72,7 +72,7 @@ static String *test_source(String *script) {
     return result;
 }
 
-void test_hymn() {
+void test_hymn(const char *filter) {
     out = new_string("");
 
     struct FileList all = directories("test/language");
@@ -81,8 +81,11 @@ void test_hymn() {
     struct FilterList scripts = string_filter_ends_with(all.files, all.count, end);
 
     for (int i = 0; i < scripts.count; i++) {
-        tests_count++;
         String *script = scripts.filtered[i];
+        if (filter != NULL && !string_contains(script, filter)) {
+            continue;
+        }
+        tests_count++;
         String *result = test_source(script);
         if (result != NULL) {
             printf("⨯ %s\n%s\n", script, result);

@@ -1,0 +1,8 @@
+# { foo: "bar", hello: "world" }
+# {}
+
+let table = { foo: "bar", hello: "world" }
+print table
+
+clear(table)
+print table
