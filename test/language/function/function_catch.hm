@@ -1,0 +1,23 @@
+# foo
+# bar
+# end
+
+function foo()
+  try
+    print [2, 4, 8][3]
+  except _
+    print "foo"
+  end
+end
+
+function bar()
+  try
+    throw "bad"
+  except _
+  end
+  print "bar"
+end
+
+foo()
+bar()
+print "end"

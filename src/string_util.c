@@ -141,6 +141,40 @@ String *substring(String *this, usize start, usize end) {
     return (String *)s;
 }
 
+String *string_trim(String *this) {
+    usize len = string_len(this);
+    usize start = 0;
+    while (start < len) {
+        char c = this[start];
+        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            break;
+        }
+        start++;
+    }
+    if (start == len) {
+        string_zero(this);
+    } else {
+        usize end = len - 1;
+        while (end > start) {
+            char c = this[end];
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+                break;
+            }
+            end--;
+        }
+        end++;
+        usize offset = start;
+        usize size = end - start;
+        for (usize i = 0; i < size; i++) {
+            this[i] = this[offset++];
+        }
+        StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
+        head->length = size;
+        this[end] = '\0';
+    }
+    return this;
+}
+
 static StringHead *string_resize(StringHead *head, usize capacity) {
     usize memory = sizeof(StringHead) + capacity + 1;
     StringHead *new = safe_realloc(head, memory);

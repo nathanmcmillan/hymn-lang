@@ -41,33 +41,38 @@ static String *parse_expected(String *source) {
         }
         break;
     }
-    return expected;
+    return string_trim(expected);
 }
 
 static String *test_source(String *script) {
     String *source = cat(script);
     String *expected = parse_expected(source);
-    Hymn *hymn = new_hymn();
-    hymn->print = console;
-    string_zero(out);
-    char *error = hymn_do(hymn, source);
-    hymn_delete(hymn);
-    string_delete(source);
     String *result = NULL;
-    if (strcmp(expected, "error\n") == 0) {
-        if (error == NULL) {
-            result = new_string("Expected an error.\n");
+    if (strcmp(expected, "") != 0) {
+        Hymn *hymn = new_hymn();
+        hymn->print = console;
+        string_zero(out);
+        char *error = hymn_do_script(hymn, script, source);
+        hymn_delete(hymn);
+        string_delete(source);
+        if (strcmp(expected, "error") == 0) {
+            if (error == NULL) {
+                result = new_string("Expected an error.\n");
+            } else {
+                free(error);
+            }
         } else {
-            free(error);
-        }
-    } else {
-        if (error != NULL) {
-            result = new_string(error);
-            free(error);
-        } else if (!string_equal(out, expected)) {
-            result = string_format("Expected:\n%s\nBut was:\n%s", expected, out);
+            string_trim(out);
+            if (error != NULL) {
+                result = new_string(error);
+                free(error);
+                string_trim(result);
+            } else if (!string_equal(out, expected)) {
+                result = string_format("Expected:\n%s\nBut was:\n%s", expected, out);
+            }
         }
     }
+    string_delete(source);
     string_delete(expected);
     return result;
 }

@@ -1,0 +1,13 @@
+# 3
+# 4
+# foo 6
+
+function min(a, b)
+  if a < b return a end
+  return b
+end
+
+do ""
+do "print 1 + 2"
+do "print min(4, 6)"
+do "function foobar(n) print 'foo ' + n end foobar(6)"

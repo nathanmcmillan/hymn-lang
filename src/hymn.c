@@ -3468,6 +3468,12 @@ static Frame *machine_throw_error(Machine *this, const char *format, ...) {
     return machine_push_error(this, error);
 }
 
+static Frame *machine_throw_error_string(Machine *this, String *string) {
+    Frame *frame = machine_throw_error(this, string);
+    string_delete(string);
+    return frame;
+}
+
 static bool machine_equal(Value a, Value b) {
     switch (a.is) {
     case HYMN_VALUE_NONE: return is_none(b);
@@ -3635,10 +3641,36 @@ static Frame *machine_import(Machine *this, HymnString *file) {
         dereference_string(this, use);
     }
 
-    if (parent) string_delete(parent);
-
     if (module == NULL) {
-        return machine_throw_error(this, "Import not found: %s", file->string);
+        String *missing = string_format("Import not found: %s\n", file->string);
+
+        for (usize i = 0; i < size; i++) {
+            Value value = paths->items[i];
+            if (!is_string(value)) {
+                continue;
+            }
+            String *question = as_string(value);
+
+            String *replace = string_replace(question, "<path>", file->string);
+            String *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
+            String *use = path_absolute(path);
+
+            missing = string_append_format(missing, "\nno file %s", use);
+
+            string_delete(path);
+            string_delete(replace);
+            string_delete(use);
+        }
+
+        if (parent) {
+            string_delete(parent);
+        }
+
+        return machine_throw_error_string(this, missing);
+    }
+
+    if (parent) {
+        string_delete(parent);
     }
 
     table_put(imports, module, new_bool(true));
@@ -4439,9 +4471,8 @@ static void machine_run(Machine *this) {
                 }
                 Array *copy = new_array_slice(array, start, end);
                 Value new = new_array_value(copy);
-                PUSH(new)
                 reference(new);
-                break;
+                PUSH(new)
             } else {
                 DEREF_THREE(a, b, v)
                 THROW("Expected string or array for `slice` function.")
@@ -4820,7 +4851,7 @@ void hymn_add_pointer(Hymn *this, const char *name, void *pointer) {
     machine_set_global(this, name, new_pointer(pointer));
 }
 
-static char *hymn_exec(Hymn *this, const char *script, const char *source) {
+char *hymn_do_script(Hymn *this, const char *script, const char *source) {
 
     struct CompileReturn result = compile(this, script, source);
 
@@ -4854,12 +4885,12 @@ static char *hymn_exec(Hymn *this, const char *script, const char *source) {
 }
 
 char *hymn_do(Hymn *this, const char *source) {
-    return hymn_exec(this, NULL, source);
+    return hymn_do_script(this, NULL, source);
 }
 
 char *hymn_read(Hymn *this, const char *script) {
     String *source = cat(script);
-    char *error = hymn_exec(this, script, source);
+    char *error = hymn_do_script(this, script, source);
     string_delete(source);
     return error;
 }

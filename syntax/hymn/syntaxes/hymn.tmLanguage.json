@@ -119,7 +119,7 @@
       }
     },
     {
-      "match": "\\b(print)\\b",
+      "match": "\\b(copy|delete|float|index|int|insert|keys|pop|print|push|int|string)\\b",
       "captures": {
         "1": {
           "name": "support.function.hymn"
@@ -143,18 +143,18 @@
       }
     },
     {
-      "match": "(?<= )(\\+|\\-|\\*|\\/|&|\\||<<|>>)(?= +)",
+      "match": "(?<= |\\b)(\\+|-|\\*|\\/|%|&|\\||\\^|~|<<|>>)(?= |\\b)",
       "captures": {
         "1": {
-          "name": "keyword.operator.comparison.hymn"
+          "name": "keyword.operator.hymn"
         }
       }
     },
     {
-      "match": "(?<= )(>=|<=|!=|<|>|==)(?= +)",
+      "match": "(?<= |\\b)(>=|<=|!=|<|>|==)(?= |\\b)",
       "captures": {
         "1": {
-          "name": "keyword.operator.hymn"
+          "name": "keyword.operator.comparison.hymn"
         }
       }
     },

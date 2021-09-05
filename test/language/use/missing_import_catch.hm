@@ -1,0 +1,5 @@
+# foobar
+
+try use "nope" except _ end
+
+print "foobar"

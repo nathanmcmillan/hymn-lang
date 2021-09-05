@@ -1,11 +1,16 @@
 /* Any copyright is dedicated to the Public Domain.
  * https://creativecommons.org/publicdomain/zero/1.0/ */
 
+:root {
+  --select-offset: 0.2rem;
+}
+
 html {
   width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
+  font-family: Helvetica, Arial, sans-serif;
 }
 
 body {
@@ -21,10 +26,15 @@ body {
   width: 100%;
   margin: 0;
   padding: 0;
+  display: flex;
   background-color: lightskyblue;
 }
 
-#top button {
+#run {
+  flex: 1;
+}
+
+#run button {
   display: inline-block;
   padding: 0.5rem 1rem;
   margin: 0.7rem;
@@ -40,9 +50,25 @@ body {
   font-size: 1.2rem;
 }
 
-#top button:hover {
+#run button:hover {
   cursor: pointer;
   background-color: royalblue;
+}
+
+#examples {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  margin: 0.7rem;
+  color: black;
+  outline: none;
+  border-color: transparent;
+  border-radius: 2px;
+  box-sizing: border-box;
+  font-size: 1.2rem;
+}
+
+#examples:hover {
+  cursor: pointer;
 }
 
 #play {

@@ -2698,7 +2698,10 @@ function hymnDo(hymn, source) {
 }
 
 function hymnImport(hymn, file) {
-  throw 'Import not implemented'
+  if (typeof window !== 'undefined') {
+    throw 'Import not available in browser'
+  }
+  return 'TODO'
 }
 
 function debugConstantInstruction(name, code, index) {
@@ -3595,7 +3598,7 @@ function hymnRun(hymn) {
           case HYMN_VALUE_TABLE: {
             if (!isString(i)) {
               const is = valueName(i.is)
-              frame = hymnThrowError(hymn, 'Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.', is)
+              frame = hymnThrowError(hymn, 'Dynamic Get: Expected 2nd argument to be `String`, but was `' + is + '`.')
               if (frame === null) return
               else break
             }
@@ -3864,8 +3867,6 @@ function hymnRun(hymn) {
           }
           const copy = array.slice(start, end)
           hymnPush(hymn, newArrayValue(copy))
-
-          break
         } else {
           frame = hymnThrowError(hymn, 'Expected string or array for `slice` function.')
           if (frame === null) return

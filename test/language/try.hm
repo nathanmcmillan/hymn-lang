@@ -1,0 +1,12 @@
+# Expected string, array, or table for `index` function.
+#
+# at test/language/try.hm:7
+
+let foo = "empty"
+try
+  index(0, 0)
+  foo = "bad"
+except e
+  foo = e
+end
+print foo

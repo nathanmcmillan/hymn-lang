@@ -1,0 +1,14 @@
+# foobar
+# foobar
+# hello world
+# hello foobar world
+
+const foo = "foo"
+const bar = "bar"
+print foo + bar
+const cat = foo + bar
+print cat
+
+print "hello " + "world"
+
+print "hello " + cat + " world"

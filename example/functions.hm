@@ -1,8 +1,0 @@
-#!/usr/bin/env hymn
-
-function min(a, b)
-  if a < b return a end
-  return b
-end
-
-print min(4, 6)

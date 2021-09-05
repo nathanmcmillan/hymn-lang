@@ -194,6 +194,7 @@ HymnString *new_hymn_string(String *string);
 
 Hymn *new_hymn();
 
+char *hymn_do_script(Hymn *this, const char *script, const char *source);
 char *hymn_do(Hymn *this, const char *source);
 char *hymn_read(Hymn *this, const char *script);
 char *hymn_repl(Hymn *this);

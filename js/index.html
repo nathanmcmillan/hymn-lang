@@ -10,7 +10,15 @@
   </head>
   <body>
     <script src="hymn.js"></script>
-    <section id="top"><button onclick="run()">Run</button></section>
+    <section id="top">
+      <div id="run">
+        <button onclick="run()">Run</button>
+      </div>
+      <select id="examples" onchange="example()">
+        <option>Hello World</option>
+        <option>Linked List</option>
+      </select>
+    </section>
     <section id="play">
       <div id="code">
         <textarea id="source" autocorrect="off" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
@@ -22,13 +30,7 @@
       if (source) {
         document.getElementById('source').value = source
       }
-      let once = false
       function run() {
-        if (once) {
-          console.log('----------------------------------------')
-        } else {
-          once = true
-        }
         const source = document.getElementById('source').value
         localStorage.setItem('source', source)
         const out = document.getElementById('out')
@@ -45,6 +47,24 @@
         } catch (exception) {
           out.textContent += exception
           console.error(exception)
+        }
+      }
+      const examples = new Map()
+      function example() {
+        const select = document.getElementById('examples')
+        const option = select.value.toLowerCase().replace(' ', '_') + '.js'
+        if (examples.has(option)) {
+          document.getElementById('source').value = examples.get(option)
+        } else {
+          const script = document.createElement('script')
+          script.type = 'text/javascript'
+          script.src = 'examples/' + option
+          script.onload = function () {
+            const hymn = examples.get('new')
+            document.getElementById('source').value = hymn
+            examples.set(option, hymn)
+          }
+          document.getElementsByTagName('body')[0].appendChild(script)
         }
       }
     </script>

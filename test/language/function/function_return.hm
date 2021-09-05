@@ -8,6 +8,7 @@
 # { hello: "world" }
 # bar
 # 2
+# 4
 
 function a() return none end
 function b() return true end
@@ -32,3 +33,10 @@ print h()
 
 print foo()
 print foo()()
+
+function min(a, b)
+  if a < b return a end
+  return b
+end
+
+print min(4, 6)

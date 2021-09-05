@@ -1,6 +1,10 @@
-#!/usr/bin/env hymn
+# 4
+# 6
+# 4
+# 6
+# FOO
 
-use "test/scripts/std"
+use "std"
 
 print min(4, 6)
 print max(4, 6)
