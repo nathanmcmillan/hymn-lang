@@ -35,7 +35,7 @@
         localStorage.setItem('source', source)
         const out = document.getElementById('out')
         out.textContent = ''
-        const hymn = new Hymn()
+        const hymn = newHymn()
         hymn.print = (text) => {
           out.textContent += text + '\r\n'
         }

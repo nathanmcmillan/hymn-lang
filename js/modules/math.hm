@@ -1,0 +1,14 @@
+function abs(n)
+  if n < 0 return -n end
+  return n
+end
+
+function min(a, b)
+  if a < b return a end
+  return b
+end
+
+function max(a, b)
+  if a > b return a end
+  return b
+end

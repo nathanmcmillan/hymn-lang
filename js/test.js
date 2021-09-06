@@ -3,14 +3,13 @@
 /* Any copyright is dedicated to the Public Domain.
  * https://creativecommons.org/publicdomain/zero/1.0/ */
 
-const vm = require('vm')
 const fs = require('fs')
 const path = require('path')
 const process = require('process')
 
 process.chdir(__dirname)
 
-new vm.Script(fs.readFileSync('hymn.js')).runInThisContext()
+const hymn = require('./hymn')
 
 const scripts = path.join('..', 'test', 'language')
 
@@ -89,14 +88,14 @@ function testSource(file) {
   if (expected === '') {
     return null
   }
-  const hymn = new Hymn()
-  hymn.print = (text) => {
+  const vm = hymn.init()
+  vm.print = (text) => {
     out += text + '\n'
   }
   out = ''
   try {
-    const error = hymnInterpret(hymn, source)
-    if (expected === 'error') {
+    const error = hymn.scriptInterpret(vm, file, source)
+    if (expected === ':exception:') {
       if (error === null) {
         return indent(4, 'Expected an error.')
       }

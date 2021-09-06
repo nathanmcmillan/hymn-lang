@@ -1085,7 +1085,7 @@ static void token_special(Compiler *this, enum TokenType type, usize offset, usi
     } else {
         current->start = this->pos - offset;
     }
-    current->length = length;
+    current->length = (int)length;
 #ifdef HYMN_DEBUG_TOKEN
     printf("TOKEN: %s: %.*s\n", token_name(type), current->length, &this->source[current->start]);
 #endif
@@ -3042,9 +3042,8 @@ static String *value_to_string(Value value, bool quote) {
             TableItem *item = table->items[i];
             while (item != NULL) {
                 String *string = item->key->string;
-                unsigned int insert = -1;
+                unsigned int insert = 0;
                 while (true) {
-                    insert++;
                     if (insert == total) {
                         break;
                     }
@@ -3054,6 +3053,7 @@ static String *value_to_string(Value value, bool quote) {
                         }
                         break;
                     }
+                    insert++;
                 }
                 keys[insert] = item->key;
                 total++;
@@ -3065,8 +3065,8 @@ static String *value_to_string(Value value, bool quote) {
             if (i != 0) {
                 string = string_append(string, ", ");
             }
-            Value value = table_get(table, keys[i]);
-            String *add = value_to_string(value, true);
+            Value item = table_get(table, keys[i]);
+            String *add = value_to_string(item, true);
             string = string_append_format(string, "%s: %s", keys[i]->string, add);
             string_delete(add);
         }
@@ -4738,18 +4738,18 @@ Hymn *new_hymn() {
     set_init(&this->strings);
     table_init(&this->globals);
 
-    HymnString *question_this = machine_intern_string(this, new_string("<parent>/<path>.hm"));
-    HymnString *question_relative = machine_intern_string(this, new_string("./<path>.hm"));
-    HymnString *question_modules = machine_intern_string(this, new_string("./modules/<path>.hm"));
-    reference_string(question_this);
-    reference_string(question_relative);
-    reference_string(question_modules);
+    HymnString *search_this = machine_intern_string(this, new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
+    HymnString *search_relative = machine_intern_string(this, new_string("." PATH_SEP_STRING "<path>.hm"));
+    HymnString *search_modules = machine_intern_string(this, new_string("." PATH_SEP_STRING "modules" PATH_SEP_STRING "<path>.hm"));
+    reference_string(search_this);
+    reference_string(search_relative);
+    reference_string(search_modules);
     HymnString *paths = machine_intern_string(this, new_string("__paths"));
     reference_string(paths);
     this->paths = new_array(3);
-    this->paths->items[0] = new_string_value(question_this);
-    this->paths->items[1] = new_string_value(question_relative);
-    this->paths->items[2] = new_string_value(question_modules);
+    this->paths->items[0] = new_string_value(search_this);
+    this->paths->items[1] = new_string_value(search_relative);
+    this->paths->items[2] = new_string_value(search_modules);
     Value paths_value = new_array_value(this->paths);
     table_put(&this->globals, paths, paths_value);
     reference(paths_value);

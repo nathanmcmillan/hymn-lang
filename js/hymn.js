@@ -24,6 +24,11 @@ const HYMN_VALUE_FUNC = 8
 const HYMN_VALUE_FUNC_NATIVE = 9
 const HYMN_VALUE_POINTER = 10
 
+const node = typeof window === 'undefined'
+
+const node_fs = node ? require('fs') : null
+const node_path = node ? require('path') : null
+
 class HymnValue {
   constructor(is, value) {
     this.is = is
@@ -86,7 +91,7 @@ class HymnFrame {
   }
 }
 
-function print(text) {
+function printOut(text) {
   console.log(text)
 }
 
@@ -100,7 +105,7 @@ class Hymn {
     this.paths = []
     this.imports = new Map()
     this.error = null
-    this.print = print
+    this.print = printOut
   }
 }
 
@@ -1193,10 +1198,6 @@ function writeConstant(compiler, value, row) {
   }
   writeTwoOp(current(compiler), OP_CONSTANT, constant, row)
   return constant
-}
-
-function hymnSetGlobal(hymn, name, value) {
-  hymn.globals.set(name, value)
 }
 
 function check(compiler, type) {
@@ -2697,11 +2698,72 @@ function hymnDo(hymn, source) {
   return currentFrame(hymn)
 }
 
+function pathParent(path) {
+  if (path.length < 2) {
+    return path
+  }
+  let i = path.length - 2
+  while (true) {
+    if (i === 0) break
+    if (path[i] === '/') break
+    i--
+  }
+  return path.substring(0, i)
+}
+
 function hymnImport(hymn, file) {
-  if (typeof window !== 'undefined') {
+  if (node) {
+    const imports = hymn.imports
+
+    let script = null
+    let p = 1
+    while (true) {
+      const frame = parentFrame(hymn, p)
+      if (frame === null) {
+        break
+      }
+      script = frame.func.script
+      if (script !== null) {
+        break
+      }
+      p++
+    }
+    // const parent = script ? pathParent(script) : null
+    const parent = script ? node_path.basename(node_path.dirname(script)) : null
+    console.debug('parent --->', script, parent)
+
+    let module = null
+
+    const paths = hymn.paths
+    const size = paths.length
+    for (let i = 0; i < size; i++) {
+      const value = paths[i]
+      if (!isString(value)) {
+        continue
+      }
+      const question = value.value
+      console.debug('question --->', question)
+      const replace = question.replace(/<path>/g, file)
+      const path = parent ? replace.replace(/<parent>/g, parent) : replace
+      const use = node_path.resolve(path)
+      console.debug('--->', use)
+
+      if (imports.has(use)) {
+        return currentFrame(hymn)
+      }
+
+      if (node_path.existsSync(use)) {
+        module = use
+        break
+      }
+    }
+
+    console.debug('module --->', module)
+
+    return 'TODO'
+  } else {
     throw 'Import not available in browser'
   }
-  return 'TODO'
 }
 
 function debugConstantInstruction(name, code, index) {
@@ -4104,8 +4166,8 @@ function hymnAddPointer(hymn, name, pointer) {
   hymn.globals.set(name, newPointerValue(pointer))
 }
 
-function hymnInterpret(hymn, source) {
-  const result = compile(hymn, null, source)
+function hymnScriptInterpret(hymn, script, source) {
+  const result = compile(hymn, script, source)
 
   const func = result.func
   if (result.error !== null) {
@@ -4125,6 +4187,34 @@ function hymnInterpret(hymn, source) {
   return null
 }
 
+function hymnInterpret(hymn, source) {
+  return hymnScriptInterpret(hymn, null, source)
+}
+
 function newHymn() {
-  return new Hymn()
+  const hymn = new Hymn()
+
+  if (node) {
+    hymn.paths.push(newString('<parent>/<path>.hm'))
+    hymn.paths.push(newString('./<path>.hm'))
+    hymn.paths.push(newString('./modules/<path>.hm'))
+  } else {
+    const address = window.location.href
+    const url = address.substring(0, address.lastIndexOf('/') + 1)
+    hymn.paths.push(newString(url + '<path>.hm'))
+    hymn.paths.push(newString(url + 'modules/<path>.hm'))
+  }
+
+  hymn.globals.set('__paths', newArrayValue(hymn.paths))
+  hymn.globals.set('__imports', newTableValue(hymn.imports))
+
+  return hymn
+}
+
+if (node) {
+  module.exports = {
+    init: newHymn,
+    interpret: hymnInterpret,
+    scriptInterpret: hymnScriptInterpret,
+  }
 }

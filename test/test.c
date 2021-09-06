@@ -54,8 +54,7 @@ static String *test_source(String *script) {
         string_zero(out);
         char *error = hymn_do_script(hymn, script, source);
         hymn_delete(hymn);
-        string_delete(source);
-        if (strcmp(expected, "error") == 0) {
+        if (strcmp(expected, "@Exception") == 0) {
             if (error == NULL) {
                 result = new_string("Expected an error.\n");
             } else {
@@ -67,6 +66,12 @@ static String *test_source(String *script) {
                 result = new_string(error);
                 free(error);
                 string_trim(result);
+            } else if (string_starts_with(expected, "@Starts")) {
+                String *start = substring(expected, 8, string_len(expected));
+                if (!string_starts_with(out, start)) {
+                    result = string_format("Expected start:\n%s\nBut was:\n%s", expected, out);
+                }
+                string_delete(start);
             } else if (!string_equal(out, expected)) {
                 result = string_format("Expected:\n%s\nBut was:\n%s", expected, out);
             }
@@ -80,7 +85,7 @@ static String *test_source(String *script) {
 void test_hymn(const char *filter) {
     out = new_string("");
 
-    struct FileList all = directories("test/language");
+    struct FileList all = directories("test" PATH_SEP_STRING "language");
 
     String *end = new_string(".hm");
     struct FilterList scripts = string_filter_ends_with(all.files, all.count, end);

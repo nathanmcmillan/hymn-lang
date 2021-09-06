@@ -17,10 +17,10 @@ String *path_normalize(String *path) {
     usize size = string_len(path);
     if (size > 1 && path[0] == '.') {
         if (path[1] == '.') {
-            if (size > 2 && path[2] == '/') {
+            if (size > 2 && path[2] == PATH_SEP) {
                 i = 3;
             }
-        } else if (path[1] == '/') {
+        } else if (path[1] == PATH_SEP) {
             i = 2;
         }
     }
@@ -29,17 +29,16 @@ String *path_normalize(String *path) {
     char normal[PATH_MAX];
 
     while (i < size) {
-
-        if (path[i] == '/') {
+        if (path[i] == PATH_SEP) {
             if (i + 2 < size) {
-                if (path[i + 1] == '.' && path[i + 2] == '/') {
+                if (path[i + 1] == '.' && path[i + 2] == PATH_SEP) {
                     i += 2;
                     continue;
-                } else if (path[i + 2] == '.' && i + 3 < size && path[i + 3] == '/') {
+                } else if (path[i + 2] == '.' && i + 3 < size && path[i + 3] == PATH_SEP) {
                     if (n > 0) {
                         n--;
                         while (n > 0) {
-                            if (normal[n] == '/') {
+                            if (normal[n] == PATH_SEP) {
                                 break;
                             }
                             n--;
@@ -68,7 +67,7 @@ String *path_parent(String *path) {
     usize i = size - 2;
     while (true) {
         if (i == 0) break;
-        if (path[i] == '/') break;
+        if (path[i] == PATH_SEP) break;
         i--;
     }
     return new_string_from_substring(path, 0, i);
@@ -76,7 +75,7 @@ String *path_parent(String *path) {
 
 String *path_join(String *path, String *child) {
     String *new = string_copy(path);
-    new = string_append_char(new, '/');
+    new = string_append_char(new, PATH_SEP);
     return string_append(new, child);
 }
 
@@ -86,7 +85,7 @@ String *path_absolute(String *path) {
         string_delete(working);
         return path_normalize(path);
     }
-    working = string_append_char(working, '/');
+    working = string_append_char(working, PATH_SEP);
     working = string_append(working, path);
     String *normal = path_normalize(working);
     string_delete(working);
@@ -97,7 +96,7 @@ usize file_size(const char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file: %s\n", path);
-        exit(1);
+        return 0;
     }
     usize num = 0;
     int ch;
@@ -118,7 +117,7 @@ String *cat(const char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file: %s\n", path);
-        exit(1);
+        return new_string("");
     }
     char *content = safe_malloc((size + 1) * sizeof(char));
     for (usize i = 0; i < size; i++) {
@@ -154,27 +153,52 @@ static bool recurse_directories(const char *path, struct FileList *list) {
     struct dirent *d;
     char file[PATH_MAX];
     while ((d = readdir(dir)) != NULL) {
-        if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0) {
-            strcpy(file, path);
-            strcat(file, PATH_SEP_STRING);
-            strcat(file, d->d_name);
-            if (recurse_directories(file, list)) {
-                file_list_add(list, new_string(file));
-            }
+        if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {
+            continue;
+        }
+        strcpy(file, path);
+        strcat(file, PATH_SEP_STRING);
+        strcat(file, d->d_name);
+        if (recurse_directories(file, list)) {
+            file_list_add(list, new_string(file));
         }
     }
     closedir(dir);
+    return false;
+}
+#elif _MSC_VER
+#include <windows.h>
+static bool recurse_directories(const char *path, struct FileList *list) {
+    String *search = string_format("%s" PATH_SEP_STRING "*", path);
+    WIN32_FIND_DATA find;
+    HANDLE handle = FindFirstFile(search, &find);
+    if (handle == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Find files failed: %d\n", GetLastError());
+    } else {
+        char file[PATH_MAX];
+        do {
+            if (strcmp(find.cFileName, ".") == 0 || strcmp(find.cFileName, "..") == 0) {
+                continue;
+            }
+            strcpy(file, path);
+            strcat(file, PATH_SEP_STRING);
+            strcat(file, find.cFileName);
+            if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                recurse_directories(file, list);
+            } else {
+                file_list_add(list, new_string(file));
+            }
+        } while (FindNextFile(handle, &find));
+        FindClose(handle);
+    }
+    string_delete(search);
     return false;
 }
 #endif
 
 struct FileList directories(const char *path) {
     struct FileList list = {.count = 0, .capacity = 0, .files = NULL};
-#ifdef __GNUC__
     recurse_directories(path, &list);
-#elif _MSC_VER
-#else
-#endif
     return list;
 }
 

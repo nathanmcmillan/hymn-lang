@@ -238,15 +238,15 @@ bool string_equal(String *a, String *b) {
     return 0 == string_compare(a, b);
 }
 
-bool string_starts_with(String *s, String *p) {
+bool string_starts_with(String *s, const char *p) {
     usize slen = string_len(s);
-    usize plen = string_len(p);
+    usize plen = strlen(p);
     return slen < plen ? false : memcmp(s, p, plen) == 0;
 }
 
-bool string_ends_with(String *s, String *p) {
+bool string_ends_with(String *s, const char *p) {
     usize slen = string_len(s);
-    usize plen = string_len(p);
+    usize plen = strlen(p);
     return slen < plen ? false : memcmp(&s[slen - plen], p, plen) == 0;
 }
 
@@ -569,7 +569,7 @@ String *string_append_format(String *this, const char *format, ...) {
     return this;
 }
 
-struct FilterList string_filter(String **input, int count, bool (*filter)(String *a, String *b), String *with) {
+struct FilterList string_filter(String **input, int count, bool (*filter)(String *a, const char *b), const char *with) {
     int size = 0;
     String **filtered = safe_calloc(count, sizeof(String *));
     for (int i = 0; i < count; i++) {
@@ -580,7 +580,7 @@ struct FilterList string_filter(String **input, int count, bool (*filter)(String
     return (struct FilterList){.count = size, .filtered = filtered};
 }
 
-struct FilterList string_filter_ends_with(String **input, int count, String *with) {
+struct FilterList string_filter_ends_with(String **input, int count, const char *with) {
     return string_filter(input, count, string_ends_with, with);
 }
 

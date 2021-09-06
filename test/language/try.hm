@@ -1,6 +1,5 @@
+# @Starts
 # Expected string, array, or table for `index` function.
-#
-# at test/language/try.hm:7
 
 let foo = "empty"
 try

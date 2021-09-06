@@ -15,10 +15,9 @@ ctags.sh
 clean.bat
 compile.bat
 run.bat
-test.bat
+tests.bat
 
 .DS_Store
-test.hm
 tests
 
 hymn
