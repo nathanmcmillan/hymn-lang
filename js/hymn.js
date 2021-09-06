@@ -2675,7 +2675,7 @@ function readConstant(frame) {
   return frame.func.code.constants[readByte(frame)]
 }
 
-function hymnDo(hymn, source) {
+async function hymnDo(hymn, source) {
   const result = compile(hymn, null, source)
 
   const func = result.func
@@ -2690,7 +2690,7 @@ function hymnDo(hymn, source) {
   hymnPush(hymn, funcValue)
   hymnCall(hymn, func, 0)
 
-  error = hymnRun(hymn)
+  error = await hymnRun(hymn)
   if (error) {
     return hymnThrowExistingError(hymn, error)
   }
@@ -2698,42 +2698,45 @@ function hymnDo(hymn, source) {
   return currentFrame(hymn)
 }
 
-// function pathParent(path) {
-//   if (path.length < 2) {
-//     return path
-//   }
-//   let i = path.length - 2
-//   while (true) {
-//     if (i === 0) break
-//     if (path[i] === '/') break
-//     i--
-//   }
-//   return path.substring(0, i)
-// }
+function httpPathParent(path) {
+  if (path.length < 2) {
+    return path
+  }
+  let i = path.length - 2
+  while (true) {
+    if (i === 0) break
+    if (path[i] === '/') break
+    i--
+  }
+  return path.substring(0, i)
+}
 
-function hymnImport(hymn, file) {
-  if (node) {
-    const imports = hymn.imports
+async function hymnImport(hymn, file) {
+  const imports = hymn.imports
 
-    let script = null
-    let p = 1
-    while (true) {
-      const frame = parentFrame(hymn, p)
-      if (frame === null) {
-        break
-      }
-      script = frame.func.script
-      if (script !== null) {
-        break
-      }
-      p++
+  let script = null
+  let p = 1
+  while (true) {
+    const frame = parentFrame(hymn, p)
+    if (frame === null) {
+      break
     }
+    script = frame.func.script
+    if (script !== null) {
+      break
+    }
+    p++
+  }
+
+  const paths = hymn.paths
+  const size = paths.length
+
+  let module = null
+  let source = null
+
+  if (node) {
     const parent = script ? node_path.dirname(script) : null
 
-    let module = null
-
-    const paths = hymn.paths
-    const size = paths.length
     for (let i = 0; i < size; i++) {
       const value = paths[i]
       if (!isString(value)) {
@@ -2777,32 +2780,79 @@ function hymnImport(hymn, file) {
 
     imports.set(module, true)
 
-    const source = node_fs.readFileSync(module, { encoding: 'utf-8' })
-
-    const result = compile(hymn, module, source)
-
-    const func = result.func
-    let error = result.error
-
-    if (error) {
-      return hymnThrowExistingError(hymn, error)
-    }
-
-    const funcValue = newFuncValue(func)
-
-    hymnPush(hymn, funcValue)
-    hymnCall(hymn, func, 0)
-
-    error = hymnRun(hymn)
-    if (error) {
-      return hymnThrowExistingError(hymn, error)
-    }
-
-    return currentFrame(hymn)
+    source = node_fs.readFileSync(module, { encoding: 'utf-8' })
   } else {
-    // const parent = script ? pathParent(script) : null
-    return currentFrame(this)
+    const parent = script ? httpPathParent(script) : null
+
+    for (let i = 0; i < size; i++) {
+      const value = paths[i]
+      if (!isString(value)) {
+        continue
+      }
+      const question = value.value
+
+      const replace = question.replace(/<path>/g, file)
+      const use = parent ? replace.replace(/<parent>/g, parent) : replace
+
+      if (imports.has(use)) {
+        return currentFrame(hymn)
+      }
+
+      const response = await fetch(use).catch((exception) => {
+        return { ok: false, status: 404 }
+      })
+
+      if (response.ok) {
+        source = await response.text().catch((exception) => {
+          return ''
+        })
+        module = use
+        break
+      }
+    }
+
+    if (module === null) {
+      let missing = 'Import not found: ' + file + '\n'
+
+      for (let i = 0; i < size; i++) {
+        const value = paths[i]
+        if (!isString(value)) {
+          continue
+        }
+        const question = value.value
+
+        const replace = question.replace(/<path>/g, file)
+        const use = parent ? replace.replace(/<parent>/g, parent) : replace
+
+        missing += '\nno file ' + use
+      }
+
+      return hymnPushError(hymn, missing)
+    }
+
+    imports.set(module, true)
   }
+
+  const result = compile(hymn, module, source)
+
+  const func = result.func
+  let error = result.error
+
+  if (error) {
+    return hymnThrowExistingError(hymn, error)
+  }
+
+  const funcValue = newFuncValue(func)
+
+  hymnPush(hymn, funcValue)
+  hymnCall(hymn, func, 0)
+
+  error = await hymnRun(hymn)
+  if (error) {
+    return hymnThrowExistingError(hymn, error)
+  }
+
+  return currentFrame(hymn)
 }
 
 function debugConstantInstruction(name, code, index) {
@@ -2971,7 +3021,7 @@ function debugTrace(hymn, code, ip) {
   return debug
 }
 
-function hymnRun(hymn) {
+async function hymnRun(hymn) {
   let frame = currentFrame(hymn)
   while (true) {
     if (HYMN_DEBUG_TRACE) console.debug(debugTrace(hymn, frame.func.code, frame.ip))
@@ -4168,7 +4218,7 @@ function hymnRun(hymn) {
       case OP_DO: {
         const code = hymnPop(hymn)
         if (isString(code)) {
-          frame = hymnDo(hymn, code.value)
+          frame = await hymnDo(hymn, code.value)
           if (frame === null) return
         } else {
           frame = hymnThrowError(hymn, "Expected string for 'do' command.")
@@ -4180,7 +4230,7 @@ function hymnRun(hymn) {
       case OP_USE: {
         const file = hymnPop(hymn)
         if (isString(file)) {
-          frame = hymnImport(hymn, file.value)
+          frame = await hymnImport(hymn, file.value)
           if (frame === null) return
         } else {
           frame = hymnThrowError(hymn, "Expected string for 'use' command.")
@@ -4205,7 +4255,7 @@ function hymnAddPointer(hymn, name, pointer) {
   hymn.globals.set(name, newPointerValue(pointer))
 }
 
-function hymnScriptInterpret(hymn, script, source) {
+async function hymnScriptInterpret(hymn, script, source) {
   const result = compile(hymn, script, source)
 
   const func = result.func
@@ -4217,7 +4267,7 @@ function hymnScriptInterpret(hymn, script, source) {
   hymnPush(hymn, funcVal)
   hymnCall(hymn, func, 0)
 
-  hymnRun(hymn)
+  await hymnRun(hymn)
   if (hymn.error !== null) {
     return hymn.error
   }
@@ -4226,7 +4276,7 @@ function hymnScriptInterpret(hymn, script, source) {
   return null
 }
 
-function hymnInterpret(hymn, source) {
+async function hymnInterpret(hymn, source) {
   return hymnScriptInterpret(hymn, null, source)
 }
 

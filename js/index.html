@@ -30,7 +30,7 @@
       if (source) {
         document.getElementById('source').value = source
       }
-      function run() {
+      async function run() {
         const source = document.getElementById('source').value
         localStorage.setItem('source', source)
         const out = document.getElementById('out')
@@ -39,14 +39,12 @@
         hymn.print = (text) => {
           out.textContent += text + '\r\n'
         }
-        try {
-          const error = hymnInterpret(hymn, source)
-          if (error !== null) {
-            out.textContent += error
-          }
-        } catch (exception) {
-          out.textContent += exception
+        const error = await hymnInterpret(hymn, source).catch((exception) => {
           console.error(exception)
+          return exception
+        })
+        if (error !== null) {
+          out.textContent += error
         }
       }
       const examples = new Map()
