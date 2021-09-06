@@ -69,7 +69,7 @@ static String *test_source(String *script) {
             } else if (string_starts_with(expected, "@Starts")) {
                 String *start = substring(expected, 8, string_len(expected));
                 if (!string_starts_with(out, start)) {
-                    result = string_format("Expected start:\n%s\nBut was:\n%s", expected, out);
+                    result = string_format("Expected start:\n%s\nBut was:\n%s", start, out);
                 }
                 string_delete(start);
             } else if (!string_equal(out, expected)) {

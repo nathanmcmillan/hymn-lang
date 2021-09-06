@@ -2698,18 +2698,18 @@ function hymnDo(hymn, source) {
   return currentFrame(hymn)
 }
 
-function pathParent(path) {
-  if (path.length < 2) {
-    return path
-  }
-  let i = path.length - 2
-  while (true) {
-    if (i === 0) break
-    if (path[i] === '/') break
-    i--
-  }
-  return path.substring(0, i)
-}
+// function pathParent(path) {
+//   if (path.length < 2) {
+//     return path
+//   }
+//   let i = path.length - 2
+//   while (true) {
+//     if (i === 0) break
+//     if (path[i] === '/') break
+//     i--
+//   }
+//   return path.substring(0, i)
+// }
 
 function hymnImport(hymn, file) {
   if (node) {
@@ -2728,9 +2728,7 @@ function hymnImport(hymn, file) {
       }
       p++
     }
-    // const parent = script ? pathParent(script) : null
-    const parent = script ? node_path.basename(node_path.dirname(script)) : null
-    console.debug('parent --->', script, parent)
+    const parent = script ? node_path.dirname(script) : null
 
     let module = null
 
@@ -2742,27 +2740,68 @@ function hymnImport(hymn, file) {
         continue
       }
       const question = value.value
-      console.debug('question --->', question)
+
       const replace = question.replace(/<path>/g, file)
       const path = parent ? replace.replace(/<parent>/g, parent) : replace
       const use = node_path.resolve(path)
-      console.debug('--->', use)
 
       if (imports.has(use)) {
         return currentFrame(hymn)
       }
 
-      if (node_path.existsSync(use)) {
+      if (node_fs.existsSync(use)) {
         module = use
         break
       }
     }
 
-    console.debug('module --->', module)
+    if (module === null) {
+      let missing = 'Import not found: ' + file + '\n'
 
-    return 'TODO'
+      for (let i = 0; i < size; i++) {
+        const value = paths[i]
+        if (!isString(value)) {
+          continue
+        }
+        const question = value.value
+
+        const replace = question.replace(/<path>/g, file)
+        const path = parent ? replace.replace(/<parent>/g, parent) : replace
+        const use = node_path.resolve(path)
+
+        missing += '\nno file ' + use
+      }
+
+      return hymnPushError(hymn, missing)
+    }
+
+    imports.set(module, true)
+
+    const source = node_fs.readFileSync(module, { encoding: 'utf-8' })
+
+    const result = compile(hymn, module, source)
+
+    const func = result.func
+    let error = result.error
+
+    if (error) {
+      return hymnThrowExistingError(hymn, error)
+    }
+
+    const funcValue = newFuncValue(func)
+
+    hymnPush(hymn, funcValue)
+    hymnCall(hymn, func, 0)
+
+    error = hymnRun(hymn)
+    if (error) {
+      return hymnThrowExistingError(hymn, error)
+    }
+
+    return currentFrame(hymn)
   } else {
-    throw 'Import not available in browser'
+    // const parent = script ? pathParent(script) : null
+    return currentFrame(this)
   }
 }
 
