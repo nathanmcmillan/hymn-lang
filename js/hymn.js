@@ -935,13 +935,6 @@ function advance(compiler) {
   while (true) {
     let c = nextChar(compiler)
     switch (c) {
-      case '#':
-        c = peekChar(compiler)
-        while (c !== '\n' && c !== '\0') {
-          nextChar(compiler)
-          c = peekChar(compiler)
-        }
-        continue
       case ' ':
       case '\t':
       case '\r':
@@ -952,6 +945,20 @@ function advance(compiler) {
           c = peekChar(compiler)
         }
         continue
+      case '-': {
+        if (peekChar(compiler) === '-') {
+          nextChar(compiler)
+          c = peekChar(compiler)
+          while (c !== '\n' && c !== '\0') {
+            nextChar(compiler)
+            c = peekChar(compiler)
+          }
+          continue
+        } else {
+          token(compiler, TOKEN_SUBTRACT)
+          return
+        }
+      }
       case '!':
         if (peekChar(compiler) === '=') {
           nextChar(compiler)
@@ -1004,9 +1011,6 @@ function advance(compiler) {
         return
       case '+':
         token(compiler, TOKEN_ADD)
-        return
-      case '-':
-        token(compiler, TOKEN_SUBTRACT)
         return
       case '%':
         token(compiler, TOKEN_MODULO)

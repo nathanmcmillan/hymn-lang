@@ -1,16 +1,16 @@
-# boolean
-# integer
-# float
-# string
-# array
-# table
-# function
-# false
-# none
-# zero
-# empty
-# length
-# size
+-- boolean
+-- integer
+-- float
+-- string
+-- array
+-- table
+-- function
+-- false
+-- none
+-- zero
+-- empty
+-- length
+-- size
 
 function example() pass end
 

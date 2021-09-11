@@ -1,8 +1,8 @@
 use "util"
 
-# @param string or array
-# @param value to find
-# @return last index of value or -1 if not found
+-- @param string or array
+-- @param value to find
+-- @return last index of value or -1 if not found
 function last_index(array, value)
   let size = len(array)
   let i = size - 1
@@ -15,8 +15,8 @@ function last_index(array, value)
   return -1
 end
 
-# @param string
-# @return string with upper-case characters
+-- @param string
+-- @return string with upper-case characters
 function upper(s)
   let new = ""
   let size = len(s)
@@ -33,24 +33,24 @@ function upper(s)
   return new
 end
 
-# @param number
-# @return absolute value of number
+-- @param number
+-- @return absolute value of number
 function abs(n)
   if n < 0 return -n end
   return n
 end
 
-# @param first number
-# @param second number
-# @return smaller of first and second numbers
+-- @param first number
+-- @param second number
+-- @return smaller of first and second numbers
 function min(a, b)
   if a < b return a end
   return b
 end
 
-# @param first number
-# @param second number
-# @return larger of first and second numbers
+-- @param first number
+-- @param second number
+-- @return larger of first and second numbers
 function max(a, b)
   if a > b return a end
   return b

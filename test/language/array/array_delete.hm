@@ -1,8 +1,8 @@
-# [True, True, False, False]
-# True
-# [True, False, False]
-# False
-# [True, False]
+-- [True, True, False, False]
+-- True
+-- [True, False, False]
+-- False
+-- [True, False]
 
 let array = [true, true, false, false]
 print array

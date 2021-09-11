@@ -1,13 +1,13 @@
-# Integer
-# Integer
-# Float
-# None
-# Bool
-# Bool
-# String
-# Array
-# Table
-# Function
+-- Integer
+-- Integer
+-- Float
+-- None
+-- Bool
+-- Bool
+-- String
+-- Array
+-- Table
+-- Function
 
 function example() pass end
 

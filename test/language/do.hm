@@ -1,6 +1,6 @@
-# 3
-# 4
-# foo 6
+-- 3
+-- 4
+-- foo 6
 
 function min(a, b)
   if a < b return a end

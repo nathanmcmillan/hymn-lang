@@ -1,8 +1,8 @@
-# { a: True, b: True, c: False, d: False }
-# True
-# { b: True, c: False, d: False }
-# False
-# { b: True, d: False }
+-- { a: True, b: True, c: False, d: False }
+-- True
+-- { b: True, c: False, d: False }
+-- False
+-- { b: True, d: False }
 
 let table = { a: true, b: true, c: false, d: false }
 print table

@@ -1,7 +1,7 @@
-# foobar
-# foobar
-# hello world
-# hello foobar world
+-- foobar
+-- foobar
+-- hello world
+-- hello foobar world
 
 const foo = "foo"
 const bar = "bar"

@@ -21,11 +21,11 @@ A small byte-code interpreted language with a focus on simplicty. [Visit the web
 1. Intern integer and boolean constants
 1. A failed malloc, calloc, etc should return a compile or runtime error if possible
 
-| Implementation | Status  |
-| -------------- | ------- |
-| C              | Working |
-| JavaScript     | Started |
-| Rust           | Started |
+| Implementation | Status          |
+| -------------- | --------------- |
+| C              | Complete        |
+| JavaScript     | Almost complete |
+| Rust           | Started         |
 
 ## Long Term Goals
 

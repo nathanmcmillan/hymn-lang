@@ -1,4 +1,4 @@
-# foobar
+-- foobar
 
 try use "nope" except _ end
 

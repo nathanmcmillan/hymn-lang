@@ -1,5 +1,5 @@
-# @Starts
-# Expected string, array, or table for `index` function.
+-- @Starts
+-- Expected string, array, or table for `index` function.
 
 let foo = "empty"
 try

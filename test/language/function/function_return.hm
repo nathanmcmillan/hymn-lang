@@ -1,14 +1,14 @@
-# None
-# True
-# False
-# 1
-# 0.01
+-- None
+-- True
+-- False
+-- 1
+-- 0.01
 #
-# [1]
-# { hello: "world" }
-# bar
-# 2
-# 4
+-- [1]
+-- { hello: "world" }
+-- bar
+-- 2
+-- 4
 
 function a() return none end
 function b() return true end

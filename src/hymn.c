@@ -1247,13 +1247,6 @@ static void advance(Compiler *this) {
     while (true) {
         char c = next_char(this);
         switch (c) {
-        case '#':
-            c = peek_char(this);
-            while (c != '\n' and c != '\0') {
-                next_char(this);
-                c = peek_char(this);
-            }
-            continue;
         case ' ':
         case '\t':
         case '\r':
@@ -1264,6 +1257,20 @@ static void advance(Compiler *this) {
                 c = peek_char(this);
             }
             continue;
+        case '-': {
+            if (peek_char(this) == '-') {
+                next_char(this);
+                c = peek_char(this);
+                while (c != '\n' and c != '\0') {
+                    next_char(this);
+                    c = peek_char(this);
+                }
+                continue;
+            } else {
+                token(this, TOKEN_SUBTRACT);
+                return;
+            }
+        }
         case '!':
             if (peek_char(this) == '=') {
                 next_char(this);
@@ -1307,7 +1314,6 @@ static void advance(Compiler *this) {
         case '^': token(this, TOKEN_BIT_XOR); return;
         case '~': token(this, TOKEN_BIT_NOT); return;
         case '+': token(this, TOKEN_ADD); return;
-        case '-': token(this, TOKEN_SUBTRACT); return;
         case '%': token(this, TOKEN_MODULO); return;
         case '*': token(this, TOKEN_MULTIPLY); return;
         case '/': token(this, TOKEN_DIVIDE); return;

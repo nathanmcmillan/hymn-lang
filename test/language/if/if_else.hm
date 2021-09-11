@@ -1,6 +1,6 @@
-# else
-# block
-# end
+-- else
+-- block
+-- end
 
 if false
   print "bad"
