@@ -1560,9 +1560,9 @@ function compileDot(compiler, assign) {
   const name = identConstant(compiler, compiler.previous)
   if (assign && match(compiler, TOKEN_ASSIGN)) {
     expression(compiler)
-    emitTwo(compiler, OP_SET_PROPERTY, compiler)
+    emitTwo(compiler, OP_SET_PROPERTY, name)
   } else {
-    emitTwo(compiler, OP_GET_PROPERTY, compiler)
+    emitTwo(compiler, OP_GET_PROPERTY, name)
   }
 }
 
@@ -2376,7 +2376,7 @@ function compile(hymn, script, source) {
   return { func: func, error: compiler.error }
 }
 
-function valueToString(value, quote) {
+function valueToStringRecursive(value, set, quote) {
   switch (value.is) {
     case HYMN_VALUE_UNDEFINED:
       return STRING_UNDEFINED
@@ -2397,13 +2397,19 @@ function valueToString(value, quote) {
       if (!array || array.length === 0) {
         return '[]'
       }
+      if (set === null) {
+        set = new Set()
+      } else if (set.has(array)) {
+        return '[..]'
+      }
+      set.add(array)
       let print = '['
       for (let i = 0; i < array.length; i++) {
         const item = array[i]
         if (i !== 0) {
           print += ', '
         }
-        print += valueToString(item, true)
+        print += valueToStringRecursive(item, set, true)
       }
       print += ']'
       return print
@@ -2413,15 +2419,22 @@ function valueToString(value, quote) {
       if (!table || table.size === 0) {
         return '{}'
       }
+      if (set === null) {
+        set = new Set()
+      } else if (set.has(table)) {
+        return '{ .. }'
+      }
+      set.add(table)
       const keys = Array.from(table.keys())
       keys.sort()
       let print = '{ '
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i]
+        const item = table.get(key)
         if (i !== 0) {
           print += ', '
         }
-        print += key + ': ' + valueToString(table.get(key), true)
+        print += key + ': ' + valueToStringRecursive(item, set, true)
       }
       print += ' }'
       return print
@@ -2443,8 +2456,16 @@ function valueToString(value, quote) {
   }
 }
 
+function valueToString(value) {
+  return valueToStringRecursive(value, null, false)
+}
+
+function hymnConcat(a, b) {
+  return newString(valueToString(a) + valueToString(b))
+}
+
 function debugValueToString(value) {
-  return valueName(value.is) + ': ' + valueToString(value, false)
+  return valueName(value.is) + ': ' + valueToString(value)
 }
 
 function hymnResetStack(hymn) {
@@ -2515,7 +2536,7 @@ function hymnException(hymn) {
     hymn.stackTop = frame.stack
     hymn.frameCount--
     if (hymn.frameCount === 0 || frame.func.name === null) {
-      hymn.error = valueToString(result, false)
+      hymn.error = valueToString(result)
       return null
     }
     hymnPush(hymn, result)
@@ -3224,17 +3245,17 @@ async function hymnRun(hymn) {
         const a = hymnPop(hymn)
         if (isNone(a)) {
           if (isString(b)) {
-            hymnPush(hymn, newString(STRING_NONE + b.value))
+            hymnPush(hymn, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            frame = hymnThrowError(hymn, "Add: 1st and 2nd values can't be added.")
             if (frame === null) return
             else break
           }
         } else if (isBool(a)) {
           if (isString(b)) {
-            hymnPush(hymn, newString((a.value ? STRING_TRUE : STRING_FALSE) + b.value))
+            hymnPush(hymn, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            frame = hymnThrowError(hymn, "Add: 1st and 2nd values can't be added.")
             if (frame === null) return
             else break
           }
@@ -3246,9 +3267,9 @@ async function hymnRun(hymn) {
             b.value += a.value
             hymnPush(hymn, a)
           } else if (isString(b)) {
-            hymnPush(hymn, newString(String(a.value) + b.value))
+            hymnPush(hymn, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            frame = hymnThrowError(hymn, "Add: 1st and 2nd values can't be added.")
             if (frame === null) return
             else break
           }
@@ -3260,43 +3281,16 @@ async function hymnRun(hymn) {
             a.value += b.value
             hymnPush(hymn, a)
           } else if (isString(b)) {
-            hymnPush(hymn, newString(String(a.value) + b.value))
+            hymnPush(hymn, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(hymn, "Operation Error: 1st and 2nd values can't be added.")
+            frame = hymnThrowError(hymn, "Add: 1st and 2nd values can't be added.")
             if (frame === null) return
             else break
           }
         } else if (isString(a)) {
-          const s = a.value
-          let add = null
-          switch (b.is) {
-            case HYMN_VALUE_NONE:
-              add = s + STRING_NONE
-              break
-            case HYMN_VALUE_BOOL:
-              add = s + (b.value ? STRING_TRUE : STRING_FALSE)
-              break
-            case HYMN_VALUE_INTEGER:
-            case HYMN_VALUE_FLOAT:
-            case HYMN_VALUE_STRING:
-              add = s + b.value
-              break
-            case HYMN_VALUE_ARRAY:
-            case HYMN_VALUE_TABLE:
-              add = s + '[' + b.value + ']'
-              break
-            case HYMN_VALUE_FUNC:
-            case HYMN_VALUE_FUNC_NATIVE:
-              add = s + b.value.name
-              break
-            default:
-              frame = hymnThrowError(hymn, "Operands can't be added.")
-              if (frame === null) return
-              else break
-          }
-          hymnPush(hymn, newString(add))
+          hymnPush(hymn, hymnConcat(a, b))
         } else {
-          frame = hymnThrowError(hymn, "Operands can't be added.")
+          frame = hymnThrowError(hymn, "Add: 1st and 2nd values can't be added.")
           if (frame === null) return
           else break
         }
@@ -3313,7 +3307,7 @@ async function hymnRun(hymn) {
             a.value -= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
+            frame = hymnThrowError(hymn, 'Subtract: 2nd value must be `Integer` or `Float`.')
             if (frame === null) return
             else break
           }
@@ -3325,12 +3319,12 @@ async function hymnRun(hymn) {
             a.value -= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+            frame = hymnThrowError(hymn, 'Subtract: 1st and 2nd values must be `Integer` or `Float`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+          frame = hymnThrowError(hymn, 'Subtract: 1st and 2nd values must be `Integer` or `Float`.')
           if (frame === null) return
           else break
         }
@@ -3347,7 +3341,7 @@ async function hymnRun(hymn) {
             a.value *= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
+            frame = hymnThrowError(hymn, 'Multiply: 2nd value must be `Integer` or `Float`.')
             if (frame === null) return
             else break
           }
@@ -3359,12 +3353,12 @@ async function hymnRun(hymn) {
             a.value *= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+            frame = hymnThrowError(hymn, 'Multiply: 1st and 2nd values must be `Integer` or `Float`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+          frame = hymnThrowError(hymn, 'Multiply: 1st and 2nd values must be `Integer` or `Float`.')
           if (frame === null) return
           else break
         }
@@ -3381,7 +3375,7 @@ async function hymnRun(hymn) {
             a.value /= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer` or `Float`.')
+            frame = hymnThrowError(hymn, 'Divide: 2nd value must be `Integer` or `Float`.')
             if (frame === null) return
             else break
           }
@@ -3393,12 +3387,12 @@ async function hymnRun(hymn) {
             a.value /= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+            frame = hymnThrowError(hymn, 'Divide: 1st and 2nd values must be `Integer` or `Float`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer` or `Float`.')
+          frame = hymnThrowError(hymn, 'Divide: 1st and 2nd values must be `Integer` or `Float`.')
           if (frame === null) return
           else break
         }
@@ -3412,12 +3406,12 @@ async function hymnRun(hymn) {
             a.value %= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            frame = hymnThrowError(hymn, 'Modulo: 2nd value must be `Integer`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          frame = hymnThrowError(hymn, 'Modulo: 1st and 2nd values must be `Integer`.')
           if (frame === null) return
           else break
         }
@@ -3429,7 +3423,7 @@ async function hymnRun(hymn) {
           value.value = ~value.value
           hymnPush(hymn, value)
         } else {
-          frame = hymnThrowError(hymn, 'Bitwise operand must integer.')
+          frame = hymnThrowError(hymn, 'Bitwise Not: Operand must integer.')
           if (frame === null) return
           else break
         }
@@ -3443,12 +3437,12 @@ async function hymnRun(hymn) {
             a.value |= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            frame = hymnThrowError(hymn, 'Bitwise Or: 2nd value must be `Integer`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          frame = hymnThrowError(hymn, 'Bitwise Or: 1st and 2nd values must be `Integer`.')
           if (frame === null) return
           else break
         }
@@ -3462,12 +3456,12 @@ async function hymnRun(hymn) {
             a.value &= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            frame = hymnThrowError(hymn, 'Bitwise And: 2nd value must be `Integer`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          frame = hymnThrowError(hymn, 'Bitwise And: 1st and 2nd values must be `Integer`.')
           if (frame === null) return
           else break
         }
@@ -3481,12 +3475,12 @@ async function hymnRun(hymn) {
             a.value ^= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            frame = hymnThrowError(hymn, 'Bitwise Xor: 2nd value must be `Integer`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          frame = hymnThrowError(hymn, 'Bitwise Xor: 1st and 2nd values must be `Integer`.')
           if (frame === null) return
           else break
         }
@@ -3500,12 +3494,12 @@ async function hymnRun(hymn) {
             a.value <<= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            frame = hymnThrowError(hymn, 'Bitwise Left Shift: 2nd value must be `Integer`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          frame = hymnThrowError(hymn, 'Bitwise Left Shift: 1st and 2nd values must be `Integer`.')
           if (frame === null) return
           else break
         }
@@ -3519,12 +3513,12 @@ async function hymnRun(hymn) {
             a.value >>= b.value
             hymnPush(hymn, a)
           } else {
-            frame = hymnThrowError(hymn, 'Operation Error: 2nd value must be `Integer`.')
+            frame = hymnThrowError(hymn, 'Bitwise Right Shift: 2nd value must be `Integer`.')
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(hymn, 'Operation Error: 1st and 2nd values must be `Integer`.')
+          frame = hymnThrowError(hymn, 'Bitwise Right Shift: 1st and 2nd values must be `Integer`.')
           if (frame === null) return
           else break
         }
@@ -3537,7 +3531,7 @@ async function hymnRun(hymn) {
         } else if (isFloat(value)) {
           value.value = -value.value
         } else {
-          frame = hymnThrowError(hymn, 'Operand must be a number.')
+          frame = hymnThrowError(hymn, 'Negate: Operand must be a number.')
           if (frame === null) return
           else break
         }
@@ -3549,7 +3543,7 @@ async function hymnRun(hymn) {
         if (isBool(value)) {
           value.value = !value.value
         } else {
-          frame = hymnThrowError(hymn, 'Operand must be a boolean.')
+          frame = hymnThrowError(hymn, 'Not: Operand must be a boolean.')
           if (frame === null) return
           else break
         }
@@ -3618,13 +3612,12 @@ async function hymnRun(hymn) {
         const p = hymnPop(hymn)
         const v = hymnPop(hymn)
         if (!isTable(v)) {
-          frame = hymnThrowError(hymn, 'Only tables can set properties.')
+          frame = hymnThrowError(hymn, 'Set Property: Only tables can set properties.')
           if (frame === null) return
           else break
         }
         const table = v.value
         const name = readConstant(frame).value
-        const previous = table.get(name)
         table.set(name, p)
         hymnPush(hymn, p)
         break
@@ -4201,12 +4194,12 @@ async function hymnRun(hymn) {
       }
       case OP_TO_STRING: {
         const value = hymnPop(hymn)
-        hymnPush(hymn, newString(valueToString(value, false)))
+        hymnPush(hymn, newString(valueToString(value)))
         break
       }
       case OP_PRINT: {
         const value = hymnPop(hymn)
-        hymn.print(valueToString(value, false))
+        hymn.print(valueToString(value))
         break
       }
       case OP_THROW: {

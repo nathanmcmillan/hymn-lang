@@ -1,20 +1,22 @@
+-- 0
+-- 1
 -- 2
--- 4
--- [6, 8]
--- 6
--- 8
--- [6, 8]
--- 4
--- 2
+-- -1
+-- -1
+-- -1
+-- -1
+-- -1
+-- -1
 
-let array = [2, 4, [6, 8]]
+let array = [2, 4, 8]
 
-print array[0]
-print array[1]
-print array[2]
-print array[2][0]
-print array[2][1]
+print index(array, 2)
+print index(array, 4)
+print index(array, 8)
 
-print array[-1]
-print array[-2]
-print array[-3]
+print index(array, 0)
+print index(array, -1)
+print index(array, none)
+print index(array, true)
+print index(array, false)
+print index(array, "foo")

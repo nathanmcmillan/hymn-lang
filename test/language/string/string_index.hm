@@ -1,0 +1,24 @@
+-- 0
+-- 0
+-- 0
+-- 6
+-- 6
+-- 6
+-- 0
+-- 0
+-- -1
+
+let foo = "hello world"
+
+print index(foo, "h")
+print index(foo, "he")
+print index(foo, "hello")
+
+print index(foo, "w")
+print index(foo, "wo")
+print index(foo, "world")
+
+print index(foo, "")
+print index(foo, "hello world")
+
+print index(foo, "foobar")

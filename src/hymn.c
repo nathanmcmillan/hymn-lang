@@ -443,7 +443,6 @@ struct Compiler {
     Scope *scope;
     struct LoopList *loop;
     struct JumpList *jump;
-    struct JumpList *iterator_jump;
     String *error;
 };
 
@@ -662,7 +661,6 @@ static unsigned int table_get_bin(Table *this, usize hash) {
 }
 
 static void table_resize(Table *this) {
-
     unsigned int old_bins = this->bins;
     unsigned int bins = old_bins << 1;
 
@@ -819,7 +817,6 @@ static unsigned int set_get_bin(Set *this, usize hash) {
 }
 
 static void set_resize(Set *this) {
-
     unsigned int old_bins = this->bins;
     unsigned int bins = old_bins << 1;
 
@@ -996,7 +993,6 @@ static String *string_append_second_previous_line(const char *source, String *st
 }
 
 static void compile_error(Compiler *this, Token *token, const char *format, ...) {
-
     if (this->error != NULL) return;
 
     String *error = new_string("");
@@ -1598,28 +1594,39 @@ static Table *new_table_copy(Table *from) {
 }
 
 static Array *table_keys(Table *this) {
-    Array *array = new_array_with_capacity(0, this->size);
-
-    if (this->size == 0) {
+    unsigned int size = this->size;
+    Array *array = new_array_with_capacity(size, size);
+    if (size == 0) {
         return array;
     }
-
+    HymnValue *keys = array->items;
+    unsigned int total = 0;
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         TableItem *item = this->items[i];
         while (item != NULL) {
+            String *string = item->key->string;
+            unsigned int insert = 0;
+            while (insert != total) {
+                if (string_compare(string, as_string(keys[insert])) < 0) {
+                    for (unsigned int swap = total; swap > insert; swap--) {
+                        keys[swap] = keys[swap - 1];
+                    }
+                    break;
+                }
+                insert++;
+            }
             Value value = new_string_value(item->key);
             reference(value);
-            array_push(array, value);
+            keys[insert] = value;
+            total++;
             item = item->next;
         }
     }
-
     return array;
 }
 
 static HymnString *table_key_of(Table *this, Value match) {
-
     unsigned int bin = 0;
     TableItem *item = NULL;
 
@@ -1876,23 +1883,23 @@ static void compile_false(Compiler *this, bool assign) {
 
 static void compile_integer(Compiler *this, bool assign) {
     (void)assign;
-    Token *alpha = &this->previous;
-    i64 number = (i64)strtoll(&this->source[alpha->start], NULL, 10);
-    write_constant(this, new_int(number), alpha->row);
+    Token *previous = &this->previous;
+    i64 number = (i64)strtoll(&this->source[previous->start], NULL, 10);
+    write_constant(this, new_int(number), previous->row);
 }
 
 static void compile_float(Compiler *this, bool assign) {
     (void)assign;
-    Token *alpha = &this->previous;
-    double number = strtod(&this->source[alpha->start], NULL);
-    write_constant(this, new_float(number), alpha->row);
+    Token *previous = &this->previous;
+    double number = strtod(&this->source[previous->start], NULL);
+    write_constant(this, new_float(number), previous->row);
 }
 
 static void compile_string(Compiler *this, bool assign) {
     (void)assign;
-    Token *alpha = &this->previous;
-    String *s = new_string_from_substring(this->source, alpha->start, alpha->start + alpha->length);
-    write_constant(this, compile_intern_string(this->machine, s), alpha->row);
+    Token *previous = &this->previous;
+    String *s = new_string_from_substring(this->source, previous->start, previous->start + previous->length);
+    write_constant(this, compile_intern_string(this->machine, s), previous->row);
 }
 
 static u8 ident_constant(Compiler *this, Token *token) {
@@ -2273,7 +2280,6 @@ static void if_statement(Compiler *this) {
     struct JumpList *tail = &jump_end;
 
     while (match(this, TOKEN_ELIF)) {
-
         patch_jump(this, jump);
         emit(this, OP_POP);
 
@@ -2310,7 +2316,7 @@ static void if_statement(Compiler *this) {
         current = next;
     }
 
-    consume(this, TOKEN_END, "Expected 'end' after if statement.");
+    consume(this, TOKEN_END, "If: Missing 'end'.");
 }
 
 static bool compile_literal(Compiler *this) {
@@ -2340,7 +2346,6 @@ static bool compile_literal(Compiler *this) {
 }
 
 static void switch_statement(Compiler *this) {
-
     begin_scope(this);
 
     u8 local = push_hidden_local(this);
@@ -2357,7 +2362,6 @@ static void switch_statement(Compiler *this) {
     struct JumpList *tail = NULL;
 
     while (match(this, TOKEN_CASE)) {
-
         if (jump != -1) {
             patch_jump(this, jump);
             emit(this, OP_POP);
@@ -2472,104 +2476,107 @@ static void patch_jump_list(Compiler *this) {
     }
 }
 
-static void patch_iterator_jump_list(Compiler *this) {
-    while (this->iterator_jump != NULL) {
-        int depth = 1;
-        if (this->loop != NULL) {
-            depth = this->loop->depth + 1;
-        }
-        if (this->iterator_jump->depth < depth) {
-            break;
-        }
-        patch_jump(this, this->iterator_jump->jump);
-        struct JumpList *next = this->iterator_jump->next;
-        free(this->iterator_jump);
-        this->iterator_jump = next;
-    }
-}
-
 static void iterate_statement(Compiler *this) {
-
-    // FIXME: ITERATE should be shorthand for creating and going through an ITERATOR object
-    // An ITERATOR object will be a table
-    // array iterator {"i":0, "object":<reference>}
-    // string iterator {"i":0, "object":<reference>}
-    // table iterator {"i":0, "object":<keys list reference>, "table":<table reference>}
-
-    /*
-    let t = {}
-
-    let i = iterator(t)
-    while true
-        let value = next(i)
-        if value === undefined break end
-    end
-
-    iterate key, value in t
-        print key + ", " + value
-    end
-
-    -- compiles to
-
-    let _object = t
-    let _table = none
-    if type(t) === "Table"
-      _table = _object
-      _object = keys(_table)
-    end
-    let _size = len(_object)
-    for let _id = 0; _id < _size; _id = _id + 1
-        let key = _id
-        let value = _object[_id]
-        if _table != none
-            key = value
-            value = _table[value]
-        end
-    end
-    */
-
     begin_scope(this);
 
     // parameters
 
-    u8 index;
+    u8 id;
 
     u8 value = (u8)this->scope->local_count;
-    variable(this, true, "Expected parameter name.");
+    variable(this, true, "Iterator: Missing parameter.");
     local_initialize(this);
 
     if (match(this, TOKEN_COMMA)) {
-        index = value;
-        write_constant(this, new_int(0), this->previous.row);
+        id = value;
+        emit(this, OP_NONE);
 
         value = (u8)this->scope->local_count;
-        variable(this, true, "Expected second parameter name.");
+        variable(this, true, "Iterator: Missing second parameter.");
         local_initialize(this);
         emit(this, OP_NONE);
     } else {
         emit(this, OP_NONE);
 
-        index = push_hidden_local(this);
-        write_constant(this, new_int(0), this->previous.row);
+        id = push_hidden_local(this);
+        emit(this, OP_NONE);
     }
 
-    consume(this, TOKEN_IN, "Expected 'in' after iterate parameters.");
+    consume(this, TOKEN_IN, "Iterator: Missing 'in' after parameters.");
 
     // setup
 
-    u8 local = push_hidden_local(this);
+    u8 object = push_hidden_local(this);
     expression(this);
 
+    u8 keys = push_hidden_local(this);
+    emit(this, OP_NONE);
+
     u8 length = push_hidden_local(this);
-    emit_two(this, OP_GET_LOCAL, local);
+    emit(this, OP_NONE);
+
+    u8 index = push_hidden_local(this);
+    write_constant(this, new_int(0), this->previous.row);
+
+    // type check
+
+    u8 type = push_hidden_local(this);
+    emit_two(this, OP_GET_LOCAL, object);
+    emit(this, OP_TYPE);
+
+    emit_two(this, OP_GET_LOCAL, type);
+    write_constant(this, compile_intern_string(this->machine, new_string(STRING_TABLE)), this->previous.row);
+    emit(this, OP_EQUAL);
+
+    int jump_not_table = emit_jump(this, OP_JUMP_IF_FALSE);
+
+    // type is table
+
+    emit(this, OP_POP);
+
+    emit_two(this, OP_GET_LOCAL, object);
+    emit(this, OP_KEYS);
+    emit_two(this, OP_SET_LOCAL, keys);
     emit(this, OP_LEN);
+    emit_two(this, OP_SET_LOCAL, length);
+    emit(this, OP_POP);
+
+    int jump_table_end = emit_jump(this, OP_JUMP);
+
+    patch_jump(this, jump_not_table);
+
+    emit(this, OP_POP);
+
+    emit_two(this, OP_GET_LOCAL, type);
+    write_constant(this, compile_intern_string(this->machine, new_string(STRING_ARRAY)), this->previous.row);
+    emit(this, OP_EQUAL);
+
+    int jump_not_array = emit_jump(this, OP_JUMP_IF_FALSE);
+
+    // type is array
+
+    emit(this, OP_POP);
+    emit_two(this, OP_GET_LOCAL, object);
+    emit(this, OP_LEN);
+    emit_two(this, OP_SET_LOCAL, length);
+    emit(this, OP_POP);
+
+    int jump_array_end = emit_jump(this, OP_JUMP);
+
+    // unexpected type
+
+    patch_jump(this, jump_not_array);
+
+    emit(this, OP_POP);
+    write_constant(this, compile_intern_string(this->machine, new_string("Iterator: Expected `Array` or `Table`")), this->previous.row);
+    emit(this, OP_THROW);
+
+    patch_jump(this, jump_table_end);
+    patch_jump(this, jump_array_end);
 
     // compare
 
     int compare = current(this)->count;
-
-    struct LoopList loop = {.start = -1, .depth = this->scope->depth + 1, .next = this->loop};
-    this->loop = &loop;
 
     emit_two(this, OP_GET_LOCAL, index);
     emit_two(this, OP_GET_LOCAL, length);
@@ -2578,32 +2585,56 @@ static void iterate_statement(Compiler *this) {
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
     emit(this, OP_POP);
 
-    // update
-
-    emit_two(this, OP_GET_LOCAL, local);
-    emit_two(this, OP_GET_LOCAL, index);
-    emit(this, OP_GET_DYNAMIC);
-
-    emit_two(this, OP_SET_LOCAL, value);
-    emit(this, OP_POP);
-
-    // inside
-
-    block(this);
-
     // increment
 
-    patch_iterator_jump_list(this);
+    int body = emit_jump(this, OP_JUMP);
+    int increment = current(this)->count;
+
+    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
+    this->loop = &loop;
 
     emit_two(this, OP_GET_LOCAL, index);
     write_constant(this, new_int(1), this->previous.row);
     emit(this, OP_ADD);
     emit_two(this, OP_SET_LOCAL, index);
+
+    emit(this, OP_POP);
+    emit_loop(this, compare);
+
+    // body
+
+    patch_jump(this, body);
+
+    emit_two(this, OP_GET_LOCAL, object);
+
+    emit_two(this, OP_GET_LOCAL, keys);
+    emit(this, OP_NONE);
+    emit(this, OP_EQUAL);
+
+    int jump_no_keys = emit_jump(this, OP_JUMP_IF_FALSE);
+
+    emit(this, OP_POP);
+    emit_two(this, OP_GET_LOCAL, index);
+
+    int jump_no_keys_end = emit_jump(this, OP_JUMP);
+
+    patch_jump(this, jump_no_keys);
+
+    emit(this, OP_POP);
+    emit_two(this, OP_GET_LOCAL, keys);
+    emit_two(this, OP_GET_LOCAL, index);
+    emit(this, OP_GET_DYNAMIC);
+
+    patch_jump(this, jump_no_keys_end);
+
+    emit_two(this, OP_SET_LOCAL, id);
+    emit(this, OP_GET_DYNAMIC);
+
+    emit_two(this, OP_SET_LOCAL, value);
     emit(this, OP_POP);
 
-    // next
-
-    emit_loop(this, compare);
+    block(this);
+    emit_loop(this, increment);
 
     // end
 
@@ -2615,7 +2646,7 @@ static void iterate_statement(Compiler *this) {
     patch_jump_list(this);
     end_scope(this);
 
-    consume(this, TOKEN_END, "Expected 'end'.");
+    consume(this, TOKEN_END, "Iterator: Missing 'end'.");
 }
 
 static void for_statement(Compiler *this) {
@@ -2631,7 +2662,7 @@ static void for_statement(Compiler *this) {
         expression_statement(this);
     }
 
-    consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
+    consume(this, TOKEN_SEMICOLON, "For: Missing ';'.");
 
     // compare
 
@@ -2642,7 +2673,7 @@ static void for_statement(Compiler *this) {
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
     emit(this, OP_POP);
 
-    consume(this, TOKEN_SEMICOLON, "Expected ';' in for.");
+    consume(this, TOKEN_SEMICOLON, "For: Missing second ';'.");
 
     // increment
 
@@ -2674,7 +2705,7 @@ static void for_statement(Compiler *this) {
     patch_jump_list(this);
     end_scope(this);
 
-    consume(this, TOKEN_END, "Expected 'end' after for loop.");
+    consume(this, TOKEN_END, "For: Missing 'end'.");
 }
 
 static void while_statement(Compiler *this) {
@@ -2697,12 +2728,12 @@ static void while_statement(Compiler *this) {
 
     patch_jump_list(this);
 
-    consume(this, TOKEN_END, "Expected 'end' after while loop.");
+    consume(this, TOKEN_END, "While: Missing 'end'.");
 }
 
 static void return_statement(Compiler *this) {
     if (this->scope->type == TYPE_SCRIPT) {
-        compile_error(this, &this->previous, "Can't return from outside a function.");
+        compile_error(this, &this->previous, "Return Error: Outside of function.");
     }
     if (check(this, TOKEN_END)) {
         emit(this, OP_NONE);
@@ -2725,7 +2756,7 @@ static void pop_stack_loop(Compiler *this) {
 
 static void break_statement(Compiler *this) {
     if (this->loop == NULL) {
-        compile_error(this, &this->previous, "Can't use 'break' outside of a loop.");
+        compile_error(this, &this->previous, "Break Error: Outside of loop.");
     }
     pop_stack_loop(this);
     struct JumpList *jump_next = this->jump;
@@ -2738,23 +2769,13 @@ static void break_statement(Compiler *this) {
 
 static void continue_statement(Compiler *this) {
     if (this->loop == NULL) {
-        compile_error(this, &this->previous, "Can't use 'continue' outside of a loop.");
+        compile_error(this, &this->previous, "Continue Error: Outside of loop.");
     }
     pop_stack_loop(this);
-    if (this->loop->start == -1) {
-        struct JumpList *jump_next = this->iterator_jump;
-        struct JumpList *jump = safe_malloc(sizeof(struct JumpList));
-        jump->jump = emit_jump(this, OP_JUMP);
-        jump->depth = this->loop->depth;
-        jump->next = jump_next;
-        this->iterator_jump = jump;
-    } else {
-        emit_loop(this, this->loop->start);
-    }
+    emit_loop(this, this->loop->start);
 }
 
 static void try_statement(Compiler *this) {
-
     ExceptList *except = safe_calloc(1, sizeof(ExceptList));
     except->stack = this->scope->local_count;
     except->start = (usize)current(this)->count;
@@ -2771,19 +2792,19 @@ static void try_statement(Compiler *this) {
 
     int jump = emit_jump(this, OP_JUMP);
 
-    consume(this, TOKEN_EXCEPT, "Expected 'except' after 'try'.");
+    consume(this, TOKEN_EXCEPT, "Try: Missing 'except'.");
 
     except->end = (usize)current(this)->count;
 
     begin_scope(this);
-    u8 message = variable(this, false, "Expected variable after 'except'.");
+    u8 message = variable(this, false, "Try: Missing variable after 'except'.");
     finalize_variable(this, message);
     while (!check(this, TOKEN_END) and !check(this, TOKEN_EOF)) {
         declaration(this);
     }
     end_scope(this);
 
-    consume(this, TOKEN_END, "Expected 'end' after 'except'.");
+    consume(this, TOKEN_END, "Try: Missing 'end'.");
 
     patch_jump(this, jump);
 }
@@ -2986,7 +3007,6 @@ struct CompileReturn {
 };
 
 static struct CompileReturn compile(Machine *machine, const char *script, const char *source) {
-
     Scope scope = {0};
 
     Compiler c = new_compiler(script, source, machine, &scope);
@@ -3008,7 +3028,43 @@ static struct CompileReturn compile(Machine *machine, const char *script, const 
     return (struct CompileReturn){.func = func, .error = error};
 }
 
-static String *value_to_string(Value value, bool quote) {
+struct PointerSet {
+    int count;
+    int capacity;
+    void **items;
+};
+
+bool pointer_set_has(struct PointerSet *set, void *pointer) {
+    void **items = set->items;
+    if (items) {
+        int count = set->count;
+        for (int i = 0; i < count; i++) {
+            if (pointer == items[i]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void pointer_set_add(struct PointerSet *set, void *pointer) {
+    if (set->items) {
+        int count = set->count;
+        if (count + 1 > set->capacity) {
+            set->capacity *= 2;
+            set->items = safe_realloc(set->items, set->capacity * sizeof(void *));
+        }
+        set->items[count] = pointer;
+        set->count = count + 1;
+    } else {
+        set->count = 1;
+        set->capacity = 1;
+        set->items = safe_calloc(1, sizeof(void *));
+        set->items[0] = pointer;
+    }
+}
+
+static String *value_to_string_recusive(Value value, struct PointerSet *set, bool quote) {
     switch (value.is) {
     case HYMN_VALUE_UNDEFINED: return new_string(STRING_UNDEFINED);
     case HYMN_VALUE_NONE: return new_string(STRING_NONE);
@@ -3024,12 +3080,17 @@ static String *value_to_string(Value value, bool quote) {
         if (array == NULL || array->length == 0) {
             return new_string("[]");
         }
+        if (pointer_set_has(set, array)) {
+            return new_string("[..]");
+        } else {
+            pointer_set_add(set, array);
+        }
         String *string = new_string("[");
         for (i64 i = 0; i < array->length; i++) {
             if (i != 0) {
                 string = string_append(string, ", ");
             }
-            String *add = value_to_string(array->items[i], true);
+            String *add = value_to_string_recusive(array->items[i], set, true);
             string = string_append(string, add);
             string_delete(add);
         }
@@ -3041,6 +3102,11 @@ static String *value_to_string(Value value, bool quote) {
         if (table == NULL || table->size == 0) {
             return new_string("{}");
         }
+        if (pointer_set_has(set, table)) {
+            return new_string("{ .. }");
+        } else {
+            pointer_set_add(set, table);
+        }
         HymnString **keys = safe_malloc(table->size * sizeof(HymnString *));
         unsigned int total = 0;
         unsigned int bins = table->bins;
@@ -3049,10 +3115,7 @@ static String *value_to_string(Value value, bool quote) {
             while (item != NULL) {
                 String *string = item->key->string;
                 unsigned int insert = 0;
-                while (true) {
-                    if (insert == total) {
-                        break;
-                    }
+                while (insert != total) {
                     if (string_compare(string, keys[insert]->string) < 0) {
                         for (unsigned int swap = total; swap > insert; swap--) {
                             keys[swap] = keys[swap - 1];
@@ -3072,7 +3135,7 @@ static String *value_to_string(Value value, bool quote) {
                 string = string_append(string, ", ");
             }
             Value item = table_get(table, keys[i]);
-            String *add = value_to_string(item, true);
+            String *add = value_to_string_recusive(item, set, true);
             string = string_append_format(string, "%s: %s", keys[i]->string, add);
             string_delete(add);
         }
@@ -3092,8 +3155,23 @@ static String *value_to_string(Value value, bool quote) {
     return new_string("?");
 }
 
+static String *value_to_string(Value value) {
+    struct PointerSet set = {.count = 0, .capacity = 0, .items = NULL};
+    String *string = value_to_string_recusive(value, &set, false);
+    free(set.items);
+    return string;
+}
+
+static String *value_concat(Value a, Value b) {
+    String *string = value_to_string(a);
+    String *second = value_to_string(b);
+    string = string_append(string, second);
+    string_delete(second);
+    return string;
+}
+
 static String *debug_value_to_string(Value value) {
-    String *string = value_to_string(value, false);
+    String *string = value_to_string(value);
     String *format = string_format("%s: %s", value_name(value.is), string);
     string_delete(string);
     return format;
@@ -3400,7 +3478,7 @@ static Frame *machine_exception(Machine *this) {
         this->frame_count--;
         if (this->frame_count == 0 or frame->func->name == NULL) {
             assert(this->error == NULL);
-            this->error = value_to_string(result, false);
+            this->error = value_to_string(result);
             DEREF(result)
             return NULL;
         }
@@ -3450,7 +3528,6 @@ static Frame *machine_throw_existing_error(Machine *this, char *error) {
 }
 
 static Frame *machine_throw_error(Machine *this, const char *format, ...) {
-
     String *error = new_string("");
 
     va_list ap;
@@ -3573,7 +3650,6 @@ static inline Value read_constant(Frame *frame) {
 }
 
 static Frame *machine_do(Machine *this, HymnString *source) {
-
     struct CompileReturn result = compile(this, NULL, source->string);
 
     Function *func = result.func;
@@ -3599,7 +3675,6 @@ static Frame *machine_do(Machine *this, HymnString *source) {
 }
 
 static Frame *machine_import(Machine *this, HymnString *file) {
-
     Table *imports = this->imports;
 
     String *script = NULL;
@@ -3833,20 +3908,14 @@ static void machine_run(Machine *this) {
             POP(a)
             if (is_none(a)) {
                 if (is_string(b)) {
-                    String *temp = new_string(STRING_NONE);
-                    String *add = string_concat(temp, string_copy(as_string(b)));
-                    string_delete(temp);
-                    machine_push_intern_string(this, add);
+                    machine_push_intern_string(this, value_concat(a, b));
                 } else {
                     DEREF_TWO(a, b)
                     THROW("Operation Error: 1st and 2nd values can't be added.")
                 }
             } else if (is_bool(a)) {
                 if (is_string(b)) {
-                    String *temp = new_string(as_bool(a) ? STRING_TRUE : STRING_FALSE);
-                    String *add = string_concat(temp, string_copy(as_string(b)));
-                    string_delete(temp);
-                    machine_push_intern_string(this, add);
+                    machine_push_intern_string(this, value_concat(a, b));
                 } else {
                     DEREF_TWO(a, b)
                     THROW("Operation Error: 1st and 2nd values can't be added.")
@@ -3859,10 +3928,7 @@ static void machine_run(Machine *this) {
                     b.as.f += a.as.i;
                     PUSH(a)
                 } else if (is_string(b)) {
-                    String *temp = int64_to_string(as_int(a));
-                    String *add = string_concat(temp, as_string(b));
-                    string_delete(temp);
-                    machine_push_intern_string(this, add);
+                    machine_push_intern_string(this, value_concat(a, b));
                 } else {
                     DEREF_TWO(a, b)
                     THROW("Operation Error: 1st and 2nd values can't be added.")
@@ -3875,65 +3941,13 @@ static void machine_run(Machine *this) {
                     a.as.f += b.as.f;
                     PUSH(a)
                 } else if (is_string(b)) {
-                    String *temp = float64_to_string(as_float(a));
-                    String *add = string_concat(temp, as_string(b));
-                    string_delete(temp);
-                    machine_push_intern_string(this, add);
+                    machine_push_intern_string(this, value_concat(a, b));
                 } else {
                     DEREF_TWO(a, b)
                     THROW("Operation Error: 1st and 2nd values can't be added.")
                 }
             } else if (is_string(a)) {
-                String *s = as_string(a);
-                String *add = NULL;
-                switch (b.is) {
-                case HYMN_VALUE_NONE:
-                    add = string_append(string_copy(s), STRING_NONE);
-                    break;
-                case HYMN_VALUE_BOOL:
-                    add = string_append(string_copy(s), as_bool(b) ? STRING_TRUE : STRING_FALSE);
-                    break;
-                case HYMN_VALUE_INTEGER: {
-                    String *temp = int64_to_string(as_int(b));
-                    add = string_concat(s, temp);
-                    string_delete(temp);
-                    break;
-                }
-                case HYMN_VALUE_FLOAT: {
-                    String *temp = float64_to_string(as_float(b));
-                    add = string_concat(s, temp);
-                    string_delete(temp);
-                    break;
-                }
-                case HYMN_VALUE_STRING:
-                    add = string_concat(s, as_string(b));
-                    break;
-                case HYMN_VALUE_ARRAY: {
-                    String *temp = new_string("[");
-                    temp = string_append(temp, pointer_to_string(as_array(b)));
-                    temp = string_append_char(temp, ']');
-                    add = string_concat(s, temp);
-                    string_delete(temp);
-                    break;
-                }
-                case HYMN_VALUE_TABLE: {
-                    String *temp = new_string("[");
-                    temp = string_append(temp, pointer_to_string(as_table(b)));
-                    temp = string_append_char(temp, ']');
-                    add = string_concat(s, temp);
-                    string_delete(temp);
-                    break;
-                }
-                case HYMN_VALUE_FUNC:
-                    add = string_concat(s, as_func(b)->name);
-                    break;
-                case HYMN_VALUE_FUNC_NATIVE:
-                    add = string_concat(s, as_native(b)->name);
-                    break;
-                default:
-                    THROW("Operands can't be added.")
-                }
-                machine_push_intern_string(this, add);
+                machine_push_intern_string(this, value_concat(a, b));
             } else {
                 THROW("Operands can't be added.")
             }
@@ -4081,7 +4095,7 @@ static void machine_run(Machine *this) {
             POP(v)
             if (!is_table(v)) {
                 DEREF_TWO(p, v)
-                THROW("Only tables can set properties.")
+                THROW("Set Property: Only tables can set properties.")
             }
             Table *table = as_table(v);
             HymnString *name = as_hymn_string(read_constant(frame));
@@ -4664,13 +4678,13 @@ static void machine_run(Machine *this) {
         }
         case OP_TO_STRING: {
             POP(value)
-            machine_push_intern_string(this, value_to_string(value, false));
+            machine_push_intern_string(this, value_to_string(value));
             DEREF(value)
             break;
         }
         case OP_PRINT: {
             POP(value)
-            String *string = value_to_string(value, false);
+            String *string = value_to_string(value);
             this->print("%s\n", string);
             string_delete(string);
             DEREF(value)
@@ -4796,20 +4810,6 @@ void hymn_delete(Hymn *this) {
                 item = next;
             }
         }
-#ifndef NDEBUG
-        for (unsigned int i = 0; i < bins; i++) {
-            TableItem *item = globals->items[i];
-            while (item != NULL) {
-                Value value = item->value;
-                if (is_object(value) && as_object(value)->count != 1 && !is_string(value)) {
-                    printf("GLOBAL NOT FREE (COUNT = %d): ", as_object(value)->count);
-                    debug_value(item->value);
-                    printf("\n");
-                }
-                item = item->next;
-            }
-        }
-#endif
         table_release(this, &this->globals);
         assert(this->globals.size == 0);
     }
@@ -4825,18 +4825,7 @@ void hymn_delete(Hymn *this) {
                 item = next;
             }
         }
-#ifndef NDEBUG
-        if (strings->size != 0) {
-            for (unsigned int i = 0; i < bins; i++) {
-                SetItem *item = strings->items[i];
-                while (item != NULL) {
-                    printf("STRING NOT FREE (COUNT = %d): %s\n", item->string->object.count, item->string->string);
-                    item = item->next;
-                }
-            }
-        }
         assert(strings->size == 0);
-#endif
         free(strings->items);
     }
 
@@ -4858,7 +4847,6 @@ void hymn_add_pointer(Hymn *this, const char *name, void *pointer) {
 }
 
 char *hymn_do_script(Hymn *this, const char *script, const char *source) {
-
     struct CompileReturn result = compile(this, script, source);
 
     Function *func = result.func;

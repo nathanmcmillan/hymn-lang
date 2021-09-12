@@ -21,9 +21,9 @@ static String *parse_expected(String *source) {
     usize size = string_len(source);
     for (usize pos = 0; pos < size; pos++) {
         char c = source[pos];
-        if (c == '#' && pos + 1 < size) {
-            if (source[pos + 1] == ' ') {
-                pos += 2;
+        if (c == '-' && pos + 2 < size && source[pos + 1] == '-') {
+            if (source[pos + 2] == ' ') {
+                pos += 3;
                 while (pos < size) {
                     c = source[pos];
                     expected = string_append_char(expected, c);
@@ -33,8 +33,8 @@ static String *parse_expected(String *source) {
                     pos++;
                 }
                 continue;
-            } else if (source[pos + 1] == '\n') {
-                pos++;
+            } else if (source[pos + 2] == '\n') {
+                pos += 2;
                 expected = string_append_char(expected, '\n');
                 continue;
             }
@@ -69,11 +69,11 @@ static String *test_source(String *script) {
             } else if (string_starts_with(expected, "@Starts")) {
                 String *start = substring(expected, 8, string_len(expected));
                 if (!string_starts_with(out, start)) {
-                    result = string_format("Expected start:\n%s\nBut was:\n%s", start, out);
+                    result = string_format("Expected start:\n%s\n\nBut was:\n%s", start, out);
                 }
                 string_delete(start);
             } else if (!string_equal(out, expected)) {
-                result = string_format("Expected:\n%s\nBut was:\n%s", expected, out);
+                result = string_format("Expected:\n%s\n\nBut was:\n%s", expected, out);
             }
         }
     }
@@ -98,7 +98,7 @@ void test_hymn(const char *filter) {
         tests_count++;
         String *result = test_source(script);
         if (result != NULL) {
-            printf("⨯ %s\n%s\n", script, result);
+            printf("⨯ %s\n%s\n\n", script, result);
             tests_fail++;
         } else {
             printf("✓ %s\n", script);

@@ -1,0 +1,47 @@
+-- ["foo", ["bar", [..]]]
+-- ["bar", ["foo", [..]]]
+-- { name: "foo", point: { name: "bar", point: { .. } } }
+-- { name: "bar", point: { name: "foo", point: { .. } } }
+-- [1, [2, [3, [..]]]]
+-- [2, [3, [1, [..]]]]
+-- [3, [1, [2, [..]]]]
+
+const a = ["foo"]
+const b = ["bar"]
+
+push(a, b)
+push(b, a)
+
+print a
+print b
+
+clear(a)
+clear(b)
+
+const c = { name: "foo" }
+const d = { name: "bar" }
+
+c.point = d
+d.point = c
+
+print c
+print d
+
+clear(c)
+clear(d)
+
+const e = [1]
+const f = [2]
+const g = [3]
+
+push(e, f)
+push(f, g)
+push(g, e)
+
+print e
+print f
+print g
+
+clear(e)
+clear(f)
+clear(g)

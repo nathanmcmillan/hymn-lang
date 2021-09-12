@@ -1,0 +1,57 @@
+-- begin
+-- 2
+-- 4
+-- 8
+-- end
+-- begin
+-- 0 -> 2
+-- 1 -> 4
+-- 2 -> 8
+-- end
+-- begin
+-- 10
+-- 12
+-- 14
+-- end
+-- begin
+-- 0 -> 10
+-- 1 -> 12
+-- end
+-- begin
+-- 4
+-- 8
+-- end
+
+const array = [2, 4, 8]
+
+print "begin"
+iterate value in array
+  print value
+end
+print "end"
+
+print "begin"
+iterate i, value in array
+  print i + " -> " + value
+end
+print "end"
+
+print "begin"
+iterate value in [10, 12, 14]
+  print value
+end
+print "end"
+
+print "begin"
+iterate i, value in [10, 12, 14]
+  if i == 2 break end
+  print i + " -> " + value
+end
+print "end"
+
+print "begin"
+iterate value in array
+  if value == 2 continue end
+  print value
+end
+print "end"

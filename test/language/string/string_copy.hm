@@ -1,0 +1,8 @@
+-- bar
+-- bar
+
+let foo = "bar"
+let bar = copy(foo)
+
+print foo
+print bar

@@ -1,0 +1,12 @@
+-- { foo: "bar", hello: "world" }
+-- { foo: "baz", hello: "world" }
+-- { foo: "bar", hello: "world" }
+
+let table = { foo: "bar", hello: "world" }
+print table
+
+let copied = copy(table)
+copied.foo = "baz"
+
+print copied
+print table

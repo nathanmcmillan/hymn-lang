@@ -18,16 +18,20 @@ A small byte-code interpreted language with a focus on simplicty. [Visit the web
 ## Development
 
 1. More constants than 256
-1. Intern integer and boolean constants
+1. Intern non-string constants
 1. A failed malloc, calloc, etc should return a compile or runtime error if possible
+1. Multi-line strings without different syntax
+1. Bash-like double quote string formatting `I am a ${variable}`
+1. Consistent, descriptive error messages. Use the form `[Expression Name]: Expected/Missing [X], but was [Y]`
 
 | Implementation | Status          |
 | -------------- | --------------- |
-| C              | Complete        |
+| C              | Version 0.1     |
 | JavaScript     | Almost complete |
 | Rust           | Started         |
+| Go             | Not Started     |
+| Java           | Not Started     |
 
 ## Long Term Goals
 
-1. Implementations in other languages including Rust, Go, and Java
 1. Large standard library written in Hymn

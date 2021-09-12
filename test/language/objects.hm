@@ -1,0 +1,24 @@
+-- My cat is Mittens and says Meow!
+-- My dog is Cookies and says Bork!
+
+function meow()
+  return "Meow!"
+end
+
+function bork()
+  return "Bork!"
+end
+
+function cat(name)
+  return { name: name, says: meow }
+end
+
+function dog(name)
+  return { name: name, says: bork }
+end
+
+const k = cat("Mittens")
+const d = dog("Cookies")
+
+print "My cat is " + k.name + " and says " + k.says()
+print "My dog is " + d.name + " and says " + d.says()

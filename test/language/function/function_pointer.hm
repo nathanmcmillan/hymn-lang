@@ -1,0 +1,14 @@
+-- 16
+
+function foo(number)
+  return number * 2
+end
+
+function bar(value)
+  print value
+end
+
+const multiply = foo
+const printer = bar
+
+printer(multiply(8))

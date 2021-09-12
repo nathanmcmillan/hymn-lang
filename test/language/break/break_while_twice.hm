@@ -1,0 +1,28 @@
+-- begin
+-- x = 1
+-- x = 2
+-- i = 1
+-- x = 1
+-- x = 2
+-- i = 2
+-- x = 1
+-- x = 2
+-- i = 3
+-- x = 1
+-- x = 2
+-- end
+
+print "begin"
+let i = 1
+while i < 8
+  let x = 1
+  while x < 16
+    print "x = " + x
+    x = x + 1
+    if x == 3 break end
+  end
+  if i == 4 break end
+  print "i = " + i
+  i = i + 1
+end
+print "end"

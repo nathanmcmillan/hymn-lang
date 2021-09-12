@@ -1,0 +1,14 @@
+-- 8, { hello: 16 }
+-- 8, { hello: 16 }
+-- 8, { hello: 16 }
+
+function new()
+  return { foo: 2, bar: { hello: 4 } }
+end
+
+for let i = 0; i < 3; i = i + 1
+  const o = new()
+  o.foo = o.foo * 4
+  o.bar.hello = o.bar.hello * 4
+  print o.foo + ', ' + o.bar
+end

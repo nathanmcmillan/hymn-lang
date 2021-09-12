@@ -1,0 +1,18 @@
+-- a
+-- b
+-- None
+-- x
+-- y
+-- None
+
+const words = { a: "foo", b: "bar" }
+
+print index(words, "foo")
+print index(words, "bar")
+print index(words, "hello")
+
+const numbers = { x: 2, y: 4 }
+
+print index(numbers, 2)
+print index(numbers, 4)
+print index(numbers, 8)

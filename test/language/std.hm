@@ -1,13 +1,11 @@
 use "util"
 
--- @param string or array
--- @param value to find
--- @return last index of value or -1 if not found
-function last_index(array, value)
-  let size = len(array)
+-- last_index returns the index of the last instance of v in a, or -1 if not found.
+function last_index(a, v)
+  let size = len(a)
   let i = size - 1
   while i >= 0
-    if array[i] == value
+    if a[i] == v
       return i
     end
     i = i - 1
@@ -15,8 +13,7 @@ function last_index(array, value)
   return -1
 end
 
--- @param string
--- @return string with upper-case characters
+-- upper returns s with letters mapped to their upper case.
 function upper(s)
   let new = ""
   let size = len(s)
@@ -33,25 +30,57 @@ function upper(s)
   return new
 end
 
--- @param number
--- @return absolute value of number
+-- abs returns the absolute value of n.
 function abs(n)
   if n < 0 return -n end
   return n
 end
 
--- @param first number
--- @param second number
--- @return smaller of first and second numbers
+-- min returns the smaller value of a or b.
 function min(a, b)
   if a < b return a end
   return b
 end
 
--- @param first number
--- @param second number
--- @return larger of first and second numbers
+-- max returns the larger value of a or b.
 function max(a, b)
   if a > b return a end
   return b
+end
+
+-- string_comparator returns the alphabetical integer difference comparing a to b.
+function string_comparator(a, b)
+  const to = min(len(a), len(b))
+  for let i = 0; i < to; i = i + 1
+    const char = int(a[i]) - int(b[i])
+    if char != 0 return char end
+  end
+  return len(a) - len(b)
+end
+
+-- sort returns a new array with elements sorted using the comparator function.
+function sort(a, comparator)
+  const n = []
+  let total = 0
+  iterate v in a
+    let id = 0
+    while true
+      if id == total break end
+      if comparator(v, n[id]) < 0
+        for let swap = total; swap > id; swap = swap - 1
+          n[swap] = n[swap - 1]
+        end
+        break
+      end
+      id = id + 1
+    end
+    n[id] = v
+    total = total + 1
+  end
+  return n
+end
+
+-- sort_strings returns a new array with sorted strings.
+function sort_strings(a)
+  return sort(a, string_comparator)
 end

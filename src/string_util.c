@@ -226,12 +226,7 @@ String *string_append_substring(String *this, const char *b, usize start, usize 
 }
 
 int string_compare(String *a, String *b) {
-    usize len_a = string_len(a);
-    usize len_b = string_len(b);
-    if (len_a == len_b) {
-        return strcmp(a, b);
-    }
-    return (len_a > len_b) ? (int)(len_a - len_b) : -(int)(len_b - len_a);
+    return strcmp(a, b);
 }
 
 bool string_equal(String *a, String *b) {
