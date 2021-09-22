@@ -1121,7 +1121,7 @@ function advance(compiler) {
   }
 }
 
-function valueMatch(a, b) {
+function matchValues(a, b) {
   if (a.is !== b.is) {
     return false
   }
@@ -1171,6 +1171,24 @@ function newCompiler(script, source, hymn, scope) {
 function byteCodeAddConstant(code, value) {
   code.constants.push(value)
   return code.constants.length - 1
+}
+
+function arrayIndexOf(array, input) {
+  for (let i = 0; i < array.length; i++) {
+    if (matchValues(input, array[i])) {
+      return i
+    }
+  }
+  return -1
+}
+
+function tableKeyOf(table, input) {
+  for (const [key, value] of table) {
+    if (matchValues(input, value)) {
+      return newString(key)
+    }
+  }
+  return newNone()
 }
 
 function writeOp(code, byte, row) {
@@ -4067,9 +4085,12 @@ async function hymnRun(hymn) {
           else break
         } else {
           const table = value.value
-          const array = tableKeys(table)
-          const keys = newArrayValue(array)
-          hymnPush(hymn, keys)
+          const keys = Array.from(table.keys())
+          keys.sort()
+          for (let i = 0; i < keys.length; i++) {
+            keys[i] = newString(keys[i])
+          }
+          hymnPush(hymn, newArrayValue(keys))
         }
         break
       }
@@ -4083,25 +4104,15 @@ async function hymnRun(hymn) {
               if (frame === null) return
               else break
             }
-            const index = 0
-            const found = stringFind(a.value, b.value, index)
-            if (found) {
-              hymnPush(hymn, newInt(index))
-            } else {
-              hymnPush(hymn, newInt(-1))
-            }
+            const index = a.value.indexOf(b.value)
+            hymnPush(hymn, newInt(index))
             break
           }
           case HYMN_VALUE_ARRAY:
             hymnPush(hymn, newInt(arrayIndexOf(a.value, b)))
             break
           case HYMN_VALUE_TABLE: {
-            const key = tableKeyOf(a.value, b)
-            if (key == NULL) {
-              hymnPush(hymn, newNone())
-            } else {
-              hymnPush(hymn, newString(key))
-            }
+            hymnPush(hymn, tableKeyOf(a.value, b))
             break
           }
           default:
