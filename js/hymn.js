@@ -1938,81 +1938,163 @@ function iterateStatement(compiler) {
 
   // parameters
 
-  let index
+  let id
 
   let value = compiler.scope.localCount
-  variable(compiler, true, 'Expected parameter name.')
+  variable(compiler, true, 'Iterator: Missing parameter.')
   localInitialize(compiler)
 
   if (match(compiler, TOKEN_COMMA)) {
-    index = value
-    writeConstant(compiler, newInt(0), compiler.previous.row)
+    id = value
+    emit(compiler, OP_NONE)
 
     value = compiler.scope.localCount
-    variable(compiler, true, 'Expected second parameter name.')
+    variable(compiler, true, 'Iterator: Missing second parameter.')
     localInitialize(compiler)
     emit(compiler, OP_NONE)
   } else {
     emit(compiler, OP_NONE)
 
-    index = pushHiddenLocal(compiler)
-    writeConstant(compiler, newInt(0), compiler.previous.row)
+    id = pushHiddenLocal(compiler)
+    emit(compiler, OP_NONE)
   }
 
-  consume(compiler, TOKEN_IN, "Expected 'in' after iterate parameters.")
+  consume(compiler, TOKEN_IN, "Iterator: Missing 'in' after parameters.")
 
   // setup
 
-  const local = pushHiddenLocal(compiler)
+  const object = pushHiddenLocal(compiler)
   expression(compiler)
 
-  const len = pushHiddenLocal(compiler)
-  emitTwo(compiler, OP_GET_LOCAL, local)
+  const keys = pushHiddenLocal(compiler)
+  emit(compiler, OP_NONE)
+
+  const length = pushHiddenLocal(compiler)
+  emit(compiler, OP_NONE)
+
+  const index = pushHiddenLocal(compiler)
+  writeConstant(compiler, newInt(0), compiler.previous.row)
+
+  // type check
+
+  const type = pushHiddenLocal(compiler)
+  emitTwo(compiler, OP_GET_LOCAL, object)
+  emit(compiler, OP_TYPE)
+
+  emitTwo(compiler, OP_GET_LOCAL, type)
+  writeConstant(compiler, newString(STRING_TABLE), compiler.previous.row)
+  emit(compiler, OP_EQUAL)
+
+  const jump_not_table = emitJump(compiler, OP_JUMP_IF_FALSE)
+
+  // type is table
+
+  emit(compiler, OP_POP)
+
+  emitTwo(compiler, OP_GET_LOCAL, object)
+  emit(compiler, OP_KEYS)
+  emitTwo(compiler, OP_SET_LOCAL, keys)
   emit(compiler, OP_LEN)
+  emitTwo(compiler, OP_SET_LOCAL, length)
+  emit(compiler, OP_POP)
+
+  const jumpTableEnd = emitJump(compiler, OP_JUMP)
+
+  patchJump(compiler, jump_not_table)
+
+  emit(compiler, OP_POP)
+
+  emitTwo(compiler, OP_GET_LOCAL, type)
+  writeConstant(compiler, newString(STRING_ARRAY), compiler.previous.row)
+  emit(compiler, OP_EQUAL)
+
+  const jumpNotArray = emitJump(compiler, OP_JUMP_IF_FALSE)
+
+  // type is array
+
+  emit(compiler, OP_POP)
+  emitTwo(compiler, OP_GET_LOCAL, object)
+  emit(compiler, OP_LEN)
+  emitTwo(compiler, OP_SET_LOCAL, length)
+  emit(compiler, OP_POP)
+
+  const jump_array_end = emitJump(compiler, OP_JUMP)
+
+  // unexpected type
+
+  patchJump(compiler, jumpNotArray)
+
+  emit(compiler, OP_POP)
+  writeConstant(compiler, newString('Iterator: Expected `Array` or `Table`'), compiler.previous.row)
+  emit(compiler, OP_THROW)
+
+  patchJump(compiler, jumpTableEnd)
+  patchJump(compiler, jump_array_end)
 
   // compare
 
   const compare = current(compiler).count
 
-  const loop = new LoopList()
-  loop.start = -1
-  loop.depth = compiler.scope.depth + 1
-  loop.next = compiler.loop
-  compiler.loop = loop
-
   emitTwo(compiler, OP_GET_LOCAL, index)
-  emitTwo(compiler, OP_GET_LOCAL, len)
+  emitTwo(compiler, OP_GET_LOCAL, length)
   emit(compiler, OP_LESS)
 
   const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
   emit(compiler, OP_POP)
 
-  // update
-
-  emitTwo(compiler, OP_GET_LOCAL, local)
-  emitTwo(compiler, OP_GET_LOCAL, index)
-  emit(compiler, OP_GET_DYNAMIC)
-
-  emitTwo(compiler, OP_SET_LOCAL, value)
-  emit(compiler, OP_POP)
-
-  // inside
-
-  block(compiler)
-
   // increment
 
-  patchIteratorJumpList(compiler)
+  const body = emitJump(compiler, OP_JUMP)
+  const increment = current(compiler).count
+
+  const loop = new LoopList()
+  loop.start = increment
+  loop.depth = compiler.scope.depth + 1
+  loop.next = compiler.loop
+  compiler.loop = loop
 
   emitTwo(compiler, OP_GET_LOCAL, index)
   writeConstant(compiler, newInt(1), compiler.previous.row)
   emit(compiler, OP_ADD)
   emitTwo(compiler, OP_SET_LOCAL, index)
+
+  emit(compiler, OP_POP)
+  emitLoop(compiler, compare)
+
+  // body
+
+  patchJump(compiler, body)
+
+  emitTwo(compiler, OP_GET_LOCAL, object)
+
+  emitTwo(compiler, OP_GET_LOCAL, keys)
+  emit(compiler, OP_NONE)
+  emit(compiler, OP_EQUAL)
+
+  const jumpNoKeys = emitJump(compiler, OP_JUMP_IF_FALSE)
+
+  emit(compiler, OP_POP)
+  emitTwo(compiler, OP_GET_LOCAL, index)
+
+  const jumpNoKeysEnd = emitJump(compiler, OP_JUMP)
+
+  patchJump(compiler, jumpNoKeys)
+
+  emit(compiler, OP_POP)
+  emitTwo(compiler, OP_GET_LOCAL, keys)
+  emitTwo(compiler, OP_GET_LOCAL, index)
+  emit(compiler, OP_GET_DYNAMIC)
+
+  patchJump(compiler, jumpNoKeysEnd)
+
+  emitTwo(compiler, OP_SET_LOCAL, id)
+  emit(compiler, OP_GET_DYNAMIC)
+
+  emitTwo(compiler, OP_SET_LOCAL, value)
   emit(compiler, OP_POP)
 
-  // next
-
-  emitLoop(compiler, compare)
+  block(compiler)
+  emitLoop(compiler, increment)
 
   // end
 
@@ -2024,7 +2106,7 @@ function iterateStatement(compiler) {
   patchJumpList(compiler)
   endScope(compiler)
 
-  consume(compiler, TOKEN_END, "Expected 'end'.")
+  consume(compiler, TOKEN_END, "Iterator: Missing 'end'.")
 }
 
 function forStatement(compiler) {
