@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "hm_vm.h"
+#include "hm_io.h"
 
 #define new_undefined() hymn_new_undefined()
 #define new_none() hymn_new_none()

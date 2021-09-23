@@ -10,7 +10,6 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "hm_io.h"
 #include "hm_util.h"
 
 // #define HYMN_DEBUG_TOKEN
