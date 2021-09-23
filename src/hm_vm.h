@@ -2,18 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#ifndef HYMN_H
-#define HYMN_H
+#ifndef HYMN_VM_H
+#define HYMN_VM_H
 
 // #define NDEBUG
 
 #include <assert.h>
 #include <errno.h>
 
-#include "file_io.h"
-#include "mem.h"
-#include "pie.h"
-#include "string_util.h"
+#include "hm_io.h"
+#include "hm_util.h"
 
 // #define HYMN_DEBUG_TOKEN
 // #define HYMN_DEBUG_CODE
@@ -197,7 +195,6 @@ Hymn *new_hymn();
 char *hymn_do_script(Hymn *this, const char *script, const char *source);
 char *hymn_do(Hymn *this, const char *source);
 char *hymn_read(Hymn *this, const char *script);
-char *hymn_repl(Hymn *this);
 
 void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
 void hymn_add_pointer(Hymn *this, const char *name, void *pointer);

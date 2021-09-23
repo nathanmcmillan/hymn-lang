@@ -24,13 +24,13 @@ A small byte-code interpreted language with a focus on simplicty. [Visit the web
 1. Bash-like double quote string formatting `I am a ${variable}`
 1. Consistent, descriptive error messages. Use the form `[Expression Name]: Expected/Missing [X], but was [Y]`
 
-| Implementation | Status          |
-| -------------- | --------------- |
-| C              | Version 0.1     |
-| JavaScript     | Almost complete |
-| Rust           | Started         |
-| Go             | Not Started     |
-| Java           | Not Started     |
+| Implementation | Status      |
+| -------------- | ----------- |
+| C              | Version 0.1 |
+| JavaScript     | Version 0.1 |
+| Rust           | Started     |
+| Go             | Not Started |
+| Java           | Not Started |
 
 ## Long Term Goals
 

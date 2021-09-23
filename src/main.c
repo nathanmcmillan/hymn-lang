@@ -9,9 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "file_io.h"
-#include "hymn.h"
-#include "pie.h"
+#include "hm_vm.h"
 
 #ifndef HYMN_TESTING
 
@@ -55,8 +53,6 @@ int main(int argc, char **argv) {
 
     if (argc > 1) {
         error = hymn_read(hymn, argv[1]);
-    } else {
-        error = hymn_repl(hymn);
     }
 
     int code = 0;

@@ -2,14 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#ifndef FILE_IO_H
-#define FILE_IO_H
+#ifndef HYMN_IO_H
+#define HYMN_IO_H
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#include "hm_util.h"
 
 #ifdef __GNUC__
 #include <dirent.h>
@@ -24,10 +26,6 @@
 #define PATH_SEP '\\'
 #define PATH_SEP_STRING "\\"
 #endif
-
-#include "mem.h"
-#include "pie.h"
-#include "string_util.h"
 
 struct FileList {
     int count;

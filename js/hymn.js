@@ -4246,15 +4246,13 @@ async function hymnRun(hymn) {
         if (isInt(value)) {
           hymnPush(hymn, value)
         } else if (isFloat(value)) {
-          const push = value.value
-          hymnPush(hymn, newInt(push))
+          hymnPush(hymn, newInt(parseInt(value.value)))
         } else if (isString(value)) {
-          const s = value.value
-          if (s.length == 1) {
-            const c = s[0]
-            hymnPush(hymn, newInt(c))
+          let number = Number(value.value)
+          if (isNaN(number)) {
+            hymnPush(hymn, newNone())
           } else {
-            hymnPush(hymn, newInt(-1))
+            hymnPush(hymn, newInt(parseInt(number)))
           }
         } else {
           frame = hymnThrowError(hymn, "Can't cast to an integer.")
@@ -4266,17 +4264,15 @@ async function hymnRun(hymn) {
       case OP_TO_FLOAT: {
         const value = hymnPop(hymn)
         if (isInt(value)) {
-          const push = value.value
-          hymnPush(hymn, newFloat(push))
+          hymnPush(hymn, newFloat(parseFloat(value.value)))
         } else if (isFloat(value)) {
           hymnPush(hymn, value)
         } else if (isString(value)) {
-          const s = value.value
-          if (s.length == 1) {
-            const c = Number(s[0])
-            hymnPush(hymn, newFloat(c))
+          let number = Number(value.value)
+          if (isNaN(number)) {
+            hymnPush(hymn, newNone())
           } else {
-            hymnPush(hymn, newFloat(-1))
+            hymnPush(hymn, newFloat(number))
           }
         } else {
           frame = hymnThrowError(hymn, "Can't cast to a float.")

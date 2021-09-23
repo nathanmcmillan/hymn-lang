@@ -2,7 +2,34 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "string_util.h"
+#include "hm_util.h"
+
+void *safe_malloc(usize size) {
+    void *mem = malloc(size);
+    if (mem) {
+        return mem;
+    }
+    fprintf(stderr, "malloc failed.\n");
+    exit(1);
+}
+
+void *safe_calloc(usize members, usize member_size) {
+    void *mem = calloc(members, member_size);
+    if (mem) {
+        return mem;
+    }
+    fprintf(stderr, "calloc failed.\n");
+    exit(1);
+}
+
+void *safe_realloc(void *mem, usize size) {
+    mem = realloc(mem, size);
+    if (mem) {
+        return mem;
+    }
+    fprintf(stderr, "realloc failed.\n");
+    exit(1);
+}
 
 static StringHead *string_head_init(usize length, usize capacity) {
     usize memory = sizeof(StringHead) + length + 1;
@@ -30,13 +57,6 @@ String *new_string_from_substring(const char *init, usize start, usize end) {
     return (String *)s;
 }
 
-String *string_allocate(usize length) {
-    StringHead *head = string_head_init(length, length);
-    char *s = (char *)(head + 1);
-    memset(s, '\0', length + 1);
-    return (String *)s;
-}
-
 String *new_string(const char *init) {
     usize len = strlen(init);
     return new_string_with_length(init, len);
@@ -52,84 +72,11 @@ usize string_len(String *this) {
     return head->length;
 }
 
-usize string_cap(String *this) {
-    StringHead *head = (StringHead *)((char *)this - sizeof(StringHead));
-    return head->capacity;
-}
-
 void string_delete(String *this) {
     if (this == NULL) {
         return;
     }
     free((char *)this - sizeof(StringHead));
-}
-
-String *string_concat(String *a, String *b) {
-    usize len1 = string_len(a);
-    usize len2 = string_len(b);
-    usize len = len1 + len2;
-    StringHead *head = string_head_init(len, len);
-    char *s = (char *)(head + 1);
-    memcpy(s, a, len1);
-    memcpy(s + len1, b, len2 + 1);
-    s[len] = '\0';
-    return (String *)s;
-}
-
-String *string_concat_list(String **list, int size) {
-    usize len = 0;
-    for (int i = 0; i < size; i++) {
-        len += string_len(list[i]);
-    }
-    StringHead *head = string_head_init(len, len);
-    char *s = (char *)(head + 1);
-    usize pos = 0;
-    for (int i = 0; i < size; i++) {
-        usize len_i = string_len(list[i]);
-        memcpy(s + pos, list[i], len_i);
-        pos += len_i;
-    }
-    s[len] = '\0';
-    return (String *)s;
-}
-
-String *string_concat_varg(int size, ...) {
-    va_list args;
-
-    usize len = 0;
-    va_start(args, size);
-    for (int i = 0; i < size; i++) {
-        len += string_len(va_arg(args, String *));
-    }
-    va_end(args);
-
-    StringHead *head = string_head_init(len, len);
-    char *s = (char *)(head + 1);
-
-    usize pos = 0;
-    va_start(args, size);
-    for (int i = 0; i < size; i++) {
-        String *param = va_arg(args, String *);
-        usize len_i = string_len(param);
-        memcpy(s + pos, param, len_i);
-        pos += len_i;
-    }
-    va_end(args);
-
-    s[len] = '\0';
-    return (String *)s;
-}
-
-String *string_concat_const(String *a, const char *b) {
-    usize len1 = string_len(a);
-    usize len2 = strlen(b);
-    usize len = len1 + len2;
-    StringHead *head = string_head_init(len, len);
-    char *s = (char *)(head + 1);
-    memcpy(s, a, len1);
-    memcpy(s + len1, b, len2);
-    s[len] = '\0';
-    return (String *)s;
 }
 
 String *substring(String *this, usize start, usize end) {
@@ -336,42 +283,6 @@ String *char_to_string(char ch) {
     return s;
 }
 
-String *int_to_string(int number) {
-    int len = snprintf(NULL, 0, "%d", number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%d", number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *int8_to_string(i8 number) {
-    int len = snprintf(NULL, 0, "%" PRId8, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId8, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *int16_to_string(i16 number) {
-    int len = snprintf(NULL, 0, "%" PRId16, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId16, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *int32_to_string(i32 number) {
-    int len = snprintf(NULL, 0, "%" PRId32, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId32, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
 String *int64_to_string(i64 number) {
     int len = snprintf(NULL, 0, "%" PRId64, number);
     char *str = safe_malloc(len + 1);
@@ -381,149 +292,21 @@ String *int64_to_string(i64 number) {
     return s;
 }
 
-String *usize_to_string(usize number) {
-    int len = snprintf(NULL, 0, "%zu", number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%zu", number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *uint_to_string(unsigned int number) {
-    int len = snprintf(NULL, 0, "%u", number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%u", number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *uint8_to_string(u8 number) {
-    int len = snprintf(NULL, 0, "%" PRId8, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId8, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *uint16_to_string(u16 number) {
-    int len = snprintf(NULL, 0, "%" PRId16, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId16, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *uint32_to_string(u32 number) {
-    int len = snprintf(NULL, 0, "%" PRId32, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId32, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *uint64_to_string(u64 number) {
-    int len = snprintf(NULL, 0, "%" PRId64, number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId64, number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *float_to_string(float number) {
+String *double_to_string(double number) {
     int len = snprintf(NULL, 0, "%g", number);
     char *str = safe_malloc(len + 1);
     snprintf(str, len + 1, "%g", number);
     String *s = new_string_with_length(str, len);
     free(str);
     return s;
-}
-
-String *float32_to_string(float number) {
-    return float_to_string(number);
-}
-
-String *float64_to_string(double number) {
-    int len = snprintf(NULL, 0, "%g", number);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%g", number);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-String *pointer_to_string(void *pointer) {
-    int len = snprintf(NULL, 0, "%p", pointer);
-    char *str = safe_malloc(len + 1);
-    snprintf(str, len + 1, "%p", pointer);
-    String *s = new_string_with_length(str, len);
-    free(str);
-    return s;
-}
-
-bool string_to_bool(String *this) {
-    return strcmp(this, "true") == 0;
-}
-
-int string_to_int(String *this) {
-    return (int)strtol(this, NULL, 10);
-}
-
-i8 string_to_int8(String *this) {
-    return (i8)strtol(this, NULL, 10);
-}
-
-i16 string_to_int16(String *this) {
-    return (i16)strtol(this, NULL, 10);
-}
-
-i32 string_to_int32(String *this) {
-    return (i32)strtol(this, NULL, 10);
 }
 
 i64 string_to_int64(String *this) {
     return (i64)strtoll(this, NULL, 10);
 }
 
-usize string_to_usize(String *this) {
-    return (usize)strtoll(this, NULL, 10);
-}
-
-unsigned int string_to_uint(String *this) {
-    return (unsigned int)strtoul(this, NULL, 10);
-}
-
-u8 string_to_uint8(String *this) {
-    return (u8)strtoul(this, NULL, 10);
-}
-
-u16 string_to_uint16(String *this) {
-    return (u16)strtoul(this, NULL, 10);
-}
-
-u32 string_to_uint32(String *this) {
-    return (u32)strtoul(this, NULL, 10);
-}
-
-u64 string_to_uint64(String *this) {
-    return (u64)strtoull(this, NULL, 10);
-}
-
-float string_to_float(String *this) {
-    return strtof(this, NULL);
-}
-
-float string_to_float32(String *this) {
-    return string_to_float(this);
-}
-
-double string_to_float64(String *this) {
-    return strtod(this, NULL);
+double string_to_double(String *this, char **end) {
+    return strtod(this, end);
 }
 
 char *string_to_chars(String *this) {

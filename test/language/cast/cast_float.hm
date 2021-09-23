@@ -1,0 +1,33 @@
+-- 0
+-- 0
+-- 1
+-- -1
+-- 1.2
+-- -1.2
+--
+-- 0
+-- 0
+-- 1
+-- -1
+-- 1.2
+-- -1.2
+--
+-- None
+
+print float(0)
+print float(0.0)
+print float(1)
+print float(-1)
+print float(1.2)
+print float(-1.2)
+print ""
+
+print float("0")
+print float("0.0")
+print float("1")
+print float("-1")
+print float("1.2")
+print float("-1.2")
+print ""
+
+print float("no!")

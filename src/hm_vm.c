@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "hymn.h"
+#include "hm_vm.h"
 
 #define new_undefined() hymn_new_undefined()
 #define new_none() hymn_new_none()
@@ -3070,14 +3070,14 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
     case HYMN_VALUE_NONE: return new_string(STRING_NONE);
     case HYMN_VALUE_BOOL: return as_bool(value) ? new_string(STRING_TRUE) : new_string(STRING_FALSE);
     case HYMN_VALUE_INTEGER: return int64_to_string(as_int(value));
-    case HYMN_VALUE_FLOAT: return float64_to_string(as_float(value));
+    case HYMN_VALUE_FLOAT: return double_to_string(as_float(value));
     case HYMN_VALUE_STRING: {
         if (quote) return string_format("\"%s\"", as_string(value));
         return string_copy(as_string(value));
     }
     case HYMN_VALUE_ARRAY: {
         Array *array = as_array(value);
-        if (array == NULL || array->length == 0) {
+        if (array == NULL or array->length == 0) {
             return new_string("[]");
         }
         if (pointer_set_has(set, array)) {
@@ -3099,7 +3099,7 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
     }
     case HYMN_VALUE_TABLE: {
         Table *table = as_table(value);
-        if (table == NULL || table->size == 0) {
+        if (table == NULL or table->size == 0) {
             return new_string("{}");
         }
         if (pointer_set_has(set, table)) {
@@ -3189,7 +3189,7 @@ static void debug_value_message(const char *prefix, Value value) {
     printf("\n");
 }
 
-#if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_CODE
+#if defined HYMN_DEBUG_TRACE or defined HYMN_DEBUG_CODE
 static usize debug_constant_instruction(String **debug, const char *name, ByteCode *this, usize index) {
     u8 constant = this->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [", name);
@@ -3560,7 +3560,7 @@ static Frame *machine_throw_error_string(Machine *this, String *string) {
 static bool machine_equal(Value a, Value b) {
     switch (a.is) {
     case HYMN_VALUE_NONE: return is_none(b);
-    case HYMN_VALUE_BOOL: return is_bool(b) && as_bool(a) == as_bool(b);
+    case HYMN_VALUE_BOOL: return is_bool(b) and as_bool(a) == as_bool(b);
     case HYMN_VALUE_INTEGER:
         switch (b.is) {
         case HYMN_VALUE_INTEGER: return as_int(a) == as_int(b);
@@ -3577,9 +3577,9 @@ static bool machine_equal(Value a, Value b) {
     case HYMN_VALUE_ARRAY:
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
-        return b.is == a.is && as_object(a) == as_object(b);
+        return b.is == a.is and as_object(a) == as_object(b);
     case HYMN_VALUE_FUNC_NATIVE:
-        return is_native(b) && as_native(a) == as_native(b);
+        return is_native(b) and as_native(a) == as_native(b);
     default: return false;
     }
 }
@@ -3787,7 +3787,7 @@ static Frame *machine_import(Machine *this, HymnString *file) {
 static void machine_run(Machine *this) {
     Frame *frame = current_frame(this);
     while (true) {
-#if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_STACK
+#if defined HYMN_DEBUG_TRACE or defined HYMN_DEBUG_STACK
         {
             String *debug = new_string("");
 #ifdef HYMN_DEBUG_TRACE
@@ -4637,15 +4637,16 @@ static void machine_run(Machine *this) {
             if (is_int(value)) {
                 PUSH(value)
             } else if (is_float(value)) {
-                i64 push = (i64)as_float(value);
-                PUSH(new_int(push))
+                i64 number = (i64)as_float(value);
+                PUSH(new_int(number))
             } else if (is_string(value)) {
-                String *s = as_string(value);
-                if (string_len(s) == 1) {
-                    i64 c = (i64)s[0];
-                    PUSH(new_int(c))
+                String *string = as_string(value);
+                char *end = NULL;
+                double number = string_to_double(string, &end);
+                if (string == end) {
+                    PUSH(new_none())
                 } else {
-                    PUSH(new_int(-1))
+                    PUSH(new_int((i64)number))
                 }
                 DEREF(value)
             } else {
@@ -4657,17 +4658,18 @@ static void machine_run(Machine *this) {
         case OP_TO_FLOAT: {
             POP(value)
             if (is_int(value)) {
-                float push = (float)as_int(value);
-                PUSH(new_float(push))
+                double number = (double)as_int(value);
+                PUSH(new_float(number))
             } else if (is_float(value)) {
                 PUSH(value)
             } else if (is_string(value)) {
-                String *s = as_string(value);
-                if (string_len(s) == 1) {
-                    float c = (float)((i64)s[0]);
-                    PUSH(new_float(c))
+                String *string = as_string(value);
+                char *end = NULL;
+                double number = string_to_double(string, &end);
+                if (string == end) {
+                    PUSH(new_none())
                 } else {
-                    PUSH(new_float(-1))
+                    PUSH(new_float(number))
                 }
                 DEREF(value)
             } else {
@@ -4887,50 +4889,4 @@ char *hymn_read(Hymn *this, const char *script) {
     char *error = hymn_do_script(this, script, source);
     string_delete(source);
     return error;
-}
-
-char *hymn_repl(Hymn *this) {
-    (void)this;
-    printf("Welcome to Hymn\n");
-
-    char input[1024];
-
-    while (true) {
-        printf("> ");
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            printf("\n");
-            continue;
-        }
-
-        if (strcmp(input, ".exit\n") == 0) {
-            break;
-        } else if (strcmp(input, ".help\n") == 0) {
-            printf("Type '.exit' to exit the REPL\n");
-            continue;
-        }
-
-        struct CompileReturn result = compile(this, NULL, input);
-
-        Function *func = result.func;
-
-        char *error = result.error;
-        if (error) {
-            function_delete(func);
-            return error;
-        }
-
-        Value function = new_func_value(func);
-        reference(function);
-
-        PUSH(function)
-        machine_call(this, func, 0);
-
-        error = machine_interpret(this);
-        if (error) return error;
-
-        assert(this->stack_top == 0);
-        machine_reset_stack(this);
-    }
-
-    return NULL;
 }

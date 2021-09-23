@@ -5,7 +5,7 @@
 
 #include "main.h"
 
-#include "../src/hymn.h"
+#include "../src/hm_vm.h"
 
 void test_hymn();
 
