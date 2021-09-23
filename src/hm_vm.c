@@ -57,7 +57,7 @@
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-#define POP(v) Value v = machine_pop(this);
+#define POP(v) HymnValue v = machine_pop(this);
 
 #define PUSH(v) machine_push(this, v);
 
@@ -104,7 +104,7 @@
             a.as.i _arithmetic_ b.as.i;                                                \
             PUSH(a)                                                                    \
         } else if (is_float(b)) {                                                      \
-            Value new = new_float((double)a.as.i);                                     \
+            HymnValue new = new_float((double)a.as.i);                                 \
             new.as.f _arithmetic_ b.as.f;                                              \
             PUSH(new)                                                                  \
         } else {                                                                       \
@@ -152,21 +152,6 @@
         DEREF_TWO(a, b)                                             \
         THROW("Operands must be numbers.")                          \
     }
-
-typedef HymnValue Value;
-typedef HymnObject Object;
-typedef HymnArray Array;
-typedef HymnTable Table;
-typedef HymnTableItem TableItem;
-typedef HymnSet Set;
-typedef HymnSetItem SetItem;
-typedef HymnNativeCall NativeCall;
-typedef HymnExceptList ExceptList;
-typedef HymnFunction Function;
-typedef HymnNativeFunction NativeFunction;
-typedef HymnFrame Frame;
-typedef HymnValuePool ValuePool;
-typedef HymnByteCode ByteCode;
 
 typedef struct Token Token;
 typedef struct Local Local;
@@ -383,9 +368,9 @@ static void expression_statement(Compiler *this);
 static void expression(Compiler *this);
 
 static inline void reference_string(HymnString *string);
-static inline void reference(Value value);
+static inline void reference(HymnValue value);
 static inline void dereference_string(Machine *this, HymnString *string);
-static inline void dereference(Machine *this, Value value);
+static inline void dereference(Machine *this, HymnValue value);
 
 static char *machine_interpret(Machine *this);
 
@@ -423,7 +408,7 @@ struct Rule {
 
 struct Scope {
     struct Scope *enclosing;
-    Function *func;
+    HymnFunction *func;
     enum FunctionType type;
     Local locals[HYMN_UINT8_COUNT];
     int local_count;
@@ -541,7 +526,7 @@ static const char *value_name(enum HymnValueType type) {
     case HYMN_VALUE_TABLE: return STRING_TABLE;
     case HYMN_VALUE_FUNC: return STRING_FUNC;
     case HYMN_VALUE_FUNC_NATIVE: return STRING_NATIVE;
-    default: return "Value";
+    default: return "HymnValue";
     }
 }
 
@@ -650,17 +635,17 @@ HymnString *new_hymn_string(String *string) {
     return new_hymn_string_with_hash(string, mix_hash(string_hashcode(string)));
 }
 
-static void table_init(Table *this) {
+static void table_init(HymnTable *this) {
     this->size = 0;
     this->bins = INITIAL_BINS;
-    this->items = safe_calloc(this->bins, sizeof(TableItem *));
+    this->items = safe_calloc(this->bins, sizeof(HymnTableItem *));
 }
 
-static unsigned int table_get_bin(Table *this, usize hash) {
+static unsigned int table_get_bin(HymnTable *this, usize hash) {
     return (this->bins - 1) & hash;
 }
 
-static void table_resize(Table *this) {
+static void table_resize(HymnTable *this) {
     unsigned int old_bins = this->bins;
     unsigned int bins = old_bins << 1;
 
@@ -668,21 +653,21 @@ static void table_resize(Table *this) {
         return;
     }
 
-    TableItem **old_items = this->items;
-    TableItem **items = safe_calloc(bins, sizeof(TableItem *));
+    HymnTableItem **old_items = this->items;
+    HymnTableItem **items = safe_calloc(bins, sizeof(HymnTableItem *));
 
     for (unsigned int i = 0; i < old_bins; i++) {
-        TableItem *item = old_items[i];
+        HymnTableItem *item = old_items[i];
         if (item == NULL) {
             continue;
         }
         if (item->next == NULL) {
             items[(bins - 1) & item->key->hash] = item;
         } else {
-            TableItem *low_head = NULL;
-            TableItem *low_tail = NULL;
-            TableItem *high_head = NULL;
-            TableItem *high_tail = NULL;
+            HymnTableItem *low_head = NULL;
+            HymnTableItem *low_tail = NULL;
+            HymnTableItem *high_head = NULL;
+            HymnTableItem *high_tail = NULL;
             do {
                 if ((old_bins & item->key->hash) == 0) {
                     if (low_tail == NULL) {
@@ -720,10 +705,10 @@ static void table_resize(Table *this) {
     this->items = items;
 }
 
-static void table_put(Table *this, HymnString *key, Value value) {
+static void table_put(HymnTable *this, HymnString *key, HymnValue value) {
     unsigned int bin = table_get_bin(this, key->hash);
-    TableItem *item = this->items[bin];
-    TableItem *previous = NULL;
+    HymnTableItem *item = this->items[bin];
+    HymnTableItem *previous = NULL;
     while (item != NULL) {
         if (key == item->key) {
             item->value = value;
@@ -732,7 +717,7 @@ static void table_put(Table *this, HymnString *key, Value value) {
         previous = item;
         item = item->next;
     }
-    item = safe_malloc(sizeof(TableItem));
+    item = safe_malloc(sizeof(HymnTableItem));
     item->key = key;
     item->value = value;
     item->next = NULL;
@@ -747,9 +732,9 @@ static void table_put(Table *this, HymnString *key, Value value) {
     }
 }
 
-static Value table_get(Table *this, HymnString *key) {
+static HymnValue table_get(HymnTable *this, HymnString *key) {
     unsigned int bin = table_get_bin(this, key->hash);
-    TableItem *item = this->items[bin];
+    HymnTableItem *item = this->items[bin];
     while (item != NULL) {
         if (key == item->key) {
             return item->value;
@@ -759,10 +744,10 @@ static Value table_get(Table *this, HymnString *key) {
     return new_undefined();
 }
 
-static Value table_remove(Table *this, HymnString *key) {
+static HymnValue table_remove(HymnTable *this, HymnString *key) {
     unsigned int bin = table_get_bin(this, key->hash);
-    TableItem *item = this->items[bin];
-    TableItem *previous = NULL;
+    HymnTableItem *item = this->items[bin];
+    HymnTableItem *previous = NULL;
     while (item != NULL) {
         if (key == item->key) {
             if (previous == NULL) {
@@ -770,7 +755,7 @@ static Value table_remove(Table *this, HymnString *key) {
             } else {
                 previous->next = item->next;
             }
-            Value value = item->value;
+            HymnValue value = item->value;
             free(item);
             this->size -= 1;
             return value;
@@ -781,12 +766,12 @@ static Value table_remove(Table *this, HymnString *key) {
     return new_undefined();
 }
 
-static void table_clear(Machine *machine, Table *this) {
+static void table_clear(Machine *machine, HymnTable *this) {
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        TableItem *item = this->items[i];
+        HymnTableItem *item = this->items[i];
         while (item != NULL) {
-            TableItem *next = item->next;
+            HymnTableItem *next = item->next;
             dereference(machine, item->value);
             free(item);
             item = next;
@@ -796,27 +781,27 @@ static void table_clear(Machine *machine, Table *this) {
     this->size = 0;
 }
 
-static void table_release(Machine *machine, Table *this) {
+static void table_release(Machine *machine, HymnTable *this) {
     table_clear(machine, this);
     free(this->items);
 }
 
-static void table_delete(Machine *machine, Table *this) {
+static void table_delete(Machine *machine, HymnTable *this) {
     table_release(machine, this);
     free(this);
 }
 
-static void set_init(Set *this) {
+static void set_init(HymnSet *this) {
     this->size = 0;
     this->bins = INITIAL_BINS;
-    this->items = safe_calloc(this->bins, sizeof(SetItem *));
+    this->items = safe_calloc(this->bins, sizeof(HymnSetItem *));
 }
 
-static unsigned int set_get_bin(Set *this, usize hash) {
+static unsigned int set_get_bin(HymnSet *this, usize hash) {
     return (this->bins - 1) & hash;
 }
 
-static void set_resize(Set *this) {
+static void set_resize(HymnSet *this) {
     unsigned int old_bins = this->bins;
     unsigned int bins = old_bins << 1;
 
@@ -824,21 +809,21 @@ static void set_resize(Set *this) {
         return;
     }
 
-    SetItem **old_items = this->items;
-    SetItem **items = safe_calloc(bins, sizeof(SetItem *));
+    HymnSetItem **old_items = this->items;
+    HymnSetItem **items = safe_calloc(bins, sizeof(HymnSetItem *));
 
     for (unsigned int i = 0; i < old_bins; i++) {
-        SetItem *item = old_items[i];
+        HymnSetItem *item = old_items[i];
         if (item == NULL) {
             continue;
         }
         if (item->next == NULL) {
             items[(bins - 1) & item->string->hash] = item;
         } else {
-            SetItem *low_head = NULL;
-            SetItem *low_tail = NULL;
-            SetItem *high_head = NULL;
-            SetItem *high_tail = NULL;
+            HymnSetItem *low_head = NULL;
+            HymnSetItem *low_tail = NULL;
+            HymnSetItem *high_head = NULL;
+            HymnSetItem *high_tail = NULL;
             do {
                 if ((old_bins & item->string->hash) == 0) {
                     if (low_tail == NULL) {
@@ -876,11 +861,11 @@ static void set_resize(Set *this) {
     this->items = items;
 }
 
-static HymnString *set_add_or_get(Set *this, String *add) {
+static HymnString *set_add_or_get(HymnSet *this, String *add) {
     usize hash = mix_hash(string_hashcode(add));
     unsigned int bin = set_get_bin(this, hash);
-    SetItem *item = this->items[bin];
-    SetItem *previous = NULL;
+    HymnSetItem *item = this->items[bin];
+    HymnSetItem *previous = NULL;
     while (item != NULL) {
         if (string_equal(add, item->string->string)) {
             return item->string;
@@ -889,7 +874,7 @@ static HymnString *set_add_or_get(Set *this, String *add) {
         item = item->next;
     }
     HymnString *new = new_hymn_string_with_hash(add, hash);
-    item = safe_malloc(sizeof(SetItem));
+    item = safe_malloc(sizeof(HymnSetItem));
     item->string = new;
     item->next = NULL;
     if (previous == NULL) {
@@ -904,11 +889,11 @@ static HymnString *set_add_or_get(Set *this, String *add) {
     return new;
 }
 
-static HymnString *set_remove(Set *this, String *remove) {
+static HymnString *set_remove(HymnSet *this, String *remove) {
     usize hash = mix_hash(string_hashcode(remove));
     unsigned int bin = set_get_bin(this, hash);
-    SetItem *item = this->items[bin];
-    SetItem *previous = NULL;
+    HymnSetItem *item = this->items[bin];
+    HymnSetItem *previous = NULL;
     while (item != NULL) {
         if (string_equal(remove, item->string->string)) {
             if (previous == NULL) {
@@ -927,12 +912,12 @@ static HymnString *set_remove(Set *this, String *remove) {
     return NULL;
 }
 
-static void set_clear(Machine *machine, Set *this) {
+static void set_clear(Machine *machine, HymnSet *this) {
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        SetItem *item = this->items[i];
+        HymnSetItem *item = this->items[i];
         while (item != NULL) {
-            SetItem *next = item->next;
+            HymnSetItem *next = item->next;
             dereference_string(machine, item->string);
             free(item);
             item = next;
@@ -942,16 +927,16 @@ static void set_clear(Machine *machine, Set *this) {
     this->size = 0;
 }
 
-static void set_release(Machine *machine, Set *this) {
+static void set_release(Machine *machine, HymnSet *this) {
     set_clear(machine, this);
     free(this->items);
 }
 
-static inline Function *current_func(Compiler *this) {
+static inline HymnFunction *current_func(Compiler *this) {
     return this->scope->func;
 }
 
-static inline ByteCode *current(Compiler *this) {
+static inline HymnByteCode *current(Compiler *this) {
     return &current_func(this)->code;
 }
 
@@ -1391,23 +1376,23 @@ static void advance(Compiler *this) {
     }
 }
 
-static void value_pool_init(ValuePool *this) {
+static void value_pool_init(HymnValuePool *this) {
     this->count = 0;
     this->capacity = 8;
-    this->values = safe_malloc(8 * sizeof(Value));
+    this->values = safe_malloc(8 * sizeof(HymnValue));
 }
 
-static void value_pool_add(ValuePool *this, Value value) {
+static void value_pool_add(HymnValuePool *this, HymnValue value) {
     int count = this->count;
     if (count + 1 > this->capacity) {
         this->capacity *= 2;
-        this->values = safe_realloc(this->values, this->capacity * sizeof(Value));
+        this->values = safe_realloc(this->values, this->capacity * sizeof(HymnValue));
     }
     this->values[count] = value;
     this->count = count + 1;
 }
 
-static void byte_code_init(ByteCode *this) {
+static void byte_code_init(HymnByteCode *this) {
     this->count = 0;
     this->capacity = 8;
     this->instructions = safe_malloc(8 * sizeof(u8));
@@ -1415,7 +1400,7 @@ static void byte_code_init(ByteCode *this) {
     value_pool_init(&this->constants);
 }
 
-static bool match_values(Value a, Value b) {
+static bool match_values(HymnValue a, HymnValue b) {
     if (a.is != b.is) {
         return false;
     }
@@ -1436,48 +1421,48 @@ static bool match_values(Value a, Value b) {
     return false;
 }
 
-static Function *new_function(const char *script) {
-    Function *func = safe_calloc(1, sizeof(Function));
+static HymnFunction *new_function(const char *script) {
+    HymnFunction *func = safe_calloc(1, sizeof(HymnFunction));
     byte_code_init(&func->code);
     if (script) func->script = new_string(script);
     return func;
 }
 
-static NativeFunction *new_native_function(String *name, NativeCall func) {
-    NativeFunction *native = safe_malloc(sizeof(NativeFunction));
+static HymnNativeFunction *new_native_function(String *name, HymnNativeCall func) {
+    HymnNativeFunction *native = safe_malloc(sizeof(HymnNativeFunction));
     native->name = name;
     native->func = func;
     return native;
 }
 
-static void array_init_with_capacity(Array *this, i64 length, i64 capacity) {
+static void array_init_with_capacity(HymnArray *this, i64 length, i64 capacity) {
     if (capacity == 0) {
         this->items = NULL;
     } else {
-        this->items = safe_calloc((usize)capacity, sizeof(Value));
+        this->items = safe_calloc((usize)capacity, sizeof(HymnValue));
     }
     this->length = length;
     this->capacity = capacity;
 }
 
-static void array_init(Array *this, i64 length) {
+static void array_init(HymnArray *this, i64 length) {
     array_init_with_capacity(this, length, length);
 }
 
-static Array *new_array_with_capacity(i64 length, i64 capacity) {
-    Array *this = safe_calloc(1, sizeof(Array));
+static HymnArray *new_array_with_capacity(i64 length, i64 capacity) {
+    HymnArray *this = safe_calloc(1, sizeof(HymnArray));
     array_init_with_capacity(this, length, capacity);
     return this;
 }
 
-static Array *new_array(i64 length) {
+static HymnArray *new_array(i64 length) {
     return new_array_with_capacity(length, length);
 }
 
-static Array *new_array_slice(Array *from, i64 start, i64 end) {
+static HymnArray *new_array_slice(HymnArray *from, i64 start, i64 end) {
     usize length = end - start;
-    usize size = length * sizeof(Value);
-    Array *this = safe_calloc(1, sizeof(Array));
+    usize size = length * sizeof(HymnValue);
+    HymnArray *this = safe_calloc(1, sizeof(HymnArray));
     this->items = safe_malloc(size);
     memcpy(this->items, &from->items[start], size);
     this->length = length;
@@ -1488,51 +1473,51 @@ static Array *new_array_slice(Array *from, i64 start, i64 end) {
     return this;
 }
 
-static Array *new_array_copy(Array *from) {
+static HymnArray *new_array_copy(HymnArray *from) {
     return new_array_slice(from, 0, from->length);
 }
 
-static void array_update_capacity(Array *this, i64 length) {
+static void array_update_capacity(HymnArray *this, i64 length) {
     if (length > this->capacity) {
         if (this->capacity == 0) {
             this->capacity = length;
-            this->items = safe_calloc(length, sizeof(Value));
+            this->items = safe_calloc(length, sizeof(HymnValue));
         } else {
             this->capacity = length * 2;
-            this->items = safe_realloc(this->items, this->capacity * sizeof(Value));
+            this->items = safe_realloc(this->items, this->capacity * sizeof(HymnValue));
             memset(this->items + this->length, 0, this->capacity - this->length);
         }
     }
 }
 
-static void array_push(Array *this, Value value) {
+static void array_push(HymnArray *this, HymnValue value) {
     i64 length = this->length + 1;
     array_update_capacity(this, length);
     this->length = length;
     this->items[length - 1] = value;
 }
 
-static void array_insert(Array *this, i64 index, Value value) {
+static void array_insert(HymnArray *this, i64 index, HymnValue value) {
     i64 length = this->length + 1;
     array_update_capacity(this, length);
     this->length = length;
-    Value *items = this->items;
+    HymnValue *items = this->items;
     for (i64 i = length - 1; i > index; i--) {
         items[i] = items[i - 1];
     }
     items[index] = value;
 }
 
-static Value array_get(Array *this, i64 index) {
+static HymnValue array_get(HymnArray *this, i64 index) {
     if (index >= this->length) {
         return new_undefined();
     }
     return this->items[index];
 }
 
-static i64 array_index_of(Array *this, Value match) {
+static i64 array_index_of(HymnArray *this, HymnValue match) {
     i64 len = this->length;
-    Value *items = this->items;
+    HymnValue *items = this->items;
     for (i64 i = 0; i < len; i++) {
         if (match_values(match, items[i])) {
             return i;
@@ -1541,49 +1526,49 @@ static i64 array_index_of(Array *this, Value match) {
     return -1;
 }
 
-static Value array_pop(Array *this) {
+static HymnValue array_pop(HymnArray *this) {
     if (this->length == 0) {
         return new_none();
     }
     return this->items[--this->length];
 }
 
-static Value array_remove_index(Array *this, i64 index) {
+static HymnValue array_remove_index(HymnArray *this, i64 index) {
     i64 len = --this->length;
-    Value *items = this->items;
-    Value deleted = items[index];
+    HymnValue *items = this->items;
+    HymnValue deleted = items[index];
     for (i64 i = index; i < len; i++) {
         items[i] = items[i + 1];
     }
     return deleted;
 }
 
-static void array_clear(Machine *machine, Array *this) {
+static void array_clear(Machine *machine, HymnArray *this) {
     i64 len = this->length;
-    Value *items = this->items;
+    HymnValue *items = this->items;
     for (i64 i = 0; i < len; i++) {
         dereference(machine, items[i]);
     }
     this->length = 0;
 }
 
-static void array_delete(Machine *machine, Array *this) {
+static void array_delete(Machine *machine, HymnArray *this) {
     array_clear(machine, this);
     free(this->items);
     free(this);
 }
 
-static Table *new_table() {
-    Table *this = safe_calloc(1, sizeof(Table));
+static HymnTable *new_table() {
+    HymnTable *this = safe_calloc(1, sizeof(HymnTable));
     table_init(this);
     return this;
 }
 
-static Table *new_table_copy(Table *from) {
-    Table *this = new_table();
+static HymnTable *new_table_copy(HymnTable *from) {
+    HymnTable *this = new_table();
     unsigned int bins = from->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        TableItem *item = from->items[i];
+        HymnTableItem *item = from->items[i];
         while (item != NULL) {
             table_put(this, item->key, item->value);
             reference(item->value);
@@ -1593,9 +1578,9 @@ static Table *new_table_copy(Table *from) {
     return this;
 }
 
-static Array *table_keys(Table *this) {
+static HymnArray *table_keys(HymnTable *this) {
     unsigned int size = this->size;
-    Array *array = new_array_with_capacity(size, size);
+    HymnArray *array = new_array_with_capacity(size, size);
     if (size == 0) {
         return array;
     }
@@ -1603,7 +1588,7 @@ static Array *table_keys(Table *this) {
     unsigned int total = 0;
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        TableItem *item = this->items[i];
+        HymnTableItem *item = this->items[i];
         while (item != NULL) {
             String *string = item->key->string;
             unsigned int insert = 0;
@@ -1616,7 +1601,7 @@ static Array *table_keys(Table *this) {
                 }
                 insert++;
             }
-            Value value = new_string_value(item->key);
+            HymnValue value = new_string_value(item->key);
             reference(value);
             keys[insert] = value;
             total++;
@@ -1626,13 +1611,13 @@ static Array *table_keys(Table *this) {
     return array;
 }
 
-static HymnString *table_key_of(Table *this, Value match) {
+static HymnString *table_key_of(HymnTable *this, HymnValue match) {
     unsigned int bin = 0;
-    TableItem *item = NULL;
+    HymnTableItem *item = NULL;
 
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
-        TableItem *start = this->items[i];
+        HymnTableItem *start = this->items[i];
         if (start) {
             bin = i;
             item = start;
@@ -1647,7 +1632,7 @@ static HymnString *table_key_of(Table *this, Value match) {
         item = item->next;
         if (item == NULL) {
             for (bin = bin + 1; bin < bins; bin++) {
-                TableItem *start = this->items[bin];
+                HymnTableItem *start = this->items[bin];
                 if (start) {
                     item = start;
                     break;
@@ -1659,7 +1644,7 @@ static HymnString *table_key_of(Table *this, Value match) {
     }
 }
 
-static void value_pool_delete(ValuePool *this) {
+static void value_pool_delete(HymnValuePool *this) {
     free(this->values);
 }
 
@@ -1697,18 +1682,18 @@ static inline Compiler new_compiler(const char *script, const char *source, Mach
     return this;
 }
 
-static void byte_code_delete(ByteCode *this) {
+static void byte_code_delete(HymnByteCode *this) {
     free(this->instructions);
     free(this->rows);
     value_pool_delete(&this->constants);
 }
 
-static int byte_code_add_constant(ByteCode *this, Value value) {
+static int byte_code_add_constant(HymnByteCode *this, HymnValue value) {
     value_pool_add(&this->constants, value);
     return this->constants.count - 1;
 }
 
-static void write_op(ByteCode *this, u8 b, int row) {
+static void write_op(HymnByteCode *this, u8 b, int row) {
     int count = this->count;
     if (count + 1 > this->capacity) {
         this->capacity *= 2;
@@ -1720,7 +1705,7 @@ static void write_op(ByteCode *this, u8 b, int row) {
     this->count = count + 1;
 }
 
-static void write_two_op(ByteCode *this, u8 b, u8 n, int row) {
+static void write_two_op(HymnByteCode *this, u8 b, u8 n, int row) {
     int count = this->count;
     while (count + 2 > this->capacity) {
         this->capacity *= 2;
@@ -1734,7 +1719,7 @@ static void write_two_op(ByteCode *this, u8 b, u8 n, int row) {
     this->count = count + 2;
 }
 
-static u8 write_constant(Compiler *this, Value value, int row) {
+static u8 write_constant(Compiler *this, HymnValue value, int row) {
     int constant = byte_code_add_constant(current(this), value);
     if (constant > UINT8_MAX) {
         compile_error(this, &this->previous, "Too many constants.");
@@ -1756,7 +1741,7 @@ static HymnString *machine_intern_string(Machine *this, String *string) {
     return object;
 }
 
-static Value compile_intern_string(Machine *this, String *string) {
+static HymnValue compile_intern_string(Machine *this, String *string) {
     HymnString *object = set_add_or_get(&this->strings, string);
     if (object->string == string) {
         reference_string(object);
@@ -1766,7 +1751,7 @@ static Value compile_intern_string(Machine *this, String *string) {
     return new_string_value(object);
 }
 
-static void machine_set_global(Machine *this, const char *name, Value value) {
+static void machine_set_global(Machine *this, const char *name, HymnValue value) {
     HymnString *intern = machine_intern_string(this, new_string(name));
     reference_string(intern);
     table_put(&this->globals, intern, value);
@@ -1958,20 +1943,20 @@ static void compile_table(Compiler *this, bool assign) {
     consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
 }
 
-static void function_delete(Function *this) {
+static void function_delete(HymnFunction *this) {
     byte_code_delete(&this->code);
     string_delete(this->name);
     string_delete(this->script);
-    ExceptList *except = this->except;
+    HymnExceptList *except = this->except;
     while (except != NULL) {
-        ExceptList *next = except->next;
+        HymnExceptList *next = except->next;
         free(except);
         except = next;
     }
     free(this);
 }
 
-static void native_function_delete(NativeFunction *this) {
+static void native_function_delete(HymnNativeFunction *this) {
     string_delete(this->name);
     free(this);
 }
@@ -2170,7 +2155,7 @@ static int emit_jump(Compiler *this, u8 instruction) {
 }
 
 static void patch_jump(Compiler *this, int jump) {
-    ByteCode *code = current(this);
+    HymnByteCode *code = current(this);
     int offset = code->count - jump - 2;
     if (offset > UINT16_MAX) {
         compile_error(this, &this->previous, "Jump offset too large.");
@@ -2198,9 +2183,9 @@ static void compile_or(Compiler *this, bool assign) {
     patch_jump(this, jump);
 }
 
-static Function *end_function(Compiler *this) {
+static HymnFunction *end_function(Compiler *this) {
     emit_two(this, OP_NONE, OP_RETURN);
-    Function *func = this->scope->func;
+    HymnFunction *func = this->scope->func;
     this->scope = this->scope->enclosing;
     return func;
 }
@@ -2233,7 +2218,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
     end_scope(this);
     consume(this, TOKEN_END, "Expected 'end' after function body.");
 
-    Function *func = end_function(this);
+    HymnFunction *func = end_function(this);
     write_constant(this, new_func_value(func), this->previous.row);
 }
 
@@ -2568,7 +2553,7 @@ static void iterate_statement(Compiler *this) {
     patch_jump(this, jump_not_array);
 
     emit(this, OP_POP);
-    write_constant(this, compile_intern_string(this->machine, new_string("Iterator: Expected `Array` or `Table`")), this->previous.row);
+    write_constant(this, compile_intern_string(this->machine, new_string("Iterator: Expected `HymnArray` or `HymnTable`")), this->previous.row);
     emit(this, OP_THROW);
 
     patch_jump(this, jump_table_end);
@@ -2776,11 +2761,11 @@ static void continue_statement(Compiler *this) {
 }
 
 static void try_statement(Compiler *this) {
-    ExceptList *except = safe_calloc(1, sizeof(ExceptList));
+    HymnExceptList *except = safe_calloc(1, sizeof(HymnExceptList));
     except->stack = this->scope->local_count;
     except->start = (usize)current(this)->count;
 
-    Function *func = current_func(this);
+    HymnFunction *func = current_func(this);
     except->next = func->except;
     func->except = except;
 
@@ -2989,7 +2974,7 @@ static void expression(Compiler *this) {
     compile_with_precedence(this, PRECEDENCE_ASSIGN);
 }
 
-static inline Frame *parent_frame(Machine *this, int offset) {
+static inline HymnFrame *parent_frame(Machine *this, int offset) {
     int frame_count = this->frame_count;
     if (offset > frame_count) {
         return NULL;
@@ -2997,12 +2982,12 @@ static inline Frame *parent_frame(Machine *this, int offset) {
     return &this->frames[frame_count - offset];
 }
 
-static inline Frame *current_frame(Machine *this) {
+static inline HymnFrame *current_frame(Machine *this) {
     return &this->frames[this->frame_count - 1];
 }
 
 struct CompileReturn {
-    Function *func;
+    HymnFunction *func;
     char *error;
 };
 
@@ -3017,7 +3002,7 @@ static struct CompileReturn compile(Machine *machine, const char *script, const 
         declaration(compiler);
     }
 
-    Function *func = end_function(compiler);
+    HymnFunction *func = end_function(compiler);
     char *error = NULL;
 
     if (compiler->error) {
@@ -3064,7 +3049,7 @@ void pointer_set_add(struct PointerSet *set, void *pointer) {
     }
 }
 
-static String *value_to_string_recusive(Value value, struct PointerSet *set, bool quote) {
+static String *value_to_string_recusive(HymnValue value, struct PointerSet *set, bool quote) {
     switch (value.is) {
     case HYMN_VALUE_UNDEFINED: return new_string(STRING_UNDEFINED);
     case HYMN_VALUE_NONE: return new_string(STRING_NONE);
@@ -3076,7 +3061,7 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
         return string_copy(as_string(value));
     }
     case HYMN_VALUE_ARRAY: {
-        Array *array = as_array(value);
+        HymnArray *array = as_array(value);
         if (array == NULL or array->length == 0) {
             return new_string("[]");
         }
@@ -3098,7 +3083,7 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
         return string;
     }
     case HYMN_VALUE_TABLE: {
-        Table *table = as_table(value);
+        HymnTable *table = as_table(value);
         if (table == NULL or table->size == 0) {
             return new_string("{}");
         }
@@ -3111,7 +3096,7 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
         unsigned int total = 0;
         unsigned int bins = table->bins;
         for (unsigned int i = 0; i < bins; i++) {
-            TableItem *item = table->items[i];
+            HymnTableItem *item = table->items[i];
             while (item != NULL) {
                 String *string = item->key->string;
                 unsigned int insert = 0;
@@ -3134,7 +3119,7 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
             if (i != 0) {
                 string = string_append(string, ", ");
             }
-            Value item = table_get(table, keys[i]);
+            HymnValue item = table_get(table, keys[i]);
             String *add = value_to_string_recusive(item, set, true);
             string = string_append_format(string, "%s: %s", keys[i]->string, add);
             string_delete(add);
@@ -3144,7 +3129,7 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
         return string;
     }
     case HYMN_VALUE_FUNC: {
-        Function *func = as_func(value);
+        HymnFunction *func = as_func(value);
         if (func->name) return string_copy(func->name);
         if (func->script) return string_copy(func->script);
         return new_string("Script");
@@ -3155,14 +3140,14 @@ static String *value_to_string_recusive(Value value, struct PointerSet *set, boo
     return new_string("?");
 }
 
-static String *value_to_string(Value value) {
+static String *value_to_string(HymnValue value) {
     struct PointerSet set = {.count = 0, .capacity = 0, .items = NULL};
     String *string = value_to_string_recusive(value, &set, false);
     free(set.items);
     return string;
 }
 
-static String *value_concat(Value a, Value b) {
+static String *value_concat(HymnValue a, HymnValue b) {
     String *string = value_to_string(a);
     String *second = value_to_string(b);
     string = string_append(string, second);
@@ -3170,27 +3155,27 @@ static String *value_concat(Value a, Value b) {
     return string;
 }
 
-static String *debug_value_to_string(Value value) {
+static String *debug_value_to_string(HymnValue value) {
     String *string = value_to_string(value);
     String *format = string_format("%s: %s", value_name(value.is), string);
     string_delete(string);
     return format;
 }
 
-static void debug_value(Value value) {
+static void debug_value(HymnValue value) {
     String *string = debug_value_to_string(value);
     printf("%s", string);
     string_delete(string);
 }
 
-static void debug_value_message(const char *prefix, Value value) {
+static void debug_value_message(const char *prefix, HymnValue value) {
     printf("%s", prefix);
     debug_value(value);
     printf("\n");
 }
 
 #if defined HYMN_DEBUG_TRACE or defined HYMN_DEBUG_CODE
-static usize debug_constant_instruction(String **debug, const char *name, ByteCode *this, usize index) {
+static usize debug_constant_instruction(String **debug, const char *name, HymnByteCode *this, usize index) {
     u8 constant = this->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [", name);
     String *value = debug_value_to_string(this->constants.values[constant]);
@@ -3200,13 +3185,13 @@ static usize debug_constant_instruction(String **debug, const char *name, ByteCo
     return index + 2;
 }
 
-static usize debug_byte_instruction(String **debug, const char *name, ByteCode *this, usize index) {
+static usize debug_byte_instruction(String **debug, const char *name, HymnByteCode *this, usize index) {
     u8 b = this->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [%d]", name, b);
     return index + 2;
 }
 
-static usize debug_jump_instruction(String **debug, const char *name, int sign, ByteCode *this, usize index) {
+static usize debug_jump_instruction(String **debug, const char *name, int sign, HymnByteCode *this, usize index) {
     u16 jump = (u16)(this->instructions[index + 1] << 8) | (u16)this->instructions[index + 2];
     *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, index + 3 + sign * jump);
     return index + 3;
@@ -3217,7 +3202,7 @@ static usize debug_instruction(String **debug, const char *name, usize index) {
     return index + 1;
 }
 
-static usize disassemble_instruction(String **debug, ByteCode *this, usize index) {
+static usize disassemble_instruction(String **debug, HymnByteCode *this, usize index) {
     *debug = string_append_format(*debug, "%04zu ", index);
     if (index > 0 and this->rows[index] == this->rows[index - 1]) {
         *debug = string_append(*debug, "   | ");
@@ -3290,7 +3275,7 @@ static usize disassemble_instruction(String **debug, ByteCode *this, usize index
 #endif
 
 #ifdef HYMN_DEBUG_CODE
-void disassemble_byte_code(ByteCode *this, const char *name) {
+void disassemble_byte_code(HymnByteCode *this, const char *name) {
     printf("== %s ==\n", name);
     String *debug = new_string("");
     usize offset = 0;
@@ -3308,7 +3293,7 @@ static void machine_reset_stack(Machine *this) {
     this->frame_count = 0;
 }
 
-static inline bool is_object(Value value) {
+static inline bool is_object(HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING:
     case HYMN_VALUE_ARRAY:
@@ -3321,7 +3306,7 @@ static inline bool is_object(Value value) {
 }
 
 #ifdef HYMN_DEBUG_REFERENCE
-static void debug_reference(Value value) {
+static void debug_reference(HymnValue value) {
     if (is_object(value)) {
         int count = as_object(value)->count;
         printf("REF: [%p]: %d, [", (void *)as_object(value), count);
@@ -3331,9 +3316,9 @@ static void debug_reference(Value value) {
     }
 }
 
-static void debug_dereference(Value value) {
+static void debug_dereference(HymnValue value) {
     if (is_object(value)) {
-        Object *object = as_object(value);
+        HymnObject *object = as_object(value);
         int count = object->count - 1;
         if (count == 0) {
             printf("FREE: [");
@@ -3355,7 +3340,7 @@ static inline void reference_string(HymnString *string) {
 #endif
 }
 
-static void reference(Value value) {
+static void reference(HymnValue value) {
     if (is_object(value)) {
         as_object(value)->count++;
 #ifdef HYMN_DEBUG_REFERENCE
@@ -3377,7 +3362,7 @@ static inline void dereference_string(Machine *this, HymnString *string) {
     }
 }
 
-static void dereference(Machine *this, Value value) {
+static void dereference(Machine *this, HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING: {
         HymnString *string = as_hymn_string(value);
@@ -3388,7 +3373,7 @@ static void dereference(Machine *this, Value value) {
 #ifdef HYMN_DEBUG_REFERENCE
         debug_dereference(value);
 #endif
-        Array *array = as_array(value);
+        HymnArray *array = as_array(value);
         int count = --(array->object.count);
         assert(count >= 0);
         if (count == 0) {
@@ -3400,7 +3385,7 @@ static void dereference(Machine *this, Value value) {
 #ifdef HYMN_DEBUG_REFERENCE
         debug_dereference(value);
 #endif
-        Table *table = as_table(value);
+        HymnTable *table = as_table(value);
         int count = --(table->object.count);
         assert(count >= 0);
         if (count == 0) {
@@ -3412,7 +3397,7 @@ static void dereference(Machine *this, Value value) {
 #ifdef HYMN_DEBUG_REFERENCE
         debug_dereference(value);
 #endif
-        Function *func = as_func(value);
+        HymnFunction *func = as_func(value);
         int count = --(func->object.count);
         assert(count >= 0);
         if (count == 0) {
@@ -3425,11 +3410,11 @@ static void dereference(Machine *this, Value value) {
     }
 }
 
-static void machine_push(Machine *this, Value value) {
+static void machine_push(Machine *this, HymnValue value) {
     this->stack[this->stack_top++] = value;
 }
 
-static Value machine_peek(Machine *this, usize dist) {
+static HymnValue machine_peek(Machine *this, usize dist) {
     if (dist > this->stack_top) {
         fprintf(stderr, "Nothing on stack to peek");
         return new_none();
@@ -3437,7 +3422,7 @@ static Value machine_peek(Machine *this, usize dist) {
     return this->stack[this->stack_top - dist];
 }
 
-static Value machine_pop(Machine *this) {
+static HymnValue machine_pop(Machine *this) {
     if (this->stack_top == 0) {
         fprintf(stderr, "Nothing on stack to pop");
         return new_none();
@@ -3451,11 +3436,11 @@ static void machine_push_intern_string(Machine *this, String *string) {
     PUSH(new_string_value(intern))
 }
 
-static Frame *machine_exception(Machine *this) {
-    Frame *frame = current_frame(this);
+static HymnFrame *machine_exception(Machine *this) {
+    HymnFrame *frame = current_frame(this);
     while (true) {
-        ExceptList *except = NULL;
-        ExceptList *range = frame->func->except;
+        HymnExceptList *except = NULL;
+        HymnExceptList *range = frame->func->except;
         while (range != NULL) {
             if (frame->ip >= range->start and frame->ip <= range->end) {
                 except = range;
@@ -3491,8 +3476,8 @@ static String *machine_stacktrace(Machine *this) {
     String *trace = new_string("");
 
     for (int i = this->frame_count - 1; i >= 0; i--) {
-        Frame *frame = &this->frames[i];
-        Function *func = frame->func;
+        HymnFrame *frame = &this->frames[i];
+        HymnFunction *func = frame->func;
         usize ip = frame->ip - 1;
         int row = func->code.rows[ip];
 
@@ -3514,20 +3499,20 @@ static String *machine_stacktrace(Machine *this) {
     return trace;
 }
 
-static Frame *machine_push_error(Machine *this, String *error) {
+static HymnFrame *machine_push_error(Machine *this, String *error) {
     HymnString *message = machine_intern_string(this, error);
     reference_string(message);
     PUSH(new_string_value(message))
     return machine_exception(this);
 }
 
-static Frame *machine_throw_existing_error(Machine *this, char *error) {
+static HymnFrame *machine_throw_existing_error(Machine *this, char *error) {
     String *message = new_string(error);
     free(error);
     return machine_push_error(this, message);
 }
 
-static Frame *machine_throw_error(Machine *this, const char *format, ...) {
+static HymnFrame *machine_throw_error(Machine *this, const char *format, ...) {
     String *error = new_string("");
 
     va_list ap;
@@ -3551,13 +3536,13 @@ static Frame *machine_throw_error(Machine *this, const char *format, ...) {
     return machine_push_error(this, error);
 }
 
-static Frame *machine_throw_error_string(Machine *this, String *string) {
-    Frame *frame = machine_throw_error(this, string);
+static HymnFrame *machine_throw_error_string(Machine *this, String *string) {
+    HymnFrame *frame = machine_throw_error(this, string);
     string_delete(string);
     return frame;
 }
 
-static bool machine_equal(Value a, Value b) {
+static bool machine_equal(HymnValue a, HymnValue b) {
     switch (a.is) {
     case HYMN_VALUE_NONE: return is_none(b);
     case HYMN_VALUE_BOOL: return is_bool(b) and as_bool(a) == as_bool(b);
@@ -3584,7 +3569,7 @@ static bool machine_equal(Value a, Value b) {
     }
 }
 
-static bool machine_false(Value value) {
+static bool machine_false(HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_NONE: return true;
     case HYMN_VALUE_BOOL: return !as_bool(value);
@@ -3599,14 +3584,14 @@ static bool machine_false(Value value) {
     }
 }
 
-static Frame *machine_call(Machine *this, Function *func, int count) {
+static HymnFrame *machine_call(Machine *this, HymnFunction *func, int count) {
     if (count != func->arity) {
         return machine_throw_error(this, "Expected %d function arguments but found %d.", func->arity, count);
     } else if (this->frame_count == HYMN_FRAMES_MAX) {
         return machine_throw_error(this, "Stack overflow.");
     }
 
-    Frame *frame = &this->frames[this->frame_count++];
+    HymnFrame *frame = &this->frames[this->frame_count++];
     frame->func = func;
     frame->ip = 0;
     frame->stack = this->stack_top - count - 1;
@@ -3614,13 +3599,13 @@ static Frame *machine_call(Machine *this, Function *func, int count) {
     return frame;
 }
 
-static Frame *machine_call_value(Machine *this, Value call, int count) {
+static HymnFrame *machine_call_value(Machine *this, HymnValue call, int count) {
     switch (call.is) {
     case HYMN_VALUE_FUNC:
         return machine_call(this, as_func(call), count);
     case HYMN_VALUE_FUNC_NATIVE: {
-        NativeCall func = as_native(call)->func;
-        Value result = func(this, count, &this->stack[this->stack_top - count]);
+        HymnNativeCall func = as_native(call)->func;
+        HymnValue result = func(this, count, &this->stack[this->stack_top - count]);
         reference(result);
         usize top = this->stack_top - (count + 1);
         while (this->stack_top != top) {
@@ -3631,28 +3616,28 @@ static Frame *machine_call_value(Machine *this, Value call, int count) {
     }
     default: {
         const char *is = value_name(call.is);
-        return machine_throw_error(this, "Call: Requires `Function`, but was `%s`.", is);
+        return machine_throw_error(this, "Call: Requires `HymnFunction`, but was `%s`.", is);
     }
     }
 }
 
-static inline u8 read_byte(Frame *frame) {
+static inline u8 read_byte(HymnFrame *frame) {
     return frame->func->code.instructions[frame->ip++];
 }
 
-static inline u16 read_short(Frame *frame) {
+static inline u16 read_short(HymnFrame *frame) {
     frame->ip += 2;
     return ((u16)frame->func->code.instructions[frame->ip - 2] << 8) | (u16)frame->func->code.instructions[frame->ip - 1];
 }
 
-static inline Value read_constant(Frame *frame) {
+static inline HymnValue read_constant(HymnFrame *frame) {
     return frame->func->code.constants.values[read_byte(frame)];
 }
 
-static Frame *machine_do(Machine *this, HymnString *source) {
+static HymnFrame *machine_do(Machine *this, HymnString *source) {
     struct CompileReturn result = compile(this, NULL, source->string);
 
-    Function *func = result.func;
+    HymnFunction *func = result.func;
     char *error = result.error;
 
     if (error) {
@@ -3660,7 +3645,7 @@ static Frame *machine_do(Machine *this, HymnString *source) {
         return machine_throw_existing_error(this, error);
     }
 
-    Value function = new_func_value(func);
+    HymnValue function = new_func_value(func);
     reference(function);
 
     PUSH(function)
@@ -3674,13 +3659,13 @@ static Frame *machine_do(Machine *this, HymnString *source) {
     return current_frame(this);
 }
 
-static Frame *machine_import(Machine *this, HymnString *file) {
-    Table *imports = this->imports;
+static HymnFrame *machine_import(Machine *this, HymnString *file) {
+    HymnTable *imports = this->imports;
 
     String *script = NULL;
     int p = 1;
     while (true) {
-        Frame *frame = parent_frame(this, p);
+        HymnFrame *frame = parent_frame(this, p);
         if (frame == NULL) break;
         script = frame->func->script;
         if (script) break;
@@ -3690,10 +3675,10 @@ static Frame *machine_import(Machine *this, HymnString *file) {
 
     HymnString *module = NULL;
 
-    Array *paths = this->paths;
+    HymnArray *paths = this->paths;
     usize size = paths->length;
     for (usize i = 0; i < size; i++) {
-        Value value = paths->items[i];
+        HymnValue value = paths->items[i];
         if (!is_string(value)) {
             continue;
         }
@@ -3726,7 +3711,7 @@ static Frame *machine_import(Machine *this, HymnString *file) {
         String *missing = string_format("Import not found: %s\n", file->string);
 
         for (usize i = 0; i < size; i++) {
-            Value value = paths->items[i];
+            HymnValue value = paths->items[i];
             if (!is_string(value)) {
                 continue;
             }
@@ -3760,7 +3745,7 @@ static Frame *machine_import(Machine *this, HymnString *file) {
 
     struct CompileReturn result = compile(this, module->string, source);
 
-    Function *func = result.func;
+    HymnFunction *func = result.func;
     char *error = result.error;
 
     string_delete(source);
@@ -3770,7 +3755,7 @@ static Frame *machine_import(Machine *this, HymnString *file) {
         return machine_throw_existing_error(this, error);
     }
 
-    Value function = new_func_value(func);
+    HymnValue function = new_func_value(func);
     reference(function);
 
     PUSH(function)
@@ -3785,7 +3770,7 @@ static Frame *machine_import(Machine *this, HymnString *file) {
 }
 
 static void machine_run(Machine *this) {
-    Frame *frame = current_frame(this);
+    HymnFrame *frame = current_frame(this);
     while (true) {
 #if defined HYMN_DEBUG_TRACE or defined HYMN_DEBUG_STACK
         {
@@ -3844,7 +3829,7 @@ static void machine_run(Machine *this) {
             break;
         case OP_CALL: {
             int count = read_byte(frame);
-            Value call = machine_peek(this, count + 1);
+            HymnValue call = machine_peek(this, count + 1);
             frame = machine_call_value(this, call, count);
             if (frame == NULL) return;
             break;
@@ -4026,7 +4011,7 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_CONSTANT: {
-            Value constant = read_constant(frame);
+            HymnValue constant = read_constant(frame);
             switch (constant.is) {
             case HYMN_VALUE_ARRAY: {
                 constant = new_array_value(new_array(0));
@@ -4051,13 +4036,13 @@ static void machine_run(Machine *this) {
         }
         case OP_SET_GLOBAL: {
             HymnString *name = as_hymn_string(read_constant(frame));
-            Value value = machine_peek(this, 1);
-            Value exists = table_get(&this->globals, name);
+            HymnValue value = machine_peek(this, 1);
+            HymnValue exists = table_get(&this->globals, name);
             if (is_undefined(exists)) {
                 THROW("Undefined variable '%s'.", name->string)
             }
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
-            Value previous = table_get(&this->globals, name);
+            HymnValue previous = table_get(&this->globals, name);
             if (!is_undefined(previous)) {
                 DEREF(previous)
             }
@@ -4067,7 +4052,7 @@ static void machine_run(Machine *this) {
         }
         case OP_GET_GLOBAL: {
             HymnString *name = as_hymn_string(read_constant(frame));
-            Value get = table_get(&this->globals, name);
+            HymnValue get = table_get(&this->globals, name);
             if (is_undefined(get)) {
                 THROW("Undefined variable `%s`.", name->string)
             }
@@ -4077,7 +4062,7 @@ static void machine_run(Machine *this) {
         }
         case OP_SET_LOCAL: {
             u8 slot = read_byte(frame);
-            Value value = machine_peek(this, 1);
+            HymnValue value = machine_peek(this, 1);
             reference(value);
             DEREF(this->stack[frame->stack + slot])
             this->stack[frame->stack + slot] = value;
@@ -4085,7 +4070,7 @@ static void machine_run(Machine *this) {
         }
         case OP_GET_LOCAL: {
             u8 slot = read_byte(frame);
-            Value value = this->stack[frame->stack + slot];
+            HymnValue value = this->stack[frame->stack + slot];
             reference(value);
             PUSH(value)
             break;
@@ -4095,12 +4080,12 @@ static void machine_run(Machine *this) {
             POP(v)
             if (!is_table(v)) {
                 DEREF_TWO(p, v)
-                THROW("Set Property: Only tables can set properties.")
+                THROW("HymnSet Property: Only tables can set properties.")
             }
-            Table *table = as_table(v);
+            HymnTable *table = as_table(v);
             HymnString *name = as_hymn_string(read_constant(frame));
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
-            Value previous = table_get(table, name);
+            HymnValue previous = table_get(table, name);
             if (!is_undefined(previous)) {
                 DEREF(previous)
             }
@@ -4116,9 +4101,9 @@ static void machine_run(Machine *this) {
                 DEREF(v)
                 THROW("Only tables can get properties.")
             }
-            Table *table = as_table(v);
+            HymnTable *table = as_table(v);
             HymnString *name = as_hymn_string(read_constant(frame));
-            Value g = table_get(table, name);
+            HymnValue g = table_get(table, name);
             if (is_undefined(g)) {
                 g.is = HYMN_VALUE_NONE;
             } else {
@@ -4137,18 +4122,18 @@ static void machine_run(Machine *this) {
                     DEREF_THREE(s, i, v)
                     THROW("Integer required to set array index.")
                 }
-                Array *array = as_array(v);
+                HymnArray *array = as_array(v);
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index > size) {
                     DEREF_THREE(s, i, v)
-                    THROW("Array index out of bounds %d > %d.", index, size)
+                    THROW("HymnArray index out of bounds %d > %d.", index, size)
                 }
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
                         DEREF_THREE(s, i, v)
-                        THROW("Array index out of bounds %d.", index)
+                        THROW("HymnArray index out of bounds %d.", index)
                     }
                 }
                 if (index == size) {
@@ -4162,14 +4147,14 @@ static void machine_run(Machine *this) {
                     DEREF_THREE(s, i, v)
                     THROW("String required to set table property.")
                 }
-                Table *table = as_table(v);
+                HymnTable *table = as_table(v);
                 HymnString *name = as_hymn_string(i);
                 table_put(table, name, s);
                 DEREF(i)
             } else {
                 const char *is = value_name(v.is);
                 DEREF_THREE(s, i, v)
-                THROW("Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.", is)
+                THROW("Dynamic HymnSet: 1st argument requires `HymnArray` or `HymnTable`, but was `%s`.", is)
             }
             PUSH(s)
             DEREF(v)
@@ -4209,21 +4194,21 @@ static void machine_run(Machine *this) {
                     DEREF_TWO(i, v)
                     THROW("Integer required to get array index.")
                 }
-                Array *array = as_array(v);
+                HymnArray *array = as_array(v);
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index >= size) {
                     DEREF_TWO(i, v)
-                    THROW("Array index out of bounds %d >= %d.", index, size)
+                    THROW("HymnArray index out of bounds %d >= %d.", index, size)
                 }
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
                         DEREF_TWO(i, v)
-                        THROW("Array index out of bounds %d.", index)
+                        THROW("HymnArray index out of bounds %d.", index)
                     }
                 }
-                Value g = array_get(array, index);
+                HymnValue g = array_get(array, index);
                 reference(g);
                 PUSH(g)
                 DEREF(v)
@@ -4235,9 +4220,9 @@ static void machine_run(Machine *this) {
                     DEREF_TWO(i, v)
                     THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
                 }
-                Table *table = as_table(v);
+                HymnTable *table = as_table(v);
                 HymnString *name = as_hymn_string(i);
-                Value g = table_get(table, name);
+                HymnValue g = table_get(table, name);
                 if (is_undefined(g)) {
                     g.is = HYMN_VALUE_NONE;
                 } else {
@@ -4250,7 +4235,7 @@ static void machine_run(Machine *this) {
             default: {
                 const char *is = value_name(v.is);
                 DEREF_TWO(i, v)
-                THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
+                THROW("Dynamic Get: 1st argument requires `HymnArray` or `HymnTable`, but was `%s`.", is)
             }
             }
             break;
@@ -4285,9 +4270,9 @@ static void machine_run(Machine *this) {
             if (!is_array(a)) {
                 const char *is = value_name(a.is);
                 DEREF(a)
-                THROW("Pop Function: Expected `Array` for 1st argument, but was `%s`.", is)
+                THROW("Pop HymnFunction: Expected `HymnArray` for 1st argument, but was `%s`.", is)
             } else {
-                Value value = array_pop(as_array(a));
+                HymnValue value = array_pop(as_array(a));
                 PUSH(value)
                 DEREF(a)
             }
@@ -4299,7 +4284,7 @@ static void machine_run(Machine *this) {
             if (!is_array(a)) {
                 const char *is = value_name(v.is);
                 DEREF_TWO(a, v)
-                THROW("Push Function: Expected `Array` for 1st argument, but was `%s`.", is)
+                THROW("Push HymnFunction: Expected `HymnArray` for 1st argument, but was `%s`.", is)
             } else {
                 array_push(as_array(a), v);
                 PUSH(v)
@@ -4316,20 +4301,20 @@ static void machine_run(Machine *this) {
                 if (!is_int(i)) {
                     const char *is = value_name(i.is);
                     DEREF_THREE(p, i, v)
-                    THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
+                    THROW("Insert HymnFunction: Expected `Integer` for 2nd argument, but was `%s`.", is)
                 }
-                Array *array = as_array(v);
+                HymnArray *array = as_array(v);
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index > size) {
                     DEREF_THREE(p, i, v)
-                    THROW("Insert Function: Array index out of bounds: %d > %d", index, size)
+                    THROW("Insert HymnFunction: HymnArray index out of bounds: %d > %d", index, size)
                 }
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
                         DEREF_THREE(p, i, v)
-                        THROW("Insert Function: Array index less than zero: %d", index)
+                        THROW("Insert HymnFunction: HymnArray index less than zero: %d", index)
                     }
                 }
                 if (index == size) {
@@ -4343,7 +4328,7 @@ static void machine_run(Machine *this) {
             } else {
                 const char *is = value_name(v.is);
                 DEREF_THREE(p, i, v)
-                THROW("Insert Function: Expected `Array` for 1st argument, but was `%s`.", is)
+                THROW("Insert HymnFunction: Expected `HymnArray` for 1st argument, but was `%s`.", is)
             }
             break;
         }
@@ -4355,21 +4340,21 @@ static void machine_run(Machine *this) {
                     DEREF_TWO(i, v)
                     THROW("Integer required to delete from array.")
                 }
-                Array *array = as_array(v);
+                HymnArray *array = as_array(v);
                 i64 size = array->length;
                 i64 index = as_int(i);
                 if (index >= size) {
                     DEREF_TWO(i, v)
-                    THROW("Array index out of bounds %d > %d.", index, size)
+                    THROW("HymnArray index out of bounds %d > %d.", index, size)
                 }
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
                         DEREF_TWO(i, v)
-                        THROW("Array index out of bounds %d.", index)
+                        THROW("HymnArray index out of bounds %d.", index)
                     }
                 }
-                Value value = array_remove_index(array, index);
+                HymnValue value = array_remove_index(array, index);
                 PUSH(value)
                 DEREF(v)
             } else if (is_table(v)) {
@@ -4377,9 +4362,9 @@ static void machine_run(Machine *this) {
                     DEREF_TWO(i, v)
                     THROW("String required to delete from table.")
                 }
-                Table *table = as_table(v);
+                HymnTable *table = as_table(v);
                 HymnString *name = as_hymn_string(i);
-                Value value = table_remove(table, name);
+                HymnValue value = table_remove(table, name);
                 if (is_undefined(value)) {
                     value.is = HYMN_VALUE_NONE;
                 }
@@ -4404,16 +4389,16 @@ static void machine_run(Machine *this) {
                 PUSH(value)
                 break;
             case HYMN_VALUE_ARRAY: {
-                Array *copy = new_array_copy(as_array(value));
-                Value new = new_array_value(copy);
+                HymnArray *copy = new_array_copy(as_array(value));
+                HymnValue new = new_array_value(copy);
                 PUSH(new)
                 reference(new);
                 DEREF(value)
                 break;
             }
             case HYMN_VALUE_TABLE: {
-                Table *copy = new_table_copy(as_table(value));
-                Value new = new_table_value(copy);
+                HymnTable *copy = new_table_copy(as_table(value));
+                HymnValue new = new_table_value(copy);
                 PUSH(new)
                 reference(new);
                 DEREF(value)
@@ -4463,7 +4448,7 @@ static void machine_run(Machine *this) {
                 String *sub = new_string_from_substring(original, start, end);
                 machine_push_intern_string(this, sub);
             } else if (is_array(v)) {
-                Array *array = as_array(v);
+                HymnArray *array = as_array(v);
                 i64 size = array->length;
                 i64 end;
                 if (is_int(b)) {
@@ -4476,21 +4461,21 @@ static void machine_run(Machine *this) {
                 }
                 if (end > size) {
                     DEREF_THREE(a, b, v)
-                    THROW("Array index out of bounds %d > %d.", end, size)
+                    THROW("HymnArray index out of bounds %d > %d.", end, size)
                 }
                 if (end < 0) {
                     end = size + end;
                     if (end < 0) {
                         DEREF_THREE(a, b, v)
-                        THROW("Array index out of bounds %d.", end)
+                        THROW("HymnArray index out of bounds %d.", end)
                     }
                 }
                 if (start >= end) {
                     DEREF_THREE(a, b, v)
-                    THROW("Array start index %d >= end index %d.", start, end)
+                    THROW("HymnArray start index %d >= end index %d.", start, end)
                 }
-                Array *copy = new_array_slice(array, start, end);
-                Value new = new_array_value(copy);
+                HymnArray *copy = new_array_slice(array, start, end);
+                HymnValue new = new_array_value(copy);
                 reference(new);
                 PUSH(new)
             } else {
@@ -4516,13 +4501,13 @@ static void machine_run(Machine *this) {
                 machine_push_intern_string(this, new_string(""));
                 break;
             case HYMN_VALUE_ARRAY: {
-                Array *array = as_array(value);
+                HymnArray *array = as_array(value);
                 array_clear(this, array);
                 PUSH(value)
                 break;
             }
             case HYMN_VALUE_TABLE: {
-                Table *table = as_table(value);
+                HymnTable *table = as_table(value);
                 table_clear(this, table);
                 PUSH(value)
                 break;
@@ -4543,9 +4528,9 @@ static void machine_run(Machine *this) {
                 DEREF(value)
                 THROW("Expected table for `keys` function.")
             } else {
-                Table *table = as_table(value);
-                Array *array = table_keys(table);
-                Value keys = new_array_value(array);
+                HymnTable *table = as_table(value);
+                HymnArray *array = table_keys(table);
+                HymnValue keys = new_array_value(array);
                 reference(keys);
                 PUSH(keys)
                 DEREF(value)
@@ -4698,7 +4683,7 @@ static void machine_run(Machine *this) {
             break;
         }
         case OP_DUPLICATE: {
-            Value top = machine_peek(this, 1);
+            HymnValue top = machine_peek(this, 1);
             PUSH(top);
             reference(top);
             break;
@@ -4772,14 +4757,14 @@ Hymn *new_hymn() {
     this->paths->items[0] = new_string_value(search_this);
     this->paths->items[1] = new_string_value(search_relative);
     this->paths->items[2] = new_string_value(search_modules);
-    Value paths_value = new_array_value(this->paths);
+    HymnValue paths_value = new_array_value(this->paths);
     table_put(&this->globals, paths, paths_value);
     reference(paths_value);
 
     HymnString *imports = machine_intern_string(this, new_string("__imports"));
     reference_string(imports);
     this->imports = new_table();
-    Value imports_value = new_table_value(this->imports);
+    HymnValue imports_value = new_table_value(this->imports);
     table_put(&this->globals, imports, imports_value);
     reference(imports_value);
 
@@ -4790,13 +4775,13 @@ Hymn *new_hymn() {
 
 void hymn_delete(Hymn *this) {
     {
-        Table *globals = &this->globals;
+        HymnTable *globals = &this->globals;
         unsigned int bins = globals->bins;
         for (unsigned int i = 0; i < bins; i++) {
-            TableItem *item = globals->items[i];
-            TableItem *previous = NULL;
+            HymnTableItem *item = globals->items[i];
+            HymnTableItem *previous = NULL;
             while (item != NULL) {
-                TableItem *next = item->next;
+                HymnTableItem *next = item->next;
                 if (is_native(item->value)) {
                     if (previous == NULL) {
                         globals->items[i] = next;
@@ -4817,12 +4802,12 @@ void hymn_delete(Hymn *this) {
     }
 
     {
-        Set *strings = &this->strings;
+        HymnSet *strings = &this->strings;
         unsigned int bins = strings->bins;
         for (unsigned int i = 0; i < bins; i++) {
-            SetItem *item = strings->items[i];
+            HymnSetItem *item = strings->items[i];
             while (item != NULL) {
-                SetItem *next = item->next;
+                HymnSetItem *next = item->next;
                 dereference_string(this, item->string);
                 item = next;
             }
@@ -4836,11 +4821,11 @@ void hymn_delete(Hymn *this) {
     free(this);
 }
 
-void hymn_add_function(Hymn *this, const char *name, NativeCall func) {
+void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func) {
     HymnString *intern = machine_intern_string(this, new_string(name));
     reference_string(intern);
     String *copy = string_copy(intern->string);
-    NativeFunction *value = new_native_function(copy, func);
+    HymnNativeFunction *value = new_native_function(copy, func);
     table_put(&this->globals, intern, new_native(value));
 }
 
@@ -4851,7 +4836,7 @@ void hymn_add_pointer(Hymn *this, const char *name, void *pointer) {
 char *hymn_do_script(Hymn *this, const char *script, const char *source) {
     struct CompileReturn result = compile(this, script, source);
 
-    Function *func = result.func;
+    HymnFunction *func = result.func;
 
     char *error = result.error;
     if (error) {
@@ -4863,7 +4848,7 @@ char *hymn_do_script(Hymn *this, const char *script, const char *source) {
     disassemble_byte_code(&func->code, "<script>");
 #endif
 
-    Value function = new_func_value(func);
+    HymnValue function = new_func_value(func);
     reference(function);
 
     PUSH(function)
