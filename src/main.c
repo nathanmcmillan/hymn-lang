@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "hm_io.h"
 #include "hm_vm.h"
 
 #ifndef HYMN_TESTING

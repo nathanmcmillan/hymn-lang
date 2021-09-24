@@ -159,7 +159,6 @@ typedef struct Local Local;
 typedef struct Rule Rule;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
-typedef struct Hymn Machine;
 
 static const float LOAD_FACTOR = 0.80f;
 
@@ -370,10 +369,10 @@ static void expression(Compiler *this);
 
 static inline void reference_string(HymnString *string);
 static inline void reference(HymnValue value);
-static inline void dereference_string(Machine *this, HymnString *string);
-static inline void dereference(Machine *this, HymnValue value);
+static inline void dereference_string(Hymn *this, HymnString *string);
+static inline void dereference(Hymn *this, HymnValue value);
 
-static char *machine_interpret(Machine *this);
+static char *machine_interpret(Hymn *this);
 
 struct JumpList {
     int jump;
@@ -425,7 +424,7 @@ struct Compiler {
     usize size;
     Token previous;
     Token current;
-    Machine *machine;
+    Hymn *machine;
     Scope *scope;
     struct LoopList *loop;
     struct JumpList *jump;
@@ -767,7 +766,7 @@ static HymnValue table_remove(HymnTable *this, HymnString *key) {
     return new_undefined();
 }
 
-static void table_clear(Machine *machine, HymnTable *this) {
+static void table_clear(Hymn *machine, HymnTable *this) {
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
@@ -782,12 +781,12 @@ static void table_clear(Machine *machine, HymnTable *this) {
     this->size = 0;
 }
 
-static void table_release(Machine *machine, HymnTable *this) {
+static void table_release(Hymn *machine, HymnTable *this) {
     table_clear(machine, this);
     free(this->items);
 }
 
-static void table_delete(Machine *machine, HymnTable *this) {
+static void table_delete(Hymn *machine, HymnTable *this) {
     table_release(machine, this);
     free(this);
 }
@@ -913,7 +912,7 @@ static HymnString *set_remove(HymnSet *this, String *remove) {
     return NULL;
 }
 
-static void set_clear(Machine *machine, HymnSet *this) {
+static void set_clear(Hymn *machine, HymnSet *this) {
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnSetItem *item = this->items[i];
@@ -928,7 +927,7 @@ static void set_clear(Machine *machine, HymnSet *this) {
     this->size = 0;
 }
 
-static void set_release(Machine *machine, HymnSet *this) {
+static void set_release(Hymn *machine, HymnSet *this) {
     set_clear(machine, this);
     free(this->items);
 }
@@ -1544,7 +1543,7 @@ static HymnValue array_remove_index(HymnArray *this, i64 index) {
     return deleted;
 }
 
-static void array_clear(Machine *machine, HymnArray *this) {
+static void array_clear(Hymn *machine, HymnArray *this) {
     i64 len = this->length;
     HymnValue *items = this->items;
     for (i64 i = 0; i < len; i++) {
@@ -1553,7 +1552,7 @@ static void array_clear(Machine *machine, HymnArray *this) {
     this->length = 0;
 }
 
-static void array_delete(Machine *machine, HymnArray *this) {
+static void array_delete(Hymn *machine, HymnArray *this) {
     array_clear(machine, this);
     free(this->items);
     free(this);
@@ -1669,7 +1668,7 @@ static void scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
     local->constant = false;
 }
 
-static inline Compiler new_compiler(const char *script, const char *source, Machine *machine, Scope *scope) {
+static inline Compiler new_compiler(const char *script, const char *source, Hymn *machine, Scope *scope) {
     Compiler this = {0};
     this.row = 1;
     this.column = 1;
@@ -1734,7 +1733,7 @@ static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
-static HymnString *machine_intern_string(Machine *this, String *string) {
+static HymnString *machine_intern_string(Hymn *this, String *string) {
     HymnString *object = set_add_or_get(&this->strings, string);
     if (object->string != string) {
         string_delete(string);
@@ -1742,7 +1741,7 @@ static HymnString *machine_intern_string(Machine *this, String *string) {
     return object;
 }
 
-static HymnValue compile_intern_string(Machine *this, String *string) {
+static HymnValue compile_intern_string(Hymn *this, String *string) {
     HymnString *object = set_add_or_get(&this->strings, string);
     if (object->string == string) {
         reference_string(object);
@@ -1752,7 +1751,7 @@ static HymnValue compile_intern_string(Machine *this, String *string) {
     return new_string_value(object);
 }
 
-static void machine_set_global(Machine *this, const char *name, HymnValue value) {
+static void machine_set_global(Hymn *this, const char *name, HymnValue value) {
     HymnString *intern = machine_intern_string(this, new_string(name));
     reference_string(intern);
     table_put(&this->globals, intern, value);
@@ -2975,7 +2974,7 @@ static void expression(Compiler *this) {
     compile_with_precedence(this, PRECEDENCE_ASSIGN);
 }
 
-static inline HymnFrame *parent_frame(Machine *this, int offset) {
+static inline HymnFrame *parent_frame(Hymn *this, int offset) {
     int frame_count = this->frame_count;
     if (offset > frame_count) {
         return NULL;
@@ -2983,7 +2982,7 @@ static inline HymnFrame *parent_frame(Machine *this, int offset) {
     return &this->frames[frame_count - offset];
 }
 
-static inline HymnFrame *current_frame(Machine *this) {
+static inline HymnFrame *current_frame(Hymn *this) {
     return &this->frames[this->frame_count - 1];
 }
 
@@ -2992,7 +2991,7 @@ struct CompileReturn {
     char *error;
 };
 
-static struct CompileReturn compile(Machine *machine, const char *script, const char *source) {
+static struct CompileReturn compile(Hymn *machine, const char *script, const char *source) {
     Scope scope = {0};
 
     Compiler c = new_compiler(script, source, machine, &scope);
@@ -3289,7 +3288,7 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
 }
 #endif
 
-static void machine_reset_stack(Machine *this) {
+static void machine_reset_stack(Hymn *this) {
     this->stack_top = 0;
     this->frame_count = 0;
 }
@@ -3350,7 +3349,7 @@ static void reference(HymnValue value) {
     }
 }
 
-static inline void dereference_string(Machine *this, HymnString *string) {
+static inline void dereference_string(Hymn *this, HymnString *string) {
 #ifdef HYMN_DEBUG_REFERENCE
     debug_dereference(new_string_value(string));
 #endif
@@ -3363,7 +3362,7 @@ static inline void dereference_string(Machine *this, HymnString *string) {
     }
 }
 
-static void dereference(Machine *this, HymnValue value) {
+static void dereference(Hymn *this, HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING: {
         HymnString *string = as_hymn_string(value);
@@ -3411,11 +3410,11 @@ static void dereference(Machine *this, HymnValue value) {
     }
 }
 
-static void machine_push(Machine *this, HymnValue value) {
+static void machine_push(Hymn *this, HymnValue value) {
     this->stack[this->stack_top++] = value;
 }
 
-static HymnValue machine_peek(Machine *this, usize dist) {
+static HymnValue machine_peek(Hymn *this, usize dist) {
     if (dist > this->stack_top) {
         fprintf(stderr, "Nothing on stack to peek");
         return new_none();
@@ -3423,7 +3422,7 @@ static HymnValue machine_peek(Machine *this, usize dist) {
     return this->stack[this->stack_top - dist];
 }
 
-static HymnValue machine_pop(Machine *this) {
+static HymnValue machine_pop(Hymn *this) {
     if (this->stack_top == 0) {
         fprintf(stderr, "Nothing on stack to pop");
         return new_none();
@@ -3431,13 +3430,13 @@ static HymnValue machine_pop(Machine *this) {
     return this->stack[--this->stack_top];
 }
 
-static void machine_push_intern_string(Machine *this, String *string) {
+static void machine_push_intern_string(Hymn *this, String *string) {
     HymnString *intern = machine_intern_string(this, string);
     reference_string(intern);
     PUSH(new_string_value(intern))
 }
 
-static HymnFrame *machine_exception(Machine *this) {
+static HymnFrame *machine_exception(Hymn *this) {
     HymnFrame *frame = current_frame(this);
     while (true) {
         HymnExceptList *except = NULL;
@@ -3473,7 +3472,7 @@ static HymnFrame *machine_exception(Machine *this) {
     }
 }
 
-static String *machine_stacktrace(Machine *this) {
+static String *machine_stacktrace(Hymn *this) {
     String *trace = new_string("");
 
     for (int i = this->frame_count - 1; i >= 0; i--) {
@@ -3500,20 +3499,20 @@ static String *machine_stacktrace(Machine *this) {
     return trace;
 }
 
-static HymnFrame *machine_push_error(Machine *this, String *error) {
+static HymnFrame *machine_push_error(Hymn *this, String *error) {
     HymnString *message = machine_intern_string(this, error);
     reference_string(message);
     PUSH(new_string_value(message))
     return machine_exception(this);
 }
 
-static HymnFrame *machine_throw_existing_error(Machine *this, char *error) {
+static HymnFrame *machine_throw_existing_error(Hymn *this, char *error) {
     String *message = new_string(error);
     free(error);
     return machine_push_error(this, message);
 }
 
-static HymnFrame *machine_throw_error(Machine *this, const char *format, ...) {
+static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
     String *error = new_string("");
 
     va_list ap;
@@ -3537,7 +3536,7 @@ static HymnFrame *machine_throw_error(Machine *this, const char *format, ...) {
     return machine_push_error(this, error);
 }
 
-static HymnFrame *machine_throw_error_string(Machine *this, String *string) {
+static HymnFrame *machine_throw_error_string(Hymn *this, String *string) {
     HymnFrame *frame = machine_throw_error(this, string);
     string_delete(string);
     return frame;
@@ -3585,7 +3584,7 @@ static bool machine_false(HymnValue value) {
     }
 }
 
-static HymnFrame *machine_call(Machine *this, HymnFunction *func, int count) {
+static HymnFrame *machine_call(Hymn *this, HymnFunction *func, int count) {
     if (count != func->arity) {
         return machine_throw_error(this, "Expected %d function arguments but found %d.", func->arity, count);
     } else if (this->frame_count == HYMN_FRAMES_MAX) {
@@ -3600,7 +3599,7 @@ static HymnFrame *machine_call(Machine *this, HymnFunction *func, int count) {
     return frame;
 }
 
-static HymnFrame *machine_call_value(Machine *this, HymnValue call, int count) {
+static HymnFrame *machine_call_value(Hymn *this, HymnValue call, int count) {
     switch (call.is) {
     case HYMN_VALUE_FUNC:
         return machine_call(this, as_func(call), count);
@@ -3635,7 +3634,7 @@ static inline HymnValue read_constant(HymnFrame *frame) {
     return frame->func->code.constants.values[read_byte(frame)];
 }
 
-static HymnFrame *machine_do(Machine *this, HymnString *source) {
+static HymnFrame *machine_do(Hymn *this, HymnString *source) {
     struct CompileReturn result = compile(this, NULL, source->string);
 
     HymnFunction *func = result.func;
@@ -3660,7 +3659,7 @@ static HymnFrame *machine_do(Machine *this, HymnString *source) {
     return current_frame(this);
 }
 
-static HymnFrame *machine_import(Machine *this, HymnString *file) {
+static HymnFrame *machine_import(Hymn *this, HymnString *file) {
     HymnTable *imports = this->imports;
 
     String *script = NULL;
@@ -3770,7 +3769,7 @@ static HymnFrame *machine_import(Machine *this, HymnString *file) {
     return current_frame(this);
 }
 
-static void machine_run(Machine *this) {
+static void machine_run(Hymn *this) {
     HymnFrame *frame = current_frame(this);
     while (true) {
 #if defined HYMN_DEBUG_TRACE or defined HYMN_DEBUG_STACK
@@ -4720,7 +4719,7 @@ static void machine_run(Machine *this) {
     }
 }
 
-static char *machine_interpret(Machine *this) {
+static char *machine_interpret(Hymn *this) {
     machine_run(this);
     char *error = NULL;
     if (this->error) {
