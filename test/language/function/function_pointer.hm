@@ -8,7 +8,7 @@ function bar(value)
   print value
 end
 
-const multiply = foo
-const printer = bar
+let multiply = foo
+let printer = bar
 
 printer(multiply(8))

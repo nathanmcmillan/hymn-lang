@@ -182,7 +182,6 @@ enum TokenType {
     TOKEN_CLEAR,
     TOKEN_COLON,
     TOKEN_COMMA,
-    TOKEN_CONST,
     TOKEN_CONTINUE,
     TOKEN_COPY,
     TOKEN_DELETE,
@@ -397,7 +396,6 @@ struct Token {
 struct Local {
     Token name;
     int depth;
-    bool constant;
 };
 
 struct Rule {
@@ -447,7 +445,6 @@ Rule rules[] = {
     [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CLEAR] = {clear_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_CONST] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_DO] = {NULL, NULL, PRECEDENCE_NONE},
@@ -546,7 +543,6 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_CASE: return "CASE";
     case TOKEN_CLEAR: return "CLEAR";
     case TOKEN_COLON: return "COLON";
-    case TOKEN_CONST: return "CONST";
     case TOKEN_CONTINUE: return "CONTINUE";
     case TOKEN_COPY: return "COPY";
     case TOKEN_DO: return "DO";
@@ -1135,13 +1131,11 @@ static enum TokenType ident_keyword(const char *ident, usize size) {
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
         break;
     case 'c':
+        if (size == 5) return ident_trie(ident, 1, "lear", TOKEN_CLEAR);
         if (size == 8) return ident_trie(ident, 1, "ontinue", TOKEN_CONTINUE);
         if (size == 4) {
             if (ident[1] == 'o') return ident_trie(ident, 2, "py", TOKEN_COPY);
             if (ident[1] == 'a') return ident_trie(ident, 2, "se", TOKEN_CASE);
-        } else if (size == 5) {
-            if (ident[1] == 'l') return ident_trie(ident, 2, "ear", TOKEN_CLEAR);
-            if (ident[1] == 'o') return ident_trie(ident, 2, "nst", TOKEN_CONST);
         }
         break;
     case 'l':
@@ -1665,7 +1659,6 @@ static void scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
     local->depth = 0;
     local->name.start = 0;
     local->name.length = 0;
-    local->constant = false;
 }
 
 static inline Compiler new_compiler(const char *script, const char *source, Hymn *machine, Scope *scope) {
@@ -1818,7 +1811,6 @@ static u8 push_hidden_local(Compiler *this) {
     u8 index = (u8)scope->local_count++;
     Local *local = &scope->locals[index];
     local->name = (Token){0};
-    local->constant = true;
     local->depth = scope->depth;
     return index;
 }
@@ -1961,7 +1953,7 @@ static void native_function_delete(HymnNativeFunction *this) {
     free(this);
 }
 
-static void push_local(Compiler *this, Token name, bool is_constant) {
+static void push_local(Compiler *this, Token name) {
     Scope *scope = this->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
         compile_error(this, &name, "Too many local variables in scope.");
@@ -1969,7 +1961,6 @@ static void push_local(Compiler *this, Token name, bool is_constant) {
     }
     Local *local = &scope->locals[scope->local_count++];
     local->name = name;
-    local->constant = is_constant;
     local->depth = -1;
 }
 
@@ -1980,7 +1971,7 @@ static bool ident_match(Compiler *this, Token *a, Token *b) {
     return memcmp(&this->source[a->start], &this->source[b->start], a->length) == 0;
 }
 
-static u8 variable(Compiler *this, bool is_constant, const char *error) {
+static u8 variable(Compiler *this, const char *error) {
     consume(this, TOKEN_IDENT, error);
     Scope *scope = this->scope;
     if (scope->depth == 0) {
@@ -1995,7 +1986,7 @@ static u8 variable(Compiler *this, bool is_constant, const char *error) {
             compile_error(this, name, "Scope Error: Variable `%.*s` already exists in this scope.", name->length, &this->source[name->start]);
         }
     }
-    push_local(this, *name, is_constant);
+    push_local(this, *name);
     return 0;
 }
 
@@ -2015,14 +2006,14 @@ static void finalize_variable(Compiler *this, u8 global) {
     emit_two(this, OP_DEFINE_GLOBAL, global);
 }
 
-static void define_new_variable(Compiler *this, bool is_constant) {
-    u8 v = variable(this, is_constant, "Syntax Error: Expected variable name.");
+static void define_new_variable(Compiler *this) {
+    u8 v = variable(this, "Syntax Error: Expected variable name.");
     consume(this, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.");
     expression(this);
     finalize_variable(this, v);
 }
 
-static int resolve_local(Compiler *this, Token *name, bool *is_constant) {
+static int resolve_local(Compiler *this, Token *name) {
     Scope *scope = this->scope;
     for (int i = scope->local_count - 1; i >= 0; i--) {
         Local *local = &scope->locals[i];
@@ -2030,7 +2021,6 @@ static int resolve_local(Compiler *this, Token *name, bool *is_constant) {
             if (local->depth == -1) {
                 compile_error(this, name, "Reference Error: Local variable `%.*s` referenced before assignment.", name->length, &this->source[name->start]);
             }
-            *is_constant = local->constant;
             return i;
         }
     }
@@ -2040,8 +2030,7 @@ static int resolve_local(Compiler *this, Token *name, bool *is_constant) {
 static void named_variable(Compiler *this, Token token, bool assign) {
     u8 get;
     u8 set;
-    bool constant = false;
-    int var = resolve_local(this, &token, &constant);
+    int var = resolve_local(this, &token);
     if (var != -1) {
         get = OP_GET_LOCAL;
         set = OP_SET_LOCAL;
@@ -2049,12 +2038,8 @@ static void named_variable(Compiler *this, Token token, bool assign) {
         get = OP_GET_GLOBAL;
         set = OP_SET_GLOBAL;
         var = ident_constant(this, &token);
-        // TODO: CONST FOR GLOBALS
     }
     if (assign and match(this, TOKEN_ASSIGN)) {
-        if (constant) {
-            compile_error(this, &token, "Constant variable can't be modified.");
-        }
         expression(this);
         emit(this, set);
     } else {
@@ -2204,7 +2189,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
             if (this->scope->func->arity > 255) {
                 compile_error(this, &this->previous, "Can't have more than 255 function parameters.");
             }
-            u8 parameter = variable(this, false, "Expected parameter name.");
+            u8 parameter = variable(this, "Expected parameter name.");
             finalize_variable(this, parameter);
         } while (match(this, TOKEN_COMMA));
     }
@@ -2223,7 +2208,7 @@ static void compile_function(Compiler *this, enum FunctionType type) {
 }
 
 static void declare_function(Compiler *this) {
-    u8 global = variable(this, false, "Expected function name.");
+    u8 global = variable(this, "Expected function name.");
     local_initialize(this);
     compile_function(this, TYPE_FUNCTION);
     finalize_variable(this, global);
@@ -2231,9 +2216,7 @@ static void declare_function(Compiler *this) {
 
 static void declaration(Compiler *this) {
     if (match(this, TOKEN_LET)) {
-        define_new_variable(this, false);
-    } else if (match(this, TOKEN_CONST)) {
-        define_new_variable(this, true);
+        define_new_variable(this);
     } else if (match(this, TOKEN_FUNCTION)) {
         declare_function(this);
     } else {
@@ -2469,7 +2452,7 @@ static void iterate_statement(Compiler *this) {
     u8 id;
 
     u8 value = (u8)this->scope->local_count;
-    variable(this, true, "Iterator: Missing parameter.");
+    variable(this, "Iterator: Missing parameter.");
     local_initialize(this);
 
     if (match(this, TOKEN_COMMA)) {
@@ -2477,7 +2460,7 @@ static void iterate_statement(Compiler *this) {
         emit(this, OP_NONE);
 
         value = (u8)this->scope->local_count;
-        variable(this, true, "Iterator: Missing second parameter.");
+        variable(this, "Iterator: Missing second parameter.");
         local_initialize(this);
         emit(this, OP_NONE);
     } else {
@@ -2640,9 +2623,7 @@ static void for_statement(Compiler *this) {
     // assign
 
     if (match(this, TOKEN_LET)) {
-        define_new_variable(this, false);
-    } else if (match(this, TOKEN_CONST)) {
-        define_new_variable(this, true);
+        define_new_variable(this);
     } else if (!check(this, TOKEN_SEMICOLON)) {
         expression_statement(this);
     }
@@ -2782,7 +2763,7 @@ static void try_statement(Compiler *this) {
     except->end = (usize)current(this)->count;
 
     begin_scope(this);
-    u8 message = variable(this, false, "Try: Missing variable after 'except'.");
+    u8 message = variable(this, "Try: Missing variable after 'except'.");
     finalize_variable(this, message);
     while (!check(this, TOKEN_END) and !check(this, TOKEN_EOF)) {
         declaration(this);

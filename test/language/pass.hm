@@ -1,0 +1,8 @@
+-- ok
+
+if true
+  pass
+else
+  print "bad"
+end
+print "ok"

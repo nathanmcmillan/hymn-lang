@@ -50,9 +50,9 @@ end
 
 -- string_comparator returns the alphabetical integer difference comparing a to b.
 function string_comparator(a, b)
-  const to = min(len(a), len(b))
+  let to = min(len(a), len(b))
   for let i = 0; i < to; i = i + 1
-    const char = int(a[i]) - int(b[i])
+    let char = int(a[i]) - int(b[i])
     if char != 0 return char end
   end
   return len(a) - len(b)
@@ -60,7 +60,7 @@ end
 
 -- sort returns a new array with elements sorted using the comparator function.
 function sort(a, comparator)
-  const n = []
+  let n = []
   let total = 0
   iterate v in a
     let id = 0

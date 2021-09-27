@@ -35,6 +35,6 @@ try let mem = {} use [] except _ print(_) end
 
 function bad_function() let a = [0, 2, 4] end
 
-try const b = bad_function() b[0] = b[0] + 1 except _ print(_) end
+try let b = bad_function() b[0] = b[0] + 1 except _ print(_) end
 
 print "done!"

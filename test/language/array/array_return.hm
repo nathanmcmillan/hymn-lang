@@ -7,7 +7,7 @@ function new()
 end
 
 for let i = 0; i < 3; i = i + 1
-  const a = new()
+  let a = new()
   a[1] = a[1] * 4
   a[2][0] = a[2][0] * 4
   print a[0] + ', ' + a[1] + ', ' + a[2]

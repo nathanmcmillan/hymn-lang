@@ -138,71 +138,70 @@ const TOKEN_CASE = 11
 const TOKEN_CLEAR = 12
 const TOKEN_COLON = 13
 const TOKEN_COMMA = 14
-const TOKEN_CONST = 15
-const TOKEN_CONTINUE = 16
-const TOKEN_COPY = 17
-const TOKEN_DELETE = 18
-const TOKEN_DIVIDE = 19
-const TOKEN_DO = 20
-const TOKEN_DOT = 21
-const TOKEN_ELIF = 22
-const TOKEN_ELSE = 23
-const TOKEN_END = 24
-const TOKEN_EOF = 25
-const TOKEN_EQUAL = 26
-const TOKEN_ERROR = 27
-const TOKEN_EXCEPT = 28
-const TOKEN_FALSE = 29
-const TOKEN_FLOAT = 30
-const TOKEN_FOR = 31
-const TOKEN_FUNCTION = 32
-const TOKEN_GREATER = 33
-const TOKEN_GREATER_EQUAL = 34
-const TOKEN_IDENT = 35
-const TOKEN_IF = 36
-const TOKEN_IN = 37
-const TOKEN_INDEX = 38
-const TOKEN_INSERT = 39
-const TOKEN_INTEGER = 40
-const TOKEN_ITERATE = 41
-const TOKEN_KEYS = 42
-const TOKEN_LEFT_CURLY = 43
-const TOKEN_LEFT_PAREN = 44
-const TOKEN_LEFT_SQUARE = 45
-const TOKEN_LEN = 46
-const TOKEN_LESS = 47
-const TOKEN_LESS_EQUAL = 48
-const TOKEN_LET = 49
-const TOKEN_LINE = 50
-const TOKEN_MODULO = 51
-const TOKEN_MULTIPLY = 52
-const TOKEN_NONE = 53
-const TOKEN_NOT = 54
-const TOKEN_NOT_EQUAL = 55
-const TOKEN_OR = 56
-const TOKEN_PASS = 57
-const TOKEN_POP = 58
-const TOKEN_PRINT = 59
-const TOKEN_PUSH = 60
-const TOKEN_RETURN = 61
-const TOKEN_RIGHT_CURLY = 62
-const TOKEN_RIGHT_PAREN = 63
-const TOKEN_RIGHT_SQUARE = 64
-const TOKEN_SEMICOLON = 65
-const TOKEN_STRING = 66
-const TOKEN_SUBTRACT = 67
-const TOKEN_SWITCH = 68
-const TOKEN_THROW = 69
-const TOKEN_TO_FLOAT = 70
-const TOKEN_TO_INTEGER = 71
-const TOKEN_TO_STRING = 72
-const TOKEN_TRUE = 73
-const TOKEN_TRY = 74
-const TOKEN_TYPE = 75
-const TOKEN_UNDEFINED = 76
-const TOKEN_USE = 77
-const TOKEN_VALUE = 78
-const TOKEN_WHILE = 79
+const TOKEN_CONTINUE = 15
+const TOKEN_COPY = 16
+const TOKEN_DELETE = 17
+const TOKEN_DIVIDE = 18
+const TOKEN_DO = 19
+const TOKEN_DOT = 20
+const TOKEN_ELIF = 21
+const TOKEN_ELSE = 22
+const TOKEN_END = 23
+const TOKEN_EOF = 24
+const TOKEN_EQUAL = 25
+const TOKEN_ERROR = 26
+const TOKEN_EXCEPT = 27
+const TOKEN_FALSE = 28
+const TOKEN_FLOAT = 29
+const TOKEN_FOR = 30
+const TOKEN_FUNCTION = 31
+const TOKEN_GREATER = 32
+const TOKEN_GREATER_EQUAL = 33
+const TOKEN_IDENT = 34
+const TOKEN_IF = 35
+const TOKEN_IN = 36
+const TOKEN_INDEX = 37
+const TOKEN_INSERT = 38
+const TOKEN_INTEGER = 39
+const TOKEN_ITERATE = 40
+const TOKEN_KEYS = 41
+const TOKEN_LEFT_CURLY = 42
+const TOKEN_LEFT_PAREN = 43
+const TOKEN_LEFT_SQUARE = 44
+const TOKEN_LEN = 45
+const TOKEN_LESS = 46
+const TOKEN_LESS_EQUAL = 47
+const TOKEN_LET = 48
+const TOKEN_LINE = 49
+const TOKEN_MODULO = 50
+const TOKEN_MULTIPLY = 51
+const TOKEN_NONE = 52
+const TOKEN_NOT = 53
+const TOKEN_NOT_EQUAL = 54
+const TOKEN_OR = 55
+const TOKEN_PASS = 56
+const TOKEN_POP = 57
+const TOKEN_PRINT = 58
+const TOKEN_PUSH = 59
+const TOKEN_RETURN = 60
+const TOKEN_RIGHT_CURLY = 61
+const TOKEN_RIGHT_PAREN = 62
+const TOKEN_RIGHT_SQUARE = 63
+const TOKEN_SEMICOLON = 64
+const TOKEN_STRING = 65
+const TOKEN_SUBTRACT = 66
+const TOKEN_SWITCH = 67
+const TOKEN_THROW = 68
+const TOKEN_TO_FLOAT = 69
+const TOKEN_TO_INTEGER = 70
+const TOKEN_TO_STRING = 71
+const TOKEN_TRUE = 72
+const TOKEN_TRY = 73
+const TOKEN_TYPE = 74
+const TOKEN_UNDEFINED = 75
+const TOKEN_USE = 76
+const TOKEN_VALUE = 77
+const TOKEN_WHILE = 78
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -302,7 +301,6 @@ class Local {
   constructor() {
     this.name = null
     this.depth = 0
-    this.constant = false
   }
 }
 
@@ -375,7 +373,6 @@ rules[TOKEN_CASE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CLEAR] = new Rule(clearExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_CONST] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DO] = new Rule(null, null, PRECEDENCE_NONE)
@@ -496,8 +493,6 @@ function tokenName(token) {
       return 'CLEAR'
     case TOKEN_COLON:
       return 'COLON'
-    case TOKEN_CONST:
-      return 'CONST'
     case TOKEN_CONTINUE:
       return 'CONTINUE'
     case TOKEN_COPY:
@@ -843,13 +838,11 @@ function identKey(ident, size) {
       if (size === 4) return identTrie(ident, 1, 'eys', TOKEN_KEYS)
       break
     case 'c':
+      if (size === 5) return identTrie(ident, 1, 'lear', TOKEN_CLEAR)
       if (size === 8) return identTrie(ident, 1, 'ontinue', TOKEN_CONTINUE)
       if (size === 4) {
         if (ident[1] === 'o') return identTrie(ident, 2, 'py', TOKEN_COPY)
         if (ident[1] === 'a') return identTrie(ident, 2, 'se', TOKEN_CASE)
-      } else if (size === 5) {
-        if (ident[1] === 'l') return identTrie(ident, 2, 'ear', TOKEN_CLEAR)
-        if (ident[1] === 'o') return identTrie(ident, 2, 'nst', TOKEN_CONST)
       }
       break
     case 'l':
@@ -1159,7 +1152,6 @@ function scopeInit(compiler, scope, type) {
   const local = scopeGetLocal(scope, scope.localCount++)
   local.depth = 0
   local.name = null
-  local.constant = false
 }
 
 function newCompiler(script, source, hymn, scope) {
@@ -1282,7 +1274,6 @@ function pushHiddenLocal(compiler) {
   const index = scope.localCount++
   const local = scopeGetLocal(scope, index)
   local.name = null
-  local.constant = true
   local.depth = scope.depth
   return index
 }
@@ -1397,7 +1388,7 @@ function compileTable(compiler, assign) {
   consume(compiler, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.")
 }
 
-function pushLocal(compiler, name, isConstant) {
+function pushLocal(compiler, name) {
   const scope = compiler.scope
   if (scope.localCount === HYMN_UINT8_COUNT) {
     compileError(compiler, name, 'Too many local variables in scope')
@@ -1405,11 +1396,10 @@ function pushLocal(compiler, name, isConstant) {
   }
   const local = scopeGetLocal(scope, scope.localCount++)
   local.name = name
-  local.constant = isConstant
   local.depth = -1
 }
 
-function variable(compiler, isConstant, error) {
+function variable(compiler, error) {
   consume(compiler, TOKEN_IDENT, error)
   const scope = compiler.scope
   if (scope.depth === 0) {
@@ -1425,7 +1415,7 @@ function variable(compiler, isConstant, error) {
       compileError(compiler, name, 'Scope Error: Variable `' + sourceSubstring(compiler, name.len, name.start) + '` already exists in compiler scope.')
     }
   }
-  pushLocal(compiler, name, isConstant)
+  pushLocal(compiler, name)
   return 0
 }
 
@@ -1445,8 +1435,8 @@ function finalizeVariable(compiler, global) {
   emitTwo(compiler, OP_DEFINE_GLOBAL, global)
 }
 
-function defineNewVariable(compiler, isConstant) {
-  const v = variable(compiler, isConstant, 'Syntax Error: Expected variable name.')
+function defineNewVariable(compiler) {
+  const v = variable(compiler, 'Syntax Error: Expected variable name.')
   consume(compiler, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.")
   expression(compiler)
   finalizeVariable(compiler, v)
@@ -1461,18 +1451,16 @@ function resolveLocal(compiler, token) {
       if (local.depth === -1) {
         compileError(compiler, name, 'Reference Error: Local variable `' + sourceSubstring(name.len, name.start) + '` referenced before assignment.')
       }
-      return [i, local.constant]
+      return i
     }
   }
-  return [-1, false]
+  return -1
 }
 
 function namedVariable(compiler, token, assign) {
   let get
   let set
-  let r = resolveLocal(compiler, token)
-  let v = r[0]
-  let constant = r[1]
+  let v = resolveLocal(compiler, token)
   if (v !== -1) {
     get = OP_GET_LOCAL
     set = OP_SET_LOCAL
@@ -1482,9 +1470,6 @@ function namedVariable(compiler, token, assign) {
     v = identConstant(compiler, token)
   }
   if (assign && match(compiler, TOKEN_ASSIGN)) {
-    if (constant) {
-      compileError(compiler, token, "Constant variable can't be modified.")
-    }
     expression(compiler)
     emit(compiler, set)
   } else {
@@ -1670,7 +1655,7 @@ function compileFunction(compiler, type) {
       if (compiler.scope.func.arity > 255) {
         compileError(compiler, compiler.previous, "Can't have more than 255 function parameters.")
       }
-      const parameter = variable(compiler, false, 'Expected parameter name.')
+      const parameter = variable(compiler, 'Expected parameter name.')
       finalizeVariable(compiler, parameter)
     } while (match(compiler, TOKEN_COMMA))
   }
@@ -1689,7 +1674,7 @@ function compileFunction(compiler, type) {
 }
 
 function declareFunction(compiler) {
-  const global = variable(compiler, false, 'Expected function name.')
+  const global = variable(compiler, 'Expected function name.')
   localInitialize(compiler)
   compileFunction(compiler, TYPE_FUNCTION)
   finalizeVariable(compiler, global)
@@ -1697,9 +1682,7 @@ function declareFunction(compiler) {
 
 function declaration(compiler) {
   if (match(compiler, TOKEN_LET)) {
-    defineNewVariable(compiler, false)
-  } else if (match(compiler, TOKEN_CONST)) {
-    defineNewVariable(compiler, true)
+    defineNewVariable(compiler)
   } else if (match(compiler, TOKEN_FUNCTION)) {
     declareFunction(compiler)
   } else {
@@ -1941,7 +1924,7 @@ function iterateStatement(compiler) {
   let id
 
   let value = compiler.scope.localCount
-  variable(compiler, true, 'Iterator: Missing parameter.')
+  variable(compiler, 'Iterator: Missing parameter.')
   localInitialize(compiler)
 
   if (match(compiler, TOKEN_COMMA)) {
@@ -1949,7 +1932,7 @@ function iterateStatement(compiler) {
     emit(compiler, OP_NONE)
 
     value = compiler.scope.localCount
-    variable(compiler, true, 'Iterator: Missing second parameter.')
+    variable(compiler, 'Iterator: Missing second parameter.')
     localInitialize(compiler)
     emit(compiler, OP_NONE)
   } else {
@@ -2115,9 +2098,7 @@ function forStatement(compiler) {
   // assign
 
   if (match(compiler, TOKEN_LET)) {
-    defineNewVariable(compiler, false)
-  } else if (match(compiler, TOKEN_CONST)) {
-    defineNewVariable(compiler, true)
+    defineNewVariable(compiler)
   } else if (!check(compiler, TOKEN_SEMICOLON)) {
     expressionStatement(compiler)
   }
@@ -2272,7 +2253,7 @@ function tryStatement(compiler) {
   except.end = current(compiler).count
 
   beginScope(compiler)
-  const message = variable(compiler, false, "Expected variable after 'except'.")
+  const message = variable(compiler, "Expected variable after 'except'.")
   finalizeVariable(compiler, message)
   while (!check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
     declaration(compiler)

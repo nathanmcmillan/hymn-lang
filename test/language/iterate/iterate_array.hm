@@ -22,7 +22,7 @@
 -- 8
 -- end
 
-const array = [2, 4, 8]
+let array = [2, 4, 8]
 
 print "begin"
 iterate value in array
