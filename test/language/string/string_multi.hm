@@ -1,0 +1,13 @@
+-- hello
+--   across
+--   the
+-- world
+-- good bye
+
+let foo = "hello
+  across
+  the
+world"
+
+print foo
+print "good bye"

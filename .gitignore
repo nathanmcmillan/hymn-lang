@@ -24,3 +24,5 @@ hymn
 !hymn/
 
 hymn.exe
+
+*.obj

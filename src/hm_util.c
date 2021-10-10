@@ -32,7 +32,7 @@ void *safe_realloc(void *mem, usize size) {
 }
 
 static StringHead *string_head_init(usize length, usize capacity) {
-    usize memory = sizeof(StringHead) + length + 1;
+    usize memory = sizeof(StringHead) + capacity + 1;
     StringHead *head = (StringHead *)safe_malloc(memory);
     memset(head, 0, memory);
     head->length = length;
@@ -40,21 +40,26 @@ static StringHead *string_head_init(usize length, usize capacity) {
     return head;
 }
 
+String *new_string_with_capacity(usize capacity) {
+    StringHead *head = string_head_init(0, capacity);
+    return (String *)(head + 1);
+}
+
 String *new_string_with_length(const char *init, usize length) {
     StringHead *head = string_head_init(length, length);
-    char *s = (char *)(head + 1);
-    memcpy(s, init, length);
-    s[length] = '\0';
-    return (String *)s;
+    char *string = (char *)(head + 1);
+    memcpy(string, init, length);
+    string[length] = '\0';
+    return (String *)string;
 }
 
 String *new_string_from_substring(const char *init, usize start, usize end) {
     usize length = end - start;
     StringHead *head = string_head_init(length, length);
-    char *s = (char *)(head + 1);
-    memcpy(s, &init[start], length);
-    s[length] = '\0';
-    return (String *)s;
+    char *string = (char *)(head + 1);
+    memcpy(string, &init[start], length);
+    string[length] = '\0';
+    return (String *)string;
 }
 
 String *new_string(const char *init) {

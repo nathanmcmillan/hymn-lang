@@ -44,6 +44,7 @@ void *safe_malloc(usize size);
 void *safe_calloc(usize members, usize member_size);
 void *safe_realloc(void *mem, usize size);
 
+String *new_string_with_capacity(usize capacity);
 String *new_string_with_length(const char *init, usize length);
 String *new_string_from_substring(const char *init, usize start, usize end);
 String *new_string(const char *init);

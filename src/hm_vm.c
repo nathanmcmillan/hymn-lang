@@ -976,8 +976,6 @@ static String *string_append_second_previous_line(const char *source, String *st
 static void compile_error(Compiler *this, Token *token, const char *format, ...) {
     if (this->error != NULL) return;
 
-    String *error = new_string("");
-
     va_list ap;
     va_start(ap, format);
     int len = vsnprintf(NULL, 0, format, ap);
@@ -986,7 +984,7 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     va_start(ap, format);
     len = vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
-    error = string_append(error, chars);
+    String *error = new_string(chars);
     free(chars);
     error = string_append(error, "\n\n");
 
@@ -1872,10 +1870,57 @@ static void compile_float(Compiler *this, bool assign) {
     write_constant(this, new_float(number), previous->row);
 }
 
+char escape_sequence(const char c) {
+    switch (c) {
+    case 'a':
+        return '\a';
+    case 'b':
+        return '\b';
+    case 'f':
+        return '\f';
+    case 'n':
+        return '\n';
+    case 'r':
+        return '\r';
+    case 't':
+        return '\t';
+    case 'v':
+        return '\v';
+    case '\\':
+        return '\\';
+    case '\'':
+        return '\'';
+    case '"':
+        return '"';
+    case '?':
+        return '\?';
+    default:
+        return '\0';
+    }
+}
+
+String *parse_string_literal(const char *string, usize start, usize len) {
+    const usize end = start + len;
+    String *literal = new_string_with_capacity(len);
+    for (usize i = start; i < end; i++) {
+        const char c = string[i];
+        if (c == '\\' && i + 1 < end) {
+            const char e = escape_sequence(string[i + 1]);
+            if (e != '\0') {
+                literal = string_append_char(literal, e);
+                i++;
+                continue;
+            }
+        }
+        literal = string_append_char(literal, c);
+    }
+    return literal;
+}
+
 static void compile_string(Compiler *this, bool assign) {
     (void)assign;
     Token *previous = &this->previous;
-    String *s = new_string_from_substring(this->source, previous->start, previous->start + previous->length);
+    String *s = parse_string_literal(this->source, previous->start, previous->length);
     write_constant(this, compile_intern_string(this->machine, s), previous->row);
 }
 
@@ -3494,8 +3539,6 @@ static HymnFrame *machine_throw_existing_error(Hymn *this, char *error) {
 }
 
 static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
-    String *error = new_string("");
-
     va_list ap;
     va_start(ap, format);
     int len = vsnprintf(NULL, 0, format, ap);
@@ -3504,7 +3547,7 @@ static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
     va_start(ap, format);
     len = vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
-    error = string_append(error, chars);
+    String *error = new_string(chars);
     free(chars);
 
 #ifdef HYMN_INCLUDE_STACKTRACE

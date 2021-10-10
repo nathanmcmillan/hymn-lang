@@ -2,6 +2,40 @@
 
 A small byte-code interpreted language with a focus on simplicty. [Visit the website!](https://hymn-lang.org)
 
+```
+-- import scripts with the `use` statement.
+use "math"
+
+-- tables hold key and value pairs
+function new_node(value)
+  return { value: value, next: none }
+end
+
+function node_add(list, value)
+  let node = list
+  while true
+    if node.next == none break end
+    node = node.next
+  end
+  node.next = new_node(value)
+end
+
+-- objects are passed by reference
+let list = new_node("hello")
+node_add(list, "world")
+
+-- print statements will show all nested values in an object
+print list
+```
+
+## Windows with MSVC
+
+> `cl src/*.c /link /out:hymn.exe`
+
+## Linux with GCC
+
+> `gcc src/*.c src/*.h -o hymn -lm`
+
 ## Goals
 
 1. Portable C11 code that passes with `-Wall` `-Wextra` `-Werror` `-pedantic` flags

@@ -1,0 +1,27 @@
+-- a
+-- b
+-- a\b
+-- a'b
+-- a"b
+-- a'b
+-- a"b
+-- a "b"
+-- a "b" c
+-- a 'b'
+-- a 'b' c
+
+print "a\nb"
+
+print "a\\b"
+
+print "a\'b"
+print "a\"b"
+
+print 'a\'b'
+print 'a\"b'
+
+print "a \"b\""
+print "a \"b\" c"
+
+print 'a \'b\''
+print 'a \'b\' c'
