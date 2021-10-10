@@ -3,10 +3,10 @@
 A small byte-code interpreted language with a focus on simplicty. [Visit the website!](https://hymn-lang.org)
 
 ```
--- import scripts with the `use` statement.
+-- import external scripts
 use "math"
 
--- tables hold key and value pairs
+-- tables hold key value pairs
 function new_node(value)
   return { value: value, next: none }
 end
@@ -30,11 +30,11 @@ print list
 
 ## Windows with MSVC
 
-> `cl src/*.c /link /out:hymn.exe`
+`cl src/*.c /link /out:hymn.exe`
 
 ## Linux with GCC
 
-> `gcc src/*.c src/*.h -o hymn -lm`
+`gcc src/*.c src/*.h -o hymn -lm`
 
 ## Goals
 
