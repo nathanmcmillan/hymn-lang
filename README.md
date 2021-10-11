@@ -40,11 +40,11 @@ print list
 
 ## Linux with GCC
 
-`$ gcc src/*.c src/*.h -o hymn -lm`
+`$ gcc src/*.c src/*.h -o hymn -Isrc/include -lm`
 
 ## Windows with MSVC
 
-`> cl src/*.c /link /out:hymn.exe`
+`> cl src/*.c /I src/include /link /out:hymn.exe`
 
 # Development
 
