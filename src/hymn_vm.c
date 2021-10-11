@@ -817,9 +817,9 @@ static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue val
     HymnTableItem *previous = NULL;
     while (item != NULL) {
         if (key == item->key) {
-            HymnValue previous = item->value;
+            HymnValue get = item->value;
             item->value = value;
-            return previous;
+            return get;
         }
         previous = item;
         item = item->next;
