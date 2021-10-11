@@ -811,14 +811,15 @@ static void table_resize(HymnTable *this) {
     this->items = items;
 }
 
-static void table_put(HymnTable *this, HymnObjectString *key, HymnValue value) {
+static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue value) {
     unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
     while (item != NULL) {
         if (key == item->key) {
+            HymnValue previous = item->value;
             item->value = value;
-            return;
+            return previous;
         }
         previous = item;
         item = item->next;
@@ -836,6 +837,7 @@ static void table_put(HymnTable *this, HymnObjectString *key, HymnValue value) {
     if (this->size >= this->bins * LOAD_FACTOR) {
         table_resize(this);
     }
+    return hymn_new_undefined();
 }
 
 static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
@@ -4175,12 +4177,10 @@ static void machine_run(Hymn *this) {
             if (hymn_is_undefined(exists)) {
                 THROW("Undefined variable '%s'.", name->string)
             }
-            // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
-            HymnValue previous = table_get(&this->globals, name);
+            HymnValue previous = table_put(&this->globals, name, value);
             if (!hymn_is_undefined(previous)) {
                 DEREF(previous)
             }
-            table_put(&this->globals, name, value);
             reference(value);
             break;
         }
@@ -4218,12 +4218,10 @@ static void machine_run(Hymn *this) {
             }
             HymnTable *table = hymn_as_table(v);
             HymnObjectString *name = hymn_as_hymn_string(read_constant(frame));
-            // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
-            HymnValue previous = table_get(table, name);
+            HymnValue previous = table_put(table, name, p);
             if (!hymn_is_undefined(previous)) {
                 DEREF(previous)
             }
-            table_put(table, name, p);
             PUSH(p)
             reference(p);
             DEREF(v)
