@@ -9,24 +9,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef char HymnChar;
-
-typedef struct HymnCharHead HymnCharHead;
-
-#ifdef __GNUC__
-#define PACK(expr) expr __attribute__((__packed__))
-#elif _MSC_VER
-#define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
-#endif
-
-PACK(struct HymnCharHead {
-    size_t length;
-    size_t capacity;
-    char **chars;
-});
-
-#undef PACK
-
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 
 #define HYMN_FRAMES_MAX 64
@@ -46,9 +28,27 @@ enum HymnValueType {
     HYMN_VALUE_POINTER,
 };
 
+typedef char HymnString;
+
+typedef struct HymnStringHead HymnStringHead;
+
+#ifdef __GNUC__
+#define PACK(expr) expr __attribute__((__packed__))
+#elif _MSC_VER
+#define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#endif
+
+PACK(struct HymnStringHead {
+    size_t length;
+    size_t capacity;
+    char **chars;
+});
+
+#undef PACK
+
 typedef struct HymnValue HymnValue;
 typedef struct HymnObject HymnObject;
-typedef struct HymnString HymnString;
+typedef struct HymnObjectString HymnObjectString;
 typedef struct HymnArray HymnArray;
 typedef struct HymnTable HymnTable;
 typedef struct HymnTableItem HymnTableItem;
@@ -80,9 +80,9 @@ struct HymnObject {
     int count;
 };
 
-struct HymnString {
+struct HymnObjectString {
     HymnObject object;
-    HymnChar *string;
+    HymnString *string;
     size_t hash;
 };
 
@@ -94,7 +94,7 @@ struct HymnArray {
 };
 
 struct HymnTableItem {
-    HymnString *key;
+    HymnObjectString *key;
     HymnValue value;
     HymnTableItem *next;
 };
@@ -107,7 +107,7 @@ struct HymnTable {
 };
 
 struct HymnSetItem {
-    HymnString *string;
+    HymnObjectString *string;
     HymnSetItem *next;
 };
 
@@ -118,7 +118,7 @@ struct HymnSet {
 };
 
 struct HymnNativeFunction {
-    HymnChar *name;
+    HymnString *name;
     HymnNativeCall func;
 };
 
@@ -145,8 +145,8 @@ struct HymnExceptList {
 
 struct HymnFunction {
     HymnObject object;
-    HymnChar *name;
-    HymnChar *script;
+    HymnString *name;
+    HymnString *script;
     int arity;
     HymnByteCode code;
     HymnExceptList *except;
@@ -167,11 +167,11 @@ struct Hymn {
     HymnTable globals;
     HymnArray *paths;
     HymnTable *imports;
-    HymnChar *error;
+    HymnString *error;
     void (*print)(const char *format, ...);
 };
 
-HymnString *new_hymn_string(HymnChar *string);
+HymnObjectString *new_hymn_string(HymnString *string);
 
 Hymn *new_hymn();
 
@@ -191,7 +191,7 @@ HymnValue hymn_new_int(int64_t v);
 HymnValue hymn_new_float(double v);
 HymnValue hymn_new_native(HymnNativeFunction *v);
 HymnValue hymn_new_pointer(void *v);
-HymnValue hymn_new_string_value(HymnString *v);
+HymnValue hymn_new_string_value(HymnObjectString *v);
 HymnValue hymn_new_array_value(HymnArray *v);
 HymnValue hymn_new_table_value(HymnTable *v);
 HymnValue hymn_new_func_value(HymnFunction *v);
@@ -202,8 +202,8 @@ double hymn_as_float(HymnValue v);
 HymnNativeFunction *hymn_as_native(HymnValue v);
 void *hymn_as_pointer(HymnValue v);
 HymnObject *hymn_as_object(HymnValue v);
-HymnString *hymn_as_hymn_string(HymnValue v);
-HymnChar *hymn_as_string(HymnValue v);
+HymnObjectString *hymn_as_hymn_string(HymnValue v);
+HymnString *hymn_as_string(HymnValue v);
 HymnArray *hymn_as_array(HymnValue v);
 HymnTable *hymn_as_table(HymnValue v);
 HymnFunction *hymn_as_func(HymnValue v);

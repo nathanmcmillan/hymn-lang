@@ -344,9 +344,9 @@ static void statement(Compiler *this);
 static void expression_statement(Compiler *this);
 static void expression(Compiler *this);
 
-static inline void reference_string(HymnString *string);
+static inline void reference_string(HymnObjectString *string);
 static inline void reference(HymnValue value);
-static inline void dereference_string(Hymn *this, HymnString *string);
+static inline void dereference_string(Hymn *this, HymnObjectString *string);
 static inline void dereference(Hymn *this, HymnValue value);
 
 static char *machine_interpret(Hymn *this);
@@ -404,7 +404,7 @@ struct Compiler {
     Scope *scope;
     struct LoopList *loop;
     struct JumpList *jump;
-    HymnChar *error;
+    HymnString *error;
 };
 
 HymnValue hymn_new_undefined() {
@@ -435,7 +435,7 @@ HymnValue hymn_new_pointer(void *v) {
     return (HymnValue){.is = HYMN_VALUE_POINTER, .as = {.p = v}};
 }
 
-HymnValue hymn_new_string_value(HymnString *v) {
+HymnValue hymn_new_string_value(HymnObjectString *v) {
     return (HymnValue){.is = HYMN_VALUE_STRING, .as = {.o = (HymnObject *)v}};
 }
 
@@ -475,11 +475,11 @@ HymnObject *hymn_as_object(HymnValue v) {
     return (HymnObject *)(v).as.o;
 }
 
-HymnString *hymn_as_hymn_string(HymnValue v) {
-    return (HymnString *)(v).as.o;
+HymnObjectString *hymn_as_hymn_string(HymnValue v) {
+    return (HymnObjectString *)(v).as.o;
 }
 
-HymnChar *hymn_as_string(HymnValue v) {
+HymnString *hymn_as_string(HymnValue v) {
     return hymn_as_hymn_string(v)->string;
 }
 
@@ -717,7 +717,7 @@ static const char *token_name(enum TokenType type) {
     }
 }
 
-static size_t string_hashcode(HymnChar *key) {
+static size_t string_hashcode(HymnString *key) {
     size_t length = string_len(key);
     size_t hash = 0;
     for (size_t i = 0; i < length; i++) {
@@ -730,14 +730,14 @@ static size_t mix_hash(size_t hash) {
     return hash ^ (hash >> 16);
 }
 
-static HymnString *new_hymn_string_with_hash(HymnChar *string, size_t hash) {
-    HymnString *object = hymn_calloc(1, sizeof(HymnString));
+static HymnObjectString *new_hymn_string_with_hash(HymnString *string, size_t hash) {
+    HymnObjectString *object = hymn_calloc(1, sizeof(HymnObjectString));
     object->string = string;
     object->hash = hash;
     return object;
 }
 
-HymnString *new_hymn_string(HymnChar *string) {
+HymnObjectString *new_hymn_string(HymnString *string) {
     return new_hymn_string_with_hash(string, mix_hash(string_hashcode(string)));
 }
 
@@ -811,7 +811,7 @@ static void table_resize(HymnTable *this) {
     this->items = items;
 }
 
-static void table_put(HymnTable *this, HymnString *key, HymnValue value) {
+static void table_put(HymnTable *this, HymnObjectString *key, HymnValue value) {
     unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
@@ -838,7 +838,7 @@ static void table_put(HymnTable *this, HymnString *key, HymnValue value) {
     }
 }
 
-static HymnValue table_get(HymnTable *this, HymnString *key) {
+static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
     unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     while (item != NULL) {
@@ -850,7 +850,7 @@ static HymnValue table_get(HymnTable *this, HymnString *key) {
     return hymn_new_undefined();
 }
 
-static HymnValue table_remove(HymnTable *this, HymnString *key) {
+static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
     unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
@@ -967,7 +967,7 @@ static void set_resize(HymnSet *this) {
     this->items = items;
 }
 
-static HymnString *set_add_or_get(HymnSet *this, HymnChar *add) {
+static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
     size_t hash = mix_hash(string_hashcode(add));
     unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
@@ -979,7 +979,7 @@ static HymnString *set_add_or_get(HymnSet *this, HymnChar *add) {
         previous = item;
         item = item->next;
     }
-    HymnString *new = new_hymn_string_with_hash(add, hash);
+    HymnObjectString *new = new_hymn_string_with_hash(add, hash);
     item = hymn_malloc(sizeof(HymnSetItem));
     item->string = new;
     item->next = NULL;
@@ -995,7 +995,7 @@ static HymnString *set_add_or_get(HymnSet *this, HymnChar *add) {
     return new;
 }
 
-static HymnString *set_remove(HymnSet *this, HymnChar *remove) {
+static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
     size_t hash = mix_hash(string_hashcode(remove));
     unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
@@ -1007,7 +1007,7 @@ static HymnString *set_remove(HymnSet *this, HymnChar *remove) {
             } else {
                 previous->next = item->next;
             }
-            HymnString *string = item->string;
+            HymnObjectString *string = item->string;
             free(item);
             this->size -= 1;
             return string;
@@ -1062,7 +1062,7 @@ static size_t end_of_line(const char *source, size_t size, size_t i) {
     }
 }
 
-static HymnChar *string_append_previous_line(const char *source, HymnChar *string, size_t i) {
+static HymnString *string_append_previous_line(const char *source, HymnString *string, size_t i) {
     if (i < 2) {
         return string;
     }
@@ -1074,7 +1074,7 @@ static HymnChar *string_append_previous_line(const char *source, HymnChar *strin
     return string_append_format(string, "%.*s\n", i - begin, &source[begin]);
 }
 
-static HymnChar *string_append_second_previous_line(const char *source, HymnChar *string, size_t i) {
+static HymnString *string_append_second_previous_line(const char *source, HymnString *string, size_t i) {
     if (i < 2) {
         return string;
     }
@@ -1094,7 +1094,7 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     va_start(ap, format);
     len = vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
-    HymnChar *error = new_string(chars);
+    HymnString *error = new_string(chars);
     free(chars);
     error = string_append(error, "\n\n");
 
@@ -1530,7 +1530,7 @@ static HymnFunction *new_function(const char *script) {
     return func;
 }
 
-static HymnNativeFunction *new_native_function(HymnChar *name, HymnNativeCall func) {
+static HymnNativeFunction *new_native_function(HymnString *name, HymnNativeCall func) {
     HymnNativeFunction *native = hymn_malloc(sizeof(HymnNativeFunction));
     native->name = name;
     native->func = func;
@@ -1692,7 +1692,7 @@ static HymnArray *table_keys(HymnTable *this) {
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
-            HymnChar *string = item->key->string;
+            HymnString *string = item->key->string;
             unsigned int insert = 0;
             while (insert != total) {
                 if (string_compare(string, hymn_as_string(keys[insert])) < 0) {
@@ -1713,7 +1713,7 @@ static HymnArray *table_keys(HymnTable *this) {
     return array;
 }
 
-static HymnString *table_key_of(HymnTable *this, HymnValue match) {
+static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
     unsigned int bin = 0;
     HymnTableItem *item = NULL;
 
@@ -1834,16 +1834,16 @@ static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
-static HymnString *machine_intern_string(Hymn *this, HymnChar *string) {
-    HymnString *object = set_add_or_get(&this->strings, string);
+static HymnObjectString *machine_intern_string(Hymn *this, HymnString *string) {
+    HymnObjectString *object = set_add_or_get(&this->strings, string);
     if (object->string != string) {
         string_delete(string);
     }
     return object;
 }
 
-static HymnValue compile_intern_string(Hymn *this, HymnChar *string) {
-    HymnString *object = set_add_or_get(&this->strings, string);
+static HymnValue compile_intern_string(Hymn *this, HymnString *string) {
+    HymnObjectString *object = set_add_or_get(&this->strings, string);
     if (object->string == string) {
         reference_string(object);
     } else {
@@ -1853,7 +1853,7 @@ static HymnValue compile_intern_string(Hymn *this, HymnChar *string) {
 }
 
 static void machine_set_global(Hymn *this, const char *name, HymnValue value) {
-    HymnString *intern = machine_intern_string(this, new_string(name));
+    HymnObjectString *intern = machine_intern_string(this, new_string(name));
     reference_string(intern);
     table_put(&this->globals, intern, value);
 }
@@ -2009,9 +2009,9 @@ char escape_sequence(const char c) {
     }
 }
 
-HymnChar *parse_string_literal(const char *string, size_t start, size_t len) {
+HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     const size_t end = start + len;
-    HymnChar *literal = new_string_with_capacity(len);
+    HymnString *literal = new_string_with_capacity(len);
     for (size_t i = start; i < end; i++) {
         const char c = string[i];
         if (c == '\\' && i + 1 < end) {
@@ -2030,12 +2030,12 @@ HymnChar *parse_string_literal(const char *string, size_t start, size_t len) {
 static void compile_string(Compiler *this, bool assign) {
     (void)assign;
     Token *previous = &this->previous;
-    HymnChar *s = parse_string_literal(this->source, previous->start, previous->length);
+    HymnString *s = parse_string_literal(this->source, previous->start, previous->length);
     write_constant(this, compile_intern_string(this->machine, s), previous->row);
 }
 
 static uint8_t ident_constant(Compiler *this, Token *token) {
-    HymnChar *s = new_string_from_substring(this->source, token->start, token->start + token->length);
+    HymnString *s = new_string_from_substring(this->source, token->start, token->start + token->length);
     return (uint8_t)byte_code_add_constant(current(this), compile_intern_string(this->machine, s));
 }
 
@@ -3185,7 +3185,7 @@ void pointer_set_add(struct PointerSet *set, void *pointer) {
     }
 }
 
-static HymnChar *value_to_string_recusive(HymnValue value, struct PointerSet *set, bool quote) {
+static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *set, bool quote) {
     switch (value.is) {
     case HYMN_VALUE_UNDEFINED: return new_string(STRING_UNDEFINED);
     case HYMN_VALUE_NONE: return new_string(STRING_NONE);
@@ -3206,12 +3206,12 @@ static HymnChar *value_to_string_recusive(HymnValue value, struct PointerSet *se
         } else {
             pointer_set_add(set, array);
         }
-        HymnChar *string = new_string("[");
+        HymnString *string = new_string("[");
         for (int64_t i = 0; i < array->length; i++) {
             if (i != 0) {
                 string = string_append(string, ", ");
             }
-            HymnChar *add = value_to_string_recusive(array->items[i], set, true);
+            HymnString *add = value_to_string_recusive(array->items[i], set, true);
             string = string_append(string, add);
             string_delete(add);
         }
@@ -3228,13 +3228,13 @@ static HymnChar *value_to_string_recusive(HymnValue value, struct PointerSet *se
         } else {
             pointer_set_add(set, table);
         }
-        HymnString **keys = hymn_malloc(table->size * sizeof(HymnString *));
+        HymnObjectString **keys = hymn_malloc(table->size * sizeof(HymnObjectString *));
         unsigned int total = 0;
         unsigned int bins = table->bins;
         for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = table->items[i];
             while (item != NULL) {
-                HymnChar *string = item->key->string;
+                HymnString *string = item->key->string;
                 unsigned int insert = 0;
                 while (insert != total) {
                     if (string_compare(string, keys[insert]->string) < 0) {
@@ -3250,13 +3250,13 @@ static HymnChar *value_to_string_recusive(HymnValue value, struct PointerSet *se
                 item = item->next;
             }
         }
-        HymnChar *string = new_string("{ ");
+        HymnString *string = new_string("{ ");
         for (unsigned int i = 0; i < table->size; i++) {
             if (i != 0) {
                 string = string_append(string, ", ");
             }
             HymnValue item = table_get(table, keys[i]);
-            HymnChar *add = value_to_string_recusive(item, set, true);
+            HymnString *add = value_to_string_recusive(item, set, true);
             string = string_append_format(string, "%s: %s", keys[i]->string, add);
             string_delete(add);
         }
@@ -3276,30 +3276,30 @@ static HymnChar *value_to_string_recusive(HymnValue value, struct PointerSet *se
     return new_string("?");
 }
 
-static HymnChar *value_to_string(HymnValue value) {
+static HymnString *value_to_string(HymnValue value) {
     struct PointerSet set = {.count = 0, .capacity = 0, .items = NULL};
-    HymnChar *string = value_to_string_recusive(value, &set, false);
+    HymnString *string = value_to_string_recusive(value, &set, false);
     free(set.items);
     return string;
 }
 
-static HymnChar *value_concat(HymnValue a, HymnValue b) {
-    HymnChar *string = value_to_string(a);
-    HymnChar *second = value_to_string(b);
+static HymnString *value_concat(HymnValue a, HymnValue b) {
+    HymnString *string = value_to_string(a);
+    HymnString *second = value_to_string(b);
     string = string_append(string, second);
     string_delete(second);
     return string;
 }
 
-static HymnChar *debug_value_to_string(HymnValue value) {
-    HymnChar *string = value_to_string(value);
-    HymnChar *format = string_format("%s: %s", value_name(value.is), string);
+static HymnString *debug_value_to_string(HymnValue value) {
+    HymnString *string = value_to_string(value);
+    HymnString *format = string_format("%s: %s", value_name(value.is), string);
     string_delete(string);
     return format;
 }
 
 static void debug_value(HymnValue value) {
-    HymnChar *string = debug_value_to_string(value);
+    HymnString *string = debug_value_to_string(value);
     printf("%s", string);
     string_delete(string);
 }
@@ -3311,34 +3311,34 @@ static void debug_value_message(const char *prefix, HymnValue value) {
 }
 
 #if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_CODE
-static size_t debug_constant_instruction(HymnChar **debug, const char *name, HymnByteCode *this, size_t index) {
+static size_t debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
     uint8_t constant = this->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [", name);
-    HymnChar *value = debug_value_to_string(this->constants.values[constant]);
+    HymnString *value = debug_value_to_string(this->constants.values[constant]);
     *debug = string_append(*debug, value);
     string_delete(value);
     *debug = string_append(*debug, "]");
     return index + 2;
 }
 
-static size_t debug_byte_instruction(HymnChar **debug, const char *name, HymnByteCode *this, size_t index) {
+static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
     uint8_t b = this->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [%d]", name, b);
     return index + 2;
 }
 
-static size_t debug_jump_instruction(HymnChar **debug, const char *name, int sign, HymnByteCode *this, size_t index) {
+static size_t debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *this, size_t index) {
     uint16_t jump = (uint16_t)(this->instructions[index + 1] << 8) | (uint16_t)this->instructions[index + 2];
     *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, index + 3 + sign * jump);
     return index + 3;
 }
 
-static size_t debug_instruction(HymnChar **debug, const char *name, size_t index) {
+static size_t debug_instruction(HymnString **debug, const char *name, size_t index) {
     *debug = string_append_format(*debug, "%s", name);
     return index + 1;
 }
 
-static size_t disassemble_instruction(HymnChar **debug, HymnByteCode *this, size_t index) {
+static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, size_t index) {
     *debug = string_append_format(*debug, "%04zu ", index);
     if (index > 0 && this->rows[index] == this->rows[index - 1]) {
         *debug = string_append(*debug, "   | ");
@@ -3413,7 +3413,7 @@ static size_t disassemble_instruction(HymnChar **debug, HymnByteCode *this, size
 #ifdef HYMN_DEBUG_CODE
 void disassemble_byte_code(HymnByteCode *this, const char *name) {
     printf("== %s ==\n", name);
-    HymnChar *debug = new_string("");
+    HymnString *debug = new_string("");
     size_t offset = 0;
     while (offset < this->count) {
         offset = disassemble_instruction(&debug, this, offset);
@@ -3469,7 +3469,7 @@ static void debug_dereference(HymnValue value) {
 }
 #endif
 
-static inline void reference_string(HymnString *string) {
+static inline void reference_string(HymnObjectString *string) {
     string->object.count++;
 #ifdef HYMN_DEBUG_REFERENCE
     debug_reference(hymn_new_string_value(string));
@@ -3485,7 +3485,7 @@ static void reference(HymnValue value) {
     }
 }
 
-static inline void dereference_string(Hymn *this, HymnString *string) {
+static inline void dereference_string(Hymn *this, HymnObjectString *string) {
 #ifdef HYMN_DEBUG_REFERENCE
     debug_dereference(hymn_new_string_value(string));
 #endif
@@ -3501,7 +3501,7 @@ static inline void dereference_string(Hymn *this, HymnString *string) {
 static void dereference(Hymn *this, HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING: {
-        HymnString *string = hymn_as_hymn_string(value);
+        HymnObjectString *string = hymn_as_hymn_string(value);
         dereference_string(this, string);
         break;
     }
@@ -3566,8 +3566,8 @@ static HymnValue machine_pop(Hymn *this) {
     return this->stack[--this->stack_top];
 }
 
-static void machine_push_intern_string(Hymn *this, HymnChar *string) {
-    HymnString *intern = machine_intern_string(this, string);
+static void machine_push_intern_string(Hymn *this, HymnString *string) {
+    HymnObjectString *intern = machine_intern_string(this, string);
     reference_string(intern);
     PUSH(hymn_new_string_value(intern))
 }
@@ -3608,8 +3608,8 @@ static HymnFrame *machine_exception(Hymn *this) {
     }
 }
 
-static HymnChar *machine_stacktrace(Hymn *this) {
-    HymnChar *trace = new_string("");
+static HymnString *machine_stacktrace(Hymn *this) {
+    HymnString *trace = new_string("");
 
     for (int i = this->frame_count - 1; i >= 0; i--) {
         HymnFrame *frame = &this->frames[i];
@@ -3635,15 +3635,15 @@ static HymnChar *machine_stacktrace(Hymn *this) {
     return trace;
 }
 
-static HymnFrame *machine_push_error(Hymn *this, HymnChar *error) {
-    HymnString *message = machine_intern_string(this, error);
+static HymnFrame *machine_push_error(Hymn *this, HymnString *error) {
+    HymnObjectString *message = machine_intern_string(this, error);
     reference_string(message);
     PUSH(hymn_new_string_value(message))
     return machine_exception(this);
 }
 
 static HymnFrame *machine_throw_existing_error(Hymn *this, char *error) {
-    HymnChar *message = new_string(error);
+    HymnString *message = new_string(error);
     free(error);
     return machine_push_error(this, message);
 }
@@ -3657,11 +3657,11 @@ static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
     va_start(ap, format);
     len = vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
-    HymnChar *error = new_string(chars);
+    HymnString *error = new_string(chars);
     free(chars);
 
 #ifdef HYMN_INCLUDE_STACKTRACE
-    HymnChar *trace = machine_stacktrace(this);
+    HymnString *trace = machine_stacktrace(this);
     error = string_append(error, "\n\n");
     error = string_append(error, trace);
     string_delete(trace);
@@ -3670,7 +3670,7 @@ static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
     return machine_push_error(this, error);
 }
 
-static HymnFrame *machine_throw_error_string(Hymn *this, HymnChar *string) {
+static HymnFrame *machine_throw_error_string(Hymn *this, HymnString *string) {
     HymnFrame *frame = machine_throw_error(this, string);
     string_delete(string);
     return frame;
@@ -3768,7 +3768,7 @@ static inline HymnValue read_constant(HymnFrame *frame) {
     return frame->func->code.constants.values[read_byte(frame)];
 }
 
-static HymnFrame *machine_do(Hymn *this, HymnString *source) {
+static HymnFrame *machine_do(Hymn *this, HymnObjectString *source) {
     struct CompileReturn result = compile(this, NULL, source->string);
 
     HymnFunction *func = result.func;
@@ -3793,10 +3793,10 @@ static HymnFrame *machine_do(Hymn *this, HymnString *source) {
     return current_frame(this);
 }
 
-static HymnFrame *machine_import(Hymn *this, HymnString *file) {
+static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
     HymnTable *imports = this->imports;
 
-    HymnChar *script = NULL;
+    HymnString *script = NULL;
     int p = 1;
     while (true) {
         HymnFrame *frame = parent_frame(this, p);
@@ -3805,9 +3805,9 @@ static HymnFrame *machine_import(Hymn *this, HymnString *file) {
         if (script) break;
         p++;
     }
-    HymnChar *parent = script ? path_parent(script) : NULL;
+    HymnString *parent = script ? path_parent(script) : NULL;
 
-    HymnString *module = NULL;
+    HymnObjectString *module = NULL;
 
     HymnArray *paths = this->paths;
     size_t size = paths->length;
@@ -3816,12 +3816,12 @@ static HymnFrame *machine_import(Hymn *this, HymnString *file) {
         if (!hymn_is_string(value)) {
             continue;
         }
-        HymnChar *question = hymn_as_string(value);
+        HymnString *question = hymn_as_string(value);
 
-        HymnChar *replace = string_replace(question, "<path>", file->string);
-        HymnChar *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
+        HymnString *replace = string_replace(question, "<path>", file->string);
+        HymnString *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
 
-        HymnString *use = machine_intern_string(this, path_absolute(path));
+        HymnObjectString *use = machine_intern_string(this, path_absolute(path));
         reference_string(use);
 
         string_delete(path);
@@ -3842,18 +3842,18 @@ static HymnFrame *machine_import(Hymn *this, HymnString *file) {
     }
 
     if (module == NULL) {
-        HymnChar *missing = string_format("Import not found: %s\n", file->string);
+        HymnString *missing = string_format("Import not found: %s\n", file->string);
 
         for (size_t i = 0; i < size; i++) {
             HymnValue value = paths->items[i];
             if (!hymn_is_string(value)) {
                 continue;
             }
-            HymnChar *question = hymn_as_string(value);
+            HymnString *question = hymn_as_string(value);
 
-            HymnChar *replace = string_replace(question, "<path>", file->string);
-            HymnChar *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
-            HymnChar *use = path_absolute(path);
+            HymnString *replace = string_replace(question, "<path>", file->string);
+            HymnString *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
+            HymnString *use = path_absolute(path);
 
             missing = string_append_format(missing, "\nno file %s", use);
 
@@ -3875,7 +3875,7 @@ static HymnFrame *machine_import(Hymn *this, HymnString *file) {
 
     table_put(imports, module, hymn_new_bool(true));
 
-    HymnChar *source = cat(module->string);
+    HymnString *source = cat(module->string);
 
     struct CompileReturn result = compile(this, module->string, source);
 
@@ -3908,7 +3908,7 @@ static void machine_run(Hymn *this) {
     while (true) {
 #if defined HYMN_DEBUG_TRACE || defined HYMN_DEBUG_STACK
         {
-            HymnChar *debug = new_string("");
+            HymnString *debug = new_string("");
 #ifdef HYMN_DEBUG_TRACE
             disassemble_instruction(&debug, &frame->func->code, frame->ip);
 #endif
@@ -3922,7 +3922,7 @@ static void machine_run(Hymn *this) {
                 }
                 for (size_t i = 0; i < this->stack_top; i++) {
                     debug = string_append_char(debug, '[');
-                    HymnChar *stack_debug = debug_value_to_string(this->stack[i]);
+                    HymnString *stack_debug = debug_value_to_string(this->stack[i]);
                     debug = string_append(debug, stack_debug);
                     string_delete(stack_debug);
                     debug = string_append(debug, "] ");
@@ -4163,13 +4163,13 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_DEFINE_GLOBAL: {
-            HymnString *name = hymn_as_hymn_string(read_constant(frame));
+            HymnObjectString *name = hymn_as_hymn_string(read_constant(frame));
             POP(value)
             table_put(&this->globals, name, value);
             break;
         }
         case OP_SET_GLOBAL: {
-            HymnString *name = hymn_as_hymn_string(read_constant(frame));
+            HymnObjectString *name = hymn_as_hymn_string(read_constant(frame));
             HymnValue value = machine_peek(this, 1);
             HymnValue exists = table_get(&this->globals, name);
             if (hymn_is_undefined(exists)) {
@@ -4185,7 +4185,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_GET_GLOBAL: {
-            HymnString *name = hymn_as_hymn_string(read_constant(frame));
+            HymnObjectString *name = hymn_as_hymn_string(read_constant(frame));
             HymnValue get = table_get(&this->globals, name);
             if (hymn_is_undefined(get)) {
                 THROW("Undefined variable `%s`.", name->string)
@@ -4217,7 +4217,7 @@ static void machine_run(Hymn *this) {
                 THROW("HymnSet Property: Only tables can set properties.")
             }
             HymnTable *table = hymn_as_table(v);
-            HymnString *name = hymn_as_hymn_string(read_constant(frame));
+            HymnObjectString *name = hymn_as_hymn_string(read_constant(frame));
             // TODO: PERFORMANCE: DEREF OLD AND REF NEW SAME TIME
             HymnValue previous = table_get(table, name);
             if (!hymn_is_undefined(previous)) {
@@ -4236,7 +4236,7 @@ static void machine_run(Hymn *this) {
                 THROW("Only tables can get properties.")
             }
             HymnTable *table = hymn_as_table(v);
-            HymnString *name = hymn_as_hymn_string(read_constant(frame));
+            HymnObjectString *name = hymn_as_hymn_string(read_constant(frame));
             HymnValue g = table_get(table, name);
             if (hymn_is_undefined(g)) {
                 g.is = HYMN_VALUE_NONE;
@@ -4279,10 +4279,10 @@ static void machine_run(Hymn *this) {
             } else if (hymn_is_table(v)) {
                 if (!hymn_is_string(i)) {
                     DEREF_THREE(s, i, v)
-                    THROW("HymnChar required to set table property.")
+                    THROW("HymnString required to set table property.")
                 }
                 HymnTable *table = hymn_as_table(v);
-                HymnString *name = hymn_as_hymn_string(i);
+                HymnObjectString *name = hymn_as_hymn_string(i);
                 table_put(table, name, s);
                 DEREF(i)
             } else {
@@ -4304,18 +4304,18 @@ static void machine_run(Hymn *this) {
                     DEREF_TWO(i, v)
                     THROW("Integer required to get string character from index.")
                 }
-                HymnChar *string = hymn_as_string(v);
+                HymnString *string = hymn_as_string(v);
                 int64_t size = (int64_t)string_len(string);
                 int64_t index = hymn_as_int(i);
                 if (index >= size) {
                     DEREF_TWO(i, v)
-                    THROW("HymnChar index out of bounds %d >= %d.", index, size)
+                    THROW("HymnString index out of bounds %d >= %d.", index, size)
                 }
                 if (index < 0) {
                     index = size + index;
                     if (index < 0) {
                         DEREF_TWO(i, v)
-                        THROW("HymnChar index out of bounds %d.", index)
+                        THROW("HymnString index out of bounds %d.", index)
                     }
                 }
                 char c = string[index];
@@ -4352,10 +4352,10 @@ static void machine_run(Hymn *this) {
                 if (!hymn_is_string(i)) {
                     const char *is = value_name(i.is);
                     DEREF_TWO(i, v)
-                    THROW("Dynamic Get: Expected 2nd argument to be `HymnChar`, but was `%s`.", is)
+                    THROW("Dynamic Get: Expected 2nd argument to be `HymnString`, but was `%s`.", is)
                 }
                 HymnTable *table = hymn_as_table(v);
-                HymnString *name = hymn_as_hymn_string(i);
+                HymnObjectString *name = hymn_as_hymn_string(i);
                 HymnValue g = table_get(table, name);
                 if (hymn_is_undefined(g)) {
                     g.is = HYMN_VALUE_NONE;
@@ -4494,10 +4494,10 @@ static void machine_run(Hymn *this) {
             } else if (hymn_is_table(v)) {
                 if (!hymn_is_string(i)) {
                     DEREF_TWO(i, v)
-                    THROW("HymnChar required to delete from table.")
+                    THROW("HymnString required to delete from table.")
                 }
                 HymnTable *table = hymn_as_table(v);
-                HymnString *name = hymn_as_hymn_string(i);
+                HymnObjectString *name = hymn_as_hymn_string(i);
                 HymnValue value = table_remove(table, name);
                 if (hymn_is_undefined(value)) {
                     value.is = HYMN_VALUE_NONE;
@@ -4553,7 +4553,7 @@ static void machine_run(Hymn *this) {
             }
             int64_t start = hymn_as_int(a);
             if (hymn_is_string(v)) {
-                HymnChar *original = hymn_as_string(v);
+                HymnString *original = hymn_as_string(v);
                 int64_t size = (int64_t)string_len(original);
                 int64_t end;
                 if (hymn_is_int(b)) {
@@ -4566,20 +4566,20 @@ static void machine_run(Hymn *this) {
                 }
                 if (end > size) {
                     DEREF_THREE(a, b, v)
-                    THROW("HymnChar index out of bounds %d > %d.", end, size)
+                    THROW("HymnString index out of bounds %d > %d.", end, size)
                 }
                 if (end < 0) {
                     end = size + end;
                     if (end < 0) {
                         DEREF_THREE(a, b, v)
-                        THROW("HymnChar index out of bounds %d.", end)
+                        THROW("HymnString index out of bounds %d.", end)
                     }
                 }
                 if (start >= end) {
                     DEREF_THREE(a, b, v)
-                    THROW("HymnChar start index %d > end index %d.", start, end)
+                    THROW("HymnString start index %d > end index %d.", start, end)
                 }
-                HymnChar *sub = new_string_from_substring(original, start, end);
+                HymnString *sub = new_string_from_substring(original, start, end);
                 machine_push_intern_string(this, sub);
             } else if (hymn_is_array(v)) {
                 HymnArray *array = hymn_as_array(v);
@@ -4695,7 +4695,7 @@ static void machine_run(Hymn *this) {
                 DEREF_TWO(a, b)
                 break;
             case HYMN_VALUE_TABLE: {
-                HymnString *key = table_key_of(hymn_as_table(a), b);
+                HymnObjectString *key = table_key_of(hymn_as_table(a), b);
                 if (key == NULL) {
                     PUSH(hymn_new_none())
                 } else {
@@ -4759,7 +4759,7 @@ static void machine_run(Hymn *this) {
                 int64_t number = (int64_t)hymn_as_float(value);
                 PUSH(hymn_new_int(number))
             } else if (hymn_is_string(value)) {
-                HymnChar *string = hymn_as_string(value);
+                HymnString *string = hymn_as_string(value);
                 char *end = NULL;
                 double number = string_to_double(string, &end);
                 if (string == end) {
@@ -4782,7 +4782,7 @@ static void machine_run(Hymn *this) {
             } else if (hymn_is_float(value)) {
                 PUSH(value)
             } else if (hymn_is_string(value)) {
-                HymnChar *string = hymn_as_string(value);
+                HymnString *string = hymn_as_string(value);
                 char *end = NULL;
                 double number = string_to_double(string, &end);
                 if (string == end) {
@@ -4805,7 +4805,7 @@ static void machine_run(Hymn *this) {
         }
         case OP_PRINT: {
             POP(value)
-            HymnChar *string = value_to_string(value);
+            HymnString *string = value_to_string(value);
             this->print("%s\n", string);
             string_delete(string);
             DEREF(value)
@@ -4879,13 +4879,13 @@ Hymn *new_hymn() {
     set_init(&this->strings);
     table_init(&this->globals);
 
-    HymnString *search_this = machine_intern_string(this, new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
-    HymnString *search_relative = machine_intern_string(this, new_string("." PATH_SEP_STRING "<path>.hm"));
-    HymnString *search_modules = machine_intern_string(this, new_string("." PATH_SEP_STRING "modules" PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_this = machine_intern_string(this, new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_relative = machine_intern_string(this, new_string("." PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_modules = machine_intern_string(this, new_string("." PATH_SEP_STRING "modules" PATH_SEP_STRING "<path>.hm"));
     reference_string(search_this);
     reference_string(search_relative);
     reference_string(search_modules);
-    HymnString *paths = machine_intern_string(this, new_string("__paths"));
+    HymnObjectString *paths = machine_intern_string(this, new_string("__paths"));
     reference_string(paths);
     this->paths = new_array(3);
     this->paths->items[0] = hymn_new_string_value(search_this);
@@ -4895,7 +4895,7 @@ Hymn *new_hymn() {
     table_put(&this->globals, paths, paths_value);
     reference(paths_value);
 
-    HymnString *imports = machine_intern_string(this, new_string("__imports"));
+    HymnObjectString *imports = machine_intern_string(this, new_string("__imports"));
     reference_string(imports);
     this->imports = new_table();
     HymnValue imports_value = hymn_new_table_value(this->imports);
@@ -4956,9 +4956,9 @@ void hymn_delete(Hymn *this) {
 }
 
 void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func) {
-    HymnString *intern = machine_intern_string(this, new_string(name));
+    HymnObjectString *intern = machine_intern_string(this, new_string(name));
     reference_string(intern);
-    HymnChar *copy = string_copy(intern->string);
+    HymnString *copy = string_copy(intern->string);
     HymnNativeFunction *value = new_native_function(copy, func);
     table_put(&this->globals, intern, hymn_new_native(value));
 }
@@ -5004,7 +5004,7 @@ char *hymn_do(Hymn *this, const char *source) {
 }
 
 char *hymn_read(Hymn *this, const char *script) {
-    HymnChar *source = cat(script);
+    HymnString *source = cat(script);
     char *error = hymn_do_script(this, script, source);
     string_delete(source);
     return error;

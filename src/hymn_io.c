@@ -4,7 +4,7 @@
 
 #include "hymn_io.h"
 
-HymnChar *working_directory() {
+HymnString *working_directory() {
     char path[PATH_MAX];
     if (getcwd(path, sizeof(path)) != NULL) {
         return new_string(path);
@@ -12,7 +12,7 @@ HymnChar *working_directory() {
     return NULL;
 }
 
-HymnChar *path_normalize(HymnChar *path) {
+HymnString *path_normalize(HymnString *path) {
     size_t i = 0;
     size_t size = string_len(path);
     if (size > 1 && path[0] == '.') {
@@ -59,7 +59,7 @@ HymnChar *path_normalize(HymnChar *path) {
     return new_string(normal);
 }
 
-HymnChar *path_parent(HymnChar *path) {
+HymnString *path_parent(HymnString *path) {
     size_t size = string_len(path);
     if (size < 2) {
         return string_copy(path);
@@ -73,21 +73,21 @@ HymnChar *path_parent(HymnChar *path) {
     return new_string_from_substring(path, 0, i);
 }
 
-HymnChar *path_join(HymnChar *path, HymnChar *child) {
-    HymnChar *new = string_copy(path);
+HymnString *path_join(HymnString *path, HymnString *child) {
+    HymnString *new = string_copy(path);
     new = string_append_char(new, PATH_SEP);
     return string_append(new, child);
 }
 
-HymnChar *path_absolute(HymnChar *path) {
-    HymnChar *working = working_directory();
+HymnString *path_absolute(HymnString *path) {
+    HymnString *working = working_directory();
     if (string_starts_with(path, working)) {
         string_delete(working);
         return path_normalize(path);
     }
     working = string_append_char(working, PATH_SEP);
     working = string_append(working, path);
-    HymnChar *normal = path_normalize(working);
+    HymnString *normal = path_normalize(working);
     string_delete(working);
     return normal;
 }
@@ -112,7 +112,7 @@ bool file_exists(const char *path) {
     return stat(path, &b) == 0;
 }
 
-HymnChar *cat(const char *path) {
+HymnString *cat(const char *path) {
     size_t size = file_size(path);
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
@@ -124,20 +124,20 @@ HymnChar *cat(const char *path) {
         content[i] = (char)fgetc(fp);
     }
     fclose(fp);
-    HymnChar *s = new_string_with_length(content, size);
+    HymnString *s = new_string_with_length(content, size);
     free(content);
     return s;
 }
 
-static void file_list_add(struct FileList *list, HymnChar *file) {
+static void file_list_add(struct FileList *list, HymnString *file) {
     int count = list->count;
     if (count + 1 > list->capacity) {
         if (list->capacity == 0) {
             list->capacity = 1;
-            list->files = hymn_malloc(sizeof(HymnChar *));
+            list->files = hymn_malloc(sizeof(HymnString *));
         } else {
             list->capacity *= 2;
-            list->files = hymn_realloc(list->files, list->capacity * sizeof(HymnChar *));
+            list->files = hymn_realloc(list->files, list->capacity * sizeof(HymnString *));
         }
     }
     list->files[count] = file;
@@ -169,7 +169,7 @@ static bool recurse_directories(const char *path, struct FileList *list) {
 #elif _MSC_VER
 #include <windows.h>
 static bool recurse_directories(const char *path, struct FileList *list) {
-    HymnChar *search = string_format("%s" PATH_SEP_STRING "*", path);
+    HymnString *search = string_format("%s" PATH_SEP_STRING "*", path);
     WIN32_FIND_DATA find;
     HANDLE handle = FindFirstFile(search, &find);
     if (handle == INVALID_HANDLE_VALUE) {

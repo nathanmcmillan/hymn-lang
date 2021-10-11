@@ -1,6 +1,6 @@
 #include "test.h"
 
-static HymnChar *out;
+static HymnString *out;
 
 static void console(const char *format, ...) {
     va_list args;
@@ -16,8 +16,8 @@ static void console(const char *format, ...) {
     free(chars);
 }
 
-static HymnChar *parse_expected(HymnChar *source) {
-    HymnChar *expected = new_string("");
+static HymnString *parse_expected(HymnString *source) {
+    HymnString *expected = new_string("");
     size_t size = string_len(source);
     for (size_t pos = 0; pos < size; pos++) {
         char c = source[pos];
@@ -44,10 +44,10 @@ static HymnChar *parse_expected(HymnChar *source) {
     return string_trim(expected);
 }
 
-static HymnChar *test_source(HymnChar *script) {
-    HymnChar *source = cat(script);
-    HymnChar *expected = parse_expected(source);
-    HymnChar *result = NULL;
+static HymnString *test_source(HymnString *script) {
+    HymnString *source = cat(script);
+    HymnString *expected = parse_expected(source);
+    HymnString *result = NULL;
     if (strcmp(expected, "") != 0) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
@@ -67,7 +67,7 @@ static HymnChar *test_source(HymnChar *script) {
                 free(error);
                 string_trim(result);
             } else if (string_starts_with(expected, "@Starts")) {
-                HymnChar *start = substring(expected, 8, string_len(expected));
+                HymnString *start = substring(expected, 8, string_len(expected));
                 if (!string_starts_with(out, start)) {
                     result = string_format("Expected start:\n%s\n\nBut was:\n%s", start, out);
                 }
@@ -87,16 +87,16 @@ void test_hymn(const char *filter) {
 
     struct FileList all = directories("test" PATH_SEP_STRING "language");
 
-    HymnChar *end = new_string(".hm");
+    HymnString *end = new_string(".hm");
     struct FilterList scripts = string_filter_ends_with(all.files, all.count, end);
 
     for (int i = 0; i < scripts.count; i++) {
-        HymnChar *script = scripts.filtered[i];
+        HymnString *script = scripts.filtered[i];
         if (filter != NULL && !string_contains(script, filter)) {
             continue;
         }
         tests_count++;
-        HymnChar *result = test_source(script);
+        HymnString *result = test_source(script);
         if (result != NULL) {
             printf("⨯ %s\n%s\n\n", script, result);
             tests_fail++;

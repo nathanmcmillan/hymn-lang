@@ -31,69 +31,69 @@ void *hymn_realloc(void *mem, size_t size) {
     exit(1);
 }
 
-static HymnCharHead *string_head_init(size_t length, size_t capacity) {
-    size_t memory = sizeof(HymnCharHead) + capacity + 1;
-    HymnCharHead *head = (HymnCharHead *)hymn_malloc(memory);
+static HymnStringHead *string_head_init(size_t length, size_t capacity) {
+    size_t memory = sizeof(HymnStringHead) + capacity + 1;
+    HymnStringHead *head = (HymnStringHead *)hymn_malloc(memory);
     memset(head, 0, memory);
     head->length = length;
     head->capacity = capacity;
     return head;
 }
 
-HymnChar *new_string_with_capacity(size_t capacity) {
-    HymnCharHead *head = string_head_init(0, capacity);
-    return (HymnChar *)(head + 1);
+HymnString *new_string_with_capacity(size_t capacity) {
+    HymnStringHead *head = string_head_init(0, capacity);
+    return (HymnString *)(head + 1);
 }
 
-HymnChar *new_string_with_length(const char *init, size_t length) {
-    HymnCharHead *head = string_head_init(length, length);
+HymnString *new_string_with_length(const char *init, size_t length) {
+    HymnStringHead *head = string_head_init(length, length);
     char *string = (char *)(head + 1);
     memcpy(string, init, length);
     string[length] = '\0';
-    return (HymnChar *)string;
+    return (HymnString *)string;
 }
 
-HymnChar *new_string_from_substring(const char *init, size_t start, size_t end) {
+HymnString *new_string_from_substring(const char *init, size_t start, size_t end) {
     size_t length = end - start;
-    HymnCharHead *head = string_head_init(length, length);
+    HymnStringHead *head = string_head_init(length, length);
     char *string = (char *)(head + 1);
     memcpy(string, &init[start], length);
     string[length] = '\0';
-    return (HymnChar *)string;
+    return (HymnString *)string;
 }
 
-HymnChar *new_string(const char *init) {
+HymnString *new_string(const char *init) {
     size_t len = strlen(init);
     return new_string_with_length(init, len);
 }
 
-HymnChar *string_copy(HymnChar *this) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+HymnString *string_copy(HymnString *this) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     return new_string_with_length(this, head->length);
 }
 
-size_t string_len(HymnChar *this) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+size_t string_len(HymnString *this) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     return head->length;
 }
 
-void string_delete(HymnChar *this) {
+void string_delete(HymnString *this) {
     if (this == NULL) {
         return;
     }
-    free((char *)this - sizeof(HymnCharHead));
+    free((char *)this - sizeof(HymnStringHead));
 }
 
-HymnChar *substring(HymnChar *this, size_t start, size_t end) {
+HymnString *substring(HymnString *this, size_t start, size_t end) {
     size_t len = end - start;
-    HymnCharHead *head = string_head_init(len, len);
+    HymnStringHead *head = string_head_init(len, len);
     char *s = (char *)(head + 1);
     memcpy(s, this + start, len);
     s[len] = '\0';
-    return (HymnChar *)s;
+    return (HymnString *)s;
 }
 
-HymnChar *string_trim(HymnChar *this) {
+HymnString *string_trim(HymnString *this) {
     size_t len = string_len(this);
     size_t start = 0;
     while (start < len) {
@@ -120,22 +120,22 @@ HymnChar *string_trim(HymnChar *this) {
         for (size_t i = 0; i < size; i++) {
             this[i] = this[offset++];
         }
-        HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+        HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
         head->length = size;
         this[end] = '\0';
     }
     return this;
 }
 
-static HymnCharHead *string_resize(HymnCharHead *head, size_t capacity) {
-    size_t memory = sizeof(HymnCharHead) + capacity + 1;
-    HymnCharHead *new = hymn_realloc(head, memory);
+static HymnStringHead *string_resize(HymnStringHead *head, size_t capacity) {
+    size_t memory = sizeof(HymnStringHead) + capacity + 1;
+    HymnStringHead *new = hymn_realloc(head, memory);
     new->capacity = capacity;
     return new;
 }
 
-HymnChar *string_append(HymnChar *this, const char *b) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+HymnString *string_append(HymnString *this, const char *b) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     size_t len_a = head->length;
     size_t len_b = strlen(b);
     size_t len = len_a + len_b;
@@ -146,11 +146,11 @@ HymnChar *string_append(HymnChar *this, const char *b) {
     char *s = (char *)(head + 1);
     memcpy(s + len_a, b, len_b + 1);
     s[len] = '\0';
-    return (HymnChar *)s;
+    return (HymnString *)s;
 }
 
-HymnChar *string_append_char(HymnChar *this, const char b) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+HymnString *string_append_char(HymnString *this, const char b) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     size_t len = head->length + 1;
     if (len > head->capacity) {
         head = string_resize(head, len * 2);
@@ -159,11 +159,11 @@ HymnChar *string_append_char(HymnChar *this, const char b) {
     char *s = (char *)(head + 1);
     s[len - 1] = b;
     s[len] = '\0';
-    return (HymnChar *)s;
+    return (HymnString *)s;
 }
 
-HymnChar *string_append_substring(HymnChar *this, const char *b, size_t start, size_t end) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+HymnString *string_append_substring(HymnString *this, const char *b, size_t start, size_t end) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     size_t len_a = head->length;
     size_t len_b = end - start;
     size_t len = len_a + len_b;
@@ -174,30 +174,30 @@ HymnChar *string_append_substring(HymnChar *this, const char *b, size_t start, s
     char *s = (char *)(head + 1);
     memcpy(s + len_a, &b[start], len_b);
     s[len] = '\0';
-    return (HymnChar *)s;
+    return (HymnString *)s;
 }
 
-int string_compare(HymnChar *a, HymnChar *b) {
+int string_compare(HymnString *a, HymnString *b) {
     return strcmp(a, b);
 }
 
-bool string_equal(HymnChar *a, HymnChar *b) {
+bool string_equal(HymnString *a, HymnString *b) {
     return 0 == string_compare(a, b);
 }
 
-bool string_starts_with(HymnChar *s, const char *p) {
+bool string_starts_with(HymnString *s, const char *p) {
     size_t slen = string_len(s);
     size_t plen = strlen(p);
     return slen < plen ? false : memcmp(s, p, plen) == 0;
 }
 
-bool string_ends_with(HymnChar *s, const char *p) {
+bool string_ends_with(HymnString *s, const char *p) {
     size_t slen = string_len(s);
     size_t plen = strlen(p);
     return slen < plen ? false : memcmp(&s[slen - plen], p, plen) == 0;
 }
 
-bool string_contains(HymnChar *s, const char *p) {
+bool string_contains(HymnString *s, const char *p) {
     size_t slen = string_len(s);
     size_t plen = strlen(p);
     if (plen > slen) {
@@ -212,9 +212,9 @@ bool string_contains(HymnChar *s, const char *p) {
     return false;
 }
 
-bool string_find(HymnChar *this, HymnChar *sub, size_t *out) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
-    HymnCharHead *head_sub = (HymnCharHead *)((char *)sub - sizeof(HymnCharHead));
+bool string_find(HymnString *this, HymnString *sub, size_t *out) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+    HymnStringHead *head_sub = (HymnStringHead *)((char *)sub - sizeof(HymnStringHead));
     size_t len = head->length;
     size_t len_sub = head_sub->length;
     if (len_sub > len) {
@@ -240,8 +240,8 @@ bool string_find(HymnChar *this, HymnChar *sub, size_t *out) {
     return false;
 }
 
-HymnChar *string_replace(HymnChar *this, const char *find, const char *replace) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+HymnString *string_replace(HymnString *this, const char *find, const char *replace) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     size_t len = head->length;
     size_t len_sub = strlen(find);
     if (len_sub > len) {
@@ -249,7 +249,7 @@ HymnChar *string_replace(HymnChar *this, const char *find, const char *replace) 
     } else if (len == 0) {
         return new_string("");
     }
-    HymnChar *out = new_string("");
+    HymnString *out = new_string("");
     size_t end = len - len_sub + 1;
     size_t p = 0;
     for (size_t i = 0; i < end; i++) {
@@ -273,48 +273,48 @@ HymnChar *string_replace(HymnChar *this, const char *find, const char *replace) 
     return out;
 }
 
-void string_zero(HymnChar *this) {
-    HymnCharHead *head = (HymnCharHead *)((char *)this - sizeof(HymnCharHead));
+void string_zero(HymnString *this) {
+    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
     head->length = 0;
     this[0] = '\0';
 }
 
-HymnChar *char_to_string(char ch) {
+HymnString *char_to_string(char ch) {
     char *str = hymn_malloc(2);
     str[0] = ch;
     str[1] = '\0';
-    HymnChar *s = new_string_with_length(str, 1);
+    HymnString *s = new_string_with_length(str, 1);
     free(str);
     return s;
 }
 
-HymnChar *int64_to_string(int64_t number) {
+HymnString *int64_to_string(int64_t number) {
     int len = snprintf(NULL, 0, "%" PRId64, number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%" PRId64, number);
-    HymnChar *s = new_string_with_length(str, len);
+    HymnString *s = new_string_with_length(str, len);
     free(str);
     return s;
 }
 
-HymnChar *double_to_string(double number) {
+HymnString *double_to_string(double number) {
     int len = snprintf(NULL, 0, "%g", number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%g", number);
-    HymnChar *s = new_string_with_length(str, len);
+    HymnString *s = new_string_with_length(str, len);
     free(str);
     return s;
 }
 
-int64_t string_to_int64(HymnChar *this) {
+int64_t string_to_int64(HymnString *this) {
     return (int64_t)strtoll(this, NULL, 10);
 }
 
-double string_to_double(HymnChar *this, char **end) {
+double string_to_double(HymnString *this, char **end) {
     return strtod(this, end);
 }
 
-char *string_to_chars(HymnChar *this) {
+char *string_to_chars(HymnString *this) {
     size_t len = string_len(this);
     char *s = hymn_malloc((len + 1) * sizeof(char));
     memcpy(s, this, len);
@@ -322,7 +322,7 @@ char *string_to_chars(HymnChar *this) {
     return s;
 }
 
-HymnChar *string_format(const char *format, ...) {
+HymnString *string_format(const char *format, ...) {
     va_list args;
 
     va_start(args, format);
@@ -332,12 +332,12 @@ HymnChar *string_format(const char *format, ...) {
     va_start(args, format);
     len = vsnprintf(chars, len + 1, format, args);
     va_end(args);
-    HymnChar *str = new_string_with_length(chars, len);
+    HymnString *str = new_string_with_length(chars, len);
     free(chars);
     return str;
 }
 
-HymnChar *string_append_format(HymnChar *this, const char *format, ...) {
+HymnString *string_append_format(HymnString *this, const char *format, ...) {
     va_list args;
 
     va_start(args, format);
@@ -352,9 +352,9 @@ HymnChar *string_append_format(HymnChar *this, const char *format, ...) {
     return this;
 }
 
-struct FilterList string_filter(HymnChar **input, int count, bool (*filter)(HymnChar *a, const char *b), const char *with) {
+struct FilterList string_filter(HymnString **input, int count, bool (*filter)(HymnString *a, const char *b), const char *with) {
     int size = 0;
-    HymnChar **filtered = hymn_calloc(count, sizeof(HymnChar *));
+    HymnString **filtered = hymn_calloc(count, sizeof(HymnString *));
     for (int i = 0; i < count; i++) {
         if (filter(input[i], with)) {
             filtered[size++] = string_copy(input[i]);
@@ -363,7 +363,7 @@ struct FilterList string_filter(HymnChar **input, int count, bool (*filter)(Hymn
     return (struct FilterList){.count = size, .filtered = filtered};
 }
 
-struct FilterList string_filter_ends_with(HymnChar **input, int count, const char *with) {
+struct FilterList string_filter_ends_with(HymnString **input, int count, const char *with) {
     return string_filter(input, count, string_ends_with, with);
 }
 

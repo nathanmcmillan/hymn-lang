@@ -30,17 +30,17 @@
 struct FileList {
     int count;
     int capacity;
-    HymnChar **files;
+    HymnString **files;
 };
 
-HymnChar *working_directory();
-HymnChar *path_normalize(HymnChar *path);
-HymnChar *path_absolute(HymnChar *path);
-HymnChar *path_parent(HymnChar *path);
-HymnChar *path_join(HymnChar *path, HymnChar *child);
+HymnString *working_directory();
+HymnString *path_normalize(HymnString *path);
+HymnString *path_absolute(HymnString *path);
+HymnString *path_parent(HymnString *path);
+HymnString *path_join(HymnString *path, HymnString *child);
 size_t file_size(const char *path);
 bool file_exists(const char *path);
-HymnChar *cat(const char *path);
+HymnString *cat(const char *path);
 struct FileList directories(const char *path);
 void delete_file_list(struct FileList *list);
 
