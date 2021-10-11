@@ -3,7 +3,7 @@ project(tests)
 
 file(GLOB SOURCE *.c *.h ../src/*.c ../src/*.h)
 
-include_directories(src)
+include_directories(../src/include)
 
 if (MSVC)
   add_compile_options(/W4 /WX /wd4996)

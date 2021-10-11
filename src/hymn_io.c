@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "hm_io.h"
+#include "hymn_io.h"
 
-String *working_directory() {
+HymnChar *working_directory() {
     char path[PATH_MAX];
     if (getcwd(path, sizeof(path)) != NULL) {
         return new_string(path);
@@ -12,9 +12,9 @@ String *working_directory() {
     return NULL;
 }
 
-String *path_normalize(String *path) {
-    usize i = 0;
-    usize size = string_len(path);
+HymnChar *path_normalize(HymnChar *path) {
+    size_t i = 0;
+    size_t size = string_len(path);
     if (size > 1 && path[0] == '.') {
         if (path[1] == '.') {
             if (size > 2 && path[2] == PATH_SEP) {
@@ -25,7 +25,7 @@ String *path_normalize(String *path) {
         }
     }
 
-    usize n = 0;
+    size_t n = 0;
     char normal[PATH_MAX];
 
     while (i < size) {
@@ -59,12 +59,12 @@ String *path_normalize(String *path) {
     return new_string(normal);
 }
 
-String *path_parent(String *path) {
-    usize size = string_len(path);
+HymnChar *path_parent(HymnChar *path) {
+    size_t size = string_len(path);
     if (size < 2) {
         return string_copy(path);
     }
-    usize i = size - 2;
+    size_t i = size - 2;
     while (true) {
         if (i == 0) break;
         if (path[i] == PATH_SEP) break;
@@ -73,32 +73,32 @@ String *path_parent(String *path) {
     return new_string_from_substring(path, 0, i);
 }
 
-String *path_join(String *path, String *child) {
-    String *new = string_copy(path);
+HymnChar *path_join(HymnChar *path, HymnChar *child) {
+    HymnChar *new = string_copy(path);
     new = string_append_char(new, PATH_SEP);
     return string_append(new, child);
 }
 
-String *path_absolute(String *path) {
-    String *working = working_directory();
+HymnChar *path_absolute(HymnChar *path) {
+    HymnChar *working = working_directory();
     if (string_starts_with(path, working)) {
         string_delete(working);
         return path_normalize(path);
     }
     working = string_append_char(working, PATH_SEP);
     working = string_append(working, path);
-    String *normal = path_normalize(working);
+    HymnChar *normal = path_normalize(working);
     string_delete(working);
     return normal;
 }
 
-usize file_size(const char *path) {
+size_t file_size(const char *path) {
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file: %s\n", path);
         return 0;
     }
-    usize num = 0;
+    size_t num = 0;
     int ch;
     while ((ch = fgetc(fp)) != EOF) {
         num++;
@@ -112,32 +112,32 @@ bool file_exists(const char *path) {
     return stat(path, &b) == 0;
 }
 
-String *cat(const char *path) {
-    usize size = file_size(path);
+HymnChar *cat(const char *path) {
+    size_t size = file_size(path);
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file: %s\n", path);
         return new_string("");
     }
-    char *content = safe_malloc((size + 1) * sizeof(char));
-    for (usize i = 0; i < size; i++) {
+    char *content = hymn_malloc((size + 1) * sizeof(char));
+    for (size_t i = 0; i < size; i++) {
         content[i] = (char)fgetc(fp);
     }
     fclose(fp);
-    String *s = new_string_with_length(content, size);
+    HymnChar *s = new_string_with_length(content, size);
     free(content);
     return s;
 }
 
-static void file_list_add(struct FileList *list, String *file) {
+static void file_list_add(struct FileList *list, HymnChar *file) {
     int count = list->count;
     if (count + 1 > list->capacity) {
         if (list->capacity == 0) {
             list->capacity = 1;
-            list->files = safe_malloc(sizeof(String *));
+            list->files = hymn_malloc(sizeof(HymnChar *));
         } else {
             list->capacity *= 2;
-            list->files = safe_realloc(list->files, list->capacity * sizeof(String *));
+            list->files = hymn_realloc(list->files, list->capacity * sizeof(HymnChar *));
         }
     }
     list->files[count] = file;
@@ -169,7 +169,7 @@ static bool recurse_directories(const char *path, struct FileList *list) {
 #elif _MSC_VER
 #include <windows.h>
 static bool recurse_directories(const char *path, struct FileList *list) {
-    String *search = string_format("%s" PATH_SEP_STRING "*", path);
+    HymnChar *search = string_format("%s" PATH_SEP_STRING "*", path);
     WIN32_FIND_DATA find;
     HANDLE handle = FindFirstFile(search, &find);
     if (handle == INVALID_HANDLE_VALUE) {

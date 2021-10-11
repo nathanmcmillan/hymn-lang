@@ -1,6 +1,6 @@
 #include "test.h"
 
-static String *out;
+static HymnChar *out;
 
 static void console(const char *format, ...) {
     va_list args;
@@ -8,7 +8,7 @@ static void console(const char *format, ...) {
     va_start(args, format);
     int len = vsnprintf(NULL, 0, format, args);
     va_end(args);
-    char *chars = safe_malloc((len + 1) * sizeof(char));
+    char *chars = hymn_malloc((len + 1) * sizeof(char));
     va_start(args, format);
     vsnprintf(chars, len + 1, format, args);
     va_end(args);
@@ -16,10 +16,10 @@ static void console(const char *format, ...) {
     free(chars);
 }
 
-static String *parse_expected(String *source) {
-    String *expected = new_string("");
-    usize size = string_len(source);
-    for (usize pos = 0; pos < size; pos++) {
+static HymnChar *parse_expected(HymnChar *source) {
+    HymnChar *expected = new_string("");
+    size_t size = string_len(source);
+    for (size_t pos = 0; pos < size; pos++) {
         char c = source[pos];
         if (c == '-' && pos + 2 < size && source[pos + 1] == '-') {
             if (source[pos + 2] == ' ') {
@@ -44,10 +44,10 @@ static String *parse_expected(String *source) {
     return string_trim(expected);
 }
 
-static String *test_source(String *script) {
-    String *source = cat(script);
-    String *expected = parse_expected(source);
-    String *result = NULL;
+static HymnChar *test_source(HymnChar *script) {
+    HymnChar *source = cat(script);
+    HymnChar *expected = parse_expected(source);
+    HymnChar *result = NULL;
     if (strcmp(expected, "") != 0) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
@@ -67,7 +67,7 @@ static String *test_source(String *script) {
                 free(error);
                 string_trim(result);
             } else if (string_starts_with(expected, "@Starts")) {
-                String *start = substring(expected, 8, string_len(expected));
+                HymnChar *start = substring(expected, 8, string_len(expected));
                 if (!string_starts_with(out, start)) {
                     result = string_format("Expected start:\n%s\n\nBut was:\n%s", start, out);
                 }
@@ -87,16 +87,16 @@ void test_hymn(const char *filter) {
 
     struct FileList all = directories("test" PATH_SEP_STRING "language");
 
-    String *end = new_string(".hm");
+    HymnChar *end = new_string(".hm");
     struct FilterList scripts = string_filter_ends_with(all.files, all.count, end);
 
     for (int i = 0; i < scripts.count; i++) {
-        String *script = scripts.filtered[i];
+        HymnChar *script = scripts.filtered[i];
         if (filter != NULL && !string_contains(script, filter)) {
             continue;
         }
         tests_count++;
-        String *result = test_source(script);
+        HymnChar *result = test_source(script);
         if (result != NULL) {
             printf("⨯ %s\n%s\n\n", script, result);
             tests_fail++;

@@ -11,7 +11,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "hm_util.h"
+#include "hymn_util.h"
 
 #ifdef __GNUC__
 #include <dirent.h>
@@ -30,17 +30,17 @@
 struct FileList {
     int count;
     int capacity;
-    String **files;
+    HymnChar **files;
 };
 
-String *working_directory();
-String *path_normalize(String *path);
-String *path_absolute(String *path);
-String *path_parent(String *path);
-String *path_join(String *path, String *child);
-usize file_size(const char *path);
+HymnChar *working_directory();
+HymnChar *path_normalize(HymnChar *path);
+HymnChar *path_absolute(HymnChar *path);
+HymnChar *path_parent(HymnChar *path);
+HymnChar *path_join(HymnChar *path, HymnChar *child);
+size_t file_size(const char *path);
 bool file_exists(const char *path);
-String *cat(const char *path);
+HymnChar *cat(const char *path);
 struct FileList directories(const char *path);
 void delete_file_list(struct FileList *list);
 

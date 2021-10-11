@@ -11,7 +11,7 @@ TEST_HEADERS = $(wildcard test/*.h)
 TEST_OBJECTS = $(patsubst test/%.c,testing/%.o,$(TEST_SOURCE))
 TEST_DEPENDENCY = $(patsubst %.o,%.d,$(TEST_OBJECTS))
 
-INCLUDE = -Isrc/
+INCLUDE = -Isrc/include
 
 COMPILER_FLAGS = -Wall -Wextra -Werror -pedantic -Wno-unused-function -std=c11 $(INCLUDE)
 LINKER_FLAGS =

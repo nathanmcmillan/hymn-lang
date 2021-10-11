@@ -2,51 +2,35 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#ifndef HYMN_VM_H
-#define HYMN_VM_H
+#ifndef HYMN_H
+#define HYMN_H
 
-// #define NDEBUG
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include <assert.h>
-#include <errno.h>
+typedef char HymnChar;
 
-#include "hm_util.h"
+typedef struct HymnCharHead HymnCharHead;
 
-// #define HYMN_DEBUG_TOKEN
-// #define HYMN_DEBUG_CODE
-// #define HYMN_DEBUG_TRACE
-// #define HYMN_DEBUG_STACK
-// #define HYMN_DEBUG_REFERENCE
+#ifdef __GNUC__
+#define PACK(expr) expr __attribute__((__packed__))
+#elif _MSC_VER
+#define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#endif
 
-#define HYMN_INCLUDE_STACKTRACE
+PACK(struct HymnCharHead {
+    size_t length;
+    size_t capacity;
+    char **chars;
+});
+
+#undef PACK
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
-
-#define hymn_new_undefined() ((HymnValue){.is = HYMN_VALUE_UNDEFINED, .as = {.i = 0}})
-#define hymn_new_none() ((HymnValue){.is = HYMN_VALUE_NONE, .as = {.i = 0}})
-#define hymn_new_bool(v) ((HymnValue){.is = HYMN_VALUE_BOOL, .as = {.b = v}})
-#define hymn_new_int(v) ((HymnValue){.is = HYMN_VALUE_INTEGER, .as = {.i = v}})
-#define hymn_new_float(v) ((HymnValue){.is = HYMN_VALUE_FLOAT, .as = {.f = v}})
-#define hymn_new_native(v) ((HymnValue){.is = HYMN_VALUE_FUNC_NATIVE, .as = {.n = v}})
-#define hymn_new_pointer(v) ((HymnValue){.is = HYMN_VALUE_POINTER, .as = {.p = v}})
-#define hymn_new_string_value(v) ((HymnValue){.is = HYMN_VALUE_STRING, .as = {.o = (HymnObject *)v}})
-#define hymn_new_array_value(v) ((HymnValue){.is = HYMN_VALUE_ARRAY, .as = {.o = (HymnObject *)v}})
-#define hymn_new_table_value(v) ((HymnValue){.is = HYMN_VALUE_TABLE, .as = {.o = (HymnObject *)v}})
-#define hymn_new_func_value(v) ((HymnValue){.is = HYMN_VALUE_FUNC, .as = {.o = (HymnObject *)v}})
-
-#define hymn_as_bool(v) ((v).as.b)
-#define hymn_as_int(v) ((v).as.i)
-#define hymn_as_float(v) ((v).as.f)
-#define hymn_as_native(v) ((v).as.n)
-#define hymn_as_pointer(v) ((v).as.p)
-#define hymn_as_object(v) ((HymnObject *)(v).as.o)
-#define hymn_as_string(v) ((HymnString *)(v).as.o)
-#define hymn_as_array(v) ((HymnArray *)(v).as.o)
-#define hymn_as_table(v) ((HymnTable *)(v).as.o)
-#define hymn_as_func(v) ((HymnFunction *)(v).as.o)
 
 enum HymnValueType {
     HYMN_VALUE_UNDEFINED,
@@ -84,7 +68,7 @@ struct HymnValue {
     enum HymnValueType is;
     union {
         bool b;
-        i64 i;
+        int64_t i;
         double f;
         HymnObject *o;
         HymnNativeFunction *n;
@@ -98,15 +82,15 @@ struct HymnObject {
 
 struct HymnString {
     HymnObject object;
-    String *string;
-    usize hash;
+    HymnChar *string;
+    size_t hash;
 };
 
 struct HymnArray {
     HymnObject object;
     HymnValue *items;
-    i64 length;
-    i64 capacity;
+    int64_t length;
+    int64_t capacity;
 };
 
 struct HymnTableItem {
@@ -134,7 +118,7 @@ struct HymnSet {
 };
 
 struct HymnNativeFunction {
-    String *name;
+    HymnChar *name;
     HymnNativeCall func;
 };
 
@@ -147,22 +131,22 @@ struct HymnValuePool {
 struct HymnByteCode {
     int count;
     int capacity;
-    u8 *instructions;
+    uint8_t *instructions;
     int *rows;
     HymnValuePool constants;
 };
 
 struct HymnExceptList {
-    usize start;
-    usize end;
-    usize stack;
+    size_t start;
+    size_t end;
+    size_t stack;
     struct HymnExceptList *next;
 };
 
 struct HymnFunction {
     HymnObject object;
-    String *name;
-    String *script;
+    HymnChar *name;
+    HymnChar *script;
     int arity;
     HymnByteCode code;
     HymnExceptList *except;
@@ -170,24 +154,24 @@ struct HymnFunction {
 
 struct HymnFrame {
     HymnFunction *func;
-    usize ip;
-    usize stack;
+    size_t ip;
+    size_t stack;
 };
 
 struct Hymn {
     HymnValue stack[HYMN_STACK_MAX];
-    usize stack_top;
+    size_t stack_top;
     HymnFrame frames[HYMN_FRAMES_MAX];
     int frame_count;
     HymnSet strings;
     HymnTable globals;
     HymnArray *paths;
     HymnTable *imports;
-    String *error;
+    HymnChar *error;
     void (*print)(const char *format, ...);
 };
 
-HymnString *new_hymn_string(String *string);
+HymnString *new_hymn_string(HymnChar *string);
 
 Hymn *new_hymn();
 
@@ -199,5 +183,41 @@ void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
 void hymn_add_pointer(Hymn *this, const char *name, void *pointer);
 
 void hymn_delete(Hymn *this);
+
+HymnValue hymn_new_undefined();
+HymnValue hymn_new_none();
+HymnValue hymn_new_bool(bool v);
+HymnValue hymn_new_int(int64_t v);
+HymnValue hymn_new_float(double v);
+HymnValue hymn_new_native(HymnNativeFunction *v);
+HymnValue hymn_new_pointer(void *v);
+HymnValue hymn_new_string_value(HymnString *v);
+HymnValue hymn_new_array_value(HymnArray *v);
+HymnValue hymn_new_table_value(HymnTable *v);
+HymnValue hymn_new_func_value(HymnFunction *v);
+
+bool hymn_as_bool(HymnValue v);
+int64_t hymn_as_int(HymnValue v);
+double hymn_as_float(HymnValue v);
+HymnNativeFunction *hymn_as_native(HymnValue v);
+void *hymn_as_pointer(HymnValue v);
+HymnObject *hymn_as_object(HymnValue v);
+HymnString *hymn_as_hymn_string(HymnValue v);
+HymnChar *hymn_as_string(HymnValue v);
+HymnArray *hymn_as_array(HymnValue v);
+HymnTable *hymn_as_table(HymnValue v);
+HymnFunction *hymn_as_func(HymnValue v);
+
+bool hymn_is_undefined(HymnValue v);
+bool hymn_is_none(HymnValue v);
+bool hymn_is_bool(HymnValue v);
+bool hymn_is_int(HymnValue v);
+bool hymn_is_float(HymnValue v);
+bool hymn_is_native(HymnValue v);
+bool hymn_is_pointer(HymnValue v);
+bool hymn_is_string(HymnValue v);
+bool hymn_is_array(HymnValue v);
+bool hymn_is_table(HymnValue v);
+bool hymn_is_func(HymnValue v);
 
 #endif
