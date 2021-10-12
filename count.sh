@@ -1,3 +1,5 @@
+#!/bin/bash
+
 grep -cve '^\s*$' src/*.c src/*.h
 
 echo ""

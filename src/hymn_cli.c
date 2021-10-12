@@ -7,10 +7,11 @@
 #include <stdlib.h>
 
 #include "hymn.h"
+#include "hymn_libs.h"
 
 #ifndef HYMN_TESTING
 
-void signal_handle(int signum) {
+static void signal_handle(int signum) {
     if (signum != 2) {
         exit(signum);
     }
@@ -24,7 +25,11 @@ int main(int argc, char **argv) {
 
     char *error = NULL;
     if (argc > 1) {
+        hymn_use_libs(hymn);
         error = hymn_read(hymn, argv[1]);
+    } else {
+        printf("Usage: hymn FILE\n");
+        printf("Interprets a Hymn script FILE.\n");
     }
 
     int code = 0;

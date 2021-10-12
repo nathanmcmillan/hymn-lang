@@ -46,6 +46,15 @@ PACK(struct HymnStringHead {
 
 #undef PACK
 
+void *hymn_malloc(size_t size);
+void *hymn_calloc(size_t members, size_t member_size);
+void *hymn_realloc(void *mem, size_t size);
+
+struct HymnFilterList {
+    int count;
+    HymnString **filtered;
+};
+
 typedef struct HymnValue HymnValue;
 typedef struct HymnObject HymnObject;
 typedef struct HymnObjectString HymnObjectString;
@@ -171,18 +180,25 @@ struct Hymn {
     void (*print)(const char *format, ...);
 };
 
-HymnObjectString *new_hymn_string(HymnString *string);
+bool hymn_file_exists(const char *path);
+HymnString *hymn_read_file(const char *path);
 
-Hymn *new_hymn();
+HymnString *hymn_new_string(const char *init);
 
-char *hymn_do_script(Hymn *this, const char *script, const char *source);
-char *hymn_do(Hymn *this, const char *source);
-char *hymn_read(Hymn *this, const char *script);
+size_t hymn_string_len(HymnString *this);
+void hymn_string_delete(HymnString *this);
+bool hymn_string_equal(HymnString *a, HymnString *b);
+void hymn_string_zero(HymnString *this);
+HymnString *hymn_string_append_char(HymnString *this, const char b);
+HymnString *hymn_string_trim(HymnString *this);
+bool hymn_string_contains(HymnString *s, const char *p);
+bool hymn_string_starts_with(HymnString *s, const char *p);
+HymnString *hymn_string_append(HymnString *this, const char *b);
+HymnString *hymn_string_format(const char *format, ...);
+HymnString *hymn_substring(const char *init, size_t start, size_t end);
 
-void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
-void hymn_add_pointer(Hymn *this, const char *name, void *pointer);
-
-void hymn_delete(Hymn *this);
+struct HymnFilterList hymn_string_filter_ends_with(HymnString **input, int count, const char *with);
+void hymn_delete_filter_list(struct HymnFilterList *list);
 
 HymnValue hymn_new_undefined();
 HymnValue hymn_new_none();
@@ -195,6 +211,8 @@ HymnValue hymn_new_string_value(HymnObjectString *v);
 HymnValue hymn_new_array_value(HymnArray *v);
 HymnValue hymn_new_table_value(HymnTable *v);
 HymnValue hymn_new_func_value(HymnFunction *v);
+
+HymnObjectString *hymn_new_string_object(HymnString *string);
 
 bool hymn_as_bool(HymnValue v);
 int64_t hymn_as_int(HymnValue v);
@@ -219,5 +237,16 @@ bool hymn_is_string(HymnValue v);
 bool hymn_is_array(HymnValue v);
 bool hymn_is_table(HymnValue v);
 bool hymn_is_func(HymnValue v);
+
+Hymn *new_hymn();
+
+char *hymn_do_script(Hymn *this, const char *script, const char *source);
+char *hymn_do(Hymn *this, const char *source);
+char *hymn_read(Hymn *this, const char *script);
+
+void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
+void hymn_add_pointer(Hymn *this, const char *name, void *pointer);
+
+void hymn_delete(Hymn *this);
 
 #endif

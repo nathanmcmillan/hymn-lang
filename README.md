@@ -31,7 +31,7 @@ print list
 # Why use Hymn
 
 1. You want reference counting memory management. Memory is released deterministically, as soon as possible. There are no random garbage collection pauses in Hymn.
-1. You feel programming paradigms like classes and interfaces add unnecessary complexity. Hymn only has string, list, and table objects.
+1. You feel programming paradigms like classes and interfaces add unnecessary complexity. Hymn only has string, array, and table objects.
 1. You don't need namespaces. Hymn `use` statements import all variables and functions globally.
 1. You're weary keeping up with ever evolving programming languages. Hymn is small and will stay small. There will not be significant changes to the core language and built-in functions.
 1. You want a scripting language where indices start at 0 and the not equals operator is `!=`
@@ -40,11 +40,11 @@ print list
 
 ## Linux with GCC
 
-`$ gcc src/*.c src/*.h -o hymn -Isrc/include -lm`
+`$ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm`
 
 ## Windows with MSVC
 
-`> cl src/*.c /I src/include /link /out:hymn.exe`
+`> cl src/*.c /O2 /DNDEBUG /link /out:hymn.exe`
 
 # Development
 

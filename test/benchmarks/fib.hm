@@ -1,0 +1,13 @@
+function fib(n)
+  if n < 2 return n
+  else return fib(n - 1) + fib(n - 2) end
+end
+
+let start = os_clock()
+
+for let i = 0; i < 10; i = i + 1
+  fib(30)
+end
+
+let seconds = os_clock() - start
+print "elapsed: " + seconds + "s"
