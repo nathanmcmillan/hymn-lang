@@ -46,6 +46,10 @@ print list
 
 `> cl src/*.c /O2 /DNDEBUG /link /out:hymn.exe`
 
+## Profiling on Linux
+
+`$ gcc src/*.c -O0 -pg -o profile -lm`
+
 # Development
 
 ## Principles

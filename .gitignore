@@ -26,3 +26,6 @@ hymn
 hymn.exe
 
 *.obj
+
+profile
+gmon.out
