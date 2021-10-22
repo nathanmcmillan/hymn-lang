@@ -3969,8 +3969,6 @@ static HymnValue pop(Hymn *this) {
     return *this->stack_top;
 }
 
-#define POP(v) HymnValue v = pop(this);
-
 static void machine_push_intern_string(Hymn *this, HymnString *string) {
     HymnObjectString *intern = machine_intern_string(this, string);
     reference_string(intern);
@@ -4122,7 +4120,7 @@ static bool machine_false(HymnValue value) {
     }
 }
 
-static HymnFrame *machine_call(Hymn *this, HymnFunction *func, int count) {
+static HymnFrame *call(Hymn *this, HymnFunction *func, int count) {
     if (count != func->arity) {
         return machine_throw_error(this, "Expected %d function arguments but found %d.", func->arity, count);
     } else if (this->frame_count == HYMN_FRAMES_MAX) {
@@ -4137,12 +4135,12 @@ static HymnFrame *machine_call(Hymn *this, HymnFunction *func, int count) {
     return frame;
 }
 
-static HymnFrame *machine_call_value(Hymn *this, HymnValue call, int count) {
-    switch (call.is) {
+static HymnFrame *call_value(Hymn *this, HymnValue value, int count) {
+    switch (value.is) {
     case HYMN_VALUE_FUNC:
-        return machine_call(this, hymn_as_func(call), count);
+        return call(this, hymn_as_func(value), count);
     case HYMN_VALUE_FUNC_NATIVE: {
-        HymnNativeCall func = hymn_as_native(call)->func;
+        HymnNativeCall func = hymn_as_native(value)->func;
         HymnValue result = func(this, count, this->stack_top - count);
         reference(result);
         HymnValue *top = this->stack_top - (count + 1);
@@ -4153,7 +4151,7 @@ static HymnFrame *machine_call_value(Hymn *this, HymnValue call, int count) {
         return current_frame(this);
     }
     default: {
-        const char *is = value_name(call.is);
+        const char *is = value_name(value.is);
         return machine_throw_error(this, "Call: Requires `HymnFunction`, but was `%s`.", is);
     }
     }
@@ -4174,7 +4172,7 @@ static HymnFrame *machine_do(Hymn *this, HymnObjectString *source) {
     reference(function);
 
     push(this, function);
-    machine_call(this, func, 0);
+    call(this, func, 0);
 
     error = machine_interpret(this);
     if (error) {
@@ -4284,7 +4282,7 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
     reference(function);
 
     push(this, function);
-    machine_call(this, func, 0);
+    call(this, func, 0);
 
     error = machine_interpret(this);
     if (error) {
@@ -4427,8 +4425,8 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
     }
 
 #define INTEGER_OP(_do_)                                                \
-    POP(b)                                                              \
-    POP(a)                                                              \
+    HymnValue b = pop(this);                                            \
+    HymnValue a = pop(this);                                            \
     if (hymn_is_int(a)) {                                               \
         if (hymn_is_int(b)) {                                           \
             a.as.i _do_ b.as.i;                                         \
@@ -4443,8 +4441,8 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
     }
 
 #define ARITHMETIC_OP(_arithmetic_)                                                    \
-    POP(b)                                                                             \
-    POP(a)                                                                             \
+    HymnValue b = pop(this);                                                           \
+    HymnValue a = pop(this);                                                           \
     if (hymn_is_int(a)) {                                                              \
         if (hymn_is_int(b)) {                                                          \
             a.as.i _arithmetic_ b.as.i;                                                \
@@ -4474,8 +4472,8 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
     }
 
 #define COMPARE_OP(_compare_)                                                             \
-    POP(b)                                                                                \
-    POP(a)                                                                                \
+    HymnValue b = pop(this);                                                              \
+    HymnValue a = pop(this);                                                              \
     if (hymn_is_int(a)) {                                                                 \
         if (hymn_is_int(b)) {                                                             \
             push(this, hymn_new_bool(hymn_as_int(a) _compare_ hymn_as_int(b)));           \
@@ -4527,7 +4525,7 @@ static void machine_run(Hymn *this) {
 #endif
         switch (READ_BYTE(frame)) {
         case OP_RETURN: {
-            POP(result)
+            HymnValue result = pop(this);
             this->frame_count--;
             if (this->frame_count == 0 || frame->func->name == NULL) {
                 DEREF(pop(this))
@@ -4558,16 +4556,16 @@ static void machine_run(Hymn *this) {
             break;
         case OP_CALL: {
             int count = READ_BYTE(frame);
-            HymnValue call = peek(this, count + 1);
-            frame = machine_call_value(this, call, count);
+            HymnValue value = peek(this, count + 1);
+            frame = call_value(this, value, count);
             if (frame == NULL) return;
             break;
         }
         case OP_TAIL_CALL: {
             // TODO
             int count = READ_BYTE(frame);
-            HymnValue call = peek(this, count + 1);
-            frame = machine_call_value(this, call, count);
+            HymnValue value = peek(this, count + 1);
+            frame = call_value(this, value, count);
             if (frame == NULL) return;
             break;
         }
@@ -4591,8 +4589,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_JUMP_IF_EQUAL: {
-            POP(b)
-            POP(a)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
             push(this, hymn_new_bool(machine_equal(a, b)));
             DEREF_TWO(a, b)
             uint16_t jump = READ_SHORT(frame);
@@ -4602,8 +4600,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_JUMP_IF_NOT_EQUAL: {
-            POP(b)
-            POP(a)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
             push(this, hymn_new_bool(machine_equal(a, b)));
             DEREF_TWO(a, b)
             uint16_t jump = READ_SHORT(frame);
@@ -4650,15 +4648,15 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_EQUAL: {
-            POP(b)
-            POP(a)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
             push(this, hymn_new_bool(machine_equal(a, b)));
             DEREF_TWO(a, b)
             break;
         }
         case OP_NOT_EQUAL: {
-            POP(b)
-            POP(a)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
             push(this, hymn_new_bool(!machine_equal(a, b)));
             DEREF_TWO(a, b)
             break;
@@ -4680,8 +4678,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_ADD: {
-            POP(b)
-            POP(a)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
             if (hymn_is_none(a)) {
                 if (hymn_is_string(b)) {
                     machine_push_intern_string(this, value_concat(a, b));
@@ -4747,7 +4745,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_BIT_NOT: {
-            POP(value)
+            HymnValue value = pop(this);
             if (hymn_is_int(value)) {
                 value.as.i = ~value.as.i;
                 push(this, value);
@@ -4778,7 +4776,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_NEGATE: {
-            POP(value)
+            HymnValue value = pop(this);
             if (hymn_is_int(value)) {
                 value.as.i = -value.as.i;
             } else if (hymn_is_float(value)) {
@@ -4791,7 +4789,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_NOT: {
-            POP(value)
+            HymnValue value = pop(this);
             if (hymn_is_bool(value)) {
                 value.as.b = !value.as.b;
             } else {
@@ -4821,7 +4819,7 @@ static void machine_run(Hymn *this) {
         }
         case OP_DEFINE_GLOBAL: {
             HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-            POP(value)
+            HymnValue value = pop(this);
             table_put(&this->globals, name, value);
             break;
         }
@@ -4865,8 +4863,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_SET_PROPERTY: {
-            POP(p)
-            POP(v)
+            HymnValue p = pop(this);
+            HymnValue v = pop(this);
             if (!hymn_is_table(v)) {
                 DEREF_TWO(p, v)
                 THROW("HymnSet Property: Only tables can set properties.")
@@ -4883,7 +4881,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_GET_PROPERTY: {
-            POP(v)
+            HymnValue v = pop(this);
             if (!hymn_is_table(v)) {
                 DEREF(v)
                 THROW("Only tables can get properties.")
@@ -4901,9 +4899,9 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_SET_DYNAMIC: {
-            POP(s)
-            POP(i)
-            POP(v)
+            HymnValue s = pop(this);
+            HymnValue i = pop(this);
+            HymnValue v = pop(this);
             if (hymn_is_array(v)) {
                 if (!hymn_is_int(i)) {
                     DEREF_THREE(s, i, v)
@@ -4949,8 +4947,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_GET_DYNAMIC: {
-            POP(i)
-            POP(v)
+            HymnValue i = pop(this);
+            HymnValue v = pop(this);
             switch (v.is) {
             case HYMN_VALUE_STRING: {
                 if (!hymn_is_int(i)) {
@@ -5028,7 +5026,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_LEN: {
-            POP(value)
+            HymnValue value = pop(this);
             switch (value.is) {
             case HYMN_VALUE_STRING: {
                 int64_t len = (int64_t)hymn_string_len(hymn_as_string(value));
@@ -5053,7 +5051,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_ARRAY_POP: {
-            POP(a)
+            HymnValue a = pop(this);
             if (!hymn_is_array(a)) {
                 const char *is = value_name(a.is);
                 DEREF(a)
@@ -5066,8 +5064,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_ARRAY_PUSH: {
-            POP(v)
-            POP(a)
+            HymnValue v = pop(this);
+            HymnValue a = pop(this);
             if (!hymn_is_array(a)) {
                 const char *is = value_name(v.is);
                 DEREF_TWO(a, v)
@@ -5081,9 +5079,9 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_ARRAY_INSERT: {
-            POP(p)
-            POP(i)
-            POP(v)
+            HymnValue p = pop(this);
+            HymnValue i = pop(this);
+            HymnValue v = pop(this);
             if (hymn_is_array(v)) {
                 if (!hymn_is_int(i)) {
                     const char *is = value_name(i.is);
@@ -5120,8 +5118,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_DELETE: {
-            POP(i)
-            POP(v)
+            HymnValue i = pop(this);
+            HymnValue v = pop(this);
             if (hymn_is_array(v)) {
                 if (!hymn_is_int(i)) {
                     DEREF_TWO(i, v)
@@ -5164,7 +5162,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_COPY: {
-            POP(value)
+            HymnValue value = pop(this);
             switch (value.is) {
             case HYMN_VALUE_NONE:
             case HYMN_VALUE_BOOL:
@@ -5197,9 +5195,9 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_SLICE: {
-            POP(b)
-            POP(a)
-            POP(v)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
+            HymnValue v = pop(this);
             if (!hymn_is_int(a)) {
                 DEREF_THREE(a, b, v)
                 THROW("Integer required for slice expression.")
@@ -5273,7 +5271,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_CLEAR: {
-            POP(value)
+            HymnValue value = pop(this);
             switch (value.is) {
             case HYMN_VALUE_BOOL:
                 push(this, hymn_new_bool(false));
@@ -5310,7 +5308,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_KEYS: {
-            POP(value)
+            HymnValue value = pop(this);
             if (!hymn_is_table(value)) {
                 DEREF(value)
                 THROW("Expected table for `keys` function.")
@@ -5325,8 +5323,8 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_INDEX: {
-            POP(b)
-            POP(a)
+            HymnValue b = pop(this);
+            HymnValue a = pop(this);
             switch (a.is) {
             case HYMN_VALUE_STRING: {
                 if (!hymn_is_string(b)) {
@@ -5364,7 +5362,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_TYPE: {
-            POP(value)
+            HymnValue value = pop(this);
             switch (value.is) {
             case HYMN_VALUE_UNDEFINED:
             case HYMN_VALUE_NONE:
@@ -5405,7 +5403,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_TO_INTEGER: {
-            POP(value)
+            HymnValue value = pop(this);
             if (hymn_is_int(value)) {
                 push(this, value);
             } else if (hymn_is_float(value)) {
@@ -5428,7 +5426,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_TO_FLOAT: {
-            POP(value)
+            HymnValue value = pop(this);
             if (hymn_is_int(value)) {
                 double number = (double)hymn_as_int(value);
                 push(this, hymn_new_float(number));
@@ -5451,13 +5449,13 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_TO_STRING: {
-            POP(value)
+            HymnValue value = pop(this);
             machine_push_intern_string(this, value_to_string(value));
             DEREF(value)
             break;
         }
         case OP_PRINT: {
-            POP(value)
+            HymnValue value = pop(this);
             HymnString *string = value_to_string(value);
             this->print("%s\n", string);
             hymn_string_delete(string);
@@ -5477,7 +5475,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_DO: {
-            POP(code)
+            HymnValue code = pop(this);
             if (hymn_is_string(code)) {
                 frame = machine_do(this, hymn_as_hymn_string(code));
                 DEREF(code)
@@ -5489,7 +5487,7 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_USE: {
-            POP(file)
+            HymnValue file = pop(this);
             if (hymn_is_string(file)) {
                 frame = machine_import(this, hymn_as_hymn_string(file));
                 DEREF(file)
@@ -5664,7 +5662,7 @@ char *hymn_do(Hymn *this, const char *script, const char *source) {
     reference(function);
 
     push(this, function);
-    machine_call(this, main, 0);
+    call(this, main, 0);
 
     error = machine_interpret(this);
     if (error) {
