@@ -8,9 +8,11 @@ end
 
 local start = os.clock()
 
+local sum = 0
+
 for i = 1, 10 do
-  fib(30)
+  sum = sum + fib(30)
 end
 
 local seconds = os.clock() - start
-print('elapsed: ' .. seconds .. 's')
+print('elapsed: ' .. seconds .. 's | ' .. sum)

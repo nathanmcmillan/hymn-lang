@@ -14,4 +14,4 @@ for i = 1, N do
 end
 
 local seconds = os.clock() - start
-print('elapsed: ' .. seconds .. 's')
+print('elapsed: ' .. seconds .. 's | ' .. sum)

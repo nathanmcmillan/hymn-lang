@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "hymn.h"
 #include "hymn_libs.h"
@@ -26,10 +27,15 @@ int main(int argc, char **argv) {
     char *error = NULL;
     if (argc > 1) {
         hymn_use_libs(hymn);
-        error = hymn_read(hymn, argv[1]);
+        if (argc > 2 && strcmp(argv[1], "-d") == 0) {
+            error = hymn_debug(hymn, argv[2]);
+        } else {
+            error = hymn_read(hymn, argv[1]);
+        }
     } else {
-        printf("Usage: hymn FILE\n");
-        printf("Interprets a Hymn script FILE.\n");
+        printf("Usage: hymn [-d] FILE\n");
+        printf("Interprets a Hymn script FILE.\n\n");
+        printf("  -d  Print byte\n");
     }
 
     int code = 0;

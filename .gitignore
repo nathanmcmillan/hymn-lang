@@ -23,9 +23,15 @@ tests
 hymn
 !hymn/
 
+hymntest
+
 hymn.exe
+hymntest.exe
 
 *.obj
 
 profile
 gmon.out
+luac.out
+callgrind.out.*
+cachegrind.out.*

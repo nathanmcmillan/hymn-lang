@@ -1,8 +1,8 @@
 function reverse(a)
   let size = len(a)
-  let max = math_floor(size / 2)
+  let max = int(math_floor(size / 2))
   for let i = 0; i < max; i = i + 1
-    let n = size + 1 - i
+    let n = size - i - 1
     let t = a[i]
     a[i] = a[n]
     a[n] = t
@@ -14,13 +14,9 @@ let start = os_clock()
 let N = 20000000
 let list = []
 
-for let i = 1; i <= N; i = i + 1
-  if N % i == 0
-    push(list, i)
-  end
-end
+for let i = 0; i < N; i = i + 1 push(list, i) end
 
 reverse(list)
 
 let seconds = os_clock() - start
-print "elapsed: " + seconds + "s"
+print "elapsed: " + seconds + "s | " + list[0]

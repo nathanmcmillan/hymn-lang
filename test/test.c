@@ -168,7 +168,7 @@ static HymnString *test_source(HymnString *script) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
         hymn_string_zero(out);
-        char *error = hymn_do_script(hymn, script, source);
+        char *error = hymn_do(hymn, script, source);
         hymn_delete(hymn);
         if (strcmp(expected, "@Exception") == 0) {
             if (error == NULL) {

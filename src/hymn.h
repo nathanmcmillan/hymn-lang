@@ -141,14 +141,15 @@ struct HymnByteCode {
     int count;
     int capacity;
     uint8_t *instructions;
-    int *rows;
+    uint8_t previous;
+    int *lines;
     HymnValuePool constants;
 };
 
 struct HymnExceptList {
-    size_t start;
-    size_t end;
-    size_t stack;
+    int start;
+    int end;
+    int locals;
     struct HymnExceptList *next;
 };
 
@@ -163,13 +164,13 @@ struct HymnFunction {
 
 struct HymnFrame {
     HymnFunction *func;
-    size_t ip;
-    size_t stack;
+    uint8_t *ip;
+    HymnValue *stack;
 };
 
 struct Hymn {
     HymnValue stack[HYMN_STACK_MAX];
-    size_t stack_top;
+    HymnValue *stack_top;
     HymnFrame frames[HYMN_FRAMES_MAX];
     int frame_count;
     HymnSet strings;
@@ -240,8 +241,8 @@ bool hymn_is_func(HymnValue v);
 
 Hymn *new_hymn();
 
-char *hymn_do_script(Hymn *this, const char *script, const char *source);
-char *hymn_do(Hymn *this, const char *source);
+char *hymn_debug(Hymn *this, const char *script);
+char *hymn_do(Hymn *this, const char *script, const char *source);
 char *hymn_read(Hymn *this, const char *script);
 
 void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);

@@ -1,6 +1,6 @@
-function fib(n)
-  if n < 2 return n end
-  return fib(n - 1) + fib(n - 2)
+function fib(n, a, b)
+  if n == 0 return a end
+  return fib(n - 1, b, a + b)
 end
 
 let start = os_clock()
@@ -8,7 +8,7 @@ let start = os_clock()
 let sum = 0
 
 for let i = 0; i < 10; i = i + 1
-  sum = sum + fib(30)
+  sum = sum + fib(30, 0, 1)
 end
 
 let seconds = os_clock() - start

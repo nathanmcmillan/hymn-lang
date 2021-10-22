@@ -38,17 +38,58 @@ print list
 
 # Compiling
 
-## Linux with GCC
+## GCC
 
-`$ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm`
+### Debug
 
-## Windows with MSVC
+```
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymn -lm
+```
 
-`> cl src/*.c /O2 /DNDEBUG /link /out:hymn.exe`
+### Testing
+
+```
+$ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm
+```
+
+### Release
+
+```
+$ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
+```
+
+## MSVC
+
+### Debug
+
+```
+> cl src/*.c /W4 /WX /wd4996 /link /out:hymn.exe
+```
+
+### Testing
+
+```
+> cl test/*.c src/*.c /Isrc /W4 /WX /wd4996 -DHYMN_TESTING /link /out:hymntest.exe
+```
+
+### Release
+
+```
+> cl src/*.c /O2 /DNDEBUG /link /out:hymn.exe
+```
 
 ## Profiling on Linux
 
-`$ gcc src/*.c -O0 -pg -o profile -lm`
+```
+$ gcc src/*.c -O0 -pg -o profile -lm
+$ ./profile [FILE].hm
+$ gprof profile gmon.out | less
+```
+
+```
+$ valgrind --tool=callgrind ./hymn [FILE].hm
+$ callgrind_annotate --auto=yes callgrind.out.* | less
+```
 
 # Development
 
@@ -70,10 +111,12 @@ print list
 1. More constants than 256
 1. Intern non-string constants
 1. A failed malloc, calloc, etc should return a compile or runtime error if possible
-1. Multi-line strings without different syntax
-1. Bash-like double quote string formatting `I am a ${variable}`
+1. Bash-like string formatting `"I am a ${variable}"` when using double quotes
 1. Consistent, descriptive error messages. Use the form `[Expression Name]: Expected/Missing [X], but was [Y]`
-1. Large standard library written in Hymn
+1. Standard library written in Hymn
+1. Keywords `yield` `resume` `start` for coroutines
+1. Keywords `#if` `#else` `#define` `#end` for macros
+1. Instead of `OP_PRINT` etc, should they be calls to C functions
 
 ## Progress
 
@@ -81,6 +124,26 @@ print list
 | -------------- | ----------- |
 | C              | Version 0.1 |
 | JavaScript     | Version 0.1 |
-| Rust           | Started     |
 | Go             | Not Started |
 | Java           | Not Started |
+
+## Performance
+
+1. Use more specialized instructions to reduce time spent in dispatch. JUMP_IF_EQUAL, JUMP_IF_NOT_EQUAL, etc
+1. Use virtual registers with an infinite stack, with 32 bit instructions, rather than using a stack
+1. Use value pooling to reduce allocations and freeing
+1. Delay dereferencing to the end of subroutines and analyze where references counting can be ignored
+1. Tagged pointers or NaN boxing
+1. Tail call optimizations. Anytime a function ends with another function call, the stack can be re-used
+1. Insert into table collision linked list in sorted order
+1. `OP_CONSTANT 1` + `OP_NEGATE` -> `OP_CONSTANT -1`
+1. `POP` + `POP` -> `POP_2`
+1. `OP_EQUAL` + `OP_JUMP_IF_FALSE` -> `OP_JUMP_NOT_EQUAL`
+1. FOR LOOP `OP_GET_LOCAL [1]` + `OP_CONSTANT 1` + `OP_ADD` + `OP_SET_LOCAL [1]` -> `OP_INCREMENT`
+1. ARRAY PUSH `OP_GET_GLOBAL "FOO"` + `OP_GET_LOCAL [1]` + `OP_ARRAY_PUSH` -> `OP_PUSH_LOCAL_TO_GLOBAL`
+
+## Notes
+
+1. Using a macro READ_BYTE instead of an inline functions slightly improves performance
+1. Using an instruction pointer rather than index significantly improves performance
+1. Using computed goto statements instead of a big switch significantly impproves performance. But it is not ISO C

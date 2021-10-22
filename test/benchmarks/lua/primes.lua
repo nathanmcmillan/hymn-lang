@@ -22,4 +22,4 @@ for i = 0, N - 1 do
 end
 
 local seconds = os.clock() - start
-print('elapsed: ' .. seconds .. 's')
+print('elapsed: ' .. seconds .. 's | ' .. primes[#primes])

@@ -1,7 +1,7 @@
-start = os.clock()
+local start = os.clock()
 
-N = 50000000
-factors = {}
+local N = 50000000
+local factors = {}
 
 for i = 1, N do
   if N % i == 0 then
@@ -9,5 +9,5 @@ for i = 1, N do
   end
 end
 
-seconds = os.clock() - start
+local seconds = os.clock() - start
 print('elapsed: ' .. seconds .. 's | ' .. factors[#factors])
