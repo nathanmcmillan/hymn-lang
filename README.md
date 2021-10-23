@@ -117,6 +117,8 @@ $ callgrind_annotate --auto=yes callgrind.out.* | less
 1. Keywords `yield` `resume` `start` for coroutines
 1. Keywords `#if` `#else` `#define` `#end` for macros
 1. Instead of `OP_PRINT` etc, should they be calls to C functions
+1. Remove `pass`
+1. Remove `do` maybe
 
 ## Progress
 
@@ -129,18 +131,12 @@ $ callgrind_annotate --auto=yes callgrind.out.* | less
 
 ## Performance
 
-1. Use more specialized instructions to reduce time spent in dispatch. JUMP_IF_EQUAL, JUMP_IF_NOT_EQUAL, etc
 1. Use virtual registers with an infinite stack, with 32 bit instructions, rather than using a stack
 1. Use value pooling to reduce allocations and freeing
 1. Delay dereferencing to the end of subroutines and analyze where references counting can be ignored
 1. Tagged pointers or NaN boxing
 1. Tail call optimizations. Anytime a function ends with another function call, the stack can be re-used
 1. Insert into table collision linked list in sorted order
-1. `OP_CONSTANT 1` + `OP_NEGATE` -> `OP_CONSTANT -1`
-1. `POP` + `POP` -> `POP_2`
-1. `OP_EQUAL` + `OP_JUMP_IF_FALSE` -> `OP_JUMP_NOT_EQUAL`
-1. FOR LOOP `OP_GET_LOCAL [1]` + `OP_CONSTANT 1` + `OP_ADD` + `OP_SET_LOCAL [1]` -> `OP_INCREMENT`
-1. ARRAY PUSH `OP_GET_GLOBAL "FOO"` + `OP_GET_LOCAL [1]` + `OP_ARRAY_PUSH` -> `OP_PUSH_LOCAL_TO_GLOBAL`
 
 ## Notes
 
