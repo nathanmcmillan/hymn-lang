@@ -662,6 +662,7 @@ enum Precedence {
 
 enum OpCode {
     OP_ADD,
+    OP_ADD_TWO_LOCAL,
     OP_INCREMENT,
     OP_ARRAY_INSERT,
     OP_ARRAY_POP,
@@ -2298,6 +2299,10 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
                 if (pop < UINT8_MAX - 1) {
                     REWRITE_BYTE(pop + 1);
                 }
+            } else if (p == OP_INCREMENT_LOCAL_AND_SET) {
+                return;
+            } else if (p == OP_SET_LOCAL) {
+                return;
             }
         } else if (i == OP_NEGATE && p == OP_CONSTANT) {
             HymnValue value = code->constants.values[code->instructions[count - 1]];
@@ -2308,26 +2313,35 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             }
             REWRITE_BYTE(byte_code_new_constant(this, value));
 
-        } else if (i == OP_ADD && p == OP_CONSTANT) {
-            HymnValue value = code->constants.values[code->instructions[count - 1]];
-            if (hymn_is_int(value)) {
-                int add = hymn_as_int(value);
-                if (add > 0 && add < UINT8_MAX) {
-                    if (code->behind == OP_GET_LOCAL) {
-                        code->instructions[count - 4] = OP_INCREMENT_LOCAL;
-                        code->behind = UINT8_MAX;
-                        code->previous = OP_INCREMENT_LOCAL;
-                        code->instructions[count - 2] = (uint8_t)add;
-                        code->count--;
-                        return;
+        } else if (i == OP_ADD) {
+            if (p == OP_CONSTANT) {
+                HymnValue value = code->constants.values[code->instructions[count - 1]];
+                if (hymn_is_int(value)) {
+                    int64_t add = hymn_as_int(value);
+                    if (add > 0 && add < UINT8_MAX) {
+                        if (code->behind == OP_GET_LOCAL) {
+                            code->instructions[count - 4] = OP_INCREMENT_LOCAL;
+                            code->instructions[count - 2] = (uint8_t)add;
+                            code->behind = UINT8_MAX;
+                            code->previous = OP_INCREMENT_LOCAL;
+                            code->count--;
+                            return;
 
-                    } else {
-                        code->instructions[count - 2] = OP_INCREMENT;
-                        code->behind = p;
-                        code->previous = OP_INCREMENT;
-                        REWRITE_BYTE((uint8_t)add);
+                        } else {
+                            code->instructions[count - 2] = OP_INCREMENT;
+                            code->behind = p;
+                            code->previous = OP_INCREMENT;
+                            REWRITE_BYTE((uint8_t)add);
+                        }
                     }
                 }
+            } else if (p == OP_GET_LOCAL && code->behind == OP_GET_LOCAL) {
+                code->instructions[count - 4] = OP_ADD_TWO_LOCAL;
+                code->instructions[count - 2] = code->instructions[count - 1];
+                code->behind = UINT8_MAX;
+                code->previous = OP_ADD_TWO_LOCAL;
+                code->count--;
+                return;
             }
         } else if (i == OP_JUMP_IF_TRUE) {
             switch (p) {
@@ -3339,7 +3353,7 @@ static void for_statement(Compiler *this) {
     // assign
 
     define_new_variable(this);
-    uint8_t index = this->scope->local_count - 1;
+    uint8_t index = (uint8_t)(this->scope->local_count - 1);
 
     consume(this, TOKEN_COMMA, "For: Missing ','.");
 
@@ -3393,6 +3407,7 @@ static void while_statement(Compiler *this) {
     this->loop = &loop;
 
     expression(this);
+
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
 
     block(this);
@@ -3409,7 +3424,7 @@ static void while_statement(Compiler *this) {
 
 static void return_statement(Compiler *this) {
     if (this->scope->type == TYPE_SCRIPT) {
-        compile_error(this, &this->previous, "Return Error: Outside of function.");
+        compile_error(this, &this->previous, "Return: Outside of function.");
     }
     if (check(this, TOKEN_END)) {
         emit(this, OP_NONE);
@@ -4369,6 +4384,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     uint8_t instruction = this->instructions[index];
     switch (instruction) {
     case OP_ADD: return debug_instruction(debug, "OP_ADD", index);
+    case OP_ADD_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_ADD_TWO_LOCAL", this, index);
     case OP_INCREMENT: return debug_byte_instruction(debug, "OP_INCREMENT", this, index);
     case OP_ARRAY_INSERT: return debug_instruction(debug, "OP_ARRAY_INSERT", index);
     case OP_ARRAY_POP: return debug_instruction(debug, "OP_ARRAY_POP", index);
@@ -4794,6 +4810,62 @@ static void machine_run(Hymn *this) {
             dereference(this, b);
             break;
         }
+        case OP_ADD_TWO_LOCAL: {
+            uint8_t slot_a = READ_BYTE(frame);
+            uint8_t slot_b = READ_BYTE(frame);
+            HymnValue b = frame->stack[slot_a];
+            HymnValue a = frame->stack[slot_b];
+            if (hymn_is_none(a)) {
+                if (hymn_is_string(b)) {
+                    machine_push_intern_string(this, value_concat(a, b));
+                } else {
+                    dereference(this, a);
+                    dereference(this, b);
+                    THROW("Add: 1st and 2nd values can't be added.")
+                }
+            } else if (hymn_is_bool(a)) {
+                if (hymn_is_string(b)) {
+                    machine_push_intern_string(this, value_concat(a, b));
+                } else {
+                    dereference(this, a);
+                    dereference(this, b);
+                    THROW("Add: 1st and 2nd values can't be added.")
+                }
+            } else if (hymn_is_int(a)) {
+                if (hymn_is_int(b)) {
+                    a.as.i += b.as.i;
+                    push(this, a);
+                } else if (hymn_is_float(b)) {
+                    b.as.f += a.as.i;
+                    push(this, a);
+                } else if (hymn_is_string(b)) {
+                    machine_push_intern_string(this, value_concat(a, b));
+                } else {
+                    dereference(this, a);
+                    dereference(this, b);
+                    THROW("Add: 1st and 2nd values can't be added.")
+                }
+            } else if (hymn_is_float(a)) {
+                if (hymn_is_int(b)) {
+                    a.as.f += b.as.i;
+                    push(this, a);
+                } else if (hymn_is_float(b)) {
+                    a.as.f += b.as.f;
+                    push(this, a);
+                } else if (hymn_is_string(b)) {
+                    machine_push_intern_string(this, value_concat(a, b));
+                } else {
+                    dereference(this, a);
+                    dereference(this, b);
+                    THROW("Add: 1st and 2nd values can't be added.")
+                }
+            } else if (hymn_is_string(a)) {
+                machine_push_intern_string(this, value_concat(a, b));
+            } else {
+                THROW("Add: 1st and 2nd values can't be added.")
+            }
+            break;
+        }
         case OP_INCREMENT: {
             HymnValue a = pop(this);
             uint8_t increment = READ_BYTE(frame);
@@ -5031,8 +5103,7 @@ static void machine_run(Hymn *this) {
         }
         case OP_SET_LOCAL: {
             uint8_t slot = READ_BYTE(frame);
-            HymnValue value = peek(this, 1);
-            reference(value);
+            HymnValue value = pop(this);
             dereference(this, frame->stack[slot]);
             frame->stack[slot] = value;
             break;
