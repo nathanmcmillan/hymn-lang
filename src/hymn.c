@@ -722,6 +722,8 @@ enum OpCode {
     OP_SET_GLOBAL,
     OP_SET_LOCAL,
     OP_SET_PROPERTY,
+    OP_GET_LOCAL_AND_INCREMENT,
+    OP_GET_LOCAL_AND_INCREMENT_AND_SET,
     OP_SLICE,
     OP_SUBTRACT,
     OP_THROW,
@@ -834,6 +836,8 @@ struct Compiler {
     Scope *scope;
     struct LoopList *loop;
     struct JumpList *jump;
+    struct JumpList *jump_or;
+    struct JumpList *jump_and;
     HymnString *error;
 };
 
@@ -2226,19 +2230,8 @@ static uint8_t byte_code_new_constant(Compiler *this, HymnValue value) {
     return (uint8_t)constant;
 }
 
-static void write_byte(HymnByteCode *this, uint8_t b, int row) {
-    int count = this->count;
-    if (count + 1 > this->capacity) {
-        this->capacity *= 2;
-        this->instructions = hymn_realloc(this->instructions, this->capacity * sizeof(uint8_t));
-        this->lines = hymn_realloc(this->lines, this->capacity * sizeof(int));
-    }
-    this->instructions[count] = b;
-    this->lines[count] = row;
-    this->count = count + 1;
-}
-
 static void boundary(HymnByteCode *code) {
+    code->behind = UINT8_MAX;
     code->previous = UINT8_MAX;
 }
 
@@ -2248,8 +2241,37 @@ static void boundary(HymnByteCode *code) {
 
 #define REWRITE_CODE(OP)                \
     code->instructions[count - 1] = OP; \
+    code->behind = p;                   \
     code->previous = OP;                \
     return
+
+static void optimize_byte(HymnByteCode *code) {
+    int count = code->count;
+    if (count == 0) {
+        return;
+    }
+    uint8_t previous = code->previous;
+    if (previous == OP_SET_LOCAL && code->behind == OP_GET_LOCAL_AND_INCREMENT && count - 5 >= 0) {
+        if (code->instructions[count - 1] == code->instructions[count - 4]) {
+            code->instructions[count - 5] = OP_GET_LOCAL_AND_INCREMENT_AND_SET;
+            code->behind = UINT8_MAX;
+            code->previous = OP_GET_LOCAL_AND_INCREMENT_AND_SET;
+            code->count -= 2;
+        }
+    }
+}
+
+static void write_byte(HymnByteCode *code, uint8_t b, int row) {
+    int count = code->count;
+    if (count + 1 > code->capacity) {
+        code->capacity *= 2;
+        code->instructions = hymn_realloc(code->instructions, code->capacity * sizeof(uint8_t));
+        code->lines = hymn_realloc(code->lines, code->capacity * sizeof(int));
+    }
+    code->instructions[count] = b;
+    code->lines[count] = row;
+    code->count = count + 1;
+}
 
 static void write_instruction(Compiler *this, uint8_t i, int row) {
     HymnByteCode *code = current(this);
@@ -2257,40 +2279,30 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
     if (count != 0) {
         uint8_t p = code->previous;
 
-        // OP_JUMP_IF_NOT_EQUAL: [44] -> [57]
-        // OP_POP
-        // ...
-        // OP_POP
-        // > REMOVE POP AFTER JUMP AND PATCH
-
         // OP_CONSTANT: [Integer: -1]
         // OP_GET_DYNAMIC
-        // > OP_RETRIEVE
-
-        // OP_GET_LOCAL: [1]
-        // OP_INCREMENT: [1]
-        // OP_SET_LOCAL: [1]
-        // > OP_UPDATE_LOCAL
+        // RETRIEVE
 
         // OP_GET_GLOBAL: [String: N]
         // OP_INCREMENT: [1]
         // OP_SET_GLOBAL: [String: N]
-        // > OP_UPDATE_GLOBAL
+        // UPDATE GLOBAL
 
-        // 1. FOR LOOP `OP_GET_LOCAL [1]` + `OP_CONSTANT 1` + `OP_ADD` + `OP_SET_LOCAL [1]` -> `OP_INCREMENT`
-        // 1. ARRAY PUSH `OP_GET_GLOBAL "FOO"` + `OP_GET_LOCAL [1]` + `OP_ARRAY_PUSH` -> `OP_PUSH_LOCAL_TO_GLOBAL`
+        // OP_GET_GLOBAL
+        // OP_GET_LOCAL
+        // OP_ARRAY_PUSH
+        // PUSH LOCAL TO GLOBAL ARRAY
 
         if (i == OP_RETURN && p == OP_CALL) {
             code->instructions[count - 2] = OP_TAIL_CALL;
 
         } else if (i == OP_POP) {
             if (p == OP_POP) {
-                printf("POP & POP @ %d\n", count - 1);
                 REWRITE_CODE(OP_POP_TWO);
 
             } else if (p == OP_POP_TWO) {
-                printf("POP TWO & POP @ %d\n", count - 1);
                 code->instructions[count - 1] = OP_POP_N;
+                code->behind = p;
                 code->previous = OP_POP_N;
                 write_byte(code, 3, row);
                 return;
@@ -2298,12 +2310,10 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             } else if (p == OP_POP_N) {
                 uint8_t pop = code->instructions[count - 1];
                 if (pop < UINT8_MAX - 1) {
-                    printf("POP N & POP @ %d [%d]\n", count - 2, pop);
                     REWRITE_BYTE(pop + 1);
                 }
             }
         } else if (i == OP_NEGATE && p == OP_CONSTANT) {
-            printf("NEGATE & CONSTANT @ %d\n", count - 2);
             HymnValue value = code->constants.values[code->instructions[count - 1]];
             if (hymn_is_int(value)) {
                 value.as.i = -value.as.i;
@@ -2313,18 +2323,27 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             REWRITE_BYTE(byte_code_new_constant(this, value));
 
         } else if (i == OP_ADD && p == OP_CONSTANT) {
-            printf("ADD & CONSTANT @ %d\n", count - 2);
             HymnValue value = code->constants.values[code->instructions[count - 1]];
             if (hymn_is_int(value)) {
                 int add = hymn_as_int(value);
                 if (add > 0 && add < UINT8_MAX) {
-                    code->instructions[count - 2] = OP_INCREMENT;
-                    code->previous = OP_INCREMENT;
-                    REWRITE_BYTE((uint8_t)add);
+                    if (code->behind == OP_GET_LOCAL) {
+                        code->instructions[count - 4] = OP_GET_LOCAL_AND_INCREMENT;
+                        code->behind = UINT8_MAX;
+                        code->previous = OP_GET_LOCAL_AND_INCREMENT;
+                        code->instructions[count - 2] = (uint8_t)add;
+                        code->count--;
+                        return;
+
+                    } else {
+                        code->instructions[count - 2] = OP_INCREMENT;
+                        code->behind = p;
+                        code->previous = OP_INCREMENT;
+                        REWRITE_BYTE((uint8_t)add);
+                    }
                 }
             }
         } else if (i == OP_JUMP_IF_TRUE) {
-            printf("JUMP IF TRUE @ %d\n", count - 1);
             switch (p) {
             case OP_EQUAL: REWRITE_CODE(OP_JUMP_IF_EQUAL);
             case OP_NOT_EQUAL: REWRITE_CODE(OP_JUMP_IF_NOT_EQUAL);
@@ -2334,7 +2353,6 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             case OP_GREATER_EQUAL: REWRITE_CODE(OP_JUMP_IF_GREATER_EQUAL);
             }
         } else if (i == OP_JUMP_IF_FALSE) {
-            printf("JUMP IF FALSE @ %d\n", count - 1);
             switch (p) {
             case OP_EQUAL: REWRITE_CODE(OP_JUMP_IF_NOT_EQUAL);
             case OP_NOT_EQUAL: REWRITE_CODE(OP_JUMP_IF_EQUAL);
@@ -2345,6 +2363,7 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             }
         }
     }
+    code->behind = code->previous;
     code->previous = i;
     write_byte(code, i, row);
 }
@@ -2353,6 +2372,15 @@ static void write_short_instruction(Compiler *this, uint8_t i, uint8_t b) {
     int row = this->previous.row;
     write_instruction(this, i, row);
     write_byte(current(this), b, row);
+    optimize_byte(current(this));
+}
+
+static void write_word_instruction(Compiler *this, uint8_t i, uint8_t b, uint8_t n) {
+    int row = this->previous.row;
+    write_instruction(this, i, row);
+    HymnByteCode *code = current(this);
+    write_byte(code, b, row);
+    write_byte(code, n, row);
 }
 
 static void emit(Compiler *this, uint8_t i) {
@@ -2817,7 +2845,7 @@ static int emit_jump(Compiler *this, uint8_t instruction) {
     emit(this, instruction);
     emit_byte(this, UINT8_MAX);
     emit_byte(this, UINT8_MAX);
-    boundary(current(this));
+    // boundary(current(this));
     return current(this)->count - 2;
 }
 
@@ -2830,25 +2858,37 @@ static void patch_jump(Compiler *this, int jump) {
     }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
     code->instructions[jump + 1] = offset & UINT8_MAX;
-    boundary(current(this));
+    // boundary(current(this));
 }
 
-static void compile_and(Compiler *this, bool assign) {
-    (void)assign;
-    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
-    emit(this, OP_POP);
-    compile_with_precedence(this, PRECEDENCE_AND);
-    patch_jump(this, jump);
+static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode code) {
+    struct JumpList *jump = hymn_calloc(1, sizeof(struct JumpList));
+    jump->jump = emit_jump(C, code);
+    jump->next = list;
+    return jump;
 }
 
-static void compile_or(Compiler *this, bool assign) {
+static void free_jumps(Compiler *C, struct JumpList *list) {
+    while (list != NULL) {
+        patch_jump(C, list->jump);
+        struct JumpList *next = list->next;
+        free(list);
+        list = next;
+    }
+}
+
+static void compile_and(Compiler *C, bool assign) {
     (void)assign;
-    int jump_else = emit_jump(this, OP_JUMP_IF_FALSE);
-    int jump = emit_jump(this, OP_JUMP);
-    patch_jump(this, jump_else);
-    emit(this, OP_POP);
-    compile_with_precedence(this, PRECEDENCE_OR);
-    patch_jump(this, jump);
+    C->jump_and = add_jump(C, C->jump_and, OP_JUMP_IF_FALSE);
+    compile_with_precedence(C, PRECEDENCE_AND);
+}
+
+static void compile_or(Compiler *C, bool assign) {
+    (void)assign;
+    C->jump_or = add_jump(C, C->jump_or, OP_JUMP_IF_TRUE);
+    free_jumps(C, C->jump_and);
+    C->jump_and = NULL;
+    compile_with_precedence(C, PRECEDENCE_OR);
 }
 
 static HymnFunction *end_function(Compiler *this) {
@@ -2916,59 +2956,63 @@ static void block(Compiler *this) {
     end_scope(this);
 }
 
-static void if_statement(Compiler *this) {
-    expression(this);
-    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
+static void if_statement(Compiler *C) {
+    expression(C);
+    int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-    emit(this, OP_POP);
-    begin_scope(this);
-    while (!check(this, TOKEN_ELIF) && !check(this, TOKEN_ELSE) && !check(this, TOKEN_END) && !check(this, TOKEN_EOF)) {
-        declaration(this);
+    // FIXME NESTED IF STATEMENTS PROBABLY BROKEN
+
+    free_jumps(C, C->jump_or);
+    C->jump_or = NULL;
+
+    begin_scope(C);
+    while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+        declaration(C);
     }
-    end_scope(this);
+    end_scope(C);
 
     struct JumpList jump_end = {0};
-    jump_end.jump = emit_jump(this, OP_JUMP);
+    jump_end.jump = emit_jump(C, OP_JUMP);
     struct JumpList *tail = &jump_end;
 
-    while (match(this, TOKEN_ELIF)) {
-        patch_jump(this, jump);
-        emit(this, OP_POP);
+    while (match(C, TOKEN_ELIF)) {
+        patch_jump(C, jump);
 
-        expression(this);
-        jump = emit_jump(this, OP_JUMP_IF_FALSE);
+        free_jumps(C, C->jump_and);
+        C->jump_and = NULL;
 
-        emit(this, OP_POP);
-        begin_scope(this);
-        while (!check(this, TOKEN_ELIF) && !check(this, TOKEN_ELSE) && !check(this, TOKEN_END) && !check(this, TOKEN_EOF)) {
-            declaration(this);
+        expression(C);
+        jump = emit_jump(C, OP_JUMP_IF_FALSE);
+
+        free_jumps(C, C->jump_or);
+        C->jump_or = NULL;
+
+        begin_scope(C);
+        while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+            declaration(C);
         }
-        end_scope(this);
+        end_scope(C);
 
         struct JumpList *next = hymn_calloc(1, sizeof(struct JumpList));
-        next->jump = emit_jump(this, OP_JUMP);
+        next->jump = emit_jump(C, OP_JUMP);
 
         tail->next = next;
         tail = next;
     }
 
-    patch_jump(this, jump);
-    emit(this, OP_POP);
+    patch_jump(C, jump);
 
-    if (match(this, TOKEN_ELSE)) {
-        block(this);
+    free_jumps(C, C->jump_and);
+    C->jump_and = NULL;
+
+    if (match(C, TOKEN_ELSE)) {
+        block(C);
     }
 
-    patch_jump(this, jump_end.jump);
-    struct JumpList *current = jump_end.next;
-    while (current != NULL) {
-        patch_jump(this, current->jump);
-        struct JumpList *next = current->next;
-        free(current);
-        current = next;
-    }
+    patch_jump(C, jump_end.jump);
+    free_jumps(C, jump_end.next);
 
-    consume(this, TOKEN_END, "If: Missing 'end'.");
+    consume(C, TOKEN_END, "If: Missing 'end'.");
 }
 
 static bool compile_literal(Compiler *this) {
@@ -3308,13 +3352,10 @@ static void for_statement(Compiler *this) {
 
     // assign
 
-    if (match(this, TOKEN_LET)) {
-        define_new_variable(this);
-    } else if (!check(this, TOKEN_SEMICOLON)) {
-        expression_statement(this);
-    }
+    define_new_variable(this);
+    uint8_t index = this->scope->local_count - 1;
 
-    consume(this, TOKEN_SEMICOLON, "For: Missing ';'.");
+    consume(this, TOKEN_COMMA, "For: Missing ','.");
 
     // compare
 
@@ -3323,9 +3364,6 @@ static void for_statement(Compiler *this) {
     expression(this);
 
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
-    emit(this, OP_POP);
-
-    consume(this, TOKEN_SEMICOLON, "For: Missing second ';'.");
 
     // increment
 
@@ -3335,9 +3373,12 @@ static void for_statement(Compiler *this) {
     struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
     this->loop = &loop;
 
-    expression(this);
+    if (match(this, TOKEN_COMMA)) {
+        expression(this);
+    } else {
+        write_word_instruction(this, OP_GET_LOCAL_AND_INCREMENT_AND_SET, index, 1);
+    }
 
-    emit(this, OP_POP);
     emit_loop(this, compare);
 
     // body
@@ -3352,7 +3393,6 @@ static void for_statement(Compiler *this) {
     this->loop = loop.next;
 
     patch_jump(this, jump);
-    emit(this, OP_POP);
 
     patch_jump_list(this);
     end_scope(this);
@@ -3369,14 +3409,14 @@ static void while_statement(Compiler *this) {
     expression(this);
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
 
-    emit(this, OP_POP);
+    // emit(this, OP_POP);
     block(this);
     emit_loop(this, start);
 
     this->loop = loop.next;
 
     patch_jump(this, jump);
-    emit(this, OP_POP);
+    // emit(this, OP_POP);
 
     patch_jump_list(this);
 
@@ -3487,8 +3527,8 @@ static void throw_statement(Compiler *this) {
 static void statement(Compiler *this) {
     if (match(this, TOKEN_PRINT)) {
         print_statement(this);
-    } else if (match(this, TOKEN_DO)) {
-        do_statement(this);
+        // } else if (match(this, TOKEN_DO)) {
+        // do_statement(this);
     } else if (match(this, TOKEN_USE)) {
         use_statement(this);
     } else if (match(this, TOKEN_IF)) {
@@ -3511,7 +3551,7 @@ static void statement(Compiler *this) {
         try_statement(this);
     } else if (match(this, TOKEN_THROW)) {
         throw_statement(this);
-    } else if (match(this, TOKEN_PASS)) {
+        // } else if (match(this, TOKEN_PASS)) {
         // do nothing
     } else if (match(this, TOKEN_BEGIN)) {
         block(this);
@@ -4357,6 +4397,13 @@ static size_t debug_jump_instruction(HymnString **debug, const char *name, int s
     return index + 3;
 }
 
+static size_t debug_three_byte_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
+    uint8_t b = this->instructions[index + 1];
+    uint8_t n = this->instructions[index + 2];
+    *debug = string_append_format(*debug, "%s: [%d] [%d]", name, b, n);
+    return index + 3;
+}
+
 static size_t debug_instruction(HymnString **debug, const char *name, size_t index) {
     *debug = string_append_format(*debug, "%s", name);
     return index + 1;
@@ -4430,6 +4477,8 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", this, index);
     case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", this, index);
     case OP_SET_PROPERTY: return debug_constant_instruction(debug, "OP_SET_PROPERTY", this, index);
+    case OP_GET_LOCAL_AND_INCREMENT_AND_SET: return debug_three_byte_instruction(debug, "OP_GET_LOCAL_AND_INCREMENT_AND_SET", this, index);
+    case OP_GET_LOCAL_AND_INCREMENT: return debug_three_byte_instruction(debug, "OP_GET_LOCAL_AND_INCREMENT", this, index);
     case OP_SLICE: return debug_instruction(debug, "OP_SLICE", index);
     case OP_SUBTRACT: return debug_instruction(debug, "OP_SUBTRACT", index);
     case OP_TO_FLOAT: return debug_instruction(debug, "OP_TO_FLOAT", index);
@@ -4500,33 +4549,67 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
         THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`.")     \
     }
 
-#define COMPARE_OP(_compare_)                                                             \
-    HymnValue b = pop(this);                                                              \
-    HymnValue a = pop(this);                                                              \
-    if (hymn_is_int(a)) {                                                                 \
-        if (hymn_is_int(b)) {                                                             \
-            push(this, hymn_new_bool(hymn_as_int(a) _compare_ hymn_as_int(b)));           \
-        } else if (hymn_is_float(b)) {                                                    \
-            push(this, hymn_new_bool((double)hymn_as_int(a) _compare_ hymn_as_float(b))); \
-        } else {                                                                          \
-            dereference(this, a);                                                         \
-            dereference(this, b);                                                         \
-            THROW("Operands must be numbers.")                                            \
-        }                                                                                 \
-    } else if (hymn_is_float(a)) {                                                        \
-        if (hymn_is_int(b)) {                                                             \
-            push(this, hymn_new_bool(hymn_as_float(a) _compare_(double) hymn_as_int(b))); \
-        } else if (hymn_is_float(b)) {                                                    \
-            push(this, hymn_new_bool(hymn_as_float(a) _compare_ hymn_as_float(b)));       \
-        } else {                                                                          \
-            dereference(this, a);                                                         \
-            dereference(this, b);                                                         \
-            THROW("Operands must be numbers.")                                            \
-        }                                                                                 \
-    } else {                                                                              \
-        dereference(this, a);                                                             \
-        dereference(this, b);                                                             \
-        THROW("Operands must be numbers.")                                                \
+#define COMPARE_OP(compare)                                                             \
+    HymnValue b = pop(this);                                                            \
+    HymnValue a = pop(this);                                                            \
+    if (hymn_is_int(a)) {                                                               \
+        if (hymn_is_int(b)) {                                                           \
+            push(this, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));           \
+        } else if (hymn_is_float(b)) {                                                  \
+            push(this, hymn_new_bool((double)hymn_as_int(a) compare hymn_as_float(b))); \
+        } else {                                                                        \
+            dereference(this, a);                                                       \
+            dereference(this, b);                                                       \
+            THROW("Operands must be numbers.")                                          \
+        }                                                                               \
+    } else if (hymn_is_float(a)) {                                                      \
+        if (hymn_is_int(b)) {                                                           \
+            push(this, hymn_new_bool(hymn_as_float(a) compare(double) hymn_as_int(b))); \
+        } else if (hymn_is_float(b)) {                                                  \
+            push(this, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));       \
+        } else {                                                                        \
+            dereference(this, a);                                                       \
+            dereference(this, b);                                                       \
+            THROW("Operands must be numbers.")                                          \
+        }                                                                               \
+    } else {                                                                            \
+        dereference(this, a);                                                           \
+        dereference(this, b);                                                           \
+        THROW("Operands must be numbers.")                                              \
+    }
+
+#define JUMP_COMPARE_OP(compare)                                      \
+    HymnValue b = pop(this);                                          \
+    HymnValue a = pop(this);                                          \
+    bool answer;                                                      \
+    if (hymn_is_int(a)) {                                             \
+        if (hymn_is_int(b)) {                                         \
+            answer = hymn_as_int(a) compare hymn_as_int(b);           \
+        } else if (hymn_is_float(b)) {                                \
+            answer = (double)hymn_as_int(a) compare hymn_as_float(b); \
+        } else {                                                      \
+            dereference(this, a);                                     \
+            dereference(this, b);                                     \
+            THROW("Comparison: Operands must be numbers.")            \
+        }                                                             \
+    } else if (hymn_is_float(a)) {                                    \
+        if (hymn_is_int(b)) {                                         \
+            answer = hymn_as_float(a) compare(double) hymn_as_int(b); \
+        } else if (hymn_is_float(b)) {                                \
+            answer = hymn_as_float(a) compare hymn_as_float(b);       \
+        } else {                                                      \
+            dereference(this, a);                                     \
+            dereference(this, b);                                     \
+            THROW("Comparison: Operands must be numbers.")            \
+        }                                                             \
+    } else {                                                          \
+        dereference(this, a);                                         \
+        dereference(this, b);                                         \
+        THROW("Comparison: Operands must be numbers.")                \
+    }                                                                 \
+    uint16_t jump = READ_SHORT(frame);                                \
+    if (answer) {                                                     \
+        frame->ip += jump;                                            \
     }
 
 static void machine_run(Hymn *this) {
@@ -4614,73 +4697,59 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_JUMP_IF_FALSE: {
+            HymnValue a = pop(this);
             uint16_t jump = READ_SHORT(frame);
-            if (machine_false(peek(this, 1))) {
+            if (machine_false(a)) {
                 frame->ip += jump;
             }
+            dereference(this, a);
             break;
         }
         case OP_JUMP_IF_TRUE: {
+            HymnValue a = pop(this);
             uint16_t jump = READ_SHORT(frame);
-            if (!machine_false(peek(this, 1))) {
+            if (!machine_false(a)) {
                 frame->ip += jump;
             }
+            dereference(this, a);
             break;
         }
         case OP_JUMP_IF_EQUAL: {
             HymnValue b = pop(this);
             HymnValue a = pop(this);
-            push(this, hymn_new_bool(machine_equal(a, b)));
-            dereference(this, a);
-            dereference(this, b);
             uint16_t jump = READ_SHORT(frame);
-            if (!machine_false(peek(this, 1))) {
+            if (machine_equal(a, b)) {
                 frame->ip += jump;
             }
+            dereference(this, a);
+            dereference(this, b);
             break;
         }
         case OP_JUMP_IF_NOT_EQUAL: {
             HymnValue b = pop(this);
             HymnValue a = pop(this);
-            push(this, hymn_new_bool(machine_equal(a, b)));
-            dereference(this, a);
-            dereference(this, b);
             uint16_t jump = READ_SHORT(frame);
-            if (machine_false(peek(this, 1))) {
+            if (!machine_equal(a, b)) {
                 frame->ip += jump;
             }
+            dereference(this, a);
+            dereference(this, b);
             break;
         }
         case OP_JUMP_IF_LESS: {
-            COMPARE_OP(>=);
-            uint16_t jump = READ_SHORT(frame);
-            if (machine_false(peek(this, 1))) {
-                frame->ip += jump;
-            }
-            break;
-        }
-        case OP_JUMP_IF_GREATER: {
-            COMPARE_OP(<=);
-            uint16_t jump = READ_SHORT(frame);
-            if (machine_false(peek(this, 1))) {
-                frame->ip += jump;
-            }
+            JUMP_COMPARE_OP(<);
             break;
         }
         case OP_JUMP_IF_LESS_EQUAL: {
-            COMPARE_OP(>);
-            uint16_t jump = READ_SHORT(frame);
-            if (machine_false(peek(this, 1))) {
-                frame->ip += jump;
-            }
+            JUMP_COMPARE_OP(<=);
+            break;
+        }
+        case OP_JUMP_IF_GREATER: {
+            JUMP_COMPARE_OP(>);
             break;
         }
         case OP_JUMP_IF_GREATER_EQUAL: {
-            COMPARE_OP(<);
-            uint16_t jump = READ_SHORT(frame);
-            if (machine_false(peek(this, 1))) {
-                frame->ip += jump;
-            }
+            JUMP_COMPARE_OP(>=);
             break;
         }
         case OP_LOOP: {
@@ -4944,7 +5013,7 @@ static void machine_run(Hymn *this) {
                 value.as.f = -value.as.f;
             } else {
                 dereference(this, value);
-                THROW("Operand must be a number.")
+                THROW("Negate: Must be a number.")
             }
             push(this, value);
             break;
@@ -4955,7 +5024,7 @@ static void machine_run(Hymn *this) {
                 value.as.b = !value.as.b;
             } else {
                 dereference(this, value);
-                THROW("Operand must be a boolean.")
+                THROW("Not: Operand must be a boolean.")
             }
             push(this, value);
             break;
@@ -5024,6 +5093,36 @@ static void machine_run(Hymn *this) {
             HymnValue value = frame->stack[slot];
             reference(value);
             push(this, value);
+            break;
+        }
+        case OP_GET_LOCAL_AND_INCREMENT: {
+            uint8_t slot = READ_BYTE(frame);
+            uint8_t increment = READ_BYTE(frame);
+            HymnValue value = frame->stack[slot];
+            if (hymn_is_int(value)) {
+                value.as.i += (uint64_t)increment;
+            } else if (hymn_is_float(value)) {
+                value.as.f += (double)increment;
+            } else {
+                const char *is = value_name(value.is);
+                THROW("Increment Local: Expected `Number` but was `%s`", is)
+            }
+            push(this, value);
+            break;
+        }
+        case OP_GET_LOCAL_AND_INCREMENT_AND_SET: {
+            uint8_t slot = READ_BYTE(frame);
+            uint8_t increment = READ_BYTE(frame);
+            HymnValue value = frame->stack[slot];
+            if (hymn_is_int(value)) {
+                value.as.i += (uint64_t)increment;
+            } else if (hymn_is_float(value)) {
+                value.as.f += (double)increment;
+            } else {
+                const char *is = value_name(value.is);
+                THROW("Get and Set Local: Expected `Number` but was `%s`", is)
+            }
+            frame->stack[slot] = value;
             break;
         }
         case OP_SET_PROPERTY: {
@@ -5250,18 +5349,18 @@ static void machine_run(Hymn *this) {
             break;
         }
         case OP_ARRAY_PUSH: {
-            HymnValue v = pop(this);
-            HymnValue a = pop(this);
-            if (!hymn_is_array(a)) {
-                const char *is = value_name(v.is);
-                dereference(this, a);
-                dereference(this, v);
+            HymnValue value = pop(this);
+            HymnValue array = pop(this);
+            if (!hymn_is_array(array)) {
+                const char *is = value_name(value.is);
+                dereference(this, array);
+                dereference(this, value);
                 THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
             } else {
-                array_push(hymn_as_array(a), v);
-                push(this, v);
-                reference(v);
-                dereference(this, a);
+                array_push(hymn_as_array(array), value);
+                push(this, value);
+                reference(value);
+                dereference(this, array);
             }
             break;
         }

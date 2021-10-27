@@ -1,0 +1,151 @@
+-- A
+-- end
+-- B
+-- end
+-- C
+-- end
+-- D
+-- end
+-- E
+-- end
+-- F
+-- end
+-- G
+-- end
+-- H
+-- end
+-- I
+-- end
+-- J
+-- end
+-- K
+-- end
+-- L
+-- end
+-- M
+-- end
+-- N
+-- end
+
+if 0 == 1 and 2 == 2
+  print "no"
+else
+  print "A"
+end
+print "end"
+
+if 0 == 1 and 2 == 2 and 4 == 4
+  print "no"
+else
+  print "B"
+end
+print "end"
+
+if 0 == 1 or 2 == 2
+  print "C"
+else
+  print "no"
+end
+print "end"
+
+if 0 == 1 or 2 == 2 or 4 == 4
+  print "D"
+else
+  print "no"
+end
+print "end"
+
+if A or (B and C)
+if 0 == 1 or 2 == 2 and 4 == 4
+  print "E"
+else
+  print "no"
+end
+print "end"
+
+-- if (A and B) or C
+if 0 == 1 and 2 == 2 or 4 == 4
+  print "F"
+else
+  print "no"
+end
+print "end"
+
+-- if (A and B) || (C and D)
+if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4
+  print "G"
+else
+  print "no"
+end
+print "end"
+
+-- if ((A and B) and C) or D
+if 0 == 1 and 0 == 2 and 0 == 4 or 4 == 4
+  print "H"
+else
+  print "no"
+end
+print "end"
+
+-- if (A and B) || (C and D) || (E and F)
+if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4 or 6 == 8 and 10 == 12
+  print "I"
+else
+  print "no"
+end
+print "end"
+
+if 0 == 1
+  print "no"
+elif 0 == 2
+  print "no"
+elif 0 == 4
+  print "no"
+else
+  print "J"
+end
+print "end"
+
+if 0 == 1 and 1 == 1
+  print "no"
+elif 0 == 2 and 2 == 2
+  print "no"
+elif 4 == 4 and 8 == 10
+  print "no"
+else
+  print "K"
+end
+print "end"
+
+if 0 == 1 or 0 == 2
+  print "no"
+elif 4 == 6 or 4 == 8
+  print "no"
+elif 10 == 12 or 10 == 14
+  print "no"
+else
+  print "L"
+end
+print "end"
+
+if 0 == 1 or 0 == 2 and 0 == 100
+  print "no"
+elif 4 == 6 or 4 == 8 and 4 == 104
+  print "no"
+elif 10 == 12 or 10 == 14 and 10 == 108
+  print "no"
+else
+  print "M"
+end
+print "end"
+
+if 0 == 1 and 0 == 2 or 0 == 100
+  print "no"
+elif 4 == 6 and 4 == 8 or 4 == 104
+  print "no"
+elif 10 == 12 and 10 == 14 or 10 == 108
+  print "no"
+else
+  print "N"
+end
+print "end"

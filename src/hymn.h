@@ -141,6 +141,7 @@ struct HymnByteCode {
     int count;
     int capacity;
     uint8_t *instructions;
+    uint8_t behind;
     uint8_t previous;
     int *lines;
     HymnValuePool constants;

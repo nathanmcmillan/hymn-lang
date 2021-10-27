@@ -35,3 +35,5 @@ gmon.out
 luac.out
 callgrind.out.*
 cachegrind.out.*
+
+test.hm
