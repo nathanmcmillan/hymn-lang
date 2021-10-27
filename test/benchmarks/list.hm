@@ -1,7 +1,7 @@
 function reverse(a)
   let size = len(a)
   let max = int(math_floor(size / 2))
-  for let i = 0; i < max; i = i + 1
+  for i = 0, i < max
     let n = size - i - 1
     let t = a[i]
     a[i] = a[n]
@@ -14,7 +14,7 @@ let start = os_clock()
 let N = 20000000
 let list = []
 
-for let i = 0; i < N; i = i + 1 push(list, i) end
+for i = 0, i < N push(list, i) end
 
 reverse(list)
 

@@ -17,7 +17,7 @@ end
 function upper(s)
   let new = ""
   let size = len(s)
-  for let i = 0; i < size; i = i + 1
+  for i = 0, i < size
     let c = s[i]
     switch c
     case 'a' c = 'A'
@@ -51,7 +51,7 @@ end
 -- string_comparator returns the alphabetical integer difference comparing a to b.
 function string_comparator(a, b)
   let to = min(len(a), len(b))
-  for let i = 0; i < to; i = i + 1
+  for i = 0, i < to
     let char = int(a[i]) - int(b[i])
     if char != 0 return char end
   end
@@ -67,7 +67,7 @@ function sort(a, comparator)
     while true
       if id == total break end
       if comparator(v, n[id]) < 0
-        for let swap = total; swap > id; swap = swap - 1
+        for swap = total; swap > id; swap = swap - 1
           n[swap] = n[swap - 1]
         end
         break

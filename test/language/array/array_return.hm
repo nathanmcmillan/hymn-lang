@@ -6,7 +6,7 @@ function new()
   return [1, 2, [3, 4]]
 end
 
-for let i = 0; i < 3; i = i + 1
+for i = 0, i < 3
   let a = new()
   a[1] = a[1] * 4
   a[2][0] = a[2][0] * 4

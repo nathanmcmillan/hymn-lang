@@ -585,7 +585,6 @@ enum TokenType {
     TOKEN_COPY,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
-    TOKEN_DO,
     TOKEN_DOT,
     TOKEN_ELIF,
     TOKEN_ELSE,
@@ -622,7 +621,6 @@ enum TokenType {
     TOKEN_NOT,
     TOKEN_NOT_EQUAL,
     TOKEN_OR,
-    TOKEN_PASS,
     TOKEN_POP,
     TOKEN_PRINT,
     TOKEN_PUSH,
@@ -682,7 +680,6 @@ enum OpCode {
     OP_DEFINE_GLOBAL,
     OP_DELETE,
     OP_DIVIDE,
-    OP_DO,
     OP_DUPLICATE,
     OP_EQUAL,
     OP_FALSE,
@@ -722,8 +719,8 @@ enum OpCode {
     OP_SET_GLOBAL,
     OP_SET_LOCAL,
     OP_SET_PROPERTY,
-    OP_GET_LOCAL_AND_INCREMENT,
-    OP_GET_LOCAL_AND_INCREMENT_AND_SET,
+    OP_INCREMENT_LOCAL,
+    OP_INCREMENT_LOCAL_AND_SET,
     OP_SLICE,
     OP_SUBTRACT,
     OP_THROW,
@@ -991,7 +988,6 @@ Rule rules[] = {
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_DO] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL},
@@ -1030,7 +1026,6 @@ Rule rules[] = {
     [TOKEN_NOT] = {compile_unary, NULL, PRECEDENCE_NONE},
     [TOKEN_NOT_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY},
     [TOKEN_OR] = {NULL, compile_or, PRECEDENCE_OR},
-    [TOKEN_PASS] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_POP] = {array_pop_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_PRINT] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_PUSH] = {array_push_expression, NULL, PRECEDENCE_NONE},
@@ -1089,7 +1084,6 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_COLON: return "COLON";
     case TOKEN_CONTINUE: return "CONTINUE";
     case TOKEN_COPY: return "COPY";
-    case TOKEN_DO: return "DO";
     case TOKEN_DOT: return "DOT";
     case TOKEN_DELETE: return "DELETE";
     case TOKEN_DIVIDE: return "DIVIDE";
@@ -1124,7 +1118,6 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_NOT: return "NOT";
     case TOKEN_NOT_EQUAL: return "NOT_EQUAL";
     case TOKEN_OR: return "OR";
-    case TOKEN_PASS: return "PASS";
     case TOKEN_POP: return "POP";
     case TOKEN_PRINT: return "PRINT";
     case TOKEN_PUSH: return "PUSH";
@@ -1652,7 +1645,6 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         break;
     case 'd':
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
-        if (size == 2 && ident[1] == 'o') return TOKEN_DO;
         break;
     case 'r':
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
@@ -1701,10 +1693,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
     case 'p':
         if (size == 3) return ident_trie(ident, 1, "op", TOKEN_POP);
         if (size == 5) return ident_trie(ident, 1, "rint", TOKEN_PRINT);
-        if (size == 4) {
-            if (ident[1] == 'u') return ident_trie(ident, 2, "sh", TOKEN_PUSH);
-            if (ident[1] == 'a') return ident_trie(ident, 2, "ss", TOKEN_PASS);
-        }
+        if (size == 4) return ident_trie(ident, 1, "ush", TOKEN_PUSH);
         break;
     case 'e':
         if (size == 3) return ident_trie(ident, 1, "nd", TOKEN_END);
@@ -2251,11 +2240,11 @@ static void optimize_byte(HymnByteCode *code) {
         return;
     }
     uint8_t previous = code->previous;
-    if (previous == OP_SET_LOCAL && code->behind == OP_GET_LOCAL_AND_INCREMENT && count - 5 >= 0) {
+    if (previous == OP_SET_LOCAL && code->behind == OP_INCREMENT_LOCAL && count - 5 >= 0) {
         if (code->instructions[count - 1] == code->instructions[count - 4]) {
-            code->instructions[count - 5] = OP_GET_LOCAL_AND_INCREMENT_AND_SET;
+            code->instructions[count - 5] = OP_INCREMENT_LOCAL_AND_SET;
             code->behind = UINT8_MAX;
-            code->previous = OP_GET_LOCAL_AND_INCREMENT_AND_SET;
+            code->previous = OP_INCREMENT_LOCAL_AND_SET;
             code->count -= 2;
         }
     }
@@ -2281,17 +2270,14 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
 
         // OP_CONSTANT: [Integer: -1]
         // OP_GET_DYNAMIC
-        // RETRIEVE
 
         // OP_GET_GLOBAL: [String: N]
         // OP_INCREMENT: [1]
         // OP_SET_GLOBAL: [String: N]
-        // UPDATE GLOBAL
 
         // OP_GET_GLOBAL
         // OP_GET_LOCAL
         // OP_ARRAY_PUSH
-        // PUSH LOCAL TO GLOBAL ARRAY
 
         if (i == OP_RETURN && p == OP_CALL) {
             code->instructions[count - 2] = OP_TAIL_CALL;
@@ -2328,9 +2314,9 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
                 int add = hymn_as_int(value);
                 if (add > 0 && add < UINT8_MAX) {
                     if (code->behind == OP_GET_LOCAL) {
-                        code->instructions[count - 4] = OP_GET_LOCAL_AND_INCREMENT;
+                        code->instructions[count - 4] = OP_INCREMENT_LOCAL;
                         code->behind = UINT8_MAX;
-                        code->previous = OP_GET_LOCAL_AND_INCREMENT;
+                        code->previous = OP_INCREMENT_LOCAL;
                         code->instructions[count - 2] = (uint8_t)add;
                         code->count--;
                         return;
@@ -3376,7 +3362,7 @@ static void for_statement(Compiler *this) {
     if (match(this, TOKEN_COMMA)) {
         expression(this);
     } else {
-        write_word_instruction(this, OP_GET_LOCAL_AND_INCREMENT_AND_SET, index, 1);
+        write_word_instruction(this, OP_INCREMENT_LOCAL_AND_SET, index, 1);
     }
 
     emit_loop(this, compare);
@@ -3409,14 +3395,12 @@ static void while_statement(Compiler *this) {
     expression(this);
     int jump = emit_jump(this, OP_JUMP_IF_FALSE);
 
-    // emit(this, OP_POP);
     block(this);
     emit_loop(this, start);
 
     this->loop = loop.next;
 
     patch_jump(this, jump);
-    // emit(this, OP_POP);
 
     patch_jump_list(this);
 
@@ -3514,11 +3498,6 @@ static void use_statement(Compiler *this) {
     emit(this, OP_USE);
 }
 
-static void do_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_DO);
-}
-
 static void throw_statement(Compiler *this) {
     expression(this);
     emit(this, OP_THROW);
@@ -3527,8 +3506,6 @@ static void throw_statement(Compiler *this) {
 static void statement(Compiler *this) {
     if (match(this, TOKEN_PRINT)) {
         print_statement(this);
-        // } else if (match(this, TOKEN_DO)) {
-        // do_statement(this);
     } else if (match(this, TOKEN_USE)) {
         use_statement(this);
     } else if (match(this, TOKEN_IF)) {
@@ -3551,8 +3528,6 @@ static void statement(Compiler *this) {
         try_statement(this);
     } else if (match(this, TOKEN_THROW)) {
         throw_statement(this);
-        // } else if (match(this, TOKEN_PASS)) {
-        // do nothing
     } else if (match(this, TOKEN_BEGIN)) {
         block(this);
         consume(this, TOKEN_END, "Expected 'end' after block.");
@@ -4240,31 +4215,6 @@ static HymnFrame *call_value(Hymn *this, HymnValue value, int count) {
     }
 }
 
-static HymnFrame *machine_do(Hymn *this, HymnObjectString *source) {
-    struct CompileReturn result = compile(this, NULL, source->string);
-
-    HymnFunction *func = result.func;
-    char *error = result.error;
-
-    if (error) {
-        function_delete(func);
-        return machine_throw_existing_error(this, error);
-    }
-
-    HymnValue function = hymn_new_func_value(func);
-    reference(function);
-
-    push(this, function);
-    call(this, func, 0);
-
-    error = machine_interpret(this);
-    if (error) {
-        return machine_throw_existing_error(this, error);
-    }
-
-    return current_frame(this);
-}
-
 static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
     HymnTable *imports = this->imports;
 
@@ -4434,7 +4384,6 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_CLEAR: return debug_instruction(debug, "OP_CLEAR", index);
     case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", this, index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
-    case OP_DO: return debug_instruction(debug, "OP_DO", index);
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", this, index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
@@ -4477,8 +4426,8 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", this, index);
     case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", this, index);
     case OP_SET_PROPERTY: return debug_constant_instruction(debug, "OP_SET_PROPERTY", this, index);
-    case OP_GET_LOCAL_AND_INCREMENT_AND_SET: return debug_three_byte_instruction(debug, "OP_GET_LOCAL_AND_INCREMENT_AND_SET", this, index);
-    case OP_GET_LOCAL_AND_INCREMENT: return debug_three_byte_instruction(debug, "OP_GET_LOCAL_AND_INCREMENT", this, index);
+    case OP_INCREMENT_LOCAL_AND_SET: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL_AND_SET", this, index);
+    case OP_INCREMENT_LOCAL: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL", this, index);
     case OP_SLICE: return debug_instruction(debug, "OP_SLICE", index);
     case OP_SUBTRACT: return debug_instruction(debug, "OP_SUBTRACT", index);
     case OP_TO_FLOAT: return debug_instruction(debug, "OP_TO_FLOAT", index);
@@ -5095,7 +5044,7 @@ static void machine_run(Hymn *this) {
             push(this, value);
             break;
         }
-        case OP_GET_LOCAL_AND_INCREMENT: {
+        case OP_INCREMENT_LOCAL: {
             uint8_t slot = READ_BYTE(frame);
             uint8_t increment = READ_BYTE(frame);
             HymnValue value = frame->stack[slot];
@@ -5110,7 +5059,7 @@ static void machine_run(Hymn *this) {
             push(this, value);
             break;
         }
-        case OP_GET_LOCAL_AND_INCREMENT_AND_SET: {
+        case OP_INCREMENT_LOCAL_AND_SET: {
             uint8_t slot = READ_BYTE(frame);
             uint8_t increment = READ_BYTE(frame);
             HymnValue value = frame->stack[slot];
@@ -5799,18 +5748,6 @@ static void machine_run(Hymn *this) {
             push(this, top);
             ;
             reference(top);
-            break;
-        }
-        case OP_DO: {
-            HymnValue code = pop(this);
-            if (hymn_is_string(code)) {
-                frame = machine_do(this, hymn_as_hymn_string(code));
-                dereference(this, code);
-                if (frame == NULL) return;
-            } else {
-                dereference(this, code);
-                THROW("Expected string for 'do' command.")
-            }
             break;
         }
         case OP_USE: {

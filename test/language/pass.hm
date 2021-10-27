@@ -1,7 +1,6 @@
 -- ok
 
 if true
-  pass
 else
   print "bad"
 end

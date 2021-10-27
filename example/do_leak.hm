@@ -1,3 +1,0 @@
--- there's a memory leak when an import is not found, inside a do operation
-
-do read("i-do-not-exist.hm")

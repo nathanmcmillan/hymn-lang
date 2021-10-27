@@ -2,7 +2,7 @@
 -- None
 
 function a() return end
-function b() pass end
+function b() end
 
 print a()
 print b()

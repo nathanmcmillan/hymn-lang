@@ -12,7 +12,7 @@
 -- length
 -- size
 
-function example() pass end
+function example() end
 
 if true print "boolean" else print "bad" end
 if 1 print "integer" else print "bad" end

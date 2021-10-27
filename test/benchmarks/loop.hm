@@ -3,13 +3,13 @@ let start = os_clock()
 let N = 10000000
 let list = []
 
-for let i = 0; i < N; i = i + 1
+for i = 0, i < N
   list[i] = i
 end
 
 let sum = 0
 
-for let i = 0; i < N; i = i + 1
+for i = 0, i < N
   sum = sum + list[i]
 end
 
