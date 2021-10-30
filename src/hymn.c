@@ -33,7 +33,6 @@
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_REFERENCE
-
 // #define HYMN_NO_MEMORY_MANAGE
 
 void *hymn_malloc(size_t size) {
@@ -631,7 +630,6 @@ enum TokenType {
     TOKEN_SEMICOLON,
     TOKEN_STRING,
     TOKEN_SUBTRACT,
-    TOKEN_SWITCH,
     TOKEN_THROW,
     TOKEN_TO_FLOAT,
     TOKEN_TO_INTEGER,
@@ -1036,7 +1034,6 @@ Rule rules[] = {
     [TOKEN_RIGHT_SQUARE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_STRING] = {compile_string, NULL, PRECEDENCE_NONE},
     [TOKEN_SUBTRACT] = {compile_unary, compile_binary, PRECEDENCE_TERM},
-    [TOKEN_SWITCH] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_TO_FLOAT] = {cast_float_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_TO_INTEGER] = {cast_integer_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_TO_STRING] = {cast_string_expression, NULL, PRECEDENCE_NONE},
@@ -1127,7 +1124,6 @@ static const char *token_name(enum TokenType type) {
     case TOKEN_SEMICOLON: return "SEMICOLON";
     case TOKEN_STRING: return "STRING";
     case TOKEN_SUBTRACT: return "SUBTRACT";
-    case TOKEN_SWITCH: return "SWITCH";
     case TOKEN_TO_FLOAT: return "FLOAT";
     case TOKEN_TO_INTEGER: return "INT";
     case TOKEN_TO_STRING: return "STRING";
@@ -1651,10 +1647,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
         break;
     case 's':
-        if (size == 6) {
-            if (ident[1] == 'w') return ident_trie(ident, 2, "itch", TOKEN_SWITCH);
-            if (ident[1] == 't') return ident_trie(ident, 2, "ring", TOKEN_TO_STRING);
-        }
+        if (size == 6) return ident_trie(ident, 1, "tring", TOKEN_TO_STRING);
         break;
     case 'k':
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
@@ -2227,13 +2220,13 @@ static void boundary(HymnByteCode *code) {
 
 #define REWRITE_BYTE(B)                \
     code->instructions[count - 1] = B; \
-    return
+    return true
 
 #define REWRITE_CODE(OP)                \
     code->instructions[count - 1] = OP; \
     code->behind = p;                   \
     code->previous = OP;                \
-    return
+    return true
 
 static void optimize_byte(HymnByteCode *code) {
     int count = code->count;
@@ -2263,7 +2256,7 @@ static void write_byte(HymnByteCode *code, uint8_t b, int row) {
     code->count = count + 1;
 }
 
-static void write_instruction(Compiler *this, uint8_t i, int row) {
+static bool write_instruction(Compiler *this, uint8_t i, int row) {
     HymnByteCode *code = current(this);
     int count = code->count;
     if (count != 0) {
@@ -2292,17 +2285,15 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
                 code->behind = p;
                 code->previous = OP_POP_N;
                 write_byte(code, 3, row);
-                return;
+                return true;
 
             } else if (p == OP_POP_N) {
                 uint8_t pop = code->instructions[count - 1];
                 if (pop < UINT8_MAX - 1) {
                     REWRITE_BYTE(pop + 1);
                 }
-            } else if (p == OP_INCREMENT_LOCAL_AND_SET) {
-                return;
-            } else if (p == OP_SET_LOCAL) {
-                return;
+            } else if (p == OP_INCREMENT_LOCAL_AND_SET || p == OP_SET_LOCAL || p == OP_SET_GLOBAL) {
+                return true;
             }
         } else if (i == OP_NEGATE && p == OP_CONSTANT) {
             HymnValue value = code->constants.values[code->instructions[count - 1]];
@@ -2325,7 +2316,7 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
                             code->behind = UINT8_MAX;
                             code->previous = OP_INCREMENT_LOCAL;
                             code->count--;
-                            return;
+                            return true;
 
                         } else {
                             code->instructions[count - 2] = OP_INCREMENT;
@@ -2341,7 +2332,7 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
                 code->behind = UINT8_MAX;
                 code->previous = OP_ADD_TWO_LOCAL;
                 code->count--;
-                return;
+                return true;
             }
         } else if (i == OP_JUMP_IF_TRUE) {
             switch (p) {
@@ -2351,6 +2342,13 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             case OP_GREATER: REWRITE_CODE(OP_JUMP_IF_GREATER);
             case OP_LESS_EQUAL: REWRITE_CODE(OP_JUMP_IF_LESS_EQUAL);
             case OP_GREATER_EQUAL: REWRITE_CODE(OP_JUMP_IF_GREATER_EQUAL);
+            case OP_TRUE: REWRITE_CODE(OP_JUMP);
+            case OP_FALSE: {
+                code->behind = UINT8_MAX;
+                code->previous = UINT8_MAX;
+                code->count--;
+                return false;
+            }
             }
         } else if (i == OP_JUMP_IF_FALSE) {
             switch (p) {
@@ -2360,12 +2358,20 @@ static void write_instruction(Compiler *this, uint8_t i, int row) {
             case OP_GREATER: REWRITE_CODE(OP_JUMP_IF_LESS_EQUAL);
             case OP_LESS_EQUAL: REWRITE_CODE(OP_JUMP_IF_GREATER);
             case OP_GREATER_EQUAL: REWRITE_CODE(OP_JUMP_IF_LESS);
+            case OP_FALSE: REWRITE_CODE(OP_JUMP);
+            case OP_TRUE: {
+                code->behind = UINT8_MAX;
+                code->previous = UINT8_MAX;
+                code->count--;
+                return false;
+            }
             }
         }
     }
     code->behind = code->previous;
     code->previous = i;
     write_byte(code, i, row);
+    return true;
 }
 
 static void write_short_instruction(Compiler *this, uint8_t i, uint8_t b) {
@@ -2383,8 +2389,8 @@ static void write_word_instruction(Compiler *this, uint8_t i, uint8_t b, uint8_t
     write_byte(code, n, row);
 }
 
-static void emit(Compiler *this, uint8_t i) {
-    write_instruction(this, i, this->previous.row);
+static bool emit(Compiler *this, uint8_t i) {
+    return write_instruction(this, i, this->previous.row);
 }
 
 static void emit_byte(Compiler *this, uint8_t i) {
@@ -2593,16 +2599,19 @@ static uint8_t ident_constant(Compiler *this, Token *token) {
 }
 
 static void begin_scope(Compiler *this) {
+    boundary(current(this));
     this->scope->depth++;
 }
 
 static void end_scope(Compiler *this) {
+    boundary(current(this));
     Scope *scope = this->scope;
     scope->depth--;
     while (scope->local_count > 0 && scope->locals[scope->local_count - 1].depth > scope->depth) {
         emit(this, OP_POP);
         scope->local_count--;
     }
+    boundary(current(this));
 }
 
 static void compile_array(Compiler *this, bool assign) {
@@ -2842,14 +2851,20 @@ static void compile_square(Compiler *this, bool assign) {
 }
 
 static int emit_jump(Compiler *this, uint8_t instruction) {
-    emit(this, instruction);
-    emit_byte(this, UINT8_MAX);
-    emit_byte(this, UINT8_MAX);
-    // boundary(current(this));
-    return current(this)->count - 2;
+    if (emit(this, instruction)) {
+        emit_byte(this, UINT8_MAX);
+        emit_byte(this, UINT8_MAX);
+        boundary(current(this));
+        return current(this)->count - 2;
+    } else {
+        return -1;
+    }
 }
 
 static void patch_jump(Compiler *this, int jump) {
+    if (jump == -1) {
+        return;
+    }
     HymnByteCode *code = current(this);
     int offset = code->count - jump - 2;
     if (offset > UINT16_MAX) {
@@ -2858,7 +2873,7 @@ static void patch_jump(Compiler *this, int jump) {
     }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
     code->instructions[jump + 1] = offset & UINT8_MAX;
-    // boundary(current(this));
+    boundary(current(this));
 }
 
 static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode code) {
@@ -2868,12 +2883,12 @@ static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode
     return jump;
 }
 
-static void free_jumps(Compiler *C, struct JumpList *list) {
-    while (list != NULL) {
-        patch_jump(C, list->jump);
-        struct JumpList *next = list->next;
-        free(list);
-        list = next;
+static void free_jumps(Compiler *C, struct JumpList *jump) {
+    while (jump != NULL) {
+        patch_jump(C, jump->jump);
+        struct JumpList *next = jump->next;
+        free(jump);
+        jump = next;
     }
 }
 
@@ -2972,6 +2987,7 @@ static void if_statement(Compiler *C) {
     end_scope(C);
 
     struct JumpList jump_end = {0};
+
     jump_end.jump = emit_jump(C, OP_JUMP);
     struct JumpList *tail = &jump_end;
 
@@ -3039,112 +3055,6 @@ static bool compile_literal(Compiler *this) {
     default:
         return false;
     }
-}
-
-static void switch_statement(Compiler *this) {
-    begin_scope(this);
-
-    uint8_t local = push_hidden_local(this);
-    expression(this);
-
-    if (!check(this, TOKEN_CASE)) {
-        compile_error(this, &this->current, "Expected case.");
-        return;
-    }
-
-    int jump = -1;
-
-    struct JumpList *head = NULL;
-    struct JumpList *tail = NULL;
-
-    while (match(this, TOKEN_CASE)) {
-        if (jump != -1) {
-            patch_jump(this, jump);
-            emit(this, OP_POP);
-        }
-
-        if (!compile_literal(this)) {
-            compile_error(this, &this->current, "Expected literal for case.");
-        }
-        write_short_instruction(this, OP_GET_LOCAL, local);
-        emit(this, OP_EQUAL);
-
-        struct JumpList *body = NULL;
-
-        if (match(this, TOKEN_OR)) {
-            body = hymn_calloc(1, sizeof(struct JumpList));
-            struct JumpList *link = body;
-            body->jump = emit_jump(this, OP_JUMP_IF_TRUE);
-            emit(this, OP_POP);
-
-            while (true) {
-                if (!compile_literal(this)) {
-                    compile_error(this, &this->current, "Expected literal after 'or' in case.");
-                }
-                write_short_instruction(this, OP_GET_LOCAL, local);
-                emit(this, OP_EQUAL);
-
-                if (match(this, TOKEN_OR)) {
-                    struct JumpList *next = hymn_calloc(1, sizeof(struct JumpList));
-                    next->jump = emit_jump(this, OP_JUMP_IF_TRUE);
-                    emit(this, OP_POP);
-
-                    link->next = next;
-                    link = next;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        jump = emit_jump(this, OP_JUMP_IF_FALSE);
-
-        while (body != NULL) {
-            patch_jump(this, body->jump);
-            struct JumpList *next = body->next;
-            free(body);
-            body = next;
-        }
-
-        emit(this, OP_POP);
-
-        begin_scope(this);
-        while (!check(this, TOKEN_CASE) && !check(this, TOKEN_ELSE) && !check(this, TOKEN_END) && !check(this, TOKEN_EOF)) {
-            declaration(this);
-        }
-        end_scope(this);
-
-        struct JumpList *next = hymn_calloc(1, sizeof(struct JumpList));
-        next->jump = emit_jump(this, OP_JUMP);
-
-        if (head == NULL) {
-            head = next;
-            tail = next;
-        } else {
-            tail->next = next;
-            tail = next;
-        }
-    }
-
-    if (jump != -1) {
-        patch_jump(this, jump);
-        emit(this, OP_POP);
-    }
-
-    if (match(this, TOKEN_ELSE)) {
-        block(this);
-    }
-
-    while (head != NULL) {
-        patch_jump(this, head->jump);
-        struct JumpList *next = head->next;
-        free(head);
-        head = next;
-    }
-
-    end_scope(this);
-
-    consume(this, TOKEN_END, "Expected 'end' after switch statement.");
 }
 
 static void emit_loop(Compiler *this, int start) {
@@ -3416,7 +3326,6 @@ static void while_statement(Compiler *this) {
     this->loop = loop.next;
 
     patch_jump(this, jump);
-
     patch_jump_list(this);
 
     consume(this, TOKEN_END, "While: Missing 'end'.");
@@ -3435,6 +3344,7 @@ static void return_statement(Compiler *this) {
 }
 
 static void pop_stack_loop(Compiler *this) {
+    boundary(current(this));
     int depth = this->loop->depth;
     Scope *scope = this->scope;
     for (int i = scope->local_count; i > 0; i--) {
@@ -3443,6 +3353,7 @@ static void pop_stack_loop(Compiler *this) {
         }
         emit(this, OP_POP);
     }
+    boundary(current(this));
 }
 
 static void break_statement(Compiler *this) {
@@ -3525,8 +3436,6 @@ static void statement(Compiler *this) {
         use_statement(this);
     } else if (match(this, TOKEN_IF)) {
         if_statement(this);
-    } else if (match(this, TOKEN_SWITCH)) {
-        switch_statement(this);
     } else if (match(this, TOKEN_ITERATE)) {
         iterate_statement(this);
     } else if (match(this, TOKEN_FOR)) {
@@ -4581,14 +4490,6 @@ static void machine_run(Hymn *this) {
     HymnFrame *frame = current_frame(this);
 
     while (true) {
-#ifdef HYMN_DEBUG_TRACE
-        {
-            HymnString *debug = hymn_new_string("");
-            disassemble_instruction(&debug, &frame->func->code, (int)(frame->ip - frame->func->code.instructions));
-            printf("%s\n", debug);
-            hymn_string_delete(debug);
-        }
-#endif
 #ifdef HYMN_DEBUG_STACK
         if (this->stack_top != this->stack) {
             HymnString *debug = hymn_new_string("");
@@ -4599,7 +4500,15 @@ static void machine_run(Hymn *this) {
                 hymn_string_delete(stack_debug);
                 debug = hymn_string_append(debug, "] ");
             }
-            printf("STACK   | %s\n", debug);
+            printf("STACK   * %s\n", debug);
+            hymn_string_delete(debug);
+        }
+#endif
+#ifdef HYMN_DEBUG_TRACE
+        {
+            HymnString *debug = hymn_new_string("");
+            disassemble_instruction(&debug, &frame->func->code, (int)(frame->ip - frame->func->code.instructions));
+            printf("%s\n", debug);
             hymn_string_delete(debug);
         }
 #endif
@@ -5077,7 +4986,7 @@ static void machine_run(Hymn *this) {
         }
         case OP_SET_GLOBAL: {
             HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-            HymnValue value = peek(this, 1);
+            HymnValue value = pop(this);
             HymnValue exists = table_get(&this->globals, name);
             if (hymn_is_undefined(exists)) {
                 THROW("Undefined variable '%s'.", name->string)
@@ -5088,7 +4997,6 @@ static void machine_run(Hymn *this) {
             } else {
                 dereference(this, previous);
             }
-            reference(value);
             break;
         }
         case OP_GET_GLOBAL: {

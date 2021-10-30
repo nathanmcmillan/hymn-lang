@@ -103,7 +103,7 @@
       }
     },
     {
-      "match": "\\b(if|elif|else|for|while|iterate|return|break|continue|and|or|switch|case|pass|in|try|except|throw|begin|end)\\b",
+      "match": "\\b(if|elif|else|for|while|iterate|return|break|continue|and|or|in|try|except|throw|begin|end)\\b",
       "captures": {
         "1": {
           "name": "keyword.control.hymn"

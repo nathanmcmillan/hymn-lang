@@ -19,11 +19,10 @@ function upper(s)
   let size = len(s)
   for i = 0, i < size
     let c = s[i]
-    switch c
-    case 'a' c = 'A'
-    case 'b' c = 'B'
-    case 'f' c = 'F'
-    case 'o' c = 'O'
+    if c == 'a' c = 'A'
+    elif c == 'b' c = 'B'
+    elif c == 'f' c = 'F'
+    elif c == 'o' c = 'O'
     end
     new = new + c
   end

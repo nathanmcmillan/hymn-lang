@@ -5,39 +5,35 @@
 
 let x = 3
 
-switch x
-case 3
+if x == 3
   print "first"
-case 5
+elif x == 5
   print "bad"
-else
+elif
   print "bad"
 end
 
-switch x
-case 5
+if x == 5
   print "bad"
-case 3
+elif x == 3
   print "second"
 else
   print "bad"
 end
 
-switch x
-case none
+if x == none
   print "bad"
-case true
+elif x == true
   print "bad"
-case 2 or 3 or 4
+elif x == 2 or x == 3 or x == 4
   print "or"
 else
   print "bad"
 end
 
-switch x
-case 4
+if x == 4
   print "bad"
-case 5
+elif x == 5
   print "bad"
 else
   print "else"

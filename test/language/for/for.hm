@@ -7,11 +7,13 @@
 -- 1
 -- 2
 -- 3
+-- 0
 --
 -- 0
 -- 1
 -- 2
 -- 3
+-- 0
 
 for i = 0, i < 4
   print i
@@ -22,11 +24,12 @@ let i = 0
 for i = 0, i < 4, i = i + 1
   print i
 end
+print i
 print ""
 
 i = 0
 for i = 0, true
   print i
-  i = i + 1
-  if i == 4 break end
+  if i == 3 break end
 end
+print i

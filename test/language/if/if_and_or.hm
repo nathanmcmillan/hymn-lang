@@ -26,6 +26,8 @@
 -- end
 -- N
 -- end
+-- M
+-- end
 
 if 0 == 1 and 2 == 2
   print "no"
@@ -147,5 +149,14 @@ elif 10 == 12 and 10 == 14 or 10 == 108
   print "no"
 else
   print "N"
+end
+print "end"
+
+if 1 == 1 and 2 == 2 or 0 == 100
+  if 0 == 1 and 0 == 2 or 3 == 3
+    if 4 == 4 or 6 == 8 or 10 == 12
+      print "M"
+    end
+  end
 end
 print "end"
