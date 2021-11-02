@@ -25,32 +25,32 @@
 let table = { a: 2, b: 4, c: 8 }
 
 print "begin"
-iterate value in table
+for value in table
   print value
 end
 print "end"
 
 print "begin"
-iterate k, value in table
+for k, value in table
   print k + " -> " + value
 end
 print "end"
 
 print "begin"
-iterate value in { d: 10, e: 12, f: 14 }
+for value in { d: 10, e: 12, f: 14 }
   print value
 end
 print "end"
 
 print "begin"
-iterate k, value in { d: 10, e: 12, f: 14 }
+for k, value in { d: 10, e: 12, f: 14 }
   if k == "f" break end
   print k + " -> " + value
 end
 print "end"
 
 print "begin"
-iterate value in table
+for value in table
   if value == 2 continue end
   print value
 end

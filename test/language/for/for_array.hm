@@ -25,32 +25,32 @@
 let array = [2, 4, 8]
 
 print "begin"
-iterate value in array
+for value in array
   print value
 end
 print "end"
 
 print "begin"
-iterate i, value in array
+for i, value in array
   print i + " -> " + value
 end
 print "end"
 
 print "begin"
-iterate value in [10, 12, 14]
+for value in [10, 12, 14]
   print value
 end
 print "end"
 
 print "begin"
-iterate i, value in [10, 12, 14]
+for i, value in [10, 12, 14]
   if i == 2 break end
   print i + " -> " + value
 end
 print "end"
 
 print "begin"
-iterate value in array
+for value in array
   if value == 2 continue end
   print value
 end

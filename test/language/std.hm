@@ -61,7 +61,7 @@ end
 function sort(a, comparator)
   let n = []
   let total = 0
-  iterate v in a
+  for v in a
     let id = 0
     while true
       if id == total break end

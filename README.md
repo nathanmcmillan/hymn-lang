@@ -52,10 +52,16 @@ $ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -
 $ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm
 ```
 
-### Release
+### ISO C Release
 
 ```
 $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
+```
+
+### Non ISO C Release (Computed GOTO)
+
+```
+$ gcc src/*.c -O3 -s -DNDEBUG -o hymn -lm
 ```
 
 ## MSVC
