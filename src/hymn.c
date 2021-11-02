@@ -18,9 +18,6 @@
 #define PATH_SEP '/'
 #define PATH_SEP_STRING "/"
 #define UNREACHABLE() __builtin_unreachable()
-#ifndef __STRICT_ANSI__
-#define HYMN_COMPUTED_GOTO
-#endif
 #elif _MSC_VER
 #include <direct.h>
 #include <windows.h>
@@ -4507,8 +4504,12 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
         frame->ip += jump;                                            \
     }
 
-#if defined HYMN_DEBUG_STACK || defined HYMN_DEBUG_TRACE
-static void debug_instructions(Hymn *this, HymnFrame *frame) {
+static void machine_run(Hymn *this) {
+    HymnFrame *frame = current_frame(this);
+
+#define HYMN_DISPATCH goto dispatch
+
+dispatch:
 #ifdef HYMN_DEBUG_STACK
     if (this->stack_top != this->stack) {
         HymnString *debug = hymn_new_string("");
@@ -4531,1348 +4532,1241 @@ static void debug_instructions(Hymn *this, HymnFrame *frame) {
         hymn_string_delete(debug);
     }
 #endif
-}
-#define DEBUG_INSTRUCTIONS debug_instructions(this, frame)
-#else
-#define DEBUG_INSTRUCTIONS \
-    do {                   \
-    } while (false)
-#endif
-
-static void machine_run(Hymn *this) {
-    HymnFrame *frame = current_frame(this);
-
-#ifdef HYMN_COMPUTED_GOTO
-    static void *dispatch[] = {
-        &&DO_ADD,
-        &&DO_ADD_TWO_LOCAL,
-        &&DO_INCREMENT,
-        &&DO_ARRAY_INSERT,
-        &&DO_ARRAY_POP,
-        &&DO_ARRAY_PUSH,
-        &&DO_BIT_AND,
-        &&DO_BIT_LEFT_SHIFT,
-        &&DO_BIT_NOT,
-        &&DO_BIT_OR,
-        &&DO_BIT_RIGHT_SHIFT,
-        &&DO_BIT_XOR,
-        &&DO_CALL,
-        &&DO_TAIL_CALL,
-        &&DO_CLEAR,
-        &&DO_CONSTANT,
-        &&DO_COPY,
-        &&DO_DEFINE_GLOBAL,
-        &&DO_DELETE,
-        &&DO_DIVIDE,
-        &&DO_DUPLICATE,
-        &&DO_EQUAL,
-        &&DO_FALSE,
-        &&DO_GET_DYNAMIC,
-        &&DO_GET_GLOBAL,
-        &&DO_GET_LOCAL,
-        &&DO_GET_PROPERTY,
-        &&DO_GREATER,
-        &&DO_GREATER_EQUAL,
-        &&DO_INDEX,
-        &&DO_JUMP,
-        &&DO_JUMP_IF_EQUAL,
-        &&DO_JUMP_IF_NOT_EQUAL,
-        &&DO_JUMP_IF_LESS,
-        &&DO_JUMP_IF_GREATER,
-        &&DO_JUMP_IF_LESS_EQUAL,
-        &&DO_JUMP_IF_GREATER_EQUAL,
-        &&DO_JUMP_IF_FALSE,
-        &&DO_JUMP_IF_TRUE,
-        &&DO_KEYS,
-        &&DO_LEN,
-        &&DO_LESS,
-        &&DO_LESS_EQUAL,
-        &&DO_LOOP,
-        &&DO_MODULO,
-        &&DO_MULTIPLY,
-        &&DO_NEGATE,
-        &&DO_NONE,
-        &&DO_NOT,
-        &&DO_NOT_EQUAL,
-        &&DO_POP,
-        &&DO_POP_TWO,
-        &&DO_POP_N,
-        &&DO_PRINT,
-        &&DO_RETURN,
-        &&DO_SET_DYNAMIC,
-        &&DO_SET_GLOBAL,
-        &&DO_SET_LOCAL,
-        &&DO_SET_PROPERTY,
-        &&DO_INCREMENT_LOCAL,
-        &&DO_INCREMENT_LOCAL_AND_SET,
-        &&DO_SLICE,
-        &&DO_SUBTRACT,
-        &&DO_THROW,
-        &&DO_TO_FLOAT,
-        &&DO_TO_INTEGER,
-        &&DO_TO_STRING,
-        &&DO_TRUE,
-        &&DO_TYPE,
-        &&DO_USE};
-#define OP(V) DO_##V:
-#define HYMN_DISPATCH   \
-    DEBUG_INSTRUCTIONS; \
-    goto *dispatch[READ_BYTE(frame)]
-#define NOP
-#else
-#define OP(V) case OP_##V:
-#define HYMN_DISPATCH goto dispatch
-#define NOP  \
-    default: \
-        UNREACHABLE();
-#endif
-
-#ifdef HYMN_COMPUTED_GOTO
-    printf("computed...\n");
-#define INTERPRET
-    HYMN_DISPATCH;
-#else
-    printf("switch...\n");
-#define INTERPRET       \
-    dispatch:           \
-    DEBUG_INSTRUCTIONS; \
-    switch (READ_BYTE(frame))
-#endif
-
-    INTERPRET {
-        OP(RETURN) {
-            HymnValue result = pop(this);
-            this->frame_count--;
-            if (this->frame_count == 0 || frame->func->name == NULL) {
-                dereference(this, pop(this));
-                return;
-            }
-            while (this->stack_top != frame->stack) {
-                dereference(this, pop(this));
-            }
-            push(this, result);
-            frame = current_frame(this);
-            HYMN_DISPATCH;
-        }
-        OP(POP) {
+    switch (READ_BYTE(frame)) {
+    case OP_RETURN: {
+        HymnValue result = pop(this);
+        this->frame_count--;
+        if (this->frame_count == 0 || frame->func->name == NULL) {
             dereference(this, pop(this));
-            HYMN_DISPATCH;
+            return;
         }
-        OP(POP_TWO) {
+        while (this->stack_top != frame->stack) {
             dereference(this, pop(this));
+        }
+        push(this, result);
+        frame = current_frame(this);
+        HYMN_DISPATCH;
+    }
+    case OP_POP: {
+        dereference(this, pop(this));
+        HYMN_DISPATCH;
+    }
+    case OP_POP_TWO: {
+        dereference(this, pop(this));
+        dereference(this, pop(this));
+        HYMN_DISPATCH;
+    }
+    case OP_POP_N: {
+        int count = READ_BYTE(frame);
+        while (count--) {
             dereference(this, pop(this));
-            HYMN_DISPATCH;
         }
-        OP(POP_N) {
-            int count = READ_BYTE(frame);
-            while (count--) {
-                dereference(this, pop(this));
-            }
-            HYMN_DISPATCH;
-        }
-        OP(TRUE) {
-            push(this, hymn_new_bool(true));
-            HYMN_DISPATCH;
-        }
-        OP(FALSE) {
-            push(this, hymn_new_bool(false));
-            HYMN_DISPATCH;
-        }
-        OP(NONE) {
-            push(this, hymn_new_none());
-            HYMN_DISPATCH;
-        }
-        OP(CALL) {
-            int count = READ_BYTE(frame);
-            HymnValue value = peek(this, count + 1);
-            frame = call_value(this, value, count);
-            if (frame == NULL) return;
-            HYMN_DISPATCH;
-        }
-        OP(TAIL_CALL) {
-            // TODO
-            int count = READ_BYTE(frame);
-            HymnValue value = peek(this, count + 1);
-            frame = call_value(this, value, count);
-            if (frame == NULL) return;
-            HYMN_DISPATCH;
-        }
-        OP(JUMP) {
-            uint16_t jump = READ_SHORT(frame);
+        HYMN_DISPATCH;
+    }
+    case OP_TRUE: {
+        push(this, hymn_new_bool(true));
+        HYMN_DISPATCH;
+    }
+    case OP_FALSE: {
+        push(this, hymn_new_bool(false));
+        HYMN_DISPATCH;
+    }
+    case OP_NONE: {
+        push(this, hymn_new_none());
+        HYMN_DISPATCH;
+    }
+    case OP_CALL: {
+        int count = READ_BYTE(frame);
+        HymnValue value = peek(this, count + 1);
+        frame = call_value(this, value, count);
+        if (frame == NULL) return;
+        HYMN_DISPATCH;
+    }
+    case OP_TAIL_CALL: {
+        // TODO
+        int count = READ_BYTE(frame);
+        HymnValue value = peek(this, count + 1);
+        frame = call_value(this, value, count);
+        if (frame == NULL) return;
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP: {
+        uint16_t jump = READ_SHORT(frame);
+        frame->ip += jump;
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_FALSE: {
+        HymnValue a = pop(this);
+        uint16_t jump = READ_SHORT(frame);
+        if (machine_false(a)) {
             frame->ip += jump;
-            HYMN_DISPATCH;
         }
-        OP(JUMP_IF_FALSE) {
-            HymnValue a = pop(this);
-            uint16_t jump = READ_SHORT(frame);
-            if (machine_false(a)) {
-                frame->ip += jump;
-            }
-            dereference(this, a);
-            HYMN_DISPATCH;
+        dereference(this, a);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_TRUE: {
+        HymnValue a = pop(this);
+        uint16_t jump = READ_SHORT(frame);
+        if (!machine_false(a)) {
+            frame->ip += jump;
         }
-        OP(JUMP_IF_TRUE) {
-            HymnValue a = pop(this);
-            uint16_t jump = READ_SHORT(frame);
-            if (!machine_false(a)) {
-                frame->ip += jump;
-            }
-            dereference(this, a);
-            HYMN_DISPATCH;
+        dereference(this, a);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_EQUAL: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        uint16_t jump = READ_SHORT(frame);
+        if (machine_equal(a, b)) {
+            frame->ip += jump;
         }
-        OP(JUMP_IF_EQUAL) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            uint16_t jump = READ_SHORT(frame);
-            if (machine_equal(a, b)) {
-                frame->ip += jump;
-            }
-            dereference(this, a);
-            dereference(this, b);
-            HYMN_DISPATCH;
+        dereference(this, a);
+        dereference(this, b);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_NOT_EQUAL: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        uint16_t jump = READ_SHORT(frame);
+        if (!machine_equal(a, b)) {
+            frame->ip += jump;
         }
-        OP(JUMP_IF_NOT_EQUAL) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            uint16_t jump = READ_SHORT(frame);
-            if (!machine_equal(a, b)) {
-                frame->ip += jump;
-            }
-            dereference(this, a);
-            dereference(this, b);
-            HYMN_DISPATCH;
-        }
-        OP(JUMP_IF_LESS) {
-            JUMP_COMPARE_OP(<);
-            HYMN_DISPATCH;
-        }
-        OP(JUMP_IF_LESS_EQUAL) {
-            JUMP_COMPARE_OP(<=);
-            HYMN_DISPATCH;
-        }
-        OP(JUMP_IF_GREATER) {
-            JUMP_COMPARE_OP(>);
-            HYMN_DISPATCH;
-        }
-        OP(JUMP_IF_GREATER_EQUAL) {
-            JUMP_COMPARE_OP(>=);
-            HYMN_DISPATCH;
-        }
-        OP(LOOP) {
-            uint16_t jump = READ_SHORT(frame);
-            frame->ip -= jump;
-            HYMN_DISPATCH;
-        }
-        OP(EQUAL) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            push(this, hymn_new_bool(machine_equal(a, b)));
-            dereference(this, a);
-            dereference(this, b);
-            HYMN_DISPATCH;
-        }
-        OP(NOT_EQUAL) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            push(this, hymn_new_bool(!machine_equal(a, b)));
-            dereference(this, a);
-            dereference(this, b);
-            HYMN_DISPATCH;
-        }
-        OP(LESS) {
-            COMPARE_OP(<);
-            HYMN_DISPATCH;
-        }
-        OP(LESS_EQUAL) {
-            COMPARE_OP(<=);
-            HYMN_DISPATCH;
-        }
-        OP(GREATER) {
-            COMPARE_OP(>);
-            HYMN_DISPATCH;
-        }
-        OP(GREATER_EQUAL) {
-            COMPARE_OP(>=);
-            HYMN_DISPATCH;
-        }
-        OP(ADD) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_none(a)) {
-                if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_bool(a)) {
-                if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i += b.as.i;
-                    push(this, a);
-                } else if (hymn_is_float(b)) {
-                    b.as.f += a.as.i;
-                    push(this, a);
-                } else if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_float(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.f += b.as.i;
-                    push(this, a);
-                } else if (hymn_is_float(b)) {
-                    a.as.f += b.as.f;
-                    push(this, a);
-                } else if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_string(a)) {
+        dereference(this, a);
+        dereference(this, b);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_LESS: {
+        JUMP_COMPARE_OP(<);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_LESS_EQUAL: {
+        JUMP_COMPARE_OP(<=);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_GREATER: {
+        JUMP_COMPARE_OP(>);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_GREATER_EQUAL: {
+        JUMP_COMPARE_OP(>=);
+        HYMN_DISPATCH;
+    }
+    case OP_LOOP: {
+        uint16_t jump = READ_SHORT(frame);
+        frame->ip -= jump;
+        HYMN_DISPATCH;
+    }
+    case OP_EQUAL: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        push(this, hymn_new_bool(machine_equal(a, b)));
+        dereference(this, a);
+        dereference(this, b);
+        HYMN_DISPATCH;
+    }
+    case OP_NOT_EQUAL: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        push(this, hymn_new_bool(!machine_equal(a, b)));
+        dereference(this, a);
+        dereference(this, b);
+        HYMN_DISPATCH;
+    }
+    case OP_LESS: {
+        COMPARE_OP(<);
+        HYMN_DISPATCH;
+    }
+    case OP_LESS_EQUAL: {
+        COMPARE_OP(<=);
+        HYMN_DISPATCH;
+    }
+    case OP_GREATER: {
+        COMPARE_OP(>);
+        HYMN_DISPATCH;
+    }
+    case OP_GREATER_EQUAL: {
+        COMPARE_OP(>=);
+        HYMN_DISPATCH;
+    }
+    case OP_ADD: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_none(a)) {
+            if (hymn_is_string(b)) {
                 machine_push_intern_string(this, value_concat(a, b));
             } else {
+                dereference(this, a);
+                dereference(this, b);
                 THROW("Add: 1st and 2nd values can't be added.")
             }
-            dereference(this, a);
-            dereference(this, b);
-            HYMN_DISPATCH;
-        }
-        OP(ADD_TWO_LOCAL) {
-            uint8_t slot_a = READ_BYTE(frame);
-            uint8_t slot_b = READ_BYTE(frame);
-            HymnValue b = frame->stack[slot_a];
-            HymnValue a = frame->stack[slot_b];
-            if (hymn_is_none(a)) {
-                if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_bool(a)) {
-                if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i += b.as.i;
-                    push(this, a);
-                } else if (hymn_is_float(b)) {
-                    b.as.f += a.as.i;
-                    push(this, a);
-                } else if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_float(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.f += b.as.i;
-                    push(this, a);
-                } else if (hymn_is_float(b)) {
-                    a.as.f += b.as.f;
-                    push(this, a);
-                } else if (hymn_is_string(b)) {
-                    machine_push_intern_string(this, value_concat(a, b));
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Add: 1st and 2nd values can't be added.")
-                }
-            } else if (hymn_is_string(a)) {
+        } else if (hymn_is_bool(a)) {
+            if (hymn_is_string(b)) {
                 machine_push_intern_string(this, value_concat(a, b));
             } else {
+                dereference(this, a);
+                dereference(this, b);
                 THROW("Add: 1st and 2nd values can't be added.")
             }
-            HYMN_DISPATCH;
-        }
-        OP(INCREMENT) {
-            HymnValue a = pop(this);
-            uint8_t increment = READ_BYTE(frame);
-            if (hymn_is_none(a)) {
-                dereference(this, a);
-                THROW("Increment: 1st and 2nd values can't be added.")
-            } else if (hymn_is_bool(a)) {
-                dereference(this, a);
-                THROW("Increment: 1st and 2nd values can't be added.")
-            } else if (hymn_is_int(a)) {
-                a.as.i += (int64_t)increment;
+        } else if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i += b.as.i;
                 push(this, a);
-            } else if (hymn_is_float(a)) {
-                a.as.f += (double)increment;
+            } else if (hymn_is_float(b)) {
+                b.as.f += a.as.i;
                 push(this, a);
-            } else if (hymn_is_string(a)) {
-                machine_push_intern_string(this, value_concat(a, hymn_new_int((int64_t)increment)));
+            } else if (hymn_is_string(b)) {
+                machine_push_intern_string(this, value_concat(a, b));
             } else {
-                THROW("Increment: 1st and 2nd values can't be added.")
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Add: 1st and 2nd values can't be added.")
             }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                a.as.f += b.as.i;
+                push(this, a);
+            } else if (hymn_is_float(b)) {
+                a.as.f += b.as.f;
+                push(this, a);
+            } else if (hymn_is_string(b)) {
+                machine_push_intern_string(this, value_concat(a, b));
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Add: 1st and 2nd values can't be added.")
+            }
+        } else if (hymn_is_string(a)) {
+            machine_push_intern_string(this, value_concat(a, b));
+        } else {
+            THROW("Add: 1st and 2nd values can't be added.")
+        }
+        dereference(this, a);
+        dereference(this, b);
+        HYMN_DISPATCH;
+    }
+    case OP_ADD_TWO_LOCAL: {
+        uint8_t slot_a = READ_BYTE(frame);
+        uint8_t slot_b = READ_BYTE(frame);
+        HymnValue b = frame->stack[slot_a];
+        HymnValue a = frame->stack[slot_b];
+        if (hymn_is_none(a)) {
+            if (hymn_is_string(b)) {
+                machine_push_intern_string(this, value_concat(a, b));
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Add: 1st and 2nd values can't be added.")
+            }
+        } else if (hymn_is_bool(a)) {
+            if (hymn_is_string(b)) {
+                machine_push_intern_string(this, value_concat(a, b));
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Add: 1st and 2nd values can't be added.")
+            }
+        } else if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i += b.as.i;
+                push(this, a);
+            } else if (hymn_is_float(b)) {
+                b.as.f += a.as.i;
+                push(this, a);
+            } else if (hymn_is_string(b)) {
+                machine_push_intern_string(this, value_concat(a, b));
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Add: 1st and 2nd values can't be added.")
+            }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                a.as.f += b.as.i;
+                push(this, a);
+            } else if (hymn_is_float(b)) {
+                a.as.f += b.as.f;
+                push(this, a);
+            } else if (hymn_is_string(b)) {
+                machine_push_intern_string(this, value_concat(a, b));
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Add: 1st and 2nd values can't be added.")
+            }
+        } else if (hymn_is_string(a)) {
+            machine_push_intern_string(this, value_concat(a, b));
+        } else {
+            THROW("Add: 1st and 2nd values can't be added.")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_INCREMENT: {
+        HymnValue a = pop(this);
+        uint8_t increment = READ_BYTE(frame);
+        if (hymn_is_none(a)) {
             dereference(this, a);
-            HYMN_DISPATCH;
+            THROW("Increment: 1st and 2nd values can't be added.")
+        } else if (hymn_is_bool(a)) {
+            dereference(this, a);
+            THROW("Increment: 1st and 2nd values can't be added.")
+        } else if (hymn_is_int(a)) {
+            a.as.i += (int64_t)increment;
+            push(this, a);
+        } else if (hymn_is_float(a)) {
+            a.as.f += (double)increment;
+            push(this, a);
+        } else if (hymn_is_string(a)) {
+            machine_push_intern_string(this, value_concat(a, hymn_new_int((int64_t)increment)));
+        } else {
+            THROW("Increment: 1st and 2nd values can't be added.")
         }
-        OP(SUBTRACT) {
-            ARITHMETIC_OP(-=);
-            HYMN_DISPATCH;
-        }
-        OP(MULTIPLY) {
-            ARITHMETIC_OP(*=);
-            HYMN_DISPATCH;
-        }
-        OP(DIVIDE) {
-            ARITHMETIC_OP(/=);
-            HYMN_DISPATCH;
-        }
-        OP(MODULO) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i %= b.as.i;
-                    push(this, a);
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Modulo Error: 2nd value must be `Integer`.")
-                }
+        dereference(this, a);
+        HYMN_DISPATCH;
+    }
+    case OP_SUBTRACT: {
+        ARITHMETIC_OP(-=);
+        HYMN_DISPATCH;
+    }
+    case OP_MULTIPLY: {
+        ARITHMETIC_OP(*=);
+        HYMN_DISPATCH;
+    }
+    case OP_DIVIDE: {
+        ARITHMETIC_OP(/=);
+        HYMN_DISPATCH;
+    }
+    case OP_MODULO: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i %= b.as.i;
+                push(this, a);
             } else {
                 dereference(this, a);
                 dereference(this, b);
-                THROW("Modulo Error: 1st and 2nd values must be `Integer`.")
+                THROW("Modulo Error: 2nd value must be `Integer`.")
             }
-            HYMN_DISPATCH;
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Modulo Error: 1st and 2nd values must be `Integer`.")
         }
-        OP(BIT_NOT) {
-            HymnValue value = pop(this);
-            if (hymn_is_int(value)) {
-                value.as.i = ~value.as.i;
-                push(this, value);
-            } else {
-                dereference(this, value);
-                THROW("Bitwise operand must integer.")
-            }
-            HYMN_DISPATCH;
-        }
-        OP(BIT_OR) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i |= b.as.i;
-                    push(this, a);
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Bit Or Error: 2nd value must be `Integer`.")
-                }
-            } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Or Error: 1st and 2nd values must be `Integer`.")
-            }
-            HYMN_DISPATCH;
-        }
-        OP(BIT_AND) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i &= b.as.i;
-                    push(this, a);
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Bit And Error: 2nd value must be `Integer`.")
-                }
-            } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit And Error: 1st and 2nd values must be `Integer`.")
-            }
-            HYMN_DISPATCH;
-        }
-        OP(BIT_XOR) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i ^= b.as.i;
-                    push(this, a);
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Bit Xor Error: 2nd value must be `Integer`.")
-                }
-            } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Xor Error: 1st and 2nd values must be `Integer`.")
-            }
-            HYMN_DISPATCH;
-        }
-        OP(BIT_LEFT_SHIFT) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i <<= b.as.i;
-                    push(this, a);
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Bit Left Shift Error: 2nd value must be `Integer`.")
-                }
-            } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Left Shift Error: 1st and 2nd values must be `Integer`.")
-            }
-            HYMN_DISPATCH;
-        }
-        OP(BIT_RIGHT_SHIFT) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            if (hymn_is_int(a)) {
-                if (hymn_is_int(b)) {
-                    a.as.i >>= b.as.i;
-                    push(this, a);
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    THROW("Bit Right Shift Error: 2nd value must be `Integer`.")
-                }
-            } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Right Shift Error: 1st and 2nd values must be `Integer`.")
-            }
-            HYMN_DISPATCH;
-        }
-        OP(NEGATE) {
-            HymnValue value = pop(this);
-            if (hymn_is_int(value)) {
-                value.as.i = -value.as.i;
-            } else if (hymn_is_float(value)) {
-                value.as.f = -value.as.f;
-            } else {
-                dereference(this, value);
-                THROW("Negate: Must be a number.")
-            }
+        HYMN_DISPATCH;
+    }
+    case OP_BIT_NOT: {
+        HymnValue value = pop(this);
+        if (hymn_is_int(value)) {
+            value.as.i = ~value.as.i;
             push(this, value);
-            HYMN_DISPATCH;
+        } else {
+            dereference(this, value);
+            THROW("Bitwise operand must integer.")
         }
-        OP(NOT) {
-            HymnValue value = pop(this);
-            if (hymn_is_bool(value)) {
-                value.as.b = !value.as.b;
+        HYMN_DISPATCH;
+    }
+    case OP_BIT_OR: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i |= b.as.i;
+                push(this, a);
             } else {
-                dereference(this, value);
-                THROW("Not: Operand must be a boolean.")
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Bit Or Error: 2nd value must be `Integer`.")
             }
-            push(this, value);
-            HYMN_DISPATCH;
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Bit Or Error: 1st and 2nd values must be `Integer`.")
         }
-        OP(CONSTANT) {
-            HymnValue constant = READ_CONSTANT(frame);
-            switch (constant.is) {
-            case HYMN_VALUE_ARRAY: {
-                constant = hymn_new_array_value(new_array(0));
-                break;
+        HYMN_DISPATCH;
+    }
+    case OP_BIT_AND: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i &= b.as.i;
+                push(this, a);
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Bit And Error: 2nd value must be `Integer`.")
             }
-            case HYMN_VALUE_TABLE: {
-                constant = hymn_new_table_value(new_table());
-                break;
-            }
-            default:
-                break;
-            }
-            reference(constant);
-            push(this, constant);
-            HYMN_DISPATCH;
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Bit And Error: 1st and 2nd values must be `Integer`.")
         }
-        OP(DEFINE_GLOBAL) {
-            HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-            HymnValue value = pop(this);
-            table_put(&this->globals, name, value);
+        HYMN_DISPATCH;
+    }
+    case OP_BIT_XOR: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i ^= b.as.i;
+                push(this, a);
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Bit Xor Error: 2nd value must be `Integer`.")
+            }
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Bit Xor Error: 1st and 2nd values must be `Integer`.")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_BIT_LEFT_SHIFT: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i <<= b.as.i;
+                push(this, a);
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Bit Left Shift Error: 2nd value must be `Integer`.")
+            }
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Bit Left Shift Error: 1st and 2nd values must be `Integer`.")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_BIT_RIGHT_SHIFT: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i >>= b.as.i;
+                push(this, a);
+            } else {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Bit Right Shift Error: 2nd value must be `Integer`.")
+            }
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Bit Right Shift Error: 1st and 2nd values must be `Integer`.")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_NEGATE: {
+        HymnValue value = pop(this);
+        if (hymn_is_int(value)) {
+            value.as.i = -value.as.i;
+        } else if (hymn_is_float(value)) {
+            value.as.f = -value.as.f;
+        } else {
+            dereference(this, value);
+            THROW("Negate: Must be a number.")
+        }
+        push(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_NOT: {
+        HymnValue value = pop(this);
+        if (hymn_is_bool(value)) {
+            value.as.b = !value.as.b;
+        } else {
+            dereference(this, value);
+            THROW("Not: Operand must be a boolean.")
+        }
+        push(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_CONSTANT: {
+        HymnValue constant = READ_CONSTANT(frame);
+        switch (constant.is) {
+        case HYMN_VALUE_ARRAY: {
+            constant = hymn_new_array_value(new_array(0));
+            break;
+        }
+        case HYMN_VALUE_TABLE: {
+            constant = hymn_new_table_value(new_table());
+            break;
+        }
+        default:
+            break;
+        }
+        reference(constant);
+        push(this, constant);
+        HYMN_DISPATCH;
+    }
+    case OP_DEFINE_GLOBAL: {
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue value = pop(this);
+        table_put(&this->globals, name, value);
+        reference_string(name);
+        HYMN_DISPATCH;
+    }
+    case OP_SET_GLOBAL: {
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue value = pop(this);
+        HymnValue exists = table_get(&this->globals, name);
+        if (hymn_is_undefined(exists)) {
+            THROW("Undefined variable '%s'.", name->string)
+        }
+        HymnValue previous = table_put(&this->globals, name, value);
+        if (hymn_is_undefined(previous)) {
             reference_string(name);
-            HYMN_DISPATCH;
+        } else {
+            dereference(this, previous);
         }
-        OP(SET_GLOBAL) {
-            HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-            HymnValue value = pop(this);
-            HymnValue exists = table_get(&this->globals, name);
-            if (hymn_is_undefined(exists)) {
-                THROW("Undefined variable '%s'.", name->string)
-            }
-            HymnValue previous = table_put(&this->globals, name, value);
-            if (hymn_is_undefined(previous)) {
-                reference_string(name);
-            } else {
-                dereference(this, previous);
-            }
-            HYMN_DISPATCH;
+        HYMN_DISPATCH;
+    }
+    case OP_GET_GLOBAL: {
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue get = table_get(&this->globals, name);
+        if (hymn_is_undefined(get)) {
+            THROW("Undefined variable `%s`.", name->string)
         }
-        OP(GET_GLOBAL) {
-            HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-            HymnValue get = table_get(&this->globals, name);
-            if (hymn_is_undefined(get)) {
-                THROW("Undefined variable `%s`.", name->string)
-            }
-            reference(get);
-            push(this, get);
-            HYMN_DISPATCH;
+        reference(get);
+        push(this, get);
+        HYMN_DISPATCH;
+    }
+    case OP_SET_LOCAL: {
+        uint8_t slot = READ_BYTE(frame);
+        HymnValue value = pop(this);
+        dereference(this, frame->stack[slot]);
+        frame->stack[slot] = value;
+        HYMN_DISPATCH;
+    }
+    case OP_GET_LOCAL: {
+        uint8_t slot = READ_BYTE(frame);
+        HymnValue value = frame->stack[slot];
+        reference(value);
+        push(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_INCREMENT_LOCAL: {
+        uint8_t slot = READ_BYTE(frame);
+        uint8_t increment = READ_BYTE(frame);
+        HymnValue value = frame->stack[slot];
+        if (hymn_is_int(value)) {
+            value.as.i += (uint64_t)increment;
+        } else if (hymn_is_float(value)) {
+            value.as.f += (double)increment;
+        } else {
+            const char *is = value_name(value.is);
+            THROW("Increment Local: Expected `Number` but was `%s`", is)
         }
-        OP(SET_LOCAL) {
-            uint8_t slot = READ_BYTE(frame);
-            HymnValue value = pop(this);
-            dereference(this, frame->stack[slot]);
-            frame->stack[slot] = value;
-            HYMN_DISPATCH;
+        push(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_INCREMENT_LOCAL_AND_SET: {
+        uint8_t slot = READ_BYTE(frame);
+        uint8_t increment = READ_BYTE(frame);
+        HymnValue value = frame->stack[slot];
+        if (hymn_is_int(value)) {
+            value.as.i += (uint64_t)increment;
+        } else if (hymn_is_float(value)) {
+            value.as.f += (double)increment;
+        } else {
+            const char *is = value_name(value.is);
+            THROW("Get and Set Local: Expected `Number` but was `%s`", is)
         }
-        OP(GET_LOCAL) {
-            uint8_t slot = READ_BYTE(frame);
-            HymnValue value = frame->stack[slot];
-            reference(value);
-            push(this, value);
-            HYMN_DISPATCH;
-        }
-        OP(INCREMENT_LOCAL) {
-            uint8_t slot = READ_BYTE(frame);
-            uint8_t increment = READ_BYTE(frame);
-            HymnValue value = frame->stack[slot];
-            if (hymn_is_int(value)) {
-                value.as.i += (uint64_t)increment;
-            } else if (hymn_is_float(value)) {
-                value.as.f += (double)increment;
-            } else {
-                const char *is = value_name(value.is);
-                THROW("Increment Local: Expected `Number` but was `%s`", is)
-            }
-            push(this, value);
-            HYMN_DISPATCH;
-        }
-        OP(INCREMENT_LOCAL_AND_SET) {
-            uint8_t slot = READ_BYTE(frame);
-            uint8_t increment = READ_BYTE(frame);
-            HymnValue value = frame->stack[slot];
-            if (hymn_is_int(value)) {
-                value.as.i += (uint64_t)increment;
-            } else if (hymn_is_float(value)) {
-                value.as.f += (double)increment;
-            } else {
-                const char *is = value_name(value.is);
-                THROW("Get and Set Local: Expected `Number` but was `%s`", is)
-            }
-            frame->stack[slot] = value;
-            HYMN_DISPATCH;
-        }
-        OP(SET_PROPERTY) {
-            HymnValue value = pop(this);
-            HymnValue tableValue = pop(this);
-            if (!hymn_is_table(tableValue)) {
-                const char *is = value_name(tableValue.is);
-                dereference(this, value);
-                dereference(this, tableValue);
-                THROW("Set Property: Expected `Table` but was `%s`", is)
-            }
-            HymnTable *table = hymn_as_table(tableValue);
-            HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-            HymnValue previous = table_put(table, name, value);
-            if (hymn_is_undefined(previous)) {
-                reference_string(name);
-            } else {
-                dereference(this, previous);
-            }
-            push(this, value);
-            reference(value);
+        frame->stack[slot] = value;
+        HYMN_DISPATCH;
+    }
+    case OP_SET_PROPERTY: {
+        HymnValue value = pop(this);
+        HymnValue tableValue = pop(this);
+        if (!hymn_is_table(tableValue)) {
+            const char *is = value_name(tableValue.is);
+            dereference(this, value);
             dereference(this, tableValue);
-            HYMN_DISPATCH;
+            THROW("Set Property: Expected `Table` but was `%s`", is)
         }
-        OP(GET_PROPERTY) {
-            HymnValue v = pop(this);
-            if (!hymn_is_table(v)) {
+        HymnTable *table = hymn_as_table(tableValue);
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue previous = table_put(table, name, value);
+        if (hymn_is_undefined(previous)) {
+            reference_string(name);
+        } else {
+            dereference(this, previous);
+        }
+        push(this, value);
+        reference(value);
+        dereference(this, tableValue);
+        HYMN_DISPATCH;
+    }
+    case OP_GET_PROPERTY: {
+        HymnValue v = pop(this);
+        if (!hymn_is_table(v)) {
+            dereference(this, v);
+            THROW("Only tables can get properties.")
+        }
+        HymnTable *table = hymn_as_table(v);
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue g = table_get(table, name);
+        if (hymn_is_undefined(g)) {
+            g.is = HYMN_VALUE_NONE;
+        } else {
+            reference(g);
+        }
+        dereference(this, v);
+        push(this, g);
+        HYMN_DISPATCH;
+    }
+    case OP_SET_DYNAMIC: {
+        HymnValue value = pop(this);
+        HymnValue property = pop(this);
+        HymnValue object = pop(this);
+        if (hymn_is_array(object)) {
+            if (!hymn_is_int(property)) {
+                dereference(this, value);
+                dereference(this, property);
+                dereference(this, object);
+                THROW("Dynamic Set: `Integer` required to set `Array` index.")
+            }
+            HymnArray *array = hymn_as_array(object);
+            int64_t size = array->length;
+            int64_t index = hymn_as_int(property);
+            if (index > size) {
+                dereference(this, value);
+                dereference(this, property);
+                dereference(this, object);
+                THROW("Dynamic Set: Array index out of bounds %d > %d.", index, size)
+            }
+            if (index < 0) {
+                index = size + index;
+                if (index < 0) {
+                    dereference(this, value);
+                    dereference(this, property);
+                    dereference(this, object);
+                    THROW("Dynamic Set: Array index out of bounds %d.", index)
+                }
+            }
+            if (index == size) {
+                array_push(array, value);
+            } else {
+                dereference(this, array->items[index]);
+                array->items[index] = value;
+            }
+        } else if (hymn_is_table(object)) {
+            if (!hymn_is_string(property)) {
+                dereference(this, value);
+                dereference(this, property);
+                dereference(this, object);
+                THROW("Dynamic Set: `String` required to set `Table` property.")
+            }
+            HymnTable *table = hymn_as_table(object);
+            HymnObjectString *name = hymn_as_hymn_string(property);
+            table_put(table, name, value);
+        } else {
+            const char *is = value_name(object.is);
+            dereference(this, value);
+            dereference(this, property);
+            dereference(this, object);
+            THROW("Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.", is)
+        }
+        push(this, value);
+        dereference(this, object);
+        reference(value);
+        HYMN_DISPATCH;
+    }
+    case OP_GET_DYNAMIC: {
+        HymnValue i = pop(this);
+        HymnValue v = pop(this);
+        switch (v.is) {
+        case HYMN_VALUE_STRING: {
+            if (!hymn_is_int(i)) {
+                dereference(this, i);
                 dereference(this, v);
-                THROW("Only tables can get properties.")
+                THROW("Integer required to get string character from index.")
+            }
+            HymnString *string = hymn_as_string(v);
+            int64_t size = (int64_t)hymn_string_len(string);
+            int64_t index = hymn_as_int(i);
+            if (index >= size) {
+                dereference(this, i);
+                dereference(this, v);
+                THROW("String index out of bounds %d >= %d.", index, size)
+            }
+            if (index < 0) {
+                index = size + index;
+                if (index < 0) {
+                    dereference(this, i);
+                    dereference(this, v);
+                    THROW("String index out of bounds %d.", index)
+                }
+            }
+            char c = string[index];
+            machine_push_intern_string(this, char_to_string(c));
+            dereference(this, v);
+            break;
+        }
+        case HYMN_VALUE_ARRAY: {
+            if (!hymn_is_int(i)) {
+                dereference(this, i);
+                dereference(this, v);
+                THROW("Integer required to get array index.")
+            }
+            HymnArray *array = hymn_as_array(v);
+            int64_t size = array->length;
+            int64_t index = hymn_as_int(i);
+            if (index >= size) {
+                dereference(this, i);
+                dereference(this, v);
+                THROW("Array index out of bounds %d >= %d.", index, size)
+            }
+            if (index < 0) {
+                index = size + index;
+                if (index < 0) {
+                    dereference(this, i);
+                    dereference(this, v);
+                    THROW("Array index out of bounds %d.", index)
+                }
+            }
+            HymnValue g = array_get(array, index);
+            reference(g);
+            push(this, g);
+            dereference(this, v);
+            break;
+        }
+        case HYMN_VALUE_TABLE: {
+            if (!hymn_is_string(i)) {
+                const char *is = value_name(i.is);
+                dereference(this, i);
+                dereference(this, v);
+                THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
             }
             HymnTable *table = hymn_as_table(v);
-            HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+            HymnObjectString *name = hymn_as_hymn_string(i);
             HymnValue g = table_get(table, name);
             if (hymn_is_undefined(g)) {
                 g.is = HYMN_VALUE_NONE;
             } else {
                 reference(g);
             }
-            dereference(this, v);
             push(this, g);
-            HYMN_DISPATCH;
+            dereference(this, i);
+            dereference(this, v);
+            break;
         }
-        OP(SET_DYNAMIC) {
-            HymnValue value = pop(this);
-            HymnValue property = pop(this);
-            HymnValue object = pop(this);
-            if (hymn_is_array(object)) {
-                if (!hymn_is_int(property)) {
-                    dereference(this, value);
-                    dereference(this, property);
-                    dereference(this, object);
-                    THROW("Dynamic Set: `Integer` required to set `Array` index.")
-                }
-                HymnArray *array = hymn_as_array(object);
-                int64_t size = array->length;
-                int64_t index = hymn_as_int(property);
-                if (index > size) {
-                    dereference(this, value);
-                    dereference(this, property);
-                    dereference(this, object);
-                    THROW("Dynamic Set: Array index out of bounds %d > %d.", index, size)
-                }
-                if (index < 0) {
-                    index = size + index;
-                    if (index < 0) {
-                        dereference(this, value);
-                        dereference(this, property);
-                        dereference(this, object);
-                        THROW("Dynamic Set: Array index out of bounds %d.", index)
-                    }
-                }
-                if (index == size) {
-                    array_push(array, value);
-                } else {
-                    dereference(this, array->items[index]);
-                    array->items[index] = value;
-                }
-            } else if (hymn_is_table(object)) {
-                if (!hymn_is_string(property)) {
-                    dereference(this, value);
-                    dereference(this, property);
-                    dereference(this, object);
-                    THROW("Dynamic Set: `String` required to set `Table` property.")
-                }
-                HymnTable *table = hymn_as_table(object);
-                HymnObjectString *name = hymn_as_hymn_string(property);
-                table_put(table, name, value);
-            } else {
-                const char *is = value_name(object.is);
-                dereference(this, value);
-                dereference(this, property);
-                dereference(this, object);
-                THROW("Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.", is)
-            }
-            push(this, value);
-            dereference(this, object);
-            reference(value);
-            HYMN_DISPATCH;
+        default: {
+            const char *is = value_name(v.is);
+            dereference(this, i);
+            dereference(this, v);
+            THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
         }
-        OP(GET_DYNAMIC) {
-            HymnValue i = pop(this);
-            HymnValue v = pop(this);
-            switch (v.is) {
-            case HYMN_VALUE_STRING: {
-                if (!hymn_is_int(i)) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Integer required to get string character from index.")
-                }
-                HymnString *string = hymn_as_string(v);
-                int64_t size = (int64_t)hymn_string_len(string);
-                int64_t index = hymn_as_int(i);
-                if (index >= size) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("String index out of bounds %d >= %d.", index, size)
-                }
-                if (index < 0) {
-                    index = size + index;
-                    if (index < 0) {
-                        dereference(this, i);
-                        dereference(this, v);
-                        THROW("String index out of bounds %d.", index)
-                    }
-                }
-                char c = string[index];
-                machine_push_intern_string(this, char_to_string(c));
-                dereference(this, v);
-                break;
-            }
-            case HYMN_VALUE_ARRAY: {
-                if (!hymn_is_int(i)) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Integer required to get array index.")
-                }
-                HymnArray *array = hymn_as_array(v);
-                int64_t size = array->length;
-                int64_t index = hymn_as_int(i);
-                if (index >= size) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Array index out of bounds %d >= %d.", index, size)
-                }
-                if (index < 0) {
-                    index = size + index;
-                    if (index < 0) {
-                        dereference(this, i);
-                        dereference(this, v);
-                        THROW("Array index out of bounds %d.", index)
-                    }
-                }
-                HymnValue g = array_get(array, index);
-                reference(g);
-                push(this, g);
-                dereference(this, v);
-                break;
-            }
-            case HYMN_VALUE_TABLE: {
-                if (!hymn_is_string(i)) {
-                    const char *is = value_name(i.is);
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
-                }
-                HymnTable *table = hymn_as_table(v);
-                HymnObjectString *name = hymn_as_hymn_string(i);
-                HymnValue g = table_get(table, name);
-                if (hymn_is_undefined(g)) {
-                    g.is = HYMN_VALUE_NONE;
-                } else {
-                    reference(g);
-                }
-                push(this, g);
-                dereference(this, i);
-                dereference(this, v);
-                break;
-            }
-            default: {
-                const char *is = value_name(v.is);
-                dereference(this, i);
-                dereference(this, v);
-                THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
-            }
-            }
-            HYMN_DISPATCH;
         }
-        OP(LEN) {
-            HymnValue value = pop(this);
-            switch (value.is) {
-            case HYMN_VALUE_STRING: {
-                int64_t len = (int64_t)hymn_string_len(hymn_as_string(value));
-                push(this, hymn_new_int(len));
-                break;
-            }
-            case HYMN_VALUE_ARRAY: {
-                int64_t len = hymn_as_array(value)->length;
-                push(this, hymn_new_int(len));
-                break;
-            }
-            case HYMN_VALUE_TABLE: {
-                int64_t len = (int64_t)hymn_as_table(value)->size;
-                push(this, hymn_new_int(len));
-                break;
-            }
-            default:
-                dereference(this, value);
-                THROW("Len: Expected `Array` or `Table`.")
-            }
+        HYMN_DISPATCH;
+    }
+    case OP_LEN: {
+        HymnValue value = pop(this);
+        switch (value.is) {
+        case HYMN_VALUE_STRING: {
+            int64_t len = (int64_t)hymn_string_len(hymn_as_string(value));
+            push(this, hymn_new_int(len));
+            break;
+        }
+        case HYMN_VALUE_ARRAY: {
+            int64_t len = hymn_as_array(value)->length;
+            push(this, hymn_new_int(len));
+            break;
+        }
+        case HYMN_VALUE_TABLE: {
+            int64_t len = (int64_t)hymn_as_table(value)->size;
+            push(this, hymn_new_int(len));
+            break;
+        }
+        default:
             dereference(this, value);
-            HYMN_DISPATCH;
+            THROW("Len: Expected `Array` or `Table`.")
         }
-        OP(ARRAY_POP) {
-            HymnValue a = pop(this);
-            if (!hymn_is_array(a)) {
-                const char *is = value_name(a.is);
-                dereference(this, a);
-                THROW("Pop: Expected `Array` for 1st argument, but was `%s`.", is)
-            } else {
-                HymnValue value = array_pop(hymn_as_array(a));
-                push(this, value);
-                dereference(this, a);
-            }
-            HYMN_DISPATCH;
+        dereference(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_ARRAY_POP: {
+        HymnValue a = pop(this);
+        if (!hymn_is_array(a)) {
+            const char *is = value_name(a.is);
+            dereference(this, a);
+            THROW("Pop: Expected `Array` for 1st argument, but was `%s`.", is)
+        } else {
+            HymnValue value = array_pop(hymn_as_array(a));
+            push(this, value);
+            dereference(this, a);
         }
-        OP(ARRAY_PUSH) {
-            HymnValue value = pop(this);
-            HymnValue array = pop(this);
-            if (!hymn_is_array(array)) {
-                const char *is = value_name(value.is);
-                dereference(this, array);
-                dereference(this, value);
-                THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
-            } else {
-                array_push(hymn_as_array(array), value);
-                push(this, value);
-                reference(value);
-                dereference(this, array);
-            }
-            HYMN_DISPATCH;
+        HYMN_DISPATCH;
+    }
+    case OP_ARRAY_PUSH: {
+        HymnValue value = pop(this);
+        HymnValue array = pop(this);
+        if (!hymn_is_array(array)) {
+            const char *is = value_name(value.is);
+            dereference(this, array);
+            dereference(this, value);
+            THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
+        } else {
+            array_push(hymn_as_array(array), value);
+            push(this, value);
+            reference(value);
+            dereference(this, array);
         }
-        OP(ARRAY_INSERT) {
-            HymnValue p = pop(this);
-            HymnValue i = pop(this);
-            HymnValue v = pop(this);
-            if (hymn_is_array(v)) {
-                if (!hymn_is_int(i)) {
-                    const char *is = value_name(i.is);
-                    dereference(this, p);
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
-                }
-                HymnArray *array = hymn_as_array(v);
-                int64_t size = array->length;
-                int64_t index = hymn_as_int(i);
-                if (index > size) {
-                    dereference(this, p);
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Insert Function: Array index out of bounds: %d > %d", index, size)
-                }
-                if (index < 0) {
-                    index = size + index;
-                    if (index < 0) {
-                        dereference(this, p);
-                        dereference(this, i);
-                        dereference(this, v);
-                        THROW("Insert Function: Array index less than zero: %d", index)
-                    }
-                }
-                if (index == size) {
-                    array_push(array, p);
-                } else {
-                    array_insert(array, index, p);
-                }
-                push(this, p);
-                reference(p);
-                dereference(this, v);
-            } else {
-                const char *is = value_name(v.is);
+        HYMN_DISPATCH;
+    }
+    case OP_ARRAY_INSERT: {
+        HymnValue p = pop(this);
+        HymnValue i = pop(this);
+        HymnValue v = pop(this);
+        if (hymn_is_array(v)) {
+            if (!hymn_is_int(i)) {
+                const char *is = value_name(i.is);
                 dereference(this, p);
                 dereference(this, i);
                 dereference(this, v);
-                THROW("Insert Function: Expected `Array` for 1st argument, but was `%s`.", is)
+                THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
             }
-            HYMN_DISPATCH;
-        }
-        OP(DELETE) {
-            HymnValue i = pop(this);
-            HymnValue v = pop(this);
-            if (hymn_is_array(v)) {
-                if (!hymn_is_int(i)) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Integer required to delete from array.")
-                }
-                HymnArray *array = hymn_as_array(v);
-                int64_t size = array->length;
-                int64_t index = hymn_as_int(i);
-                if (index >= size) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Array index out of bounds %d > %d.", index, size)
-                }
-                if (index < 0) {
-                    index = size + index;
-                    if (index < 0) {
-                        dereference(this, i);
-                        dereference(this, v);
-                        THROW("Array index out of bounds %d.", index)
-                    }
-                }
-                HymnValue value = array_remove_index(array, index);
-                push(this, value);
-                dereference(this, v);
-            } else if (hymn_is_table(v)) {
-                if (!hymn_is_string(i)) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("String required to delete from table.")
-                }
-                HymnTable *table = hymn_as_table(v);
-                HymnObjectString *name = hymn_as_hymn_string(i);
-                HymnValue value = table_remove(table, name);
-                if (hymn_is_undefined(value)) {
-                    value.is = HYMN_VALUE_NONE;
-                } else {
-                    dereference_string(this, name);
-                }
-                push(this, value);
-                dereference_string(this, name);
-                dereference(this, v);
-            } else {
+            HymnArray *array = hymn_as_array(v);
+            int64_t size = array->length;
+            int64_t index = hymn_as_int(i);
+            if (index > size) {
+                dereference(this, p);
                 dereference(this, i);
                 dereference(this, v);
-                THROW("Expected array or table for `delete` function.")
+                THROW("Insert Function: Array index out of bounds: %d > %d", index, size)
             }
-            HYMN_DISPATCH;
+            if (index < 0) {
+                index = size + index;
+                if (index < 0) {
+                    dereference(this, p);
+                    dereference(this, i);
+                    dereference(this, v);
+                    THROW("Insert Function: Array index less than zero: %d", index)
+                }
+            }
+            if (index == size) {
+                array_push(array, p);
+            } else {
+                array_insert(array, index, p);
+            }
+            push(this, p);
+            reference(p);
+            dereference(this, v);
+        } else {
+            const char *is = value_name(v.is);
+            dereference(this, p);
+            dereference(this, i);
+            dereference(this, v);
+            THROW("Insert Function: Expected `Array` for 1st argument, but was `%s`.", is)
         }
-        OP(COPY) {
-            HymnValue value = pop(this);
-            switch (value.is) {
-            case HYMN_VALUE_NONE:
-            case HYMN_VALUE_BOOL:
-            case HYMN_VALUE_INTEGER:
-            case HYMN_VALUE_FLOAT:
-            case HYMN_VALUE_STRING:
-            case HYMN_VALUE_FUNC:
-            case HYMN_VALUE_FUNC_NATIVE:
-                push(this, value);
-                break;
-            case HYMN_VALUE_ARRAY: {
-                HymnArray *copy = new_array_copy(hymn_as_array(value));
-                HymnValue new = hymn_new_array_value(copy);
-                push(this, new);
-                reference(new);
-                dereference(this, value);
-                break;
+        HYMN_DISPATCH;
+    }
+    case OP_DELETE: {
+        HymnValue i = pop(this);
+        HymnValue v = pop(this);
+        if (hymn_is_array(v)) {
+            if (!hymn_is_int(i)) {
+                dereference(this, i);
+                dereference(this, v);
+                THROW("Integer required to delete from array.")
             }
-            case HYMN_VALUE_TABLE: {
-                HymnTable *copy = new_table_copy(hymn_as_table(value));
-                HymnValue new = hymn_new_table_value(copy);
-                push(this, new);
-                reference(new);
-                dereference(this, value);
-                break;
+            HymnArray *array = hymn_as_array(v);
+            int64_t size = array->length;
+            int64_t index = hymn_as_int(i);
+            if (index >= size) {
+                dereference(this, i);
+                dereference(this, v);
+                THROW("Array index out of bounds %d > %d.", index, size)
             }
-            default:
-                push(this, hymn_new_none());
+            if (index < 0) {
+                index = size + index;
+                if (index < 0) {
+                    dereference(this, i);
+                    dereference(this, v);
+                    THROW("Array index out of bounds %d.", index)
+                }
             }
-            HYMN_DISPATCH;
+            HymnValue value = array_remove_index(array, index);
+            push(this, value);
+            dereference(this, v);
+        } else if (hymn_is_table(v)) {
+            if (!hymn_is_string(i)) {
+                dereference(this, i);
+                dereference(this, v);
+                THROW("String required to delete from table.")
+            }
+            HymnTable *table = hymn_as_table(v);
+            HymnObjectString *name = hymn_as_hymn_string(i);
+            HymnValue value = table_remove(table, name);
+            if (hymn_is_undefined(value)) {
+                value.is = HYMN_VALUE_NONE;
+            } else {
+                dereference_string(this, name);
+            }
+            push(this, value);
+            dereference_string(this, name);
+            dereference(this, v);
+        } else {
+            dereference(this, i);
+            dereference(this, v);
+            THROW("Expected array or table for `delete` function.")
         }
-        OP(SLICE) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            HymnValue v = pop(this);
-            if (!hymn_is_int(a)) {
+        HYMN_DISPATCH;
+    }
+    case OP_COPY: {
+        HymnValue value = pop(this);
+        switch (value.is) {
+        case HYMN_VALUE_NONE:
+        case HYMN_VALUE_BOOL:
+        case HYMN_VALUE_INTEGER:
+        case HYMN_VALUE_FLOAT:
+        case HYMN_VALUE_STRING:
+        case HYMN_VALUE_FUNC:
+        case HYMN_VALUE_FUNC_NATIVE:
+            push(this, value);
+            break;
+        case HYMN_VALUE_ARRAY: {
+            HymnArray *copy = new_array_copy(hymn_as_array(value));
+            HymnValue new = hymn_new_array_value(copy);
+            push(this, new);
+            reference(new);
+            dereference(this, value);
+            break;
+        }
+        case HYMN_VALUE_TABLE: {
+            HymnTable *copy = new_table_copy(hymn_as_table(value));
+            HymnValue new = hymn_new_table_value(copy);
+            push(this, new);
+            reference(new);
+            dereference(this, value);
+            break;
+        }
+        default:
+            push(this, hymn_new_none());
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_SLICE: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        HymnValue v = pop(this);
+        if (!hymn_is_int(a)) {
+            dereference(this, a);
+            dereference(this, b);
+            dereference(this, v);
+            THROW("Integer required for slice expression.")
+        }
+        int64_t start = hymn_as_int(a);
+        if (hymn_is_string(v)) {
+            HymnString *original = hymn_as_string(v);
+            int64_t size = (int64_t)hymn_string_len(original);
+            int64_t end;
+            if (hymn_is_int(b)) {
+                end = hymn_as_int(b);
+            } else if (hymn_is_none(b)) {
+                end = size;
+            } else {
                 dereference(this, a);
                 dereference(this, b);
                 dereference(this, v);
                 THROW("Integer required for slice expression.")
             }
-            int64_t start = hymn_as_int(a);
-            if (hymn_is_string(v)) {
-                HymnString *original = hymn_as_string(v);
-                int64_t size = (int64_t)hymn_string_len(original);
-                int64_t end;
-                if (hymn_is_int(b)) {
-                    end = hymn_as_int(b);
-                } else if (hymn_is_none(b)) {
-                    end = size;
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("Integer required for slice expression.")
-                }
-                if (end > size) {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("String index out of bounds %d > %d.", end, size)
-                }
+            if (end > size) {
+                dereference(this, a);
+                dereference(this, b);
+                dereference(this, v);
+                THROW("String index out of bounds %d > %d.", end, size)
+            }
+            if (end < 0) {
+                end = size + end;
                 if (end < 0) {
-                    end = size + end;
-                    if (end < 0) {
-                        dereference(this, a);
-                        dereference(this, b);
-                        dereference(this, v);
-                        THROW("String index out of bounds %d.", end)
-                    }
-                }
-                if (start >= end) {
                     dereference(this, a);
                     dereference(this, b);
                     dereference(this, v);
-                    THROW("String start index %d > end index %d.", start, end)
+                    THROW("String index out of bounds %d.", end)
                 }
-                HymnString *sub = hymn_substring(original, (size_t)start, (size_t)end);
-                machine_push_intern_string(this, sub);
-            } else if (hymn_is_array(v)) {
-                HymnArray *array = hymn_as_array(v);
-                int64_t size = array->length;
-                int64_t end;
-                if (hymn_is_int(b)) {
-                    end = hymn_as_int(b);
-                } else if (hymn_is_none(b)) {
-                    end = size;
-                } else {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("Integer required for slice expression.")
-                }
-                if (end > size) {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("Array index out of bounds %d > %d.", end, size)
-                }
-                if (end < 0) {
-                    end = size + end;
-                    if (end < 0) {
-                        dereference(this, a);
-                        dereference(this, b);
-                        dereference(this, v);
-                        THROW("Array index out of bounds %d.", end)
-                    }
-                }
-                if (start >= end) {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("Array start index %d >= end index %d.", start, end)
-                }
-                HymnArray *copy = new_array_slice(array, start, end);
-                HymnValue new = hymn_new_array_value(copy);
-                reference(new);
-                push(this, new);
+            }
+            if (start >= end) {
+                dereference(this, a);
+                dereference(this, b);
+                dereference(this, v);
+                THROW("String start index %d > end index %d.", start, end)
+            }
+            HymnString *sub = hymn_substring(original, (size_t)start, (size_t)end);
+            machine_push_intern_string(this, sub);
+        } else if (hymn_is_array(v)) {
+            HymnArray *array = hymn_as_array(v);
+            int64_t size = array->length;
+            int64_t end;
+            if (hymn_is_int(b)) {
+                end = hymn_as_int(b);
+            } else if (hymn_is_none(b)) {
+                end = size;
             } else {
                 dereference(this, a);
                 dereference(this, b);
                 dereference(this, v);
-                THROW("Expected string or array for `slice` function.")
+                THROW("Integer required for slice expression.")
             }
-            dereference(this, v);
-            HYMN_DISPATCH;
-        }
-        OP(CLEAR) {
-            HymnValue value = pop(this);
-            switch (value.is) {
-            case HYMN_VALUE_BOOL:
-                push(this, hymn_new_bool(false));
-                break;
-            case HYMN_VALUE_INTEGER:
-                push(this, hymn_new_int(0));
-                break;
-            case HYMN_VALUE_FLOAT:
-                push(this, hymn_new_float(0.0f));
-                break;
-            case HYMN_VALUE_STRING:
-                machine_push_intern_string(this, hymn_new_string(""));
-                break;
-            case HYMN_VALUE_ARRAY: {
-                HymnArray *array = hymn_as_array(value);
-                array_clear(this, array);
-                push(this, value);
-                break;
+            if (end > size) {
+                dereference(this, a);
+                dereference(this, b);
+                dereference(this, v);
+                THROW("Array index out of bounds %d > %d.", end, size)
             }
-            case HYMN_VALUE_TABLE: {
-                HymnTable *table = hymn_as_table(value);
-                table_clear(this, table);
-                push(this, value);
-                break;
-            }
-            case HYMN_VALUE_UNDEFINED:
-            case HYMN_VALUE_NONE:
-            case HYMN_VALUE_FUNC:
-            case HYMN_VALUE_FUNC_NATIVE:
-            case HYMN_VALUE_POINTER:
-                push(this, hymn_new_none());
-                break;
-            }
-            HYMN_DISPATCH;
-        }
-        OP(KEYS) {
-            HymnValue value = pop(this);
-            if (!hymn_is_table(value)) {
-                dereference(this, value);
-                THROW("Expected table for `keys` function.")
-            } else {
-                HymnTable *table = hymn_as_table(value);
-                HymnArray *array = table_keys(table);
-                HymnValue keys = hymn_new_array_value(array);
-                reference(keys);
-                push(this, keys);
-                dereference(this, value);
-            }
-            HYMN_DISPATCH;
-        }
-        OP(INDEX) {
-            HymnValue b = pop(this);
-            HymnValue a = pop(this);
-            switch (a.is) {
-            case HYMN_VALUE_STRING: {
-                if (!hymn_is_string(b)) {
+            if (end < 0) {
+                end = size + end;
+                if (end < 0) {
                     dereference(this, a);
                     dereference(this, b);
-                    THROW("Expected substring for 2nd argument of `index` function.")
+                    dereference(this, v);
+                    THROW("Array index out of bounds %d.", end)
                 }
-                size_t index = 0;
-                bool found = string_find(hymn_as_string(a), hymn_as_string(b), &index);
-                if (found) {
-                    push(this, hymn_new_int((int64_t)index));
-                } else {
-                    push(this, hymn_new_int(-1));
-                }
-                dereference(this, a);
-                dereference(this, b);
-                break;
             }
-            case HYMN_VALUE_ARRAY:
-                push(this, hymn_new_int(array_index_of(hymn_as_array(a), b)));
+            if (start >= end) {
                 dereference(this, a);
                 dereference(this, b);
-                break;
-            case HYMN_VALUE_TABLE: {
-                HymnObjectString *key = table_key_of(hymn_as_table(a), b);
-                if (key == NULL) {
-                    push(this, hymn_new_none());
-                } else {
-                    push(this, hymn_new_string_value(key));
-                }
-                dereference(this, a);
-                dereference(this, b);
-                break;
+                dereference(this, v);
+                THROW("Array start index %d >= end index %d.", start, end)
             }
-            default:
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Expected string, array, or table for `index` function.")
-            }
-            HYMN_DISPATCH;
+            HymnArray *copy = new_array_slice(array, start, end);
+            HymnValue new = hymn_new_array_value(copy);
+            reference(new);
+            push(this, new);
+        } else {
+            dereference(this, a);
+            dereference(this, b);
+            dereference(this, v);
+            THROW("Expected string or array for `slice` function.")
         }
-        OP(TYPE) {
-            HymnValue value = pop(this);
-            switch (value.is) {
-            case HYMN_VALUE_UNDEFINED:
-            case HYMN_VALUE_NONE:
-                machine_push_intern_string(this, hymn_new_string(STRING_NONE_TYPE));
-                break;
-            case HYMN_VALUE_BOOL:
-                machine_push_intern_string(this, hymn_new_string(STRING_BOOL));
-                break;
-            case HYMN_VALUE_INTEGER:
-                machine_push_intern_string(this, hymn_new_string(STRING_INTEGER));
-                break;
-            case HYMN_VALUE_FLOAT:
-                machine_push_intern_string(this, hymn_new_string(STRING_FLOAT));
-                break;
-            case HYMN_VALUE_STRING:
-                machine_push_intern_string(this, hymn_new_string(STRING_STRING));
-                dereference(this, value);
-                break;
-            case HYMN_VALUE_ARRAY:
-                machine_push_intern_string(this, hymn_new_string(STRING_ARRAY));
-                dereference(this, value);
-                break;
-            case HYMN_VALUE_TABLE:
-                machine_push_intern_string(this, hymn_new_string(STRING_TABLE));
-                dereference(this, value);
-                break;
-            case HYMN_VALUE_FUNC:
-                machine_push_intern_string(this, hymn_new_string(STRING_FUNC));
-                dereference(this, value);
-                break;
-            case HYMN_VALUE_FUNC_NATIVE:
-                machine_push_intern_string(this, hymn_new_string(STRING_NATIVE));
-                break;
-            case HYMN_VALUE_POINTER:
-                machine_push_intern_string(this, hymn_new_string(STRING_POINTER));
-                break;
-            }
-            HYMN_DISPATCH;
+        dereference(this, v);
+        HYMN_DISPATCH;
+    }
+    case OP_CLEAR: {
+        HymnValue value = pop(this);
+        switch (value.is) {
+        case HYMN_VALUE_BOOL:
+            push(this, hymn_new_bool(false));
+            break;
+        case HYMN_VALUE_INTEGER:
+            push(this, hymn_new_int(0));
+            break;
+        case HYMN_VALUE_FLOAT:
+            push(this, hymn_new_float(0.0f));
+            break;
+        case HYMN_VALUE_STRING:
+            machine_push_intern_string(this, hymn_new_string(""));
+            break;
+        case HYMN_VALUE_ARRAY: {
+            HymnArray *array = hymn_as_array(value);
+            array_clear(this, array);
+            push(this, value);
+            break;
         }
-        OP(TO_INTEGER) {
-            HymnValue value = pop(this);
-            if (hymn_is_int(value)) {
-                push(this, value);
-            } else if (hymn_is_float(value)) {
-                int64_t number = (int64_t)hymn_as_float(value);
-                push(this, hymn_new_int(number));
-            } else if (hymn_is_string(value)) {
-                HymnString *string = hymn_as_string(value);
-                char *end = NULL;
-                double number = string_to_double(string, &end);
-                if (string == end) {
-                    push(this, hymn_new_none());
-                } else {
-                    push(this, hymn_new_int((int64_t)number));
-                }
-                dereference(this, value);
+        case HYMN_VALUE_TABLE: {
+            HymnTable *table = hymn_as_table(value);
+            table_clear(this, table);
+            push(this, value);
+            break;
+        }
+        case HYMN_VALUE_UNDEFINED:
+        case HYMN_VALUE_NONE:
+        case HYMN_VALUE_FUNC:
+        case HYMN_VALUE_FUNC_NATIVE:
+        case HYMN_VALUE_POINTER:
+            push(this, hymn_new_none());
+            break;
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_KEYS: {
+        HymnValue value = pop(this);
+        if (!hymn_is_table(value)) {
+            dereference(this, value);
+            THROW("Expected table for `keys` function.")
+        } else {
+            HymnTable *table = hymn_as_table(value);
+            HymnArray *array = table_keys(table);
+            HymnValue keys = hymn_new_array_value(array);
+            reference(keys);
+            push(this, keys);
+            dereference(this, value);
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_INDEX: {
+        HymnValue b = pop(this);
+        HymnValue a = pop(this);
+        switch (a.is) {
+        case HYMN_VALUE_STRING: {
+            if (!hymn_is_string(b)) {
+                dereference(this, a);
+                dereference(this, b);
+                THROW("Expected substring for 2nd argument of `index` function.")
+            }
+            size_t index = 0;
+            bool found = string_find(hymn_as_string(a), hymn_as_string(b), &index);
+            if (found) {
+                push(this, hymn_new_int((int64_t)index));
             } else {
-                dereference(this, value);
-                THROW("Can't cast to an integer.")
+                push(this, hymn_new_int(-1));
             }
-            HYMN_DISPATCH;
+            dereference(this, a);
+            dereference(this, b);
+            break;
         }
-        OP(TO_FLOAT) {
-            HymnValue value = pop(this);
-            if (hymn_is_int(value)) {
-                double number = (double)hymn_as_int(value);
+        case HYMN_VALUE_ARRAY:
+            push(this, hymn_new_int(array_index_of(hymn_as_array(a), b)));
+            dereference(this, a);
+            dereference(this, b);
+            break;
+        case HYMN_VALUE_TABLE: {
+            HymnObjectString *key = table_key_of(hymn_as_table(a), b);
+            if (key == NULL) {
+                push(this, hymn_new_none());
+            } else {
+                push(this, hymn_new_string_value(key));
+            }
+            dereference(this, a);
+            dereference(this, b);
+            break;
+        }
+        default:
+            dereference(this, a);
+            dereference(this, b);
+            THROW("Expected string, array, or table for `index` function.")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_TYPE: {
+        HymnValue value = pop(this);
+        switch (value.is) {
+        case HYMN_VALUE_UNDEFINED:
+        case HYMN_VALUE_NONE:
+            machine_push_intern_string(this, hymn_new_string(STRING_NONE_TYPE));
+            break;
+        case HYMN_VALUE_BOOL:
+            machine_push_intern_string(this, hymn_new_string(STRING_BOOL));
+            break;
+        case HYMN_VALUE_INTEGER:
+            machine_push_intern_string(this, hymn_new_string(STRING_INTEGER));
+            break;
+        case HYMN_VALUE_FLOAT:
+            machine_push_intern_string(this, hymn_new_string(STRING_FLOAT));
+            break;
+        case HYMN_VALUE_STRING:
+            machine_push_intern_string(this, hymn_new_string(STRING_STRING));
+            dereference(this, value);
+            break;
+        case HYMN_VALUE_ARRAY:
+            machine_push_intern_string(this, hymn_new_string(STRING_ARRAY));
+            dereference(this, value);
+            break;
+        case HYMN_VALUE_TABLE:
+            machine_push_intern_string(this, hymn_new_string(STRING_TABLE));
+            dereference(this, value);
+            break;
+        case HYMN_VALUE_FUNC:
+            machine_push_intern_string(this, hymn_new_string(STRING_FUNC));
+            dereference(this, value);
+            break;
+        case HYMN_VALUE_FUNC_NATIVE:
+            machine_push_intern_string(this, hymn_new_string(STRING_NATIVE));
+            break;
+        case HYMN_VALUE_POINTER:
+            machine_push_intern_string(this, hymn_new_string(STRING_POINTER));
+            break;
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_TO_INTEGER: {
+        HymnValue value = pop(this);
+        if (hymn_is_int(value)) {
+            push(this, value);
+        } else if (hymn_is_float(value)) {
+            int64_t number = (int64_t)hymn_as_float(value);
+            push(this, hymn_new_int(number));
+        } else if (hymn_is_string(value)) {
+            HymnString *string = hymn_as_string(value);
+            char *end = NULL;
+            double number = string_to_double(string, &end);
+            if (string == end) {
+                push(this, hymn_new_none());
+            } else {
+                push(this, hymn_new_int((int64_t)number));
+            }
+            dereference(this, value);
+        } else {
+            dereference(this, value);
+            THROW("Can't cast to an integer.")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_TO_FLOAT: {
+        HymnValue value = pop(this);
+        if (hymn_is_int(value)) {
+            double number = (double)hymn_as_int(value);
+            push(this, hymn_new_float(number));
+        } else if (hymn_is_float(value)) {
+            push(this, value);
+        } else if (hymn_is_string(value)) {
+            HymnString *string = hymn_as_string(value);
+            char *end = NULL;
+            double number = string_to_double(string, &end);
+            if (string == end) {
+                push(this, hymn_new_none());
+            } else {
                 push(this, hymn_new_float(number));
-            } else if (hymn_is_float(value)) {
-                push(this, value);
-            } else if (hymn_is_string(value)) {
-                HymnString *string = hymn_as_string(value);
-                char *end = NULL;
-                double number = string_to_double(string, &end);
-                if (string == end) {
-                    push(this, hymn_new_none());
-                } else {
-                    push(this, hymn_new_float(number));
-                }
-                dereference(this, value);
-            } else {
-                dereference(this, value);
-                THROW("Can't cast to a float.")
             }
-            HYMN_DISPATCH;
-        }
-        OP(TO_STRING) {
-            HymnValue value = pop(this);
-            machine_push_intern_string(this, value_to_string(value));
             dereference(this, value);
-            HYMN_DISPATCH;
-        }
-        OP(PRINT) {
-            HymnValue value = pop(this);
-            HymnString *string = value_to_string(value);
-            this->print("%s\n", string);
-            hymn_string_delete(string);
+        } else {
             dereference(this, value);
-            HYMN_DISPATCH;
+            THROW("Can't cast to a float.")
         }
-        OP(THROW) {
-            frame = machine_exception(this);
+        HYMN_DISPATCH;
+    }
+    case OP_TO_STRING: {
+        HymnValue value = pop(this);
+        machine_push_intern_string(this, value_to_string(value));
+        dereference(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_PRINT: {
+        HymnValue value = pop(this);
+        HymnString *string = value_to_string(value);
+        this->print("%s\n", string);
+        hymn_string_delete(string);
+        dereference(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_THROW: {
+        frame = machine_exception(this);
+        if (frame == NULL) return;
+        HYMN_DISPATCH;
+    }
+    case OP_DUPLICATE: {
+        HymnValue top = peek(this, 1);
+        push(this, top);
+        reference(top);
+        HYMN_DISPATCH;
+    }
+    case OP_USE: {
+        HymnValue file = pop(this);
+        if (hymn_is_string(file)) {
+            frame = machine_import(this, hymn_as_hymn_string(file));
+            dereference(this, file);
             if (frame == NULL) return;
-            HYMN_DISPATCH;
+        } else {
+            dereference(this, file);
+            THROW("Expected string for 'use' command.")
         }
-        OP(DUPLICATE) {
-            HymnValue top = peek(this, 1);
-            push(this, top);
-            reference(top);
-            HYMN_DISPATCH;
-        }
-        OP(USE) {
-            HymnValue file = pop(this);
-            if (hymn_is_string(file)) {
-                frame = machine_import(this, hymn_as_hymn_string(file));
-                dereference(this, file);
-                if (frame == NULL) return;
-            } else {
-                dereference(this, file);
-                THROW("Expected string for 'use' command.")
-            }
-            HYMN_DISPATCH;
-        }
-        NOP
+        HYMN_DISPATCH;
+    }
+    default:
+        UNREACHABLE();
     }
 }
 
