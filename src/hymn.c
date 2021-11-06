@@ -727,7 +727,9 @@ enum OpCode {
     OP_TO_STRING,
     OP_TRUE,
     OP_TYPE,
-    OP_USE
+    OP_USE,
+    OP_FOR,
+    OP_FOR_LOOP
 };
 
 enum FunctionType {
@@ -787,6 +789,7 @@ struct JumpList {
 struct LoopList {
     int start;
     int depth;
+    bool is_for;
     struct LoopList *next;
 };
 
@@ -833,6 +836,7 @@ struct Compiler {
     struct JumpList *jump;
     struct JumpList *jump_or;
     struct JumpList *jump_and;
+    struct JumpList *jump_for;
     HymnString *error;
 };
 
@@ -1058,83 +1062,7 @@ static const char *value_name(enum HymnValueType type) {
     case HYMN_VALUE_TABLE: return STRING_TABLE;
     case HYMN_VALUE_FUNC: return STRING_FUNC;
     case HYMN_VALUE_FUNC_NATIVE: return STRING_NATIVE;
-    default: return "HymnValue";
-    }
-}
-
-static const char *token_name(enum TokenType type) {
-    switch (type) {
-    case TOKEN_ADD: return "ADD";
-    case TOKEN_AND: return "AND";
-    case TOKEN_ASSIGN: return "ASSIGN";
-    case TOKEN_BEGIN: return "BEGIN";
-    case TOKEN_BIT_AND: return "BTIWISE_AND";
-    case TOKEN_BIT_LEFT_SHIFT: return "BTIWISE_LEFT_SHIFT";
-    case TOKEN_BIT_NOT: return "BTIWISE_NOT";
-    case TOKEN_BIT_OR: return "BTIWISE_OR";
-    case TOKEN_BIT_RIGHT_SHIFT: return "BTIWISE_RIGHT_SHIFT";
-    case TOKEN_BIT_XOR: return "BTIWISE_XOR";
-    case TOKEN_BREAK: return "BREAK";
-    case TOKEN_CASE: return "CASE";
-    case TOKEN_CLEAR: return "CLEAR";
-    case TOKEN_COLON: return "COLON";
-    case TOKEN_CONTINUE: return "CONTINUE";
-    case TOKEN_COPY: return "COPY";
-    case TOKEN_DOT: return "DOT";
-    case TOKEN_DELETE: return "DELETE";
-    case TOKEN_DIVIDE: return "DIVIDE";
-    case TOKEN_ELIF: return "ELIF";
-    case TOKEN_ELSE: return "ELSE";
-    case TOKEN_END: return "END";
-    case TOKEN_EOF: return "EOF";
-    case TOKEN_EQUAL: return "EQUAL";
-    case TOKEN_EXCEPT: return "EXCEPT";
-    case TOKEN_FALSE: return "FALSE";
-    case TOKEN_FLOAT: return "FLOAT";
-    case TOKEN_FOR: return "FOR";
-    case TOKEN_FUNCTION: return "FUNCTION";
-    case TOKEN_GREATER: return "GREATER";
-    case TOKEN_GREATER_EQUAL: return "GREATER_EQUAL";
-    case TOKEN_IDENT: return "IDENTITY";
-    case TOKEN_IF: return "IF";
-    case TOKEN_IN: return "IN";
-    case TOKEN_INDEX: return "INDEX";
-    case TOKEN_INSERT: return "INSERT";
-    case TOKEN_INTEGER: return "INTEGER";
-    case TOKEN_KEYS: return "KEYS";
-    case TOKEN_LEFT_PAREN: return "LEFT_PAREN";
-    case TOKEN_LEN: return "LEN";
-    case TOKEN_LESS: return "LESS";
-    case TOKEN_LESS_EQUAL: return "LESS_EQUAL";
-    case TOKEN_LET: return "LET";
-    case TOKEN_MODULO: return "MODULO";
-    case TOKEN_MULTIPLY: return "MULTIPLY";
-    case TOKEN_NONE: return "NONE";
-    case TOKEN_NOT: return "NOT";
-    case TOKEN_NOT_EQUAL: return "NOT_EQUAL";
-    case TOKEN_OR: return "OR";
-    case TOKEN_POP: return "POP";
-    case TOKEN_PRINT: return "PRINT";
-    case TOKEN_PUSH: return "PUSH";
-    case TOKEN_RETURN: return "RETURN";
-    case TOKEN_RIGHT_PAREN: return "RIGHT_PAREN";
-    case TOKEN_SEMICOLON: return "SEMICOLON";
-    case TOKEN_STRING: return "STRING";
-    case TOKEN_SUBTRACT: return "SUBTRACT";
-    case TOKEN_TO_FLOAT: return "FLOAT";
-    case TOKEN_TO_INTEGER: return "INT";
-    case TOKEN_TO_STRING: return "STRING";
-    case TOKEN_TRUE: return "TRUE";
-    case TOKEN_TRY: return "TRY";
-    case TOKEN_THROW: return "THROW";
-    case TOKEN_TYPE_FUNC: return "TYPE";
-    case TOKEN_WHILE: return "WHILE";
-    case TOKEN_USE: return "USE";
-    case TOKEN_LEFT_CURLY: return "LEFT_CURLY";
-    case TOKEN_RIGHT_CURLY: return "RIGHT_CURLY";
-    case TOKEN_LEFT_SQUARE: return "LEFT_SQUARE";
-    case TOKEN_RIGHT_SQUARE: return "RIGHT_SQUARE";
-    default: return "token";
+    default: return "?";
     }
 }
 
@@ -1271,6 +1199,39 @@ static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
         item = item->next;
     }
     return hymn_new_undefined();
+}
+
+static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
+    unsigned int bins = this->bins;
+    if (key == NULL) {
+        for (unsigned int i = 0; i < bins; i++) {
+            HymnTableItem *item = this->items[i];
+            if (item != NULL) {
+                return item;
+            }
+        }
+        return NULL;
+    }
+    unsigned int bin = table_get_bin(this, key->hash);
+    {
+        HymnTableItem *item = this->items[bin];
+        while (item != NULL) {
+            HymnTableItem *next = item->next;
+            if (key == item->key) {
+                if (next != NULL) {
+                    return next;
+                }
+            }
+            item = next;
+        }
+    }
+    for (unsigned int i = bin + 1; i < bins; i++) {
+        HymnTableItem *item = this->items[i];
+        if (item != NULL) {
+            return item;
+        }
+    }
+    return NULL;
 }
 
 static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
@@ -2258,6 +2219,8 @@ static bool write_instruction(Compiler *this, uint8_t i, int row) {
     if (count != 0) {
         uint8_t p = code->previous;
 
+        // PERFORMANCE TODO
+
         // OP_CONSTANT: [Integer: -1]
         // OP_GET_DYNAMIC
 
@@ -2268,6 +2231,17 @@ static bool write_instruction(Compiler *this, uint8_t i, int row) {
         // OP_GET_GLOBAL
         // OP_GET_LOCAL
         // OP_ARRAY_PUSH
+
+        // 0039    | OP_JUMP_IF_NOT_EQUAL: [39] -> [45]
+        // 0042   12 OP_JUMP: [42] -> [58]
+        // 0045   14 OP_GET_LOCAL: [3]
+        // --------------------------------------------
+        // 0039    | OP_JUMP_IF_EQUAL: [39] -> [58]
+        // 0045   14 OP_GET_LOCAL: [3]
+
+        // MAYBE WE SHOULD KEEP A LIST OF REFERENCES FOR EACH JUMP THAT TRACKS OTHER JUMPS THAT GO TO IT
+        // SO WE CAN SAFELY UPDATE A JUMP
+        // WILL ALSO NEED TO BACKTRACK RE-PATCH ALL IN BETWEEN JUMPS AND LOOPS
 
         if (i == OP_RETURN && p == OP_CALL) {
             code->instructions[count - 2] = OP_TAIL_CALL;
@@ -2721,10 +2695,10 @@ static void finalize_variable(Compiler *this, uint8_t global) {
 }
 
 static void define_new_variable(Compiler *this) {
-    uint8_t v = variable(this, "Syntax Error: Expected variable name.");
+    uint8_t global = variable(this, "Syntax Error: Expected variable name.");
     consume(this, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.");
     expression(this);
-    finalize_variable(this, v);
+    finalize_variable(this, global);
 }
 
 static int resolve_local(Compiler *this, Token *name) {
@@ -2863,7 +2837,10 @@ static void patch_jump(Compiler *this, int jump) {
     }
     HymnByteCode *code = current(this);
     int offset = code->count - jump - 2;
-    if (offset > UINT16_MAX) {
+    if (offset == 0) {
+        printf("compiler warning: useless jump: %d\n", code->count);
+        // code->count -= 3;
+    } else if (offset > UINT16_MAX) {
         compile_error(this, &this->previous, "Jump offset too large.");
         return;
     }
@@ -2971,8 +2948,6 @@ static void if_statement(Compiler *C) {
     expression(C);
     int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-    // FIXME NESTED IF STATEMENTS PROBABLY BROKEN
-
     free_jumps(C, C->jump_or);
     C->jump_or = NULL;
 
@@ -2982,49 +2957,55 @@ static void if_statement(Compiler *C) {
     }
     end_scope(C);
 
-    struct JumpList jump_end = {0};
-
-    jump_end.jump = emit_jump(C, OP_JUMP);
-    struct JumpList *tail = &jump_end;
-
-    while (match(C, TOKEN_ELIF)) {
+    if (check(C, TOKEN_END)) {
         patch_jump(C, jump);
-
         free_jumps(C, C->jump_and);
         C->jump_and = NULL;
 
-        expression(C);
-        jump = emit_jump(C, OP_JUMP_IF_FALSE);
+    } else {
+        struct JumpList jump_end = {0};
 
-        free_jumps(C, C->jump_or);
-        C->jump_or = NULL;
+        jump_end.jump = emit_jump(C, OP_JUMP);
+        struct JumpList *tail = &jump_end;
 
-        begin_scope(C);
-        while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
-            declaration(C);
+        while (match(C, TOKEN_ELIF)) {
+            patch_jump(C, jump);
+
+            free_jumps(C, C->jump_and);
+            C->jump_and = NULL;
+
+            expression(C);
+            jump = emit_jump(C, OP_JUMP_IF_FALSE);
+
+            free_jumps(C, C->jump_or);
+            C->jump_or = NULL;
+
+            begin_scope(C);
+            while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+                declaration(C);
+            }
+            end_scope(C);
+
+            struct JumpList *next = hymn_calloc(1, sizeof(struct JumpList));
+            next->jump = emit_jump(C, OP_JUMP);
+
+            tail->next = next;
+            tail = next;
         }
-        end_scope(C);
 
-        struct JumpList *next = hymn_calloc(1, sizeof(struct JumpList));
-        next->jump = emit_jump(C, OP_JUMP);
+        patch_jump(C, jump);
+        free_jumps(C, C->jump_and);
+        C->jump_and = NULL;
 
-        tail->next = next;
-        tail = next;
+        if (match(C, TOKEN_ELSE)) {
+            block(C);
+        }
+
+        patch_jump(C, jump_end.jump);
+        free_jumps(C, jump_end.next);
     }
 
-    patch_jump(C, jump);
-
-    free_jumps(C, C->jump_and);
-    C->jump_and = NULL;
-
-    if (match(C, TOKEN_ELSE)) {
-        block(C);
-    }
-
-    patch_jump(C, jump_end.jump);
-    free_jumps(C, jump_end.next);
-
-    consume(C, TOKEN_END, "If: Missing 'end'.");
+    consume(C, TOKEN_END, "If statement is missing \"end\".");
 }
 
 static bool compile_literal(Compiler *this) {
@@ -3066,8 +3047,10 @@ static void emit_loop(Compiler *this, int start) {
 
 static void patch_jump_list(Compiler *this) {
     while (this->jump != NULL) {
-        int depth = 1;
-        if (this->loop != NULL) {
+        int depth;
+        if (this->loop == NULL) {
+            depth = 1;
+        } else {
             depth = this->loop->depth + 1;
         }
         if (this->jump->depth < depth) {
@@ -3080,212 +3063,138 @@ static void patch_jump_list(Compiler *this) {
     }
 }
 
-static void iterate_statement(Compiler *this) {
-    begin_scope(this);
+static void patch_jump_for_list(Compiler *this) {
+    while (this->jump_for != NULL) {
+        int depth;
+        if (this->loop == NULL) {
+            depth = 1;
+        } else {
+            depth = this->loop->depth;
+        }
+        if (this->jump_for->depth < depth) {
+            break;
+        }
+        patch_jump(this, this->jump_for->jump);
+        struct JumpList *next = this->jump_for->next;
+        free(this->jump_for);
+        this->jump_for = next;
+    }
+}
 
-    // parameters
-    // type check
-    // compare
-    // increment
-    // body
+static void iterator_statement(Compiler *this, bool pair) {
 
-    // REFACTOR
-    // OP_START_ITERATOR
-    //     CHECK IF STACK-1 IS TABLE
-    //     SET STACK-2 TO KEY
-    //     SET STACK-3 TO VALUE
-    // OP_ITERATE
-    //     UPDATE STACK-2 TO NEXT KEY
-    //     UPDATE STACK-3 TO NEXT VALUE
-    //     LOOP BACK
-
-    // parameters
-
-    uint8_t id;
-
-    uint8_t value = (uint8_t)this->scope->local_count;
-    variable(this, "Iterator: Missing parameter.");
     local_initialize(this);
 
-    if (match(this, TOKEN_COMMA)) {
-        id = value;
-        emit(this, OP_NONE);
+    uint8_t index = (uint8_t)this->scope->local_count;
+    uint8_t value = index + 1;
 
-        value = (uint8_t)this->scope->local_count;
-        variable(this, "Iterator: Missing second parameter.");
+    uint8_t object = index - 1;
+
+    push_hidden_local(this);
+
+    if (pair) {
+        variable(this, "For: Expected variable name.");
         local_initialize(this);
-        emit(this, OP_NONE);
-    } else {
-        emit(this, OP_NONE);
 
-        id = push_hidden_local(this);
-        emit(this, OP_NONE);
+        consume(this, TOKEN_IN, "For: Missing 'in'.");
+
+        this->scope->locals[index].name = this->scope->locals[object].name;
+    } else {
+        push_hidden_local(this);
+
+        this->scope->locals[value].name = this->scope->locals[object].name;
     }
 
-    consume(this, TOKEN_IN, "Iterator: Missing 'in' after parameters.");
+    this->scope->locals[object].name = (Token){0};
 
-    // setup
+    // in
 
-    uint8_t object = push_hidden_local(this);
     expression(this);
 
-    uint8_t keys = push_hidden_local(this);
-    emit(this, OP_NONE);
+    write_short_instruction(this, OP_FOR, object);
+    emit_byte(this, UINT8_MAX);
+    emit_byte(this, UINT8_MAX);
+    boundary(current(this));
 
-    uint8_t length = push_hidden_local(this);
-    emit(this, OP_NONE);
+    int start = current(this)->count;
+    int jump = start - 2;
 
-    uint8_t index = push_hidden_local(this);
-    write_constant(this, hymn_new_int(0));
-
-    // type check
-
-    uint8_t type = push_hidden_local(this);
-    write_short_instruction(this, OP_GET_LOCAL, object);
-    emit(this, OP_TYPE);
-
-    write_short_instruction(this, OP_GET_LOCAL, type);
-    write_constant(this, compile_intern_string(this->H, hymn_new_string(STRING_TABLE)));
-    emit(this, OP_EQUAL);
-
-    int jump_not_table = emit_jump(this, OP_JUMP_IF_FALSE);
-
-    // type is table
-
-    emit(this, OP_POP);
-
-    write_short_instruction(this, OP_GET_LOCAL, object);
-    emit(this, OP_KEYS);
-    write_short_instruction(this, OP_SET_LOCAL, keys);
-    emit(this, OP_LEN);
-    write_short_instruction(this, OP_SET_LOCAL, length);
-    emit(this, OP_POP);
-
-    int jump_table_end = emit_jump(this, OP_JUMP);
-
-    patch_jump(this, jump_not_table);
-
-    emit(this, OP_POP);
-
-    write_short_instruction(this, OP_GET_LOCAL, type);
-    write_constant(this, compile_intern_string(this->H, hymn_new_string(STRING_ARRAY)));
-    emit(this, OP_EQUAL);
-
-    int jump_not_array = emit_jump(this, OP_JUMP_IF_FALSE);
-
-    // type is array
-
-    emit(this, OP_POP);
-    write_short_instruction(this, OP_GET_LOCAL, object);
-    emit(this, OP_LEN);
-    write_short_instruction(this, OP_SET_LOCAL, length);
-    emit(this, OP_POP);
-
-    int jump_array_end = emit_jump(this, OP_JUMP);
-
-    // unexpected type
-
-    patch_jump(this, jump_not_array);
-
-    emit(this, OP_POP);
-    write_constant(this, compile_intern_string(this->H, hymn_new_string("Iterator: Expected `Array` or `Table`")));
-    emit(this, OP_THROW);
-
-    patch_jump(this, jump_table_end);
-    patch_jump(this, jump_array_end);
-
-    // compare
-
-    int compare = current(this)->count;
-
-    write_short_instruction(this, OP_GET_LOCAL, index);
-    write_short_instruction(this, OP_GET_LOCAL, length);
-    emit(this, OP_LESS);
-
-    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
-    emit(this, OP_POP);
-
-    // increment
-
-    int body = emit_jump(this, OP_JUMP);
-    int increment = current(this)->count;
-
-    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
+    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop, .is_for = true};
     this->loop = &loop;
-
-    write_short_instruction(this, OP_GET_LOCAL, index);
-    write_constant(this, hymn_new_int(1));
-    emit(this, OP_ADD);
-    write_short_instruction(this, OP_SET_LOCAL, index);
-
-    emit(this, OP_POP);
-    emit_loop(this, compare);
 
     // body
 
-    patch_jump(this, body);
-
-    write_short_instruction(this, OP_GET_LOCAL, object);
-
-    write_short_instruction(this, OP_GET_LOCAL, keys);
-    emit(this, OP_NONE);
-    emit(this, OP_EQUAL);
-
-    int jump_no_keys = emit_jump(this, OP_JUMP_IF_FALSE);
-
-    emit(this, OP_POP);
-    write_short_instruction(this, OP_GET_LOCAL, index);
-
-    int jump_no_keys_end = emit_jump(this, OP_JUMP);
-
-    patch_jump(this, jump_no_keys);
-
-    emit(this, OP_POP);
-    write_short_instruction(this, OP_GET_LOCAL, keys);
-    write_short_instruction(this, OP_GET_LOCAL, index);
-    emit(this, OP_GET_DYNAMIC);
-
-    patch_jump(this, jump_no_keys_end);
-
-    write_short_instruction(this, OP_SET_LOCAL, id);
-    emit(this, OP_GET_DYNAMIC);
-
-    write_short_instruction(this, OP_SET_LOCAL, value);
-    emit(this, OP_POP);
-
     block(this);
-    emit_loop(this, increment);
+
+    // loop
+
+    patch_jump_for_list(this);
+
+    write_short_instruction(this, OP_FOR_LOOP, object);
+    int offset = current(this)->count - start + 2;
+    if (offset > UINT16_MAX) {
+        compile_error(this, &this->previous, "Loop is too large.");
+    }
+    emit_byte(this, (offset >> 8) & UINT8_MAX);
+    emit_byte(this, offset & UINT8_MAX);
+    boundary(current(this));
 
     // end
 
     this->loop = loop.next;
 
     patch_jump(this, jump);
-    emit(this, OP_POP);
-
     patch_jump_list(this);
+
     end_scope(this);
 
-    consume(this, TOKEN_END, "Iterator: Missing 'end'.");
+    consume(this, TOKEN_END, "For: Missing 'end'.");
 }
 
 static void for_statement(Compiler *this) {
     begin_scope(this);
 
-    // TOKEN_IDENT
-    // EITHER '=' OR ',' OR 'IN' ELSE THROW EXCEPTION
-    // IF '=' REGULAR FOR LOOP
-
     // assign
 
-    define_new_variable(this);
-    uint8_t index = (uint8_t)(this->scope->local_count - 1);
+    uint8_t index = (uint8_t)this->scope->local_count;
 
-    // if (match(this, TOKEN_IN)) {
-    // for ... in loop
-    // }
+    variable(this, "For: Expected variable name.");
 
-    consume(this, TOKEN_COMMA, "For: Missing ','.");
+    if (match(this, TOKEN_ASSIGN)) {
+        expression(this);
+        local_initialize(this);
+        consume(this, TOKEN_COMMA, "For: Missing ','.");
+
+    } else if (match(this, TOKEN_COMMA)) {
+        iterator_statement(this, true);
+        return;
+
+    } else if (match(this, TOKEN_IN)) {
+        iterator_statement(this, false);
+        return;
+
+    } else {
+        compile_error(this, &this->previous, "For: Expected either '=' or 'in' or ','.");
+        return;
+    }
+
+    // 0002    | OP_GET_LOCAL: [1]
+    // 0004    | OP_CONSTANT: [Integer: 4]
+    // 0006    | OP_JUMP_IF_GREATER_EQUAL: [6] -> [24]
+    // 0009    | OP_JUMP: [9] -> [18]
+    // 0012    | OP_INCREMENT_LOCAL_AND_SET: [1] [1]
+    // 0015    | OP_LOOP: [15] -> [2]
+    // 0018   24 OP_GET_LOCAL: [1]
+    // 0020    | OP_PRINT
+    // 0021    | OP_LOOP: [21] -> [12]
+
+    // 0002    | OP_GET_LOCAL: [1]
+    // 0004    | OP_CONSTANT: [Integer: 4]
+    // 0006    | OP_JUMP_IF_GREATER_EQUAL: [6] -> [18]
+    // 0009   24 OP_GET_LOCAL: [1]
+    // 0011    | OP_PRINT
+    // 0012    | OP_INCREMENT_LOCAL_AND_SET: [1] [1]
+    // 0015    | OP_LOOP: [15] -> [2]
 
     // compare
 
@@ -3300,7 +3209,7 @@ static void for_statement(Compiler *this) {
     int body = emit_jump(this, OP_JUMP);
     int increment = current(this)->count;
 
-    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop};
+    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop, .is_for = false};
     this->loop = &loop;
 
     if (match(this, TOKEN_COMMA)) {
@@ -3333,7 +3242,7 @@ static void for_statement(Compiler *this) {
 static void while_statement(Compiler *this) {
     int start = current(this)->count;
 
-    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop};
+    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop, .is_for = false};
     this->loop = &loop;
 
     expression(this);
@@ -3394,7 +3303,16 @@ static void continue_statement(Compiler *this) {
         compile_error(this, &this->previous, "Continue Error: Outside of loop.");
     }
     pop_stack_loop(this);
-    emit_loop(this, this->loop->start);
+    if (this->loop->is_for) {
+        struct JumpList *jump_next = this->jump_for;
+        struct JumpList *jump = hymn_malloc(sizeof(struct JumpList));
+        jump->jump = emit_jump(this, OP_JUMP);
+        jump->depth = this->loop->depth;
+        jump->next = jump_next;
+        this->jump_for = jump;
+    } else {
+        emit_loop(this, this->loop->start);
+    }
 }
 
 static void try_statement(Compiler *this) {
@@ -4296,6 +4214,13 @@ static size_t debug_three_byte_instruction(HymnString **debug, const char *name,
     return index + 3;
 }
 
+static size_t debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *this, size_t index) {
+    uint8_t o = this->instructions[index + 1];
+    uint16_t jump = (uint16_t)(this->instructions[index + 2] << 8) | (uint16_t)this->instructions[index + 3];
+    *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, o, index, index + 4 + sign * jump);
+    return index + 4;
+}
+
 static size_t debug_instruction(HymnString **debug, const char *name, size_t index) {
     *debug = string_append_format(*debug, "%s", name);
     return index + 1;
@@ -4380,6 +4305,8 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
     case OP_USE: return debug_instruction(debug, "OP_USE", index);
     case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
+    case OP_FOR: return debug_for_loop_instruction(debug, "OP_FOR", 1, this, index);
+    case OP_FOR_LOOP: return debug_for_loop_instruction(debug, "OP_FOR_LOOP", -1, this, index);
     default: *debug = string_append_format(*debug, "UNKNOWN OPCODE %d\n", instruction); return index + 1;
     }
 }
@@ -4654,6 +4581,68 @@ dispatch:
     case OP_LOOP: {
         uint16_t jump = READ_SHORT(frame);
         frame->ip -= jump;
+        HYMN_DISPATCH;
+    }
+    case OP_FOR: {
+        uint8_t slot = READ_BYTE(frame);
+        HymnValue object = frame->stack[slot];
+        if (hymn_is_table(object)) {
+            HymnTable *table = hymn_as_table(object);
+            HymnTableItem *next = table_next(table, NULL);
+            if (next == NULL) {
+                uint16_t jump = READ_SHORT(frame);
+                frame->ip += jump;
+            } else {
+                this->stack_top += 2;
+                frame->stack[slot + 1] = hymn_new_string_value(next->key);
+                frame->stack[slot + 2] = next->value;
+                frame->ip += 2;
+            }
+        } else if (hymn_is_array(object)) {
+            HymnArray *array = hymn_as_array(object);
+            if (array->length == 0) {
+                uint16_t jump = READ_SHORT(frame);
+                frame->ip += jump;
+            } else {
+                this->stack_top += 2;
+                frame->stack[slot + 1] = hymn_new_int(0);
+                frame->stack[slot + 2] = array->items[0];
+                frame->ip += 2;
+            }
+        } else {
+            THROW("Loop: Expected table or array")
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_FOR_LOOP: {
+        uint8_t slot = READ_BYTE(frame);
+        HymnValue object = frame->stack[slot];
+        uint8_t index = slot + 1;
+        uint8_t value = slot + 2;
+        if (hymn_is_table(object)) {
+            HymnTable *table = hymn_as_table(object);
+            HymnObjectString *key = hymn_as_hymn_string(frame->stack[index]);
+            HymnTableItem *next = table_next(table, key);
+            if (next == NULL) {
+                frame->ip += 2;
+            } else {
+                frame->stack[index] = hymn_new_string_value(next->key);
+                frame->stack[value] = next->value;
+                uint16_t jump = READ_SHORT(frame);
+                frame->ip -= jump;
+            }
+        } else {
+            HymnArray *array = hymn_as_array(object);
+            int64_t key = hymn_as_int(frame->stack[index]) + 1;
+            if (key >= array->length) {
+                frame->ip += 2;
+            } else {
+                frame->stack[index].as.i++;
+                frame->stack[value] = array->items[key];
+                uint16_t jump = READ_SHORT(frame);
+                frame->ip -= jump;
+            }
+        }
         HYMN_DISPATCH;
     }
     case OP_EQUAL: {
