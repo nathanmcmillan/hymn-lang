@@ -58,12 +58,6 @@ $ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-func
 $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
 ```
 
-### Non ISO C Release (Computed GOTO)
-
-```
-$ gcc src/*.c -O3 -s -DNDEBUG -o hymn -lm
-```
-
 ## MSVC
 
 ### Debug

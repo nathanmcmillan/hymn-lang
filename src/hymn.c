@@ -3178,24 +3178,6 @@ static void for_statement(Compiler *this) {
         return;
     }
 
-    // 0002    | OP_GET_LOCAL: [1]
-    // 0004    | OP_CONSTANT: [Integer: 4]
-    // 0006    | OP_JUMP_IF_GREATER_EQUAL: [6] -> [24]
-    // 0009    | OP_JUMP: [9] -> [18]
-    // 0012    | OP_INCREMENT_LOCAL_AND_SET: [1] [1]
-    // 0015    | OP_LOOP: [15] -> [2]
-    // 0018   24 OP_GET_LOCAL: [1]
-    // 0020    | OP_PRINT
-    // 0021    | OP_LOOP: [21] -> [12]
-
-    // 0002    | OP_GET_LOCAL: [1]
-    // 0004    | OP_CONSTANT: [Integer: 4]
-    // 0006    | OP_JUMP_IF_GREATER_EQUAL: [6] -> [18]
-    // 0009   24 OP_GET_LOCAL: [1]
-    // 0011    | OP_PRINT
-    // 0012    | OP_INCREMENT_LOCAL_AND_SET: [1] [1]
-    // 0015    | OP_LOOP: [15] -> [2]
-
     // compare
 
     int compare = current(this)->count;
@@ -3206,11 +3188,12 @@ static void for_statement(Compiler *this) {
 
     // increment
 
-    int body = emit_jump(this, OP_JUMP);
     int increment = current(this)->count;
 
-    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop, .is_for = false};
+    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop, .is_for = true};
     this->loop = &loop;
+
+    boundary(current(this));
 
     if (match(this, TOKEN_COMMA)) {
         expression(this);
@@ -3218,14 +3201,36 @@ static void for_statement(Compiler *this) {
         write_word_instruction(this, OP_INCREMENT_LOCAL_AND_SET, index, 1);
     }
 
-    emit_loop(this, compare);
+    HymnByteCode *code = current(this);
+
+    int count = code->count - increment;
+    uint8_t *instructions = hymn_malloc(count * sizeof(uint8_t));
+    int *lines = hymn_malloc(count * sizeof(int));
+    memcpy(instructions, &code->instructions[increment], count * sizeof(uint8_t));
+    memcpy(lines, &code->lines[increment], count * sizeof(int));
+    code->count = increment;
 
     // body
 
-    patch_jump(this, body);
-
     block(this);
-    emit_loop(this, increment);
+
+    // increment
+
+    patch_jump_for_list(this);
+
+    while (code->count + count > code->capacity) {
+        code->capacity *= 2;
+        code->instructions = hymn_realloc(code->instructions, code->capacity * sizeof(uint8_t));
+        code->lines = hymn_realloc(code->lines, code->capacity * sizeof(int));
+    }
+    memcpy(&code->instructions[code->count], instructions, count * sizeof(uint8_t));
+    memcpy(&code->lines[code->count], lines, count * sizeof(int));
+    code->count += count;
+    free(instructions);
+    free(lines);
+    boundary(current(this));
+
+    emit_loop(this, compare);
 
     // end
 
