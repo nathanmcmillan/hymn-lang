@@ -1,0 +1,9 @@
+-- { xy: "v" }
+
+begin
+  let x = "x"
+  let y = "y"
+  let table = {}
+  table[x + y] = "v"
+  print table
+end

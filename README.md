@@ -52,7 +52,7 @@ $ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -
 $ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm
 ```
 
-### ISO C Release
+### Release
 
 ```
 $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
@@ -140,6 +140,6 @@ $ callgrind_annotate --auto=yes callgrind.out.* | less
 
 ## Notes
 
-1. Using a macro READ_BYTE instead of an inline functions slightly improves performance
-1. Using an instruction pointer rather than index significantly improves performance
-1. Using computed goto statements instead of a big switch significantly impproves performance. But it is not ISO C
+1. Using a macro READ_BYTE instead of an inline functions improves performance
+1. Using an instruction pointer rather than index improves performance
+1. Using computed goto instead of a switch does not always impprove performance

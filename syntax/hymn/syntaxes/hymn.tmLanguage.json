@@ -87,7 +87,7 @@
       ]
     },
     {
-      "match": "\\b(const|let)\\b",
+      "match": "\\b(let)\\b",
       "captures": {
         "1": {
           "name": "storage.modifier.hymn"
@@ -95,7 +95,7 @@
       }
     },
     {
-      "match": "\\b(do|use)\\b",
+      "match": "\\b(use)\\b",
       "captures": {
         "1": {
           "name": "keyword.import.hymn"
@@ -103,7 +103,7 @@
       }
     },
     {
-      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|in|try|except|throw|begin|end)\\b",
+      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|in|try|except|throw|begin|end|function)\\b",
       "captures": {
         "1": {
           "name": "keyword.control.hymn"

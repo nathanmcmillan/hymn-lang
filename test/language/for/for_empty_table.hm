@@ -1,0 +1,8 @@
+-- begin
+-- end
+
+print "begin"
+for v in {}
+  print v
+end
+print "end"

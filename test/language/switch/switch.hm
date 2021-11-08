@@ -9,7 +9,7 @@ if x == 3
   print "first"
 elif x == 5
   print "bad"
-elif
+else
   print "bad"
 end
 

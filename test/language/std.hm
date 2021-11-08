@@ -66,7 +66,7 @@ function sort(a, comparator)
     while true
       if id == total break end
       if comparator(v, n[id]) < 0
-        for swap = total; swap > id; swap = swap - 1
+        for swap = total, swap > id, swap = swap - 1
           n[swap] = n[swap - 1]
         end
         break

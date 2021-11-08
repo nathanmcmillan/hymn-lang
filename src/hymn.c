@@ -32,7 +32,8 @@
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
-// #define HYMN_DEBUG_REFERENCE
+// #define HYMN_DEBUG_MEMORY
+
 // #define HYMN_NO_MEMORY_MANAGE
 
 void *hymn_malloc(size_t size) {
@@ -1257,19 +1258,19 @@ static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
 }
 
 static void table_clear(Hymn *H, HymnTable *this) {
+    this->size = 0;
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
             HymnTableItem *next = item->next;
-            dereference_string(H, item->key);
             dereference(H, item->value);
+            dereference_string(H, item->key);
             free(item);
             item = next;
         }
         this->items[i] = NULL;
     }
-    this->size = 0;
 }
 
 static void table_release(Hymn *H, HymnTable *this) {
@@ -2262,7 +2263,8 @@ static bool write_instruction(Compiler *this, uint8_t i, int row) {
                 if (pop < UINT8_MAX - 1) {
                     REWRITE_BYTE(pop + 1);
                 }
-            } else if (p == OP_INCREMENT_LOCAL_AND_SET || p == OP_SET_LOCAL || p == OP_SET_GLOBAL) {
+            } else if (p == OP_INCREMENT_LOCAL_AND_SET) {
+                // || p == OP_SET_LOCAL || p == OP_SET_GLOBAL) {
                 return true;
             }
         } else if (i == OP_NEGATE && p == OP_CONSTANT) {
@@ -2836,14 +2838,33 @@ static void patch_jump(Compiler *this, int jump) {
         return;
     }
     HymnByteCode *code = current(this);
-    int offset = code->count - jump - 2;
-    if (offset == 0) {
-        printf("compiler warning: useless jump: %d\n", code->count);
-        // code->count -= 3;
-    } else if (offset > UINT16_MAX) {
+    int count = code->count;
+    int offset = count - jump - 2;
+    if (offset > UINT16_MAX) {
         compile_error(this, &this->previous, "Jump offset too large.");
         return;
     }
+    // else if (jump + 2 < count && code->instructions[jump + 2] == OP_JUMP) {
+    // printf("X. %d, %d == %d\n", offset, code->instructions[jump - 1], OP_JUMP_IF_NOT_EQUAL);
+    // if (offset == 3 && code->instructions[jump - 1] == OP_JUMP_IF_NOT_EQUAL) {
+    //     printf("Y.\n");
+    //     code->instructions[jump - 1] = OP_JUMP_IF_EQUAL;
+    //     for (int i = jump; i < count; i++) {
+    //         code->instructions[i] = code->instructions[i + 1];
+    //         code->lines[i] = code->lines[i + 1];
+    //     }
+    //     boundary(current(this));
+    //     return;
+    // }
+
+    //   -- for i = 0, i < 4
+    //   --   if i == 2 continue end
+    //   --   print i
+    //   -- end
+
+    // MAYBE BETTER TO HAVE A SEPARATE SECOND PASS TO OPTIMIZE BYTE CODE...
+    // GETTING VERY MESSY TO DO IT DURING COMPILATION
+    // }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
     code->instructions[jump + 1] = offset & UINT8_MAX;
     boundary(current(this));
@@ -3081,127 +3102,127 @@ static void patch_jump_for_list(Compiler *this) {
     }
 }
 
-static void iterator_statement(Compiler *this, bool pair) {
+static void iterator_statement(Compiler *C, bool pair) {
 
-    local_initialize(this);
+    local_initialize(C);
 
-    uint8_t index = (uint8_t)this->scope->local_count;
+    uint8_t index = (uint8_t)C->scope->local_count;
     uint8_t value = index + 1;
 
     uint8_t object = index - 1;
 
-    push_hidden_local(this);
+    push_hidden_local(C);
 
     if (pair) {
-        variable(this, "For: Expected variable name.");
-        local_initialize(this);
+        variable(C, "Missing variable name in for loop");
+        local_initialize(C);
 
-        consume(this, TOKEN_IN, "For: Missing 'in'.");
+        consume(C, TOKEN_IN, "Missing `in` in for loop");
 
-        this->scope->locals[index].name = this->scope->locals[object].name;
+        C->scope->locals[index].name = C->scope->locals[object].name;
     } else {
-        push_hidden_local(this);
+        push_hidden_local(C);
 
-        this->scope->locals[value].name = this->scope->locals[object].name;
+        C->scope->locals[value].name = C->scope->locals[object].name;
     }
 
-    this->scope->locals[object].name = (Token){0};
+    C->scope->locals[object].name = (Token){0};
 
     // in
 
-    expression(this);
+    expression(C);
 
-    write_short_instruction(this, OP_FOR, object);
-    emit_byte(this, UINT8_MAX);
-    emit_byte(this, UINT8_MAX);
-    boundary(current(this));
+    write_short_instruction(C, OP_FOR, object);
+    emit_byte(C, UINT8_MAX);
+    emit_byte(C, UINT8_MAX);
+    boundary(current(C));
 
-    int start = current(this)->count;
+    int start = current(C)->count;
     int jump = start - 2;
 
-    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop, .is_for = true};
-    this->loop = &loop;
+    struct LoopList loop = {.start = start, .depth = C->scope->depth + 1, .next = C->loop, .is_for = true};
+    C->loop = &loop;
 
     // body
 
-    block(this);
+    block(C);
 
     // loop
 
-    patch_jump_for_list(this);
+    patch_jump_for_list(C);
 
-    write_short_instruction(this, OP_FOR_LOOP, object);
-    int offset = current(this)->count - start + 2;
+    write_short_instruction(C, OP_FOR_LOOP, object);
+    int offset = current(C)->count - start + 2;
     if (offset > UINT16_MAX) {
-        compile_error(this, &this->previous, "Loop is too large.");
+        compile_error(C, &C->previous, "Loop is too large");
     }
-    emit_byte(this, (offset >> 8) & UINT8_MAX);
-    emit_byte(this, offset & UINT8_MAX);
-    boundary(current(this));
+    emit_byte(C, (offset >> 8) & UINT8_MAX);
+    emit_byte(C, offset & UINT8_MAX);
+    boundary(current(C));
 
     // end
 
-    this->loop = loop.next;
+    C->loop = loop.next;
 
-    patch_jump(this, jump);
-    patch_jump_list(this);
+    patch_jump(C, jump);
+    patch_jump_list(C);
 
-    end_scope(this);
+    end_scope(C);
 
-    consume(this, TOKEN_END, "For: Missing 'end'.");
+    consume(C, TOKEN_END, "Missing `end` in for loop");
 }
 
-static void for_statement(Compiler *this) {
-    begin_scope(this);
+static void for_statement(Compiler *C) {
+    begin_scope(C);
 
     // assign
 
-    uint8_t index = (uint8_t)this->scope->local_count;
+    uint8_t index = (uint8_t)C->scope->local_count;
 
-    variable(this, "For: Expected variable name.");
+    variable(C, "Missing variable name in for loop");
 
-    if (match(this, TOKEN_ASSIGN)) {
-        expression(this);
-        local_initialize(this);
-        consume(this, TOKEN_COMMA, "For: Missing ','.");
+    if (match(C, TOKEN_ASSIGN)) {
+        expression(C);
+        local_initialize(C);
+        consume(C, TOKEN_COMMA, "Missing `,` in for loop");
 
-    } else if (match(this, TOKEN_COMMA)) {
-        iterator_statement(this, true);
+    } else if (match(C, TOKEN_COMMA)) {
+        iterator_statement(C, true);
         return;
 
-    } else if (match(this, TOKEN_IN)) {
-        iterator_statement(this, false);
+    } else if (match(C, TOKEN_IN)) {
+        iterator_statement(C, false);
         return;
 
     } else {
-        compile_error(this, &this->previous, "For: Expected either '=' or 'in' or ','.");
+        compile_error(C, &C->previous, "Missing either `=`, `in`, or `,` in for loop");
         return;
     }
 
     // compare
 
-    int compare = current(this)->count;
+    int compare = current(C)->count;
 
-    expression(this);
+    expression(C);
 
-    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
+    int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
     // increment
 
-    int increment = current(this)->count;
+    int increment = current(C)->count;
 
-    struct LoopList loop = {.start = increment, .depth = this->scope->depth + 1, .next = this->loop, .is_for = true};
-    this->loop = &loop;
+    struct LoopList loop = {.start = increment, .depth = C->scope->depth + 1, .next = C->loop, .is_for = true};
+    C->loop = &loop;
 
-    boundary(current(this));
+    boundary(current(C));
 
-    if (match(this, TOKEN_COMMA)) {
-        expression(this);
+    if (match(C, TOKEN_COMMA)) {
+        expression(C);
     } else {
-        write_word_instruction(this, OP_INCREMENT_LOCAL_AND_SET, index, 1);
+        write_word_instruction(C, OP_INCREMENT_LOCAL_AND_SET, index, 1);
     }
 
-    HymnByteCode *code = current(this);
+    HymnByteCode *code = current(C);
 
     int count = code->count - increment;
     uint8_t *instructions = hymn_malloc(count * sizeof(uint8_t));
@@ -3212,11 +3233,11 @@ static void for_statement(Compiler *this) {
 
     // body
 
-    block(this);
+    block(C);
 
     // increment
 
-    patch_jump_for_list(this);
+    patch_jump_for_list(C);
 
     while (code->count + count > code->capacity) {
         code->capacity *= 2;
@@ -3228,20 +3249,20 @@ static void for_statement(Compiler *this) {
     code->count += count;
     free(instructions);
     free(lines);
-    boundary(current(this));
+    boundary(current(C));
 
-    emit_loop(this, compare);
+    emit_loop(C, compare);
 
     // end
 
-    this->loop = loop.next;
+    C->loop = loop.next;
 
-    patch_jump(this, jump);
+    patch_jump(C, jump);
 
-    patch_jump_list(this);
-    end_scope(this);
+    patch_jump_list(C);
+    end_scope(C);
 
-    consume(this, TOKEN_END, "For: Missing 'end'.");
+    consume(C, TOKEN_END, "Missing `end` in for loop");
 }
 
 static void while_statement(Compiler *this) {
@@ -3534,6 +3555,11 @@ static HymnFrame *current_frame(Hymn *this) {
     return &this->frames[this->frame_count - 1];
 }
 
+static void optimize_byte_code(Compiler *C) {
+    // TODO
+    (void)C;
+}
+
 struct CompileReturn {
     HymnFunction *func;
     char *error;
@@ -3556,6 +3582,8 @@ static struct CompileReturn compile(Hymn *H, const char *script, const char *sou
     if (compiler->error) {
         error = string_to_chars(compiler->error);
         hymn_string_delete(compiler->error);
+    } else {
+        optimize_byte_code(compiler);
     }
 
     return (struct CompileReturn){.func = func, .error = error};
@@ -3634,8 +3662,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         HymnTable *table = hymn_as_table(value);
         if (table == NULL || table->size == 0) {
             return hymn_new_string("{}");
-        }
-        if (pointer_set_has(set, table)) {
+        } else if (pointer_set_has(set, table)) {
             return hymn_new_string("{ .. }");
         } else {
             pointer_set_add(set, table);
@@ -3739,7 +3766,7 @@ static bool is_object(HymnValue value) {
     }
 }
 
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
 static void debug_reference(HymnValue value) {
     if (is_object(value)) {
         HymnObject *object = hymn_as_object(value);
@@ -3780,7 +3807,7 @@ static void reference_string(HymnObjectString *string) {
 #else
 static void reference_string(HymnObjectString *string) {
     string->object.count++;
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
     debug_reference(hymn_new_string_value(string));
 #endif
 }
@@ -3794,7 +3821,7 @@ static void reference(HymnValue value) {
 static void reference(HymnValue value) {
     if (is_object(value)) {
         hymn_as_object(value)->count++;
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
     }
@@ -3808,7 +3835,7 @@ static void dereference_string(Hymn *this, HymnObjectString *string) {
 }
 #else
 static void dereference_string(Hymn *this, HymnObjectString *string) {
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
     debug_dereference(hymn_new_string_value(string));
 #endif
     int count = --(string->object.count);
@@ -3835,7 +3862,7 @@ static void dereference(Hymn *this, HymnValue value) {
         break;
     }
     case HYMN_VALUE_ARRAY: {
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
         HymnArray *array = hymn_as_array(value);
@@ -3847,7 +3874,7 @@ static void dereference(Hymn *this, HymnValue value) {
         break;
     }
     case HYMN_VALUE_TABLE: {
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
         HymnTable *table = hymn_as_table(value);
@@ -3859,7 +3886,7 @@ static void dereference(Hymn *this, HymnValue value) {
         break;
     }
     case HYMN_VALUE_FUNC: {
-#ifdef HYMN_DEBUG_REFERENCE
+#ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
         HymnFunction *func = hymn_as_func(value);
@@ -4452,7 +4479,7 @@ dispatch:
             hymn_string_delete(stack_debug);
             debug = hymn_string_append(debug, "] ");
         }
-        printf("STACK   * %s\n", debug);
+        printf("STACK   | %s\n", debug);
         hymn_string_delete(debug);
     }
 #endif
@@ -4591,30 +4618,39 @@ dispatch:
     case OP_FOR: {
         uint8_t slot = READ_BYTE(frame);
         HymnValue object = frame->stack[slot];
+        this->stack_top += 2;
         if (hymn_is_table(object)) {
             HymnTable *table = hymn_as_table(object);
             HymnTableItem *next = table_next(table, NULL);
             if (next == NULL) {
+                frame->stack[slot + 1] = hymn_new_none();
+                frame->stack[slot + 2] = hymn_new_none();
                 uint16_t jump = READ_SHORT(frame);
                 frame->ip += jump;
             } else {
-                this->stack_top += 2;
                 frame->stack[slot + 1] = hymn_new_string_value(next->key);
                 frame->stack[slot + 2] = next->value;
+                reference_string(next->key);
+                reference(next->value);
                 frame->ip += 2;
             }
         } else if (hymn_is_array(object)) {
             HymnArray *array = hymn_as_array(object);
             if (array->length == 0) {
+                frame->stack[slot + 1] = hymn_new_none();
+                frame->stack[slot + 2] = hymn_new_none();
                 uint16_t jump = READ_SHORT(frame);
                 frame->ip += jump;
             } else {
-                this->stack_top += 2;
+                HymnValue item = array->items[0];
                 frame->stack[slot + 1] = hymn_new_int(0);
-                frame->stack[slot + 2] = array->items[0];
+                frame->stack[slot + 2] = item;
+                reference(item);
                 frame->ip += 2;
             }
         } else {
+            frame->stack[slot + 1] = hymn_new_none();
+            frame->stack[slot + 2] = hymn_new_none();
             THROW("Loop: Expected table or array")
         }
         HYMN_DISPATCH;
@@ -4631,8 +4667,12 @@ dispatch:
             if (next == NULL) {
                 frame->ip += 2;
             } else {
+                dereference(this, frame->stack[index]);
+                dereference(this, frame->stack[value]);
                 frame->stack[index] = hymn_new_string_value(next->key);
                 frame->stack[value] = next->value;
+                reference_string(next->key);
+                reference(next->value);
                 uint16_t jump = READ_SHORT(frame);
                 frame->ip -= jump;
             }
@@ -4642,8 +4682,11 @@ dispatch:
             if (key >= array->length) {
                 frame->ip += 2;
             } else {
+                dereference(this, frame->stack[value]);
+                HymnValue item = array->items[key];
                 frame->stack[index].as.i++;
-                frame->stack[value] = array->items[key];
+                frame->stack[value] = item;
+                reference(item);
                 uint16_t jump = READ_SHORT(frame);
                 frame->ip -= jump;
             }
@@ -4739,10 +4782,8 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_ADD_TWO_LOCAL: {
-        uint8_t slot_a = READ_BYTE(frame);
-        uint8_t slot_b = READ_BYTE(frame);
-        HymnValue b = frame->stack[slot_a];
-        HymnValue a = frame->stack[slot_b];
+        HymnValue a = frame->stack[READ_BYTE(frame)];
+        HymnValue b = frame->stack[READ_BYTE(frame)];
         if (hymn_is_none(a)) {
             if (hymn_is_string(b)) {
                 machine_push_intern_string(this, value_concat(a, b));
@@ -5005,7 +5046,7 @@ dispatch:
     }
     case OP_SET_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue value = pop(this);
+        HymnValue value = peek(this, 1);
         HymnValue exists = table_get(&this->globals, name);
         if (hymn_is_undefined(exists)) {
             THROW("Undefined variable '%s'.", name->string)
@@ -5016,6 +5057,7 @@ dispatch:
         } else {
             dereference(this, previous);
         }
+        reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_GLOBAL: {
@@ -5030,9 +5072,10 @@ dispatch:
     }
     case OP_SET_LOCAL: {
         uint8_t slot = READ_BYTE(frame);
-        HymnValue value = pop(this);
+        HymnValue value = peek(this, 1);
         dereference(this, frame->stack[slot]);
         frame->stack[slot] = value;
+        reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_LOCAL: {
@@ -5074,14 +5117,14 @@ dispatch:
     }
     case OP_SET_PROPERTY: {
         HymnValue value = pop(this);
-        HymnValue tableValue = pop(this);
-        if (!hymn_is_table(tableValue)) {
-            const char *is = value_name(tableValue.is);
+        HymnValue table_value = pop(this);
+        if (!hymn_is_table(table_value)) {
+            const char *is = value_name(table_value.is);
             dereference(this, value);
-            dereference(this, tableValue);
+            dereference(this, table_value);
             THROW("Set Property: Expected `Table` but was `%s`", is)
         }
-        HymnTable *table = hymn_as_table(tableValue);
+        HymnTable *table = hymn_as_table(table_value);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         HymnValue previous = table_put(table, name, value);
         if (hymn_is_undefined(previous)) {
@@ -5091,7 +5134,7 @@ dispatch:
         }
         push(this, value);
         reference(value);
-        dereference(this, tableValue);
+        dereference(this, table_value);
         HYMN_DISPATCH;
     }
     case OP_GET_PROPERTY: {
@@ -5156,7 +5199,12 @@ dispatch:
             }
             HymnTable *table = hymn_as_table(object);
             HymnObjectString *name = hymn_as_hymn_string(property);
-            table_put(table, name, value);
+            HymnValue previous = table_put(table, name, value);
+            if (hymn_is_undefined(previous)) {
+                reference_string(name);
+            } else {
+                dereference(this, previous);
+            }
         } else {
             const char *is = value_name(object.is);
             dereference(this, value);
@@ -5401,8 +5449,8 @@ dispatch:
                 dereference_string(this, name);
             }
             push(this, value);
-            dereference_string(this, name);
             dereference(this, v);
+            dereference_string(this, name);
         } else {
             dereference(this, i);
             dereference(this, v);
