@@ -1853,7 +1853,7 @@ static void value_pool_init(HymnValuePool *this) {
     this->values = hymn_malloc(8 * sizeof(HymnValue));
 }
 
-static void value_pool_add(HymnValuePool *this, HymnValue value) {
+static int value_pool_add(HymnValuePool *this, HymnValue value) {
     int count = this->count;
     if (count + 1 > this->capacity) {
         this->capacity *= 2;
@@ -1861,13 +1861,13 @@ static void value_pool_add(HymnValuePool *this, HymnValue value) {
     }
     this->values[count] = value;
     this->count = count + 1;
+    return count;
 }
 
 static void byte_code_init(HymnByteCode *this) {
     this->count = 0;
     this->capacity = 8;
     this->instructions = hymn_malloc(8 * sizeof(uint8_t));
-    this->previous = UINT8_MAX;
     this->lines = hymn_malloc(8 * sizeof(int));
     value_pool_init(&this->constants);
 }
@@ -2162,44 +2162,12 @@ static void byte_code_delete(HymnByteCode *this) {
 
 static uint8_t byte_code_new_constant(Compiler *this, HymnValue value) {
     HymnByteCode *code = current(this);
-    value_pool_add(&code->constants, value);
-    int constant = code->constants.count - 1;
+    int constant = value_pool_add(&code->constants, value);
     if (constant > UINT8_MAX) {
         compile_error(this, &this->previous, "Too many constants.");
         constant = 0;
     }
     return (uint8_t)constant;
-}
-
-static void boundary(HymnByteCode *code) {
-    code->behind = UINT8_MAX;
-    code->previous = UINT8_MAX;
-}
-
-#define REWRITE_BYTE(B)                \
-    code->instructions[count - 1] = B; \
-    return true
-
-#define REWRITE_CODE(OP)                \
-    code->instructions[count - 1] = OP; \
-    code->behind = p;                   \
-    code->previous = OP;                \
-    return true
-
-static void optimize_byte(HymnByteCode *code) {
-    int count = code->count;
-    if (count == 0) {
-        return;
-    }
-    uint8_t previous = code->previous;
-    if (previous == OP_SET_LOCAL && code->behind == OP_INCREMENT_LOCAL && count - 5 >= 0) {
-        if (code->instructions[count - 1] == code->instructions[count - 4]) {
-            code->instructions[count - 5] = OP_INCREMENT_LOCAL_AND_SET;
-            code->behind = UINT8_MAX;
-            code->previous = OP_INCREMENT_LOCAL_AND_SET;
-            code->count -= 2;
-        }
-    }
 }
 
 static void write_byte(HymnByteCode *code, uint8_t b, int row) {
@@ -2214,143 +2182,14 @@ static void write_byte(HymnByteCode *code, uint8_t b, int row) {
     code->count = count + 1;
 }
 
-static bool write_instruction(Compiler *this, uint8_t i, int row) {
-    HymnByteCode *code = current(this);
-    int count = code->count;
-    if (count != 0) {
-        uint8_t p = code->previous;
-
-        // PERFORMANCE TODO
-
-        // OP_CONSTANT: [Integer: -1]
-        // OP_GET_DYNAMIC
-
-        // OP_GET_GLOBAL: [String: N]
-        // OP_INCREMENT: [1]
-        // OP_SET_GLOBAL: [String: N]
-
-        // OP_GET_GLOBAL
-        // OP_GET_LOCAL
-        // OP_ARRAY_PUSH
-
-        // 0039    | OP_JUMP_IF_NOT_EQUAL: [39] -> [45]
-        // 0042   12 OP_JUMP: [42] -> [58]
-        // 0045   14 OP_GET_LOCAL: [3]
-        // --------------------------------------------
-        // 0039    | OP_JUMP_IF_EQUAL: [39] -> [58]
-        // 0045   14 OP_GET_LOCAL: [3]
-
-        // MAYBE WE SHOULD KEEP A LIST OF REFERENCES FOR EACH JUMP THAT TRACKS OTHER JUMPS THAT GO TO IT
-        // SO WE CAN SAFELY UPDATE A JUMP
-        // WILL ALSO NEED TO BACKTRACK RE-PATCH ALL IN BETWEEN JUMPS AND LOOPS
-
-        if (i == OP_RETURN && p == OP_CALL) {
-            code->instructions[count - 2] = OP_TAIL_CALL;
-
-        } else if (i == OP_POP) {
-            if (p == OP_POP) {
-                REWRITE_CODE(OP_POP_TWO);
-
-            } else if (p == OP_POP_TWO) {
-                code->instructions[count - 1] = OP_POP_N;
-                code->behind = p;
-                code->previous = OP_POP_N;
-                write_byte(code, 3, row);
-                return true;
-
-            } else if (p == OP_POP_N) {
-                uint8_t pop = code->instructions[count - 1];
-                if (pop < UINT8_MAX - 1) {
-                    REWRITE_BYTE(pop + 1);
-                }
-            } else if (p == OP_INCREMENT_LOCAL_AND_SET) {
-                // || p == OP_SET_LOCAL || p == OP_SET_GLOBAL) {
-                return true;
-            }
-        } else if (i == OP_NEGATE && p == OP_CONSTANT) {
-            HymnValue value = code->constants.values[code->instructions[count - 1]];
-            if (hymn_is_int(value)) {
-                value.as.i = -value.as.i;
-            } else if (hymn_is_float(value)) {
-                value.as.f = -value.as.f;
-            }
-            REWRITE_BYTE(byte_code_new_constant(this, value));
-
-        } else if (i == OP_ADD) {
-            if (p == OP_CONSTANT) {
-                HymnValue value = code->constants.values[code->instructions[count - 1]];
-                if (hymn_is_int(value)) {
-                    int64_t add = hymn_as_int(value);
-                    if (add > 0 && add < UINT8_MAX) {
-                        if (code->behind == OP_GET_LOCAL) {
-                            code->instructions[count - 4] = OP_INCREMENT_LOCAL;
-                            code->instructions[count - 2] = (uint8_t)add;
-                            code->behind = UINT8_MAX;
-                            code->previous = OP_INCREMENT_LOCAL;
-                            code->count--;
-                            return true;
-
-                        } else {
-                            code->instructions[count - 2] = OP_INCREMENT;
-                            code->behind = p;
-                            code->previous = OP_INCREMENT;
-                            REWRITE_BYTE((uint8_t)add);
-                        }
-                    }
-                }
-            } else if (p == OP_GET_LOCAL && code->behind == OP_GET_LOCAL) {
-                code->instructions[count - 4] = OP_ADD_TWO_LOCAL;
-                code->instructions[count - 2] = code->instructions[count - 1];
-                code->behind = UINT8_MAX;
-                code->previous = OP_ADD_TWO_LOCAL;
-                code->count--;
-                return true;
-            }
-        } else if (i == OP_JUMP_IF_TRUE) {
-            switch (p) {
-            case OP_EQUAL: REWRITE_CODE(OP_JUMP_IF_EQUAL);
-            case OP_NOT_EQUAL: REWRITE_CODE(OP_JUMP_IF_NOT_EQUAL);
-            case OP_LESS: REWRITE_CODE(OP_JUMP_IF_LESS);
-            case OP_GREATER: REWRITE_CODE(OP_JUMP_IF_GREATER);
-            case OP_LESS_EQUAL: REWRITE_CODE(OP_JUMP_IF_LESS_EQUAL);
-            case OP_GREATER_EQUAL: REWRITE_CODE(OP_JUMP_IF_GREATER_EQUAL);
-            case OP_TRUE: REWRITE_CODE(OP_JUMP);
-            case OP_FALSE: {
-                code->behind = UINT8_MAX;
-                code->previous = UINT8_MAX;
-                code->count--;
-                return false;
-            }
-            }
-        } else if (i == OP_JUMP_IF_FALSE) {
-            switch (p) {
-            case OP_EQUAL: REWRITE_CODE(OP_JUMP_IF_NOT_EQUAL);
-            case OP_NOT_EQUAL: REWRITE_CODE(OP_JUMP_IF_EQUAL);
-            case OP_LESS: REWRITE_CODE(OP_JUMP_IF_GREATER_EQUAL);
-            case OP_GREATER: REWRITE_CODE(OP_JUMP_IF_LESS_EQUAL);
-            case OP_LESS_EQUAL: REWRITE_CODE(OP_JUMP_IF_GREATER);
-            case OP_GREATER_EQUAL: REWRITE_CODE(OP_JUMP_IF_LESS);
-            case OP_FALSE: REWRITE_CODE(OP_JUMP);
-            case OP_TRUE: {
-                code->behind = UINT8_MAX;
-                code->previous = UINT8_MAX;
-                code->count--;
-                return false;
-            }
-            }
-        }
-    }
-    code->behind = code->previous;
-    code->previous = i;
-    write_byte(code, i, row);
-    return true;
+static void write_instruction(Compiler *this, uint8_t i, int row) {
+    write_byte(current(this), i, row);
 }
 
 static void write_short_instruction(Compiler *this, uint8_t i, uint8_t b) {
     int row = this->previous.row;
     write_instruction(this, i, row);
     write_byte(current(this), b, row);
-    optimize_byte(current(this));
 }
 
 static void write_word_instruction(Compiler *this, uint8_t i, uint8_t b, uint8_t n) {
@@ -2361,8 +2200,8 @@ static void write_word_instruction(Compiler *this, uint8_t i, uint8_t b, uint8_t
     write_byte(code, n, row);
 }
 
-static bool emit(Compiler *this, uint8_t i) {
-    return write_instruction(this, i, this->previous.row);
+static void emit(Compiler *this, uint8_t i) {
+    write_instruction(this, i, this->previous.row);
 }
 
 static void emit_byte(Compiler *this, uint8_t i) {
@@ -2571,19 +2410,16 @@ static uint8_t ident_constant(Compiler *this, Token *token) {
 }
 
 static void begin_scope(Compiler *this) {
-    boundary(current(this));
     this->scope->depth++;
 }
 
 static void end_scope(Compiler *this) {
-    boundary(current(this));
     Scope *scope = this->scope;
     scope->depth--;
     while (scope->local_count > 0 && scope->locals[scope->local_count - 1].depth > scope->depth) {
         emit(this, OP_POP);
         scope->local_count--;
     }
-    boundary(current(this));
 }
 
 static void compile_array(Compiler *this, bool assign) {
@@ -2823,14 +2659,10 @@ static void compile_square(Compiler *this, bool assign) {
 }
 
 static int emit_jump(Compiler *this, uint8_t instruction) {
-    if (emit(this, instruction)) {
-        emit_byte(this, UINT8_MAX);
-        emit_byte(this, UINT8_MAX);
-        boundary(current(this));
-        return current(this)->count - 2;
-    } else {
-        return -1;
-    }
+    emit(this, instruction);
+    emit_byte(this, UINT8_MAX);
+    emit_byte(this, UINT8_MAX);
+    return current(this)->count - 2;
 }
 
 static void patch_jump(Compiler *this, int jump) {
@@ -2844,30 +2676,8 @@ static void patch_jump(Compiler *this, int jump) {
         compile_error(this, &this->previous, "Jump offset too large.");
         return;
     }
-    // else if (jump + 2 < count && code->instructions[jump + 2] == OP_JUMP) {
-    // printf("X. %d, %d == %d\n", offset, code->instructions[jump - 1], OP_JUMP_IF_NOT_EQUAL);
-    // if (offset == 3 && code->instructions[jump - 1] == OP_JUMP_IF_NOT_EQUAL) {
-    //     printf("Y.\n");
-    //     code->instructions[jump - 1] = OP_JUMP_IF_EQUAL;
-    //     for (int i = jump; i < count; i++) {
-    //         code->instructions[i] = code->instructions[i + 1];
-    //         code->lines[i] = code->lines[i + 1];
-    //     }
-    //     boundary(current(this));
-    //     return;
-    // }
-
-    //   -- for i = 0, i < 4
-    //   --   if i == 2 continue end
-    //   --   print i
-    //   -- end
-
-    // MAYBE BETTER TO HAVE A SEPARATE SECOND PASS TO OPTIMIZE BYTE CODE...
-    // GETTING VERY MESSY TO DO IT DURING COMPILATION
-    // }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
     code->instructions[jump + 1] = offset & UINT8_MAX;
-    boundary(current(this));
 }
 
 static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode code) {
@@ -2900,11 +2710,351 @@ static void compile_or(Compiler *C, bool assign) {
     compile_with_precedence(C, PRECEDENCE_OR);
 }
 
-static HymnFunction *end_function(Compiler *this) {
-    emit(this, OP_NONE);
-    emit(this, OP_RETURN);
-    HymnFunction *func = this->scope->func;
-    this->scope = this->scope->enclosing;
+static int next(uint8_t instruction) {
+    switch (instruction) {
+    case OP_POP_N:
+    case OP_SET_GLOBAL:
+    case OP_SET_LOCAL:
+    case OP_SET_PROPERTY:
+    case OP_INCREMENT:
+    case OP_CALL:
+    case OP_TAIL_CALL:
+    case OP_CONSTANT:
+    case OP_DEFINE_GLOBAL:
+    case OP_GET_GLOBAL:
+    case OP_GET_LOCAL:
+    case OP_GET_PROPERTY:
+        return 2;
+    case OP_ADD_TWO_LOCAL:
+    case OP_JUMP:
+    case OP_JUMP_IF_FALSE:
+    case OP_JUMP_IF_TRUE:
+    case OP_JUMP_IF_EQUAL:
+    case OP_JUMP_IF_NOT_EQUAL:
+    case OP_JUMP_IF_LESS:
+    case OP_JUMP_IF_GREATER:
+    case OP_JUMP_IF_LESS_EQUAL:
+    case OP_JUMP_IF_GREATER_EQUAL:
+    case OP_LOOP:
+    case OP_INCREMENT_LOCAL_AND_SET:;
+    case OP_INCREMENT_LOCAL:
+        return 3;
+    case OP_FOR:
+    case OP_FOR_LOOP:
+        return 4;
+    default:
+        return 1;
+    }
+}
+
+static bool adjustable(uint8_t *instructions, int count, int at) {
+    int i = 0;
+    while (i < at) {
+        uint8_t instruction = instructions[i];
+        switch (instruction) {
+        case OP_JUMP:
+        case OP_JUMP_IF_FALSE:
+        case OP_JUMP_IF_TRUE:
+        case OP_JUMP_IF_EQUAL:
+        case OP_JUMP_IF_NOT_EQUAL:
+        case OP_JUMP_IF_LESS:
+        case OP_JUMP_IF_GREATER:
+        case OP_JUMP_IF_LESS_EQUAL:
+        case OP_JUMP_IF_GREATER_EQUAL: {
+            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            if (i + offset == at) {
+                printf("[debug]: can't adjust\n");
+                return false;
+            }
+            break;
+        }
+        case OP_FOR: {
+            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            if (i + offset == at) {
+                printf("[debug]: can't adjust\n");
+                return false;
+            }
+            break;
+        }
+        }
+        i += next(instruction);
+    }
+    while (i < count) {
+        uint8_t instruction = instructions[i];
+        switch (instruction) {
+        case OP_LOOP: {
+            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            if (i - offset == at) {
+                printf("[debug]: can't adjust\n");
+                return false;
+            }
+            break;
+        }
+        case OP_FOR_LOOP: {
+            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            if (i - offset == at) {
+                printf("[debug]: can't adjust\n");
+                return false;
+            }
+            break;
+        }
+        }
+        i += next(instruction);
+    }
+    return true;
+}
+
+static int rewrite(uint8_t *instructions, int count, int start, int shift) {
+    int i = 0;
+    while (i < start) {
+        uint8_t instruction = instructions[i];
+        switch (instruction) {
+        case OP_JUMP:
+        case OP_JUMP_IF_FALSE:
+        case OP_JUMP_IF_TRUE:
+        case OP_JUMP_IF_EQUAL:
+        case OP_JUMP_IF_NOT_EQUAL:
+        case OP_JUMP_IF_LESS:
+        case OP_JUMP_IF_GREATER:
+        case OP_JUMP_IF_LESS_EQUAL:
+        case OP_JUMP_IF_GREATER_EQUAL: {
+            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            int jump = i + offset;
+            if (jump > start) {
+                offset -= (uint16_t)shift;
+                instructions[i + 1] = (offset >> 8) & UINT8_MAX;
+                instructions[i + 2] = offset & UINT8_MAX;
+            }
+            break;
+        }
+        case OP_FOR: {
+            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            int jump = i + offset;
+            if (jump > start) {
+                offset -= (uint16_t)shift;
+                instructions[i + 2] = (offset >> 8) & UINT8_MAX;
+                instructions[i + 3] = offset & UINT8_MAX;
+            }
+            break;
+        }
+        }
+        i += next(instruction);
+    }
+    while (i < count) {
+        uint8_t instruction = instructions[i];
+        switch (instruction) {
+        case OP_LOOP: {
+            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            int jump = i - offset;
+            if (jump < start) {
+                offset -= (uint16_t)shift;
+                instructions[i + 1] = (offset >> 8) & UINT8_MAX;
+                instructions[i + 2] = offset & UINT8_MAX;
+            }
+            break;
+        }
+        case OP_FOR_LOOP: {
+            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            int jump = i - offset;
+            if (jump < start) {
+                offset -= (uint16_t)shift;
+                instructions[i + 2] = (offset >> 8) & UINT8_MAX;
+                instructions[i + 3] = offset & UINT8_MAX;
+            }
+            break;
+        }
+        }
+        i += next(instruction);
+    }
+    count -= shift;
+    for (int i = start; i < count; i++) {
+        instructions[i] = instructions[i + shift];
+    }
+    return shift;
+}
+
+static void optimize(Compiler *C) {
+    HymnByteCode *code = current(C);
+    uint8_t *instructions = code->instructions;
+    int count = code->count;
+    int one = 0;
+    while (one < count) {
+
+#define SET(I, O) instructions[I] = O
+#define REWRITE(S, X) count -= rewrite(instructions, count, one + S, X)
+#define REPEAT continue
+#define JUMP_IF(T, F)                        \
+    if (second == OP_JUMP_IF_TRUE) {         \
+        REWRITE(0, 1);                       \
+        SET(one, T);                         \
+        REPEAT;                              \
+    } else if (second == OP_JUMP_IF_FALSE) { \
+        REWRITE(0, 1);                       \
+        SET(one, F);                         \
+        REPEAT;                              \
+    }
+
+        uint8_t first = instructions[one];
+        int two = one + next(first);
+        uint8_t second = two < count ? instructions[two] : UINT8_MAX;
+
+        switch (first) {
+        case OP_CALL: {
+            if (second == OP_RETURN) {
+                SET(one, OP_TAIL_CALL);
+                REPEAT;
+            }
+            break;
+        }
+        case OP_POP: {
+            if (second == OP_POP && adjustable(instructions, count, two)) {
+                int three = two + next(second);
+                uint8_t third = three < count ? instructions[three] : UINT8_MAX;
+                if (third == OP_POP && adjustable(instructions, count, three)) {
+                    REWRITE(0, 1);
+                    SET(one, OP_POP_N);
+                    SET(one + 1, 3);
+                    REPEAT;
+                } else {
+                    REWRITE(0, 1);
+                    SET(one, OP_POP_TWO);
+                    REPEAT;
+                }
+            }
+            break;
+        }
+        case OP_GET_LOCAL: {
+            if (second == OP_GET_LOCAL) {
+                int three = two + next(second);
+                uint8_t third = three < count ? instructions[three] : UINT8_MAX;
+                if (third == OP_ADD) {
+                    SET(one, OP_ADD_TWO_LOCAL);
+                    SET(one + 2, instructions[two + 1]);
+                    REWRITE(3, 2);
+                    REPEAT;
+                }
+            } else if (second == OP_CONSTANT) {
+                int three = two + next(second);
+                uint8_t third = three < count ? instructions[three] : UINT8_MAX;
+                if (third == OP_ADD) {
+                    HymnValue value = code->constants.values[code->instructions[two + 1]];
+                    if (hymn_is_int(value)) {
+                        int64_t add = hymn_as_int(value);
+                        if (add >= 0 && add <= UINT8_MAX) {
+                            SET(one, OP_INCREMENT_LOCAL);
+                            SET(one + 2, (uint8_t)add);
+                            REWRITE(3, 2);
+                            REPEAT;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        case OP_INCREMENT_LOCAL: {
+            if (second == OP_SET_LOCAL) {
+                if (instructions[one + 1] == instructions[one + 4]) {
+                    SET(one, OP_INCREMENT_LOCAL_AND_SET);
+                    REWRITE(3, 2);
+                    REPEAT;
+                }
+            }
+            break;
+        }
+        case OP_INCREMENT_LOCAL_AND_SET: {
+            if (second == OP_POP) {
+                if (adjustable(instructions, count, two)) {
+                    REWRITE(3, 1);
+                    REPEAT;
+                }
+            }
+            break;
+        }
+        case OP_CONSTANT: {
+            if (second == OP_NEGATE) {
+                HymnValue value = code->constants.values[instructions[one + 1]];
+                if (hymn_is_int(value)) {
+                    value.as.i = -value.as.i;
+                } else if (hymn_is_float(value)) {
+                    value.as.f = -value.as.f;
+                }
+                uint8_t constant = byte_code_new_constant(C, value);
+                SET(one + 1, constant);
+                REWRITE(2, 1);
+                REPEAT;
+            } else if (second == OP_ADD) {
+                HymnValue value = code->constants.values[code->instructions[one + 1]];
+                if (hymn_is_int(value)) {
+                    int64_t add = hymn_as_int(value);
+                    if (add >= 0 && add <= UINT8_MAX) {
+                        SET(one, OP_INCREMENT);
+                        SET(one + 1, (uint8_t)add);
+                        REWRITE(2, 1);
+                        REPEAT;
+                    }
+                }
+            }
+            break;
+        }
+        case OP_EQUAL: {
+            JUMP_IF(OP_JUMP_IF_EQUAL, OP_JUMP_IF_NOT_EQUAL)
+            break;
+        }
+        case OP_NOT_EQUAL: {
+            JUMP_IF(OP_JUMP_IF_NOT_EQUAL, OP_JUMP_IF_EQUAL)
+            break;
+        }
+        case OP_LESS: {
+            JUMP_IF(OP_JUMP_IF_LESS, OP_JUMP_IF_GREATER_EQUAL)
+            break;
+        }
+        case OP_GREATER: {
+            JUMP_IF(OP_JUMP_IF_GREATER, OP_JUMP_IF_LESS_EQUAL)
+            break;
+        }
+        case OP_LESS_EQUAL: {
+            JUMP_IF(OP_JUMP_IF_LESS_EQUAL, OP_JUMP_IF_GREATER)
+            break;
+        }
+        case OP_GREATER_EQUAL: {
+            JUMP_IF(OP_JUMP_IF_GREATER_EQUAL, OP_JUMP_IF_LESS)
+            break;
+        }
+        case OP_TRUE: {
+            if (second == OP_JUMP_IF_TRUE) {
+                REWRITE(0, 1);
+                SET(one, OP_JUMP);
+                REPEAT;
+            } else if (second == OP_JUMP_IF_FALSE) {
+                REWRITE(0, 4);
+                REPEAT;
+            }
+            break;
+        }
+        case OP_FALSE: {
+            if (second == OP_JUMP_IF_TRUE) {
+                REWRITE(0, 4);
+                REPEAT;
+            } else if (second == OP_JUMP_IF_FALSE) {
+                REWRITE(0, 1);
+                SET(one, OP_JUMP);
+                REPEAT;
+            }
+            break;
+        }
+        }
+
+        one = two;
+    }
+    code->count = count;
+}
+
+static HymnFunction *end_function(Compiler *C) {
+    emit(C, OP_NONE);
+    emit(C, OP_RETURN);
+    optimize(C);
+    HymnFunction *func = C->scope->func;
+    C->scope = C->scope->enclosing;
     return func;
 }
 
@@ -3063,7 +3213,6 @@ static void emit_loop(Compiler *this, int start) {
     }
     emit_byte(this, (offset >> 8) & UINT8_MAX);
     emit_byte(this, offset & UINT8_MAX);
-    boundary(current(this));
 }
 
 static void patch_jump_list(Compiler *this) {
@@ -3135,7 +3284,6 @@ static void iterator_statement(Compiler *C, bool pair) {
     write_short_instruction(C, OP_FOR, object);
     emit_byte(C, UINT8_MAX);
     emit_byte(C, UINT8_MAX);
-    boundary(current(C));
 
     int start = current(C)->count;
     int jump = start - 2;
@@ -3158,7 +3306,6 @@ static void iterator_statement(Compiler *C, bool pair) {
     }
     emit_byte(C, (offset >> 8) & UINT8_MAX);
     emit_byte(C, offset & UINT8_MAX);
-    boundary(current(C));
 
     // end
 
@@ -3214,8 +3361,6 @@ static void for_statement(Compiler *C) {
     struct LoopList loop = {.start = increment, .depth = C->scope->depth + 1, .next = C->loop, .is_for = true};
     C->loop = &loop;
 
-    boundary(current(C));
-
     if (match(C, TOKEN_COMMA)) {
         expression(C);
     } else {
@@ -3249,7 +3394,6 @@ static void for_statement(Compiler *C) {
     code->count += count;
     free(instructions);
     free(lines);
-    boundary(current(C));
 
     emit_loop(C, compare);
 
@@ -3299,7 +3443,6 @@ static void return_statement(Compiler *this) {
 }
 
 static void pop_stack_loop(Compiler *this) {
-    boundary(current(this));
     int depth = this->loop->depth;
     Scope *scope = this->scope;
     for (int i = scope->local_count; i > 0; i--) {
@@ -3308,7 +3451,6 @@ static void pop_stack_loop(Compiler *this) {
         }
         emit(this, OP_POP);
     }
-    boundary(current(this));
 }
 
 static void break_statement(Compiler *this) {
@@ -3362,7 +3504,6 @@ static void try_statement(Compiler *this) {
 
     consume(this, TOKEN_EXCEPT, "Try: Missing 'except'.");
 
-    boundary(code);
     except->end = code->count;
 
     begin_scope(this);
@@ -3555,11 +3696,6 @@ static HymnFrame *current_frame(Hymn *this) {
     return &this->frames[this->frame_count - 1];
 }
 
-static void optimize_byte_code(Compiler *C) {
-    // TODO
-    (void)C;
-}
-
 struct CompileReturn {
     HymnFunction *func;
     char *error;
@@ -3568,22 +3704,20 @@ struct CompileReturn {
 static struct CompileReturn compile(Hymn *H, const char *script, const char *source) {
     Scope scope = {0};
 
-    Compiler c = new_compiler(script, source, H, &scope);
-    Compiler *compiler = &c;
+    Compiler compiler = new_compiler(script, source, H, &scope);
+    Compiler *C = &compiler;
 
-    advance(compiler);
-    while (!match(compiler, TOKEN_EOF)) {
-        declaration(compiler);
+    advance(C);
+    while (!match(C, TOKEN_EOF)) {
+        declaration(C);
     }
 
-    HymnFunction *func = end_function(compiler);
+    HymnFunction *func = end_function(C);
     char *error = NULL;
 
-    if (compiler->error) {
-        error = string_to_chars(compiler->error);
-        hymn_string_delete(compiler->error);
-    } else {
-        optimize_byte_code(compiler);
+    if (C->error) {
+        error = string_to_chars(C->error);
+        hymn_string_delete(C->error);
     }
 
     return (struct CompileReturn){.func = func, .error = error};

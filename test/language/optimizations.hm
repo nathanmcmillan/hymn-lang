@@ -1,0 +1,82 @@
+-- 100
+-- 3
+-- 20
+-- 6
+-- 4
+-- 6
+-- bar
+-- foo
+-- bar
+-- 256
+-- 256
+-- 256
+
+-- tail call
+function tail(i)
+  if i < 0 return 100 end
+  return tail(i - 1)
+end
+print tail(10)
+
+-- pop two
+begin
+  let x = 1
+  let y = 2
+  print x + y
+end
+
+-- pop n
+begin
+  let x = 2
+  let y = 3
+  let z = 4
+  let w = 5
+  let v = 6
+  print x + y + z + w + v
+end
+
+-- negate constant
+let a = [2, 4, 6]
+print a[-1]
+
+-- double negate constant
+let a = [2, 4, 6]
+print a[- - 1]
+
+-- add two local
+begin
+  let x = 2
+  let y = 4
+  let z = x + y
+  print z
+end
+
+-- if less
+if 0 < 1 print "foo" end print "bar"
+
+-- if true
+if true print "foo" else print "bar" end
+
+-- if false
+if false print "foo" end print "bar"
+
+-- increment
+let x = 1
+begin
+  let z = x + 255
+  print z
+end
+
+-- increment local
+begin
+  let x = 1
+  let z = x + 255
+  print z
+end
+
+-- increment and set local
+begin
+  let x = 1
+  x = x + 255
+  print x
+end
