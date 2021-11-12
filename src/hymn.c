@@ -685,6 +685,7 @@ enum OpCode {
     OP_GET_DYNAMIC,
     OP_GET_GLOBAL,
     OP_GET_LOCAL,
+    OP_GET_TWO_LOCAL,
     OP_GET_PROPERTY,
     OP_GREATER,
     OP_GREATER_EQUAL,
@@ -2725,6 +2726,7 @@ static int next(uint8_t instruction) {
     case OP_GET_LOCAL:
     case OP_GET_PROPERTY:
         return 2;
+    case OP_GET_TWO_LOCAL:
     case OP_ADD_TWO_LOCAL:
     case OP_JUMP:
     case OP_JUMP_IF_FALSE:
@@ -2748,6 +2750,7 @@ static int next(uint8_t instruction) {
 }
 
 static bool adjustable(uint8_t *instructions, int count, int at) {
+    // TODO THIS NEEDS TO BE WAY MORE EFFICIENT
     int i = 0;
     while (i < at) {
         uint8_t instruction = instructions[i];
@@ -2763,7 +2766,6 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
         case OP_JUMP_IF_GREATER_EQUAL: {
             uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
             if (i + offset == at) {
-                printf("[debug]: can't adjust\n");
                 return false;
             }
             break;
@@ -2771,7 +2773,6 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
         case OP_FOR: {
             uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
             if (i + offset == at) {
-                printf("[debug]: can't adjust\n");
                 return false;
             }
             break;
@@ -2785,7 +2786,6 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
         case OP_LOOP: {
             uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
             if (i - offset == at) {
-                printf("[debug]: can't adjust\n");
                 return false;
             }
             break;
@@ -2793,7 +2793,6 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
         case OP_FOR_LOOP: {
             uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
             if (i - offset == at) {
-                printf("[debug]: can't adjust\n");
                 return false;
             }
             break;
@@ -2883,6 +2882,7 @@ static void optimize(Compiler *C) {
 #define SET(I, O) instructions[I] = O
 #define REWRITE(S, X) count -= rewrite(instructions, count, one + S, X)
 #define REPEAT continue
+#define NEXT goto next
 #define JUMP_IF(T, F)                        \
     if (second == OP_JUMP_IF_TRUE) {         \
         REWRITE(0, 1);                       \
@@ -2896,7 +2896,13 @@ static void optimize(Compiler *C) {
 
         uint8_t first = instructions[one];
         int two = one + next(first);
-        uint8_t second = two < count ? instructions[two] : UINT8_MAX;
+        if (two >= count) break;
+        uint8_t second = instructions[two];
+
+        if (!adjustable(instructions, count, one) || !adjustable(instructions, count, two)) {
+            one = two;
+            continue;
+        }
 
         switch (first) {
         case OP_CALL: {
@@ -2907,7 +2913,7 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_POP: {
-            if (second == OP_POP && adjustable(instructions, count, two)) {
+            if (second == OP_POP) {
                 REWRITE(0, 1);
                 SET(one, OP_POP_TWO);
                 REPEAT;
@@ -2915,7 +2921,7 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_POP_TWO: {
-            if (second == OP_POP && adjustable(instructions, count, two)) {
+            if (second == OP_POP) {
                 SET(one, OP_POP_N);
                 SET(one + 1, 3);
                 REPEAT;
@@ -2923,7 +2929,7 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_POP_N: {
-            if (second == OP_POP && adjustable(instructions, count, two)) {
+            if (second == OP_POP) {
                 uint8_t pop = instructions[one + 1];
                 if (pop < UINT8_MAX - 1) {
                     REWRITE(1, 1);
@@ -2935,14 +2941,9 @@ static void optimize(Compiler *C) {
         }
         case OP_GET_LOCAL: {
             if (second == OP_GET_LOCAL) {
-                int three = two + next(second);
-                uint8_t third = three < count ? instructions[three] : UINT8_MAX;
-                if (third == OP_ADD) {
-                    SET(one, OP_ADD_TWO_LOCAL);
-                    SET(one + 2, instructions[two + 1]);
-                    REWRITE(3, 2);
-                    REPEAT;
-                }
+                SET(one, OP_GET_TWO_LOCAL);
+                REWRITE(2, 1);
+                REPEAT;
             } else if (second == OP_CONSTANT) {
                 int three = two + next(second);
                 uint8_t third = three < count ? instructions[three] : UINT8_MAX;
@@ -2961,6 +2962,14 @@ static void optimize(Compiler *C) {
             }
             break;
         }
+        case OP_GET_TWO_LOCAL: {
+            if (second == OP_ADD) {
+                SET(one, OP_ADD_TWO_LOCAL);
+                REWRITE(3, 1);
+                REPEAT;
+            }
+            break;
+        }
         case OP_INCREMENT_LOCAL: {
             if (second == OP_SET_LOCAL) {
                 if (instructions[one + 1] == instructions[one + 4]) {
@@ -2973,10 +2982,8 @@ static void optimize(Compiler *C) {
         }
         case OP_INCREMENT_LOCAL_AND_SET: {
             if (second == OP_POP) {
-                if (adjustable(instructions, count, two)) {
-                    REWRITE(3, 1);
-                    REPEAT;
-                }
+                REWRITE(3, 1);
+                REPEAT;
             }
             break;
         }
@@ -4437,6 +4444,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_GET_DYNAMIC: return debug_instruction(debug, "OP_GET_DYNAMIC", index);
     case OP_GET_GLOBAL: return debug_constant_instruction(debug, "OP_GET_GLOBAL", this, index);
     case OP_GET_LOCAL: return debug_byte_instruction(debug, "OP_GET_LOCAL", this, index);
+    case OP_GET_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_GET_TWO_LOCAL", this, index);
     case OP_GET_PROPERTY: return debug_constant_instruction(debug, "OP_GET_PROPERTY", this, index);
     case OP_GREATER: return debug_instruction(debug, "OP_GREATER", index);
     case OP_GREATER_EQUAL: return debug_instruction(debug, "OP_GREATER_EQUAL", index);
@@ -5229,6 +5237,17 @@ dispatch:
         HymnValue value = frame->stack[slot];
         reference(value);
         push(this, value);
+        HYMN_DISPATCH;
+    }
+    case OP_GET_TWO_LOCAL: {
+        uint8_t slot_a = READ_BYTE(frame);
+        uint8_t slot_b = READ_BYTE(frame);
+        HymnValue value_a = frame->stack[slot_a];
+        HymnValue value_b = frame->stack[slot_b];
+        reference(value_a);
+        reference(value_b);
+        push(this, value_a);
+        push(this, value_b);
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOCAL: {

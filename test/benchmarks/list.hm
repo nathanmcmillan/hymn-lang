@@ -14,7 +14,9 @@ let start = os_clock()
 let N = 20000000
 let list = []
 
-for i = 0, i < N push(list, i) end
+for i = 0, i < N
+  push(list, i)
+end
 
 reverse(list)
 
