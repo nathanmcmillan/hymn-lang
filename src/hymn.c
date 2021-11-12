@@ -2509,7 +2509,7 @@ static uint8_t variable(Compiler *this, const char *error) {
         if (local->depth != -1 && local->depth < scope->depth) {
             break;
         } else if (ident_match(this, name, &local->name)) {
-            compile_error(this, name, "Scope Error: Variable `%.*s` already exists in this scope.", name->length, &this->source[name->start]);
+            compile_error(this, name, "Variable `%.*s` already exists in this scope.", name->length, &this->source[name->start]);
         }
     }
     push_local(this, *name);
@@ -2908,16 +2908,26 @@ static void optimize(Compiler *C) {
         }
         case OP_POP: {
             if (second == OP_POP && adjustable(instructions, count, two)) {
-                int three = two + next(second);
-                uint8_t third = three < count ? instructions[three] : UINT8_MAX;
-                if (third == OP_POP && adjustable(instructions, count, three)) {
-                    REWRITE(0, 1);
-                    SET(one, OP_POP_N);
-                    SET(one + 1, 3);
-                    REPEAT;
-                } else {
-                    REWRITE(0, 1);
-                    SET(one, OP_POP_TWO);
+                REWRITE(0, 1);
+                SET(one, OP_POP_TWO);
+                REPEAT;
+            }
+            break;
+        }
+        case OP_POP_TWO: {
+            if (second == OP_POP && adjustable(instructions, count, two)) {
+                SET(one, OP_POP_N);
+                SET(one + 1, 3);
+                REPEAT;
+            }
+            break;
+        }
+        case OP_POP_N: {
+            if (second == OP_POP && adjustable(instructions, count, two)) {
+                uint8_t pop = instructions[one + 1];
+                if (pop < UINT8_MAX - 1) {
+                    REWRITE(1, 1);
+                    SET(one + 1, pop + 1);
                     REPEAT;
                 }
             }
@@ -4290,7 +4300,7 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
     }
 
     if (module == NULL) {
-        HymnString *missing = hymn_string_format("Import not found: %s\n", file->string);
+        HymnString *missing = hymn_string_format("Import `%s` not found.\n", file->string);
 
         for (int64_t i = 0; i < size; i++) {
             HymnValue value = paths->items[i];
@@ -5174,8 +5184,10 @@ dispatch:
     case OP_DEFINE_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         HymnValue value = pop(this);
-        table_put(&this->globals, name, value);
-        reference_string(name);
+        HymnValue previous = table_put(&this->globals, name, value);
+        if (!hymn_is_undefined(previous)) {
+            THROW("Global `%s` was previously defined.", name->string)
+        }
         HYMN_DISPATCH;
     }
     case OP_SET_GLOBAL: {
@@ -5183,7 +5195,7 @@ dispatch:
         HymnValue value = peek(this, 1);
         HymnValue exists = table_get(&this->globals, name);
         if (hymn_is_undefined(exists)) {
-            THROW("Undefined variable '%s'.", name->string)
+            THROW("Undefined variable `%s`.", name->string)
         }
         HymnValue previous = table_put(&this->globals, name, value);
         if (hymn_is_undefined(previous)) {

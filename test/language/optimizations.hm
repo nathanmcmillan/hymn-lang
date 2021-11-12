@@ -4,7 +4,7 @@
 -- 6
 -- 4
 -- 6
--- bar
+-- foo
 -- foo
 -- bar
 -- 256
@@ -40,8 +40,8 @@ let a = [2, 4, 6]
 print a[-1]
 
 -- double negate constant
-let a = [2, 4, 6]
-print a[- - 1]
+let b = [2, 4, 6]
+print b[- - 1]
 
 -- add two local
 begin
@@ -52,13 +52,13 @@ begin
 end
 
 -- if less
-if 0 < 1 print "foo" end print "bar"
+if 0 < 1 print "foo" else print "bar" end
 
 -- if true
 if true print "foo" else print "bar" end
 
 -- if false
-if false print "foo" end print "bar"
+if false print "foo" else print "bar" end
 
 -- increment
 let x = 1

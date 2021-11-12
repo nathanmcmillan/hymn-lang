@@ -4,7 +4,7 @@
 -- 6
 -- FOO
 
-use "std"
+use "../std"
 
 print min(4, 6)
 print max(4, 6)

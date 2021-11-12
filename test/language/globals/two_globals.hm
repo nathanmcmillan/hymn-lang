@@ -1,0 +1,7 @@
+-- @Exception
+
+let a = [2, 4, 6]
+print a[-1]
+
+let a = [2, 4, 6]
+print a[- - 1]
