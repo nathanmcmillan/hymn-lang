@@ -1,5 +1,5 @@
 -- @Starts
--- Expected string, array, or table for `index` function.
+-- Index function expects `String`, `Array`, or `Table`
 
 let foo = "empty"
 try

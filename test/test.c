@@ -168,7 +168,7 @@ static HymnString *test_source(HymnString *script) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
         hymn_string_zero(out);
-        char *error = hymn_do(hymn, script, source);
+        char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
         if (strcmp(expected, "@Exception") == 0) {
             if (error == NULL) {
@@ -198,6 +198,33 @@ static HymnString *test_source(HymnString *script) {
     return result;
 }
 
+HymnValue fun_for_vm(Hymn *vm, int count, HymnValue *arguments) {
+    (void)vm;
+    (void)count;
+    (void)arguments;
+    return hymn_new_none();
+}
+
+static void test_api() {
+    tests_count++;
+    printf("api\n");
+    Hymn *hymn = new_hymn();
+    hymn->print = console;
+    hymn_string_zero(out);
+    hymn_add_function(hymn, "fun", fun_for_vm);
+    void *point = hymn_calloc(1, sizeof(void *));
+    hymn_add_pointer(hymn, "point", point);
+    char *error = hymn_do(hymn, "print(fun(point))");
+    hymn_delete(hymn);
+    free(point);
+    if (error != NULL) {
+        printf("⨯ %s\n\n", error);
+        tests_fail++;
+    } else {
+        tests_success++;
+    }
+}
+
 static void test_hymn(const char *filter) {
     out = hymn_new_string("");
 
@@ -215,7 +242,8 @@ static void test_hymn(const char *filter) {
         printf("%s\n", script);
         HymnString *result = test_source(script);
         if (result != NULL) {
-            printf("⨯ %s\n\n", result);
+            // printf("⨯ %s\n\n", result);
+            printf("%s\n\n", result);
             tests_fail++;
         } else {
             // printf(" ✓\n");
@@ -227,6 +255,8 @@ static void test_hymn(const char *filter) {
     delete_file_list(&all);
     hymn_delete_filter_list(&scripts);
     hymn_string_delete(end);
+
+    test_api();
 
     hymn_string_delete(out);
 }

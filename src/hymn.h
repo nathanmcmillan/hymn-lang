@@ -240,13 +240,15 @@ bool hymn_is_func(HymnValue v);
 
 Hymn *new_hymn();
 
-char *hymn_debug(Hymn *this, const char *script);
-char *hymn_do(Hymn *this, const char *script, const char *source);
-char *hymn_read(Hymn *this, const char *script);
+char *hymn_debug(Hymn *H, const char *script);
+char *hymn_call(Hymn *H, const char *name, int arguments);
+char *hymn_run(Hymn *H, const char *script, const char *source);
+char *hymn_do(Hymn *H, const char *source);
+char *hymn_read(Hymn *H, const char *script);
 
-void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func);
-void hymn_add_pointer(Hymn *this, const char *name, void *pointer);
+void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
+void hymn_add_pointer(Hymn *H, const char *name, void *pointer);
 
-void hymn_delete(Hymn *this);
+void hymn_delete(Hymn *H);
 
 #endif

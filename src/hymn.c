@@ -569,6 +569,10 @@ enum TokenType {
     TOKEN_ADD,
     TOKEN_AND,
     TOKEN_ASSIGN,
+    TOKEN_ASSIGN_ADD,
+    TOKEN_ASSIGN_SUBTRACT,
+    TOKEN_ASSIGN_MULTIPLY,
+    TOKEN_ASSIGN_DIVIDE,
     TOKEN_BEGIN,
     TOKEN_BIT_AND,
     TOKEN_BIT_LEFT_SHIFT,
@@ -739,58 +743,60 @@ enum FunctionType {
     TYPE_SCRIPT,
 };
 
-static void compile_with_precedence(Compiler *this, enum Precedence precedence);
-static void compile_call(Compiler *this, bool assign);
-static void compile_group(Compiler *this, bool assign);
-static void compile_none(Compiler *this, bool assign);
-static void compile_true(Compiler *this, bool assign);
-static void compile_false(Compiler *this, bool assign);
-static void compile_integer(Compiler *this, bool assign);
-static void compile_float(Compiler *this, bool assign);
-static void compile_string(Compiler *this, bool assign);
-static void compile_array(Compiler *this, bool assign);
-static void compile_table(Compiler *this, bool assign);
-static void compile_variable(Compiler *this, bool assign);
-static void compile_unary(Compiler *this, bool assign);
-static void compile_binary(Compiler *this, bool assign);
-static void compile_dot(Compiler *this, bool assign);
-static void compile_square(Compiler *this, bool assign);
-static void compile_and(Compiler *this, bool assign);
-static void compile_or(Compiler *this, bool assign);
-static void array_push_expression(Compiler *this, bool assign);
-static void array_insert_expression(Compiler *this, bool assign);
-static void array_pop_expression(Compiler *this, bool assign);
-static void delete_expression(Compiler *this, bool assign);
-static void len_expression(Compiler *this, bool assign);
-static void cast_integer_expression(Compiler *this, bool assign);
-static void cast_float_expression(Compiler *this, bool assign);
-static void cast_string_expression(Compiler *this, bool assign);
-static void clear_expression(Compiler *this, bool assign);
-static void copy_expression(Compiler *this, bool assign);
-static void index_expression(Compiler *this, bool assign);
-static void keys_expression(Compiler *this, bool assign);
-static void type_expression(Compiler *this, bool assign);
-static void declaration(Compiler *this);
-static void statement(Compiler *this);
-static void expression_statement(Compiler *this);
-static void expression(Compiler *this);
+static void compile_with_precedence(Compiler *C, enum Precedence precedence);
+static void compile_call(Compiler *C, bool assign);
+static void compile_group(Compiler *C, bool assign);
+static void compile_none(Compiler *C, bool assign);
+static void compile_true(Compiler *C, bool assign);
+static void compile_false(Compiler *C, bool assign);
+static void compile_integer(Compiler *C, bool assign);
+static void compile_float(Compiler *C, bool assign);
+static void compile_string(Compiler *C, bool assign);
+static void compile_array(Compiler *C, bool assign);
+static void compile_table(Compiler *C, bool assign);
+static void compile_variable(Compiler *C, bool assign);
+static void compile_unary(Compiler *C, bool assign);
+static void compile_binary(Compiler *C, bool assign);
+static void compile_dot(Compiler *C, bool assign);
+static void compile_square(Compiler *C, bool assign);
+static void compile_and(Compiler *C, bool assign);
+static void compile_or(Compiler *C, bool assign);
+static void array_push_expression(Compiler *C, bool assign);
+static void array_insert_expression(Compiler *C, bool assign);
+static void array_pop_expression(Compiler *C, bool assign);
+static void delete_expression(Compiler *C, bool assign);
+static void len_expression(Compiler *C, bool assign);
+static void cast_integer_expression(Compiler *C, bool assign);
+static void cast_float_expression(Compiler *C, bool assign);
+static void cast_string_expression(Compiler *C, bool assign);
+static void clear_expression(Compiler *C, bool assign);
+static void copy_expression(Compiler *C, bool assign);
+static void index_expression(Compiler *C, bool assign);
+static void keys_expression(Compiler *C, bool assign);
+static void type_expression(Compiler *C, bool assign);
+static void declaration(Compiler *C);
+static void statement(Compiler *C);
+static void expression_statement(Compiler *C);
+static void expression(Compiler *C);
 
 static void reference_string(HymnObjectString *string);
 static void reference(HymnValue value);
-static void dereference_string(Hymn *this, HymnObjectString *string);
-static void dereference(Hymn *this, HymnValue value);
+static void dereference_string(Hymn *H, HymnObjectString *string);
+static void dereference(Hymn *H, HymnValue value);
 
-static char *machine_interpret(Hymn *this);
+static char *machine_interpret(Hymn *H);
 
 struct JumpList {
     int jump;
     int depth;
+    HymnByteCode *code;
     struct JumpList *next;
 };
 
 struct LoopList {
     int start;
     int depth;
+    HymnByteCode *code;
     bool is_for;
     struct LoopList *next;
 };
@@ -978,6 +984,10 @@ Rule rules[] = {
     [TOKEN_ADD] = {NULL, compile_binary, PRECEDENCE_TERM},
     [TOKEN_AND] = {NULL, compile_and, PRECEDENCE_AND},
     [TOKEN_ASSIGN] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_ADD] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_SUBTRACT] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_MULTIPLY] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_DIVIDE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_BEGIN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_BIT_AND] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BIT_LEFT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
@@ -1420,17 +1430,17 @@ static void set_clear(Hymn *H, HymnSet *this) {
     this->size = 0;
 }
 
-static void set_release(Hymn *H, HymnSet *this) {
-    set_clear(H, this);
-    free(this->items);
+static void set_release(Hymn *H, HymnSet *set) {
+    set_clear(H, set);
+    free(set->items);
 }
 
-static HymnFunction *current_func(Compiler *this) {
-    return this->scope->func;
+static HymnFunction *current_func(Compiler *C) {
+    return C->scope->func;
 }
 
-static HymnByteCode *current(Compiler *this) {
-    return &current_func(this)->code;
+static HymnByteCode *current(Compiler *C) {
+    return &current_func(C)->code;
 }
 
 static size_t beginning_of_line(const char *source, size_t i) {
@@ -1470,8 +1480,8 @@ static HymnString *string_append_second_previous_line(const char *source, HymnSt
     return string_append_previous_line(source, string, begin);
 }
 
-static void compile_error(Compiler *this, Token *token, const char *format, ...) {
-    if (this->error != NULL) return;
+static void compile_error(Compiler *C, Token *token, const char *format, ...) {
+    if (C->error != NULL) return;
 
     va_list ap;
     va_start(ap, format);
@@ -1485,12 +1495,12 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     free(chars);
     error = hymn_string_append(error, "\n\n");
 
-    size_t begin = beginning_of_line(this->source, token->start);
-    size_t end = end_of_line(this->source, this->size, token->start);
+    size_t begin = beginning_of_line(C->source, token->start);
+    size_t end = end_of_line(C->source, C->size, token->start);
 
-    error = string_append_second_previous_line(this->source, error, begin);
-    error = string_append_previous_line(this->source, error, begin);
-    error = string_append_format(error, "%.*s\n", end - begin, &this->source[begin]);
+    error = string_append_second_previous_line(C->source, error, begin);
+    error = string_append_previous_line(C->source, error, begin);
+    error = string_append_format(error, "%.*s\n", end - begin, &C->source[begin]);
     for (int i = 0; i < (int)(token->start - begin); i++) {
         error = hymn_string_append_char(error, ' ');
     }
@@ -1500,68 +1510,68 @@ static void compile_error(Compiler *this, Token *token, const char *format, ...)
     }
     error = hymn_string_append(error, ANSI_COLOR_RESET);
 
-    error = string_append_format(error, "\nat %s:%d\n", this->script, token->row);
+    error = string_append_format(error, "\nat %s:%d\n", C->script, token->row);
 
-    this->error = error;
+    C->error = error;
 
-    this->previous.type = TOKEN_EOF;
-    this->current.type = TOKEN_EOF;
+    C->previous.type = TOKEN_EOF;
+    C->current.type = TOKEN_EOF;
 }
 
-static char next_char(Compiler *this) {
-    size_t pos = this->pos;
-    if (pos == this->size) {
+static char next_char(Compiler *C) {
+    size_t pos = C->pos;
+    if (pos == C->size) {
         return '\0';
     }
-    char c = this->source[pos];
-    this->pos = pos + 1;
+    char c = C->source[pos];
+    C->pos = pos + 1;
     if (c == '\n') {
-        this->row++;
-        this->column = 0;
+        C->row++;
+        C->column = 0;
     } else {
-        this->column++;
+        C->column++;
     }
     return c;
 }
 
-static char peek_char(Compiler *this) {
-    if (this->pos == this->size) {
+static char peek_char(Compiler *C) {
+    if (C->pos == C->size) {
         return '\0';
     }
-    return this->source[this->pos];
+    return C->source[C->pos];
 }
 
-static void token(Compiler *this, enum TokenType type) {
-    Token *current = &this->current;
+static void token(Compiler *C, enum TokenType type) {
+    Token *current = &C->current;
     current->type = type;
-    current->row = this->row;
-    current->column = this->column;
-    if (this->pos == 0) {
+    current->row = C->row;
+    current->column = C->column;
+    if (C->pos == 0) {
         current->start = 0;
     } else {
-        current->start = this->pos - 1;
+        current->start = C->pos - 1;
     }
     current->length = 1;
 }
 
-static void token_special(Compiler *this, enum TokenType type, size_t offset, size_t length) {
-    Token *current = &this->current;
+static void token_special(Compiler *C, enum TokenType type, size_t offset, size_t length) {
+    Token *current = &C->current;
     current->type = type;
-    current->row = this->row;
-    current->column = this->column;
-    if (this->pos < offset) {
+    current->row = C->row;
+    current->column = C->column;
+    if (C->pos < offset) {
         current->start = 0;
     } else {
-        current->start = this->pos - offset;
+        current->start = C->pos - offset;
     }
     current->length = (int)length;
 }
 
-static void value_token(Compiler *this, enum TokenType type, size_t start, size_t end) {
-    Token *current = &this->current;
+static void value_token(Compiler *C, enum TokenType type, size_t start, size_t end) {
+    Token *current = &C->current;
     current->type = type;
-    current->row = this->row;
-    current->column = this->column;
+    current->row = C->row;
+    current->column = C->column;
     current->start = start;
     current->length = (int)(end - start);
 }
@@ -1673,14 +1683,14 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
     return TOKEN_UNDEFINED;
 }
 
-static void push_ident_token(Compiler *this, size_t start, size_t end) {
-    const char *ident = &this->source[start];
+static void push_ident_token(Compiler *C, size_t start, size_t end) {
+    const char *ident = &C->source[start];
     size_t size = end - start;
     enum TokenType keyword = ident_keyword(ident, size);
     if (keyword != TOKEN_UNDEFINED) {
-        value_token(this, keyword, start, end);
+        value_token(C, keyword, start, end);
     } else {
-        value_token(this, TOKEN_IDENT, start, end);
+        value_token(C, TOKEN_IDENT, start, end);
     }
 }
 
@@ -1692,156 +1702,181 @@ static bool is_ident(char c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
-static void advance(Compiler *this) {
-    this->previous = this->current;
-    if (this->previous.type == TOKEN_EOF) {
+static void advance(Compiler *C) {
+    C->previous = C->current;
+    if (C->previous.type == TOKEN_EOF) {
         return;
     }
     while (true) {
-        char c = next_char(this);
+        char c = next_char(C);
         switch (c) {
         case ' ':
         case '\t':
         case '\r':
         case '\n':
-            c = peek_char(this);
+            c = peek_char(C);
             while (c != '\0' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
-                next_char(this);
-                c = peek_char(this);
+                next_char(C);
+                c = peek_char(C);
             }
             continue;
         case '-': {
-            if (peek_char(this) == '-') {
-                next_char(this);
-                c = peek_char(this);
+            if (peek_char(C) == '-') {
+                next_char(C);
+                c = peek_char(C);
                 while (c != '\n' && c != '\0') {
-                    next_char(this);
-                    c = peek_char(this);
+                    next_char(C);
+                    c = peek_char(C);
                 }
                 continue;
+            } else if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_SUBTRACT, 2, 2);
+                return;
             } else {
-                token(this, TOKEN_SUBTRACT);
+                token(C, TOKEN_SUBTRACT);
                 return;
             }
         }
         case '!':
-            if (peek_char(this) == '=') {
-                next_char(this);
-                token_special(this, TOKEN_NOT_EQUAL, 2, 2);
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_NOT_EQUAL, 2, 2);
             } else {
-                token(this, TOKEN_NOT);
+                token(C, TOKEN_NOT);
             }
             return;
         case '=':
-            if (peek_char(this) == '=') {
-                next_char(this);
-                token_special(this, TOKEN_EQUAL, 2, 2);
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_EQUAL, 2, 2);
             } else {
-                token(this, TOKEN_ASSIGN);
+                token(C, TOKEN_ASSIGN);
+            }
+            return;
+        case '+':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_ADD, 2, 2);
+            } else {
+                token(C, TOKEN_ADD);
+            }
+            return;
+        case '*':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_MULTIPLY, 2, 2);
+            } else {
+                token(C, TOKEN_MULTIPLY);
+            }
+            return;
+        case '/':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_DIVIDE, 2, 2);
+            } else {
+                token(C, TOKEN_DIVIDE);
             }
             return;
         case '>':
-            if (peek_char(this) == '=') {
-                next_char(this);
-                token_special(this, TOKEN_GREATER_EQUAL, 2, 2);
-            } else if (peek_char(this) == '>') {
-                next_char(this);
-                token_special(this, TOKEN_BIT_RIGHT_SHIFT, 2, 2);
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_GREATER_EQUAL, 2, 2);
+            } else if (peek_char(C) == '>') {
+                next_char(C);
+                token_special(C, TOKEN_BIT_RIGHT_SHIFT, 2, 2);
             } else {
-                token(this, TOKEN_GREATER);
+                token(C, TOKEN_GREATER);
             }
             return;
         case '<':
-            if (peek_char(this) == '=') {
-                next_char(this);
-                token_special(this, TOKEN_LESS_EQUAL, 2, 2);
-            } else if (peek_char(this) == '<') {
-                next_char(this);
-                token_special(this, TOKEN_BIT_LEFT_SHIFT, 2, 2);
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_LESS_EQUAL, 2, 2);
+            } else if (peek_char(C) == '<') {
+                next_char(C);
+                token_special(C, TOKEN_BIT_LEFT_SHIFT, 2, 2);
             } else {
-                token(this, TOKEN_LESS);
+                token(C, TOKEN_LESS);
             }
             return;
-        case '&': token(this, TOKEN_BIT_AND); return;
-        case '|': token(this, TOKEN_BIT_OR); return;
-        case '^': token(this, TOKEN_BIT_XOR); return;
-        case '~': token(this, TOKEN_BIT_NOT); return;
-        case '+': token(this, TOKEN_ADD); return;
-        case '%': token(this, TOKEN_MODULO); return;
-        case '*': token(this, TOKEN_MULTIPLY); return;
-        case '/': token(this, TOKEN_DIVIDE); return;
-        case ',': token(this, TOKEN_COMMA); return;
-        case '.': token(this, TOKEN_DOT); return;
-        case '(': token(this, TOKEN_LEFT_PAREN); return;
-        case ')': token(this, TOKEN_RIGHT_PAREN); return;
-        case '[': token(this, TOKEN_LEFT_SQUARE); return;
-        case ']': token(this, TOKEN_RIGHT_SQUARE); return;
-        case '{': token(this, TOKEN_LEFT_CURLY); return;
-        case '}': token(this, TOKEN_RIGHT_CURLY); return;
-        case ':': token(this, TOKEN_COLON); return;
-        case ';': token(this, TOKEN_SEMICOLON); return;
-        case '\0': token(this, TOKEN_EOF); return;
+        case '&': token(C, TOKEN_BIT_AND); return;
+        case '|': token(C, TOKEN_BIT_OR); return;
+        case '^': token(C, TOKEN_BIT_XOR); return;
+        case '~': token(C, TOKEN_BIT_NOT); return;
+        case '%': token(C, TOKEN_MODULO); return;
+        case ',': token(C, TOKEN_COMMA); return;
+        case '.': token(C, TOKEN_DOT); return;
+        case '(': token(C, TOKEN_LEFT_PAREN); return;
+        case ')': token(C, TOKEN_RIGHT_PAREN); return;
+        case '[': token(C, TOKEN_LEFT_SQUARE); return;
+        case ']': token(C, TOKEN_RIGHT_SQUARE); return;
+        case '{': token(C, TOKEN_LEFT_CURLY); return;
+        case '}': token(C, TOKEN_RIGHT_CURLY); return;
+        case ':': token(C, TOKEN_COLON); return;
+        case ';': token(C, TOKEN_SEMICOLON); return;
+        case '\0': token(C, TOKEN_EOF); return;
         case '"': {
-            size_t start = this->pos;
+            size_t start = C->pos;
             while (true) {
-                c = next_char(this);
+                c = next_char(C);
                 if (c == '\\') {
-                    next_char(this);
+                    next_char(C);
                     continue;
                 } else if (c == '"' || c == '\0') {
                     break;
                 }
             }
-            size_t end = this->pos - 1;
-            value_token(this, TOKEN_STRING, start, end);
+            size_t end = C->pos - 1;
+            value_token(C, TOKEN_STRING, start, end);
             return;
         }
         case '\'': {
-            size_t start = this->pos;
+            size_t start = C->pos;
             while (true) {
-                c = next_char(this);
+                c = next_char(C);
                 if (c == '\\') {
-                    next_char(this);
+                    next_char(C);
                     continue;
                 } else if (c == '\'' || c == '\0') {
                     break;
                 }
             }
-            size_t end = this->pos - 1;
-            value_token(this, TOKEN_STRING, start, end);
+            size_t end = C->pos - 1;
+            value_token(C, TOKEN_STRING, start, end);
             return;
         }
         default: {
             if (is_digit(c)) {
-                size_t start = this->pos - 1;
-                while (is_digit(peek_char(this))) {
-                    next_char(this);
+                size_t start = C->pos - 1;
+                while (is_digit(peek_char(C))) {
+                    next_char(C);
                 }
                 bool discrete = true;
-                if (peek_char(this) == '.') {
+                if (peek_char(C) == '.') {
                     discrete = false;
-                    next_char(this);
-                    while (is_digit(peek_char(this))) {
-                        next_char(this);
+                    next_char(C);
+                    while (is_digit(peek_char(C))) {
+                        next_char(C);
                     }
                 }
-                size_t end = this->pos;
+                size_t end = C->pos;
                 if (discrete) {
-                    value_token(this, TOKEN_INTEGER, start, end);
+                    value_token(C, TOKEN_INTEGER, start, end);
                 } else {
-                    value_token(this, TOKEN_FLOAT, start, end);
+                    value_token(C, TOKEN_FLOAT, start, end);
                 }
                 return;
             } else if (is_ident(c)) {
-                size_t start = this->pos - 1;
-                while (is_ident(peek_char(this))) {
-                    next_char(this);
+                size_t start = C->pos - 1;
+                while (is_ident(peek_char(C))) {
+                    next_char(C);
                 }
-                size_t end = this->pos;
-                push_ident_token(this, start, end);
+                size_t end = C->pos;
+                push_ident_token(C, start, end);
                 return;
             } else {
-                compile_error(this, &this->current, "Unknown character: `%c`", c);
+                compile_error(C, &C->current, "Unknown character: `%c`", c);
             }
         }
         }
@@ -2122,17 +2157,17 @@ static void value_pool_delete(HymnValuePool *this) {
     free(this->values);
 }
 
-static void scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
-    scope->enclosing = this->scope;
-    this->scope = scope;
+static void scope_init(Compiler *C, Scope *scope, enum FunctionType type) {
+    scope->enclosing = C->scope;
+    C->scope = scope;
 
     scope->local_count = 0;
     scope->depth = 0;
-    scope->func = new_function(this->script);
+    scope->func = new_function(C->script);
     scope->type = type;
 
     if (type != TYPE_SCRIPT) {
-        scope->func->name = hymn_substring(this->source, this->previous.start, this->previous.start + this->previous.length);
+        scope->func->name = hymn_substring(C->source, C->previous.start, C->previous.start + C->previous.length);
     }
 
     Local *local = &scope->locals[scope->local_count++];
@@ -2142,17 +2177,17 @@ static void scope_init(Compiler *this, Scope *scope, enum FunctionType type) {
 }
 
 static inline Compiler new_compiler(const char *script, const char *source, Hymn *H, Scope *scope) {
-    Compiler this = {0};
-    this.row = 1;
-    this.column = 1;
-    this.script = script;
-    this.source = source;
-    this.size = strlen(source);
-    this.previous.type = TOKEN_UNDEFINED;
-    this.current.type = TOKEN_UNDEFINED;
-    this.H = H;
-    scope_init(&this, scope, TYPE_SCRIPT);
-    return this;
+    Compiler C = {0};
+    C.row = 1;
+    C.column = 1;
+    C.script = script;
+    C.source = source;
+    C.size = strlen(source);
+    C.previous.type = TOKEN_UNDEFINED;
+    C.current.type = TOKEN_UNDEFINED;
+    C.H = H;
+    scope_init(&C, scope, TYPE_SCRIPT);
+    return C;
 }
 
 static void byte_code_delete(HymnByteCode *this) {
@@ -2161,11 +2196,11 @@ static void byte_code_delete(HymnByteCode *this) {
     value_pool_delete(&this->constants);
 }
 
-static uint8_t byte_code_new_constant(Compiler *this, HymnValue value) {
-    HymnByteCode *code = current(this);
+static uint8_t byte_code_new_constant(Compiler *C, HymnValue value) {
+    HymnByteCode *code = current(C);
     int constant = value_pool_add(&code->constants, value);
     if (constant > UINT8_MAX) {
-        compile_error(this, &this->previous, "Too many constants.");
+        compile_error(C, &C->previous, "Too many constants");
         constant = 0;
     }
     return (uint8_t)constant;
@@ -2183,35 +2218,35 @@ static void write_byte(HymnByteCode *code, uint8_t b, int row) {
     code->count = count + 1;
 }
 
-static void write_instruction(Compiler *this, uint8_t i, int row) {
-    write_byte(current(this), i, row);
+static void write_instruction(Compiler *C, uint8_t i, int row) {
+    write_byte(current(C), i, row);
 }
 
-static void write_short_instruction(Compiler *this, uint8_t i, uint8_t b) {
-    int row = this->previous.row;
-    write_instruction(this, i, row);
-    write_byte(current(this), b, row);
+static void write_short_instruction(Compiler *C, uint8_t i, uint8_t b) {
+    int row = C->previous.row;
+    write_instruction(C, i, row);
+    write_byte(current(C), b, row);
 }
 
-static void write_word_instruction(Compiler *this, uint8_t i, uint8_t b, uint8_t n) {
-    int row = this->previous.row;
-    write_instruction(this, i, row);
-    HymnByteCode *code = current(this);
+static void write_word_instruction(Compiler *C, uint8_t i, uint8_t b, uint8_t n) {
+    int row = C->previous.row;
+    write_instruction(C, i, row);
+    HymnByteCode *code = current(C);
     write_byte(code, b, row);
     write_byte(code, n, row);
 }
 
-static void emit(Compiler *this, uint8_t i) {
-    write_instruction(this, i, this->previous.row);
+static void emit(Compiler *C, uint8_t i) {
+    write_instruction(C, i, C->previous.row);
 }
 
-static void emit_byte(Compiler *this, uint8_t i) {
-    write_byte(current(this), i, this->previous.row);
+static void emit_byte(Compiler *C, uint8_t i) {
+    write_byte(current(C), i, C->previous.row);
 }
 
-static uint8_t write_constant(Compiler *this, HymnValue value) {
-    uint8_t constant = byte_code_new_constant(this, value);
-    write_short_instruction(this, OP_CONSTANT, constant);
+static uint8_t write_constant(Compiler *C, HymnValue value) {
+    uint8_t constant = byte_code_new_constant(C, value);
+    write_short_instruction(C, OP_CONSTANT, constant);
     return constant;
 }
 
@@ -2219,16 +2254,16 @@ static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
-static HymnObjectString *machine_intern_string(Hymn *this, HymnString *string) {
-    HymnObjectString *object = set_add_or_get(&this->strings, string);
+static HymnObjectString *machine_intern_string(Hymn *H, HymnString *string) {
+    HymnObjectString *object = set_add_or_get(&H->strings, string);
     if (object->string != string) {
         hymn_string_delete(string);
     }
     return object;
 }
 
-static HymnValue compile_intern_string(Hymn *this, HymnString *string) {
-    HymnObjectString *object = set_add_or_get(&this->strings, string);
+static HymnValue compile_intern_string(Hymn *H, HymnString *string) {
+    HymnObjectString *object = set_add_or_get(&H->strings, string);
     if (object->string == string) {
         reference_string(object);
     } else {
@@ -2237,54 +2272,68 @@ static HymnValue compile_intern_string(Hymn *this, HymnString *string) {
     return hymn_new_string_value(object);
 }
 
-static bool check(Compiler *this, enum TokenType type) {
-    return this->current.type == type;
-}
-
-static bool match(Compiler *this, enum TokenType type) {
-    if (!check(this, type)) {
+static bool check_assign(Compiler *C) {
+    switch (C->current.type) {
+    case TOKEN_ASSIGN:
+    case TOKEN_ASSIGN_ADD:
+    case TOKEN_ASSIGN_SUBTRACT:
+    case TOKEN_ASSIGN_MULTIPLY:
+    case TOKEN_ASSIGN_DIVIDE:
+        return true;
+    default:
         return false;
     }
-    advance(this);
+}
+
+static bool check(Compiler *C, enum TokenType type) {
+    return C->current.type == type;
+}
+
+static bool match(Compiler *C, enum TokenType type) {
+    if (!check(C, type)) {
+        return false;
+    }
+    advance(C);
     return true;
 }
 
-static void compile_with_precedence(Compiler *this, enum Precedence precedence) {
-    advance(this);
-    Rule *rule = token_rule(this->previous.type);
+static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
+    advance(C);
+    Rule *rule = token_rule(C->previous.type);
     void (*prefix)(Compiler *, bool) = rule->prefix;
     if (prefix == NULL) {
-        compile_error(this, &this->previous, "Syntax Error: Expected expression following `%.*s`.", this->previous.length, &this->source[this->previous.start]);
+        compile_error(C, &C->previous, "Expected expression following `%.*s`", C->previous.length, &C->source[C->previous.start]);
         return;
     }
     bool assign = precedence <= PRECEDENCE_ASSIGN;
-    prefix(this, assign);
-    while (precedence <= token_rule(this->current.type)->precedence) {
-        advance(this);
-        void (*infix)(Compiler *, bool) = token_rule(this->previous.type)->infix;
+    prefix(C, assign);
+    while (precedence <= token_rule(C->current.type)->precedence) {
+        advance(C);
+        void (*infix)(Compiler *, bool) = token_rule(C->previous.type)->infix;
         if (infix == NULL) {
-            compile_error(this, &this->previous, "Expected infix.");
+            compile_error(C, &C->previous, "Expected infix");
             return;
         }
-        infix(this, assign);
+        infix(C, assign);
     }
-    if (assign && match(this, TOKEN_ASSIGN)) {
-        compile_error(this, &this->current, "Invalid assignment target.");
+    if (assign && check_assign(C)) {
+        advance(C);
+        compile_error(C, &C->current, "Invalid assignment target");
     }
 }
 
-static void consume(Compiler *this, enum TokenType type, const char *error) {
-    if (this->current.type == type) {
-        advance(this);
+static void consume(Compiler *C, enum TokenType type, const char *error) {
+    if (C->current.type == type) {
+        advance(C);
         return;
     }
-    compile_error(this, &this->current, error);
+    compile_error(C, &C->current, error);
 }
 
-static uint8_t push_hidden_local(Compiler *this) {
-    Scope *scope = this->scope;
+static uint8_t push_hidden_local(Compiler *C) {
+    Scope *scope = C->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
-        compile_error(this, &this->previous, "Too many local variables in scope.");
+        compile_error(C, &C->previous, "Too many local variables in scope");
         return 0;
     }
     uint8_t index = (uint8_t)scope->local_count++;
@@ -2294,61 +2343,61 @@ static uint8_t push_hidden_local(Compiler *this) {
     return index;
 }
 
-static uint8_t arguments(Compiler *this) {
+static uint8_t arguments(Compiler *C) {
     uint8_t count = 0;
-    if (!check(this, TOKEN_RIGHT_PAREN)) {
+    if (!check(C, TOKEN_RIGHT_PAREN)) {
         do {
-            expression(this);
+            expression(C);
             if (count == UINT8_MAX) {
-                compile_error(this, &this->previous, "Can't have more than 255 function arguments.");
+                compile_error(C, &C->previous, "Can't have more than 255 function arguments");
                 break;
             }
             count++;
-        } while (match(this, TOKEN_COMMA));
+        } while (match(C, TOKEN_COMMA));
     }
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments.");
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after function arguments");
     return count;
 }
 
-static void compile_call(Compiler *this, bool assign) {
+static void compile_call(Compiler *C, bool assign) {
     (void)assign;
-    uint8_t count = arguments(this);
-    write_short_instruction(this, OP_CALL, count);
+    uint8_t count = arguments(C);
+    write_short_instruction(C, OP_CALL, count);
 }
 
-static void compile_group(Compiler *this, bool assign) {
+static void compile_group(Compiler *C, bool assign) {
     (void)assign;
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected right parenthesis.");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected right parenthesis");
 }
 
-static void compile_none(Compiler *this, bool assign) {
+static void compile_none(Compiler *C, bool assign) {
     (void)assign;
-    emit(this, OP_NONE);
+    emit(C, OP_NONE);
 }
 
-static void compile_true(Compiler *this, bool assign) {
+static void compile_true(Compiler *C, bool assign) {
     (void)assign;
-    emit(this, OP_TRUE);
+    emit(C, OP_TRUE);
 }
 
-static void compile_false(Compiler *this, bool assign) {
+static void compile_false(Compiler *C, bool assign) {
     (void)assign;
-    emit(this, OP_FALSE);
+    emit(C, OP_FALSE);
 }
 
-static void compile_integer(Compiler *this, bool assign) {
+static void compile_integer(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &this->previous;
-    int64_t number = (int64_t)strtoll(&this->source[previous->start], NULL, 10);
-    write_constant(this, hymn_new_int(number));
+    Token *previous = &C->previous;
+    int64_t number = (int64_t)strtoll(&C->source[previous->start], NULL, 10);
+    write_constant(C, hymn_new_int(number));
 }
 
-static void compile_float(Compiler *this, bool assign) {
+static void compile_float(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &this->previous;
-    double number = strtod(&this->source[previous->start], NULL);
-    write_constant(this, hymn_new_float(number));
+    Token *previous = &C->previous;
+    double number = strtod(&C->source[previous->start], NULL);
+    write_constant(C, hymn_new_float(number));
 }
 
 char escape_sequence(const char c) {
@@ -2398,68 +2447,68 @@ HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     return literal;
 }
 
-static void compile_string(Compiler *this, bool assign) {
+static void compile_string(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &this->previous;
-    HymnString *s = parse_string_literal(this->source, previous->start, previous->length);
-    write_constant(this, compile_intern_string(this->H, s));
+    Token *previous = &C->previous;
+    HymnString *s = parse_string_literal(C->source, previous->start, previous->length);
+    write_constant(C, compile_intern_string(C->H, s));
 }
 
-static uint8_t ident_constant(Compiler *this, Token *token) {
-    HymnString *string = hymn_substring(this->source, token->start, token->start + token->length);
-    return byte_code_new_constant(this, compile_intern_string(this->H, string));
+static uint8_t ident_constant(Compiler *C, Token *token) {
+    HymnString *string = hymn_substring(C->source, token->start, token->start + token->length);
+    return byte_code_new_constant(C, compile_intern_string(C->H, string));
 }
 
-static void begin_scope(Compiler *this) {
-    this->scope->depth++;
+static void begin_scope(Compiler *C) {
+    C->scope->depth++;
 }
 
-static void end_scope(Compiler *this) {
-    Scope *scope = this->scope;
+static void end_scope(Compiler *C) {
+    Scope *scope = C->scope;
     scope->depth--;
     while (scope->local_count > 0 && scope->locals[scope->local_count - 1].depth > scope->depth) {
-        emit(this, OP_POP);
+        emit(C, OP_POP);
         scope->local_count--;
     }
 }
 
-static void compile_array(Compiler *this, bool assign) {
+static void compile_array(Compiler *C, bool assign) {
     (void)assign;
-    write_constant(this, hymn_new_array_value(NULL));
-    if (match(this, TOKEN_RIGHT_SQUARE)) {
+    write_constant(C, hymn_new_array_value(NULL));
+    if (match(C, TOKEN_RIGHT_SQUARE)) {
         return;
     }
-    while (!check(this, TOKEN_RIGHT_SQUARE) && !check(this, TOKEN_EOF)) {
-        emit(this, OP_DUPLICATE);
-        expression(this);
-        emit(this, OP_ARRAY_PUSH);
-        emit(this, OP_POP);
-        if (!check(this, TOKEN_RIGHT_SQUARE)) {
-            consume(this, TOKEN_COMMA, "Expected ','.");
+    while (!check(C, TOKEN_RIGHT_SQUARE) && !check(C, TOKEN_EOF)) {
+        emit(C, OP_DUPLICATE);
+        expression(C);
+        emit(C, OP_ARRAY_PUSH);
+        emit(C, OP_POP);
+        if (!check(C, TOKEN_RIGHT_SQUARE)) {
+            consume(C, TOKEN_COMMA, "Expected `,`");
         }
     }
-    consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.");
+    consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` declaring array");
 }
 
-static void compile_table(Compiler *this, bool assign) {
+static void compile_table(Compiler *C, bool assign) {
     (void)assign;
-    write_constant(this, hymn_new_table_value(NULL));
-    if (match(this, TOKEN_RIGHT_CURLY)) {
+    write_constant(C, hymn_new_table_value(NULL));
+    if (match(C, TOKEN_RIGHT_CURLY)) {
         return;
     }
-    while (!check(this, TOKEN_RIGHT_CURLY) && !check(this, TOKEN_EOF)) {
-        emit(this, OP_DUPLICATE);
-        consume(this, TOKEN_IDENT, "Expected property name");
-        uint8_t name = ident_constant(this, &this->previous);
-        consume(this, TOKEN_COLON, "Expected ':'.");
-        expression(this);
-        write_short_instruction(this, OP_SET_PROPERTY, name);
-        emit(this, OP_POP);
-        if (!check(this, TOKEN_RIGHT_CURLY)) {
-            consume(this, TOKEN_COMMA, "Expected ','.");
+    while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
+        emit(C, OP_DUPLICATE);
+        consume(C, TOKEN_IDENT, "Expected property name");
+        uint8_t name = ident_constant(C, &C->previous);
+        consume(C, TOKEN_COLON, "Expected `:`");
+        expression(C);
+        write_short_instruction(C, OP_SET_PROPERTY, name);
+        emit(C, OP_POP);
+        if (!check(C, TOKEN_RIGHT_CURLY)) {
+            consume(C, TOKEN_COMMA, "Expected `,`");
         }
     }
-    consume(this, TOKEN_RIGHT_CURLY, "Expected '}' declaring table.");
+    consume(C, TOKEN_RIGHT_CURLY, "Expected `}` declaring table");
 }
 
 static void function_delete(HymnFunction *this) {
@@ -2480,10 +2529,10 @@ static void native_function_delete(HymnNativeFunction *this) {
     free(this);
 }
 
-static void push_local(Compiler *this, Token name) {
-    Scope *scope = this->scope;
+static void push_local(Compiler *C, Token name) {
+    Scope *scope = C->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
-        compile_error(this, &name, "Too many local variables in scope.");
+        compile_error(C, &name, "Too many local variables in scope");
         return;
     }
     Local *local = &scope->locals[scope->local_count++];
@@ -2491,62 +2540,62 @@ static void push_local(Compiler *this, Token name) {
     local->depth = -1;
 }
 
-static bool ident_match(Compiler *this, Token *a, Token *b) {
+static bool ident_match(Compiler *C, Token *a, Token *b) {
     if (a->length != b->length) {
         return false;
     }
-    return memcmp(&this->source[a->start], &this->source[b->start], a->length) == 0;
+    return memcmp(&C->source[a->start], &C->source[b->start], a->length) == 0;
 }
 
-static uint8_t variable(Compiler *this, const char *error) {
-    consume(this, TOKEN_IDENT, error);
-    Scope *scope = this->scope;
+static uint8_t variable(Compiler *C, const char *error) {
+    consume(C, TOKEN_IDENT, error);
+    Scope *scope = C->scope;
     if (scope->depth == 0) {
-        return ident_constant(this, &this->previous);
+        return ident_constant(C, &C->previous);
     }
-    Token *name = &this->previous;
+    Token *name = &C->previous;
     for (int i = scope->local_count - 1; i >= 0; i--) {
         Local *local = &scope->locals[i];
         if (local->depth != -1 && local->depth < scope->depth) {
             break;
-        } else if (ident_match(this, name, &local->name)) {
-            compile_error(this, name, "Variable `%.*s` already exists in this scope.", name->length, &this->source[name->start]);
+        } else if (ident_match(C, name, &local->name)) {
+            compile_error(C, name, "Variable `%.*s` already exists in this scope", name->length, &C->source[name->start]);
         }
     }
-    push_local(this, *name);
+    push_local(C, *name);
     return 0;
 }
 
-static void local_initialize(Compiler *this) {
-    Scope *scope = this->scope;
+static void local_initialize(Compiler *C) {
+    Scope *scope = C->scope;
     if (scope->depth == 0) {
         return;
     }
     scope->locals[scope->local_count - 1].depth = scope->depth;
 }
 
-static void finalize_variable(Compiler *this, uint8_t global) {
-    if (this->scope->depth > 0) {
-        local_initialize(this);
+static void finalize_variable(Compiler *C, uint8_t global) {
+    if (C->scope->depth > 0) {
+        local_initialize(C);
         return;
     }
-    write_short_instruction(this, OP_DEFINE_GLOBAL, global);
+    write_short_instruction(C, OP_DEFINE_GLOBAL, global);
 }
 
-static void define_new_variable(Compiler *this) {
-    uint8_t global = variable(this, "Syntax Error: Expected variable name.");
-    consume(this, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.");
-    expression(this);
-    finalize_variable(this, global);
+static void define_new_variable(Compiler *C) {
+    uint8_t global = variable(C, "Expected variable name");
+    consume(C, TOKEN_ASSIGN, "Expected `=` after variable");
+    expression(C);
+    finalize_variable(C, global);
 }
 
-static int resolve_local(Compiler *this, Token *name) {
-    Scope *scope = this->scope;
+static int resolve_local(Compiler *C, Token *name) {
+    Scope *scope = C->scope;
     for (int i = scope->local_count - 1; i >= 0; i--) {
         Local *local = &scope->locals[i];
-        if (ident_match(this, name, &local->name)) {
+        if (ident_match(C, name, &local->name)) {
             if (local->depth == -1) {
-                compile_error(this, name, "Reference Error: Local variable `%.*s` referenced before assignment.", name->length, &this->source[name->start]);
+                compile_error(C, name, "Local variable `%.*s` referenced before assignment", name->length, &C->source[name->start]);
             }
             return i;
         }
@@ -2554,127 +2603,139 @@ static int resolve_local(Compiler *this, Token *name) {
     return -1;
 }
 
-static void named_variable(Compiler *this, Token token, bool assign) {
+static void named_variable(Compiler *C, Token token, bool assign) {
     uint8_t get;
     uint8_t set;
-    int var = resolve_local(this, &token);
+    int var = resolve_local(C, &token);
     if (var != -1) {
         get = OP_GET_LOCAL;
         set = OP_SET_LOCAL;
     } else {
         get = OP_GET_GLOBAL;
         set = OP_SET_GLOBAL;
-        var = ident_constant(this, &token);
+        var = ident_constant(C, &token);
     }
-    if (assign && match(this, TOKEN_ASSIGN)) {
-        expression(this);
-        write_short_instruction(this, set, (uint8_t)var);
+    if (assign && check_assign(C)) {
+        enum TokenType type = C->current.type;
+        advance(C);
+        if (type != TOKEN_ASSIGN) {
+            write_short_instruction(C, get, (uint8_t)var);
+        }
+        expression(C);
+        switch (type) {
+        case TOKEN_ASSIGN_ADD: emit(C, OP_ADD); break;
+        case TOKEN_ASSIGN_SUBTRACT: emit(C, OP_SUBTRACT); break;
+        case TOKEN_ASSIGN_MULTIPLY: emit(C, OP_MULTIPLY); break;
+        case TOKEN_ASSIGN_DIVIDE: emit(C, OP_DIVIDE); break;
+        default: break;
+        }
+        write_short_instruction(C, set, (uint8_t)var);
     } else {
-        write_short_instruction(this, get, (uint8_t)var);
+        write_short_instruction(C, get, (uint8_t)var);
     }
 }
 
-static void compile_variable(Compiler *this, bool assign) {
-    named_variable(this, this->previous, assign);
+static void compile_variable(Compiler *C, bool assign) {
+    named_variable(C, C->previous, assign);
 }
 
-static void compile_unary(Compiler *this, bool assign) {
+static void compile_unary(Compiler *C, bool assign) {
     (void)assign;
-    enum TokenType type = this->previous.type;
-    compile_with_precedence(this, PRECEDENCE_UNARY);
+    enum TokenType type = C->previous.type;
+    compile_with_precedence(C, PRECEDENCE_UNARY);
     switch (type) {
-    case TOKEN_NOT: emit(this, OP_NOT); break;
-    case TOKEN_SUBTRACT: emit(this, OP_NEGATE); break;
-    case TOKEN_BIT_NOT: emit(this, OP_BIT_NOT); break;
+    case TOKEN_NOT: emit(C, OP_NOT); break;
+    case TOKEN_SUBTRACT: emit(C, OP_NEGATE); break;
+    case TOKEN_BIT_NOT: emit(C, OP_BIT_NOT); break;
     default: return;
     }
 }
 
-static void compile_binary(Compiler *this, bool assign) {
+static void compile_binary(Compiler *C, bool assign) {
     (void)assign;
-    enum TokenType type = this->previous.type;
+    enum TokenType type = C->previous.type;
     Rule *rule = token_rule(type);
-    compile_with_precedence(this, (enum Precedence)(rule->precedence + 1));
+    compile_with_precedence(C, (enum Precedence)(rule->precedence + 1));
     switch (type) {
-    case TOKEN_ADD: emit(this, OP_ADD); break;
-    case TOKEN_SUBTRACT: emit(this, OP_SUBTRACT); break;
-    case TOKEN_MODULO: emit(this, OP_MODULO); break;
-    case TOKEN_MULTIPLY: emit(this, OP_MULTIPLY); break;
-    case TOKEN_DIVIDE: emit(this, OP_DIVIDE); break;
-    case TOKEN_EQUAL: emit(this, OP_EQUAL); break;
-    case TOKEN_NOT_EQUAL: emit(this, OP_NOT_EQUAL); break;
-    case TOKEN_LESS: emit(this, OP_LESS); break;
-    case TOKEN_LESS_EQUAL: emit(this, OP_LESS_EQUAL); break;
-    case TOKEN_GREATER: emit(this, OP_GREATER); break;
-    case TOKEN_GREATER_EQUAL: emit(this, OP_GREATER_EQUAL); break;
-    case TOKEN_BIT_OR: emit(this, OP_BIT_OR); break;
-    case TOKEN_BIT_AND: emit(this, OP_BIT_AND); break;
-    case TOKEN_BIT_XOR: emit(this, OP_BIT_XOR); break;
-    case TOKEN_BIT_LEFT_SHIFT: emit(this, OP_BIT_LEFT_SHIFT); break;
-    case TOKEN_BIT_RIGHT_SHIFT: emit(this, OP_BIT_RIGHT_SHIFT); break;
+    case TOKEN_ADD: emit(C, OP_ADD); break;
+    case TOKEN_SUBTRACT: emit(C, OP_SUBTRACT); break;
+    case TOKEN_MODULO: emit(C, OP_MODULO); break;
+    case TOKEN_MULTIPLY: emit(C, OP_MULTIPLY); break;
+    case TOKEN_DIVIDE: emit(C, OP_DIVIDE); break;
+    case TOKEN_EQUAL: emit(C, OP_EQUAL); break;
+    case TOKEN_NOT_EQUAL: emit(C, OP_NOT_EQUAL); break;
+    case TOKEN_LESS: emit(C, OP_LESS); break;
+    case TOKEN_LESS_EQUAL: emit(C, OP_LESS_EQUAL); break;
+    case TOKEN_GREATER: emit(C, OP_GREATER); break;
+    case TOKEN_GREATER_EQUAL: emit(C, OP_GREATER_EQUAL); break;
+    case TOKEN_BIT_OR: emit(C, OP_BIT_OR); break;
+    case TOKEN_BIT_AND: emit(C, OP_BIT_AND); break;
+    case TOKEN_BIT_XOR: emit(C, OP_BIT_XOR); break;
+    case TOKEN_BIT_LEFT_SHIFT: emit(C, OP_BIT_LEFT_SHIFT); break;
+    case TOKEN_BIT_RIGHT_SHIFT: emit(C, OP_BIT_RIGHT_SHIFT); break;
     default: return;
     }
 }
 
-static void compile_dot(Compiler *this, bool assign) {
-    consume(this, TOKEN_IDENT, "Expected property name after '.'.");
-    uint8_t name = ident_constant(this, &this->previous);
-    if (assign && match(this, TOKEN_ASSIGN)) {
-        expression(this);
-        write_short_instruction(this, OP_SET_PROPERTY, name);
+static void compile_dot(Compiler *C, bool assign) {
+    consume(C, TOKEN_IDENT, "Expected property name after `.`");
+    uint8_t name = ident_constant(C, &C->previous);
+    if (assign && match(C, TOKEN_ASSIGN)) {
+        expression(C);
+        write_short_instruction(C, OP_SET_PROPERTY, name);
     } else {
-        write_short_instruction(this, OP_GET_PROPERTY, name);
+        write_short_instruction(C, OP_GET_PROPERTY, name);
     }
 }
 
-static void compile_square(Compiler *this, bool assign) {
-    if (match(this, TOKEN_COLON)) {
-        write_constant(this, hymn_new_int(0));
-        if (match(this, TOKEN_RIGHT_SQUARE)) {
-            write_constant(this, hymn_new_none());
+static void compile_square(Compiler *C, bool assign) {
+    if (match(C, TOKEN_COLON)) {
+        write_constant(C, hymn_new_int(0));
+        if (match(C, TOKEN_RIGHT_SQUARE)) {
+            write_constant(C, hymn_new_none());
         } else {
-            expression(this);
-            consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
+            expression(C);
+            consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
         }
-        emit(this, OP_SLICE);
+        emit(C, OP_SLICE);
     } else {
-        expression(this);
-        if (match(this, TOKEN_COLON)) {
-            if (match(this, TOKEN_RIGHT_SQUARE)) {
-                write_constant(this, hymn_new_none());
+        expression(C);
+        if (match(C, TOKEN_COLON)) {
+            if (match(C, TOKEN_RIGHT_SQUARE)) {
+                write_constant(C, hymn_new_none());
             } else {
-                expression(this);
-                consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
+                expression(C);
+                consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
             }
-            emit(this, OP_SLICE);
+            emit(C, OP_SLICE);
         } else {
-            consume(this, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.");
-            if (assign && match(this, TOKEN_ASSIGN)) {
-                expression(this);
-                emit(this, OP_SET_DYNAMIC);
+            consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
+            if (assign && match(C, TOKEN_ASSIGN)) {
+                expression(C);
+                emit(C, OP_SET_DYNAMIC);
             } else {
-                emit(this, OP_GET_DYNAMIC);
+                emit(C, OP_GET_DYNAMIC);
             }
         }
     }
 }
 
-static int emit_jump(Compiler *this, uint8_t instruction) {
-    emit(this, instruction);
-    emit_byte(this, UINT8_MAX);
-    emit_byte(this, UINT8_MAX);
-    return current(this)->count - 2;
+static int emit_jump(Compiler *C, uint8_t instruction) {
+    emit(C, instruction);
+    emit_byte(C, UINT8_MAX);
+    emit_byte(C, UINT8_MAX);
+    return current(C)->count - 2;
 }
 
-static void patch_jump(Compiler *this, int jump) {
+static void patch_jump(Compiler *C, int jump) {
     if (jump == -1) {
         return;
     }
-    HymnByteCode *code = current(this);
+    HymnByteCode *code = current(C);
     int count = code->count;
     int offset = count - jump - 2;
     if (offset > UINT16_MAX) {
-        compile_error(this, &this->previous, "Jump offset too large.");
+        compile_error(C, &C->previous, "Jump offset too large");
         return;
     }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
@@ -2682,10 +2743,50 @@ static void patch_jump(Compiler *this, int jump) {
 }
 
 static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode code) {
+    // What about a function call inside an if, need to check the active ByteCode object as well?
     struct JumpList *jump = hymn_calloc(1, sizeof(struct JumpList));
     jump->jump = emit_jump(C, code);
+    jump->depth = C->scope->depth;
+    jump->code = current(C);
+    printf("ADD JUMP: %d\n", jump->depth);
     jump->next = list;
     return jump;
+}
+
+static void free_jump_and_list(Compiler *C) {
+    struct JumpList *jump = C->jump_and;
+    HymnByteCode *code = current(C);
+    int depth = C->scope->depth;
+    printf("PATCH AND JUMP LIST: %d\n", depth);
+    while (jump != NULL) {
+        if (jump->code != code || jump->depth < depth) {
+            break;
+        }
+        printf("FREE AND JUMP: %d\n", jump->depth);
+        patch_jump(C, jump->jump);
+        struct JumpList *next = jump->next;
+        free(jump);
+        jump = next;
+    }
+    C->jump_and = jump;
+}
+
+static void free_jump_or_list(Compiler *C) {
+    struct JumpList *jump = C->jump_or;
+    HymnByteCode *code = current(C);
+    int depth = C->scope->depth;
+    printf("PATCH OR JUMP LIST: %d\n", depth);
+    while (jump != NULL) {
+        if (jump->code != code || jump->depth < depth) {
+            break;
+        }
+        printf("FREE OR JUMP: %d\n", jump->depth);
+        patch_jump(C, jump->jump);
+        struct JumpList *next = jump->next;
+        free(jump);
+        jump = next;
+    }
+    C->jump_or = jump;
 }
 
 static void free_jumps(Compiler *C, struct JumpList *jump) {
@@ -2706,8 +2807,7 @@ static void compile_and(Compiler *C, bool assign) {
 static void compile_or(Compiler *C, bool assign) {
     (void)assign;
     C->jump_or = add_jump(C, C->jump_or, OP_JUMP_IF_TRUE);
-    free_jumps(C, C->jump_and);
-    C->jump_and = NULL;
+    free_jump_and_list(C);
     compile_with_precedence(C, PRECEDENCE_OR);
 }
 
@@ -2803,7 +2903,7 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
     return true;
 }
 
-static int rewrite(uint8_t *instructions, int count, int start, int shift) {
+static int rewrite(uint8_t *instructions, int *lines, int count, int start, int shift) {
     int i = 0;
     while (i < start) {
         uint8_t instruction = instructions[i];
@@ -2866,8 +2966,10 @@ static int rewrite(uint8_t *instructions, int count, int start, int shift) {
         i += next(instruction);
     }
     count -= shift;
-    for (int i = start; i < count; i++) {
-        instructions[i] = instructions[i + shift];
+    for (int c = start; c < count; c++) {
+        int n = c + shift;
+        instructions[c] = instructions[n];
+        lines[c] = lines[n];
     }
     return shift;
 }
@@ -2875,12 +2977,13 @@ static int rewrite(uint8_t *instructions, int count, int start, int shift) {
 static void optimize(Compiler *C) {
     HymnByteCode *code = current(C);
     uint8_t *instructions = code->instructions;
+    int *lines = code->lines;
     int count = code->count;
     int one = 0;
     while (one < count) {
 
 #define SET(I, O) instructions[I] = O
-#define REWRITE(S, X) count -= rewrite(instructions, count, one + S, X)
+#define REWRITE(S, X) count -= rewrite(instructions, lines, count, one + S, X)
 #define REPEAT continue
 #define NEXT goto next
 #define JUMP_IF(T, F)                        \
@@ -2899,7 +3002,7 @@ static void optimize(Compiler *C) {
         if (two >= count) break;
         uint8_t second = instructions[two];
 
-        if (!adjustable(instructions, count, one) || !adjustable(instructions, count, two)) {
+        if (!adjustable(instructions, count, two)) {
             one = two;
             continue;
         }
@@ -2917,6 +3020,9 @@ static void optimize(Compiler *C) {
                 REWRITE(0, 1);
                 SET(one, OP_POP_TWO);
                 REPEAT;
+            } else if (second == OP_DUPLICATE) {
+                // REWRITE(0, 2);
+                // REPEAT;
             }
             break;
         }
@@ -2952,9 +3058,11 @@ static void optimize(Compiler *C) {
                     if (hymn_is_int(value)) {
                         int64_t add = hymn_as_int(value);
                         if (add >= 0 && add <= UINT8_MAX) {
+                            uint8_t local = code->instructions[one + 1];
+                            REWRITE(0, 2);
                             SET(one, OP_INCREMENT_LOCAL);
+                            SET(one + 1, local);
                             SET(one + 2, (uint8_t)add);
-                            REWRITE(3, 2);
                             REPEAT;
                         }
                     }
@@ -3059,6 +3167,18 @@ static void optimize(Compiler *C) {
             }
             break;
         }
+        case OP_NOT: {
+            if (second == OP_JUMP_IF_TRUE) {
+                REWRITE(0, 1);
+                SET(one, OP_JUMP_IF_FALSE);
+                REPEAT;
+            } else if (second == OP_JUMP_IF_FALSE) {
+                REWRITE(0, 1);
+                SET(one, OP_JUMP_IF_TRUE);
+                REPEAT;
+            }
+            break;
+        }
         }
 
         one = two;
@@ -3075,69 +3195,68 @@ static HymnFunction *end_function(Compiler *C) {
     return func;
 }
 
-static void compile_function(Compiler *this, enum FunctionType type) {
+static void compile_function(Compiler *C, enum FunctionType type) {
     Scope scope = {0};
-    scope_init(this, &scope, type);
+    scope_init(C, &scope, type);
 
-    begin_scope(this);
+    begin_scope(C);
 
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after function name.");
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after function name");
 
-    if (!check(this, TOKEN_RIGHT_PAREN)) {
+    if (!check(C, TOKEN_RIGHT_PAREN)) {
         do {
-            this->scope->func->arity++;
-            if (this->scope->func->arity > UINT8_MAX) {
-                compile_error(this, &this->previous, "Can't have more than 255 function parameters.");
+            C->scope->func->arity++;
+            if (C->scope->func->arity > UINT8_MAX) {
+                compile_error(C, &C->previous, "Can't have more than 255 function parameters");
             }
-            uint8_t parameter = variable(this, "Expected parameter name.");
-            finalize_variable(this, parameter);
-        } while (match(this, TOKEN_COMMA));
+            uint8_t parameter = variable(C, "Expected parameter name");
+            finalize_variable(C, parameter);
+        } while (match(C, TOKEN_COMMA));
     }
 
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after function parameters.");
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after function parameters");
 
-    while (!check(this, TOKEN_END) && !check(this, TOKEN_EOF)) {
-        declaration(this);
+    while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+        declaration(C);
     }
 
-    end_scope(this);
-    consume(this, TOKEN_END, "Expected 'end' after function body.");
+    end_scope(C);
+    consume(C, TOKEN_END, "Expected `end` after function body");
 
-    HymnFunction *func = end_function(this);
-    write_constant(this, hymn_new_func_value(func));
+    HymnFunction *func = end_function(C);
+    write_constant(C, hymn_new_func_value(func));
 }
 
-static void declare_function(Compiler *this) {
-    uint8_t global = variable(this, "Expected function name.");
-    local_initialize(this);
-    compile_function(this, TYPE_FUNCTION);
-    finalize_variable(this, global);
+static void declare_function(Compiler *C) {
+    uint8_t global = variable(C, "Expected function name");
+    local_initialize(C);
+    compile_function(C, TYPE_FUNCTION);
+    finalize_variable(C, global);
 }
 
-static void declaration(Compiler *this) {
-    if (match(this, TOKEN_LET)) {
-        define_new_variable(this);
-    } else if (match(this, TOKEN_FUNCTION)) {
-        declare_function(this);
+static void declaration(Compiler *C) {
+    if (match(C, TOKEN_LET)) {
+        define_new_variable(C);
+    } else if (match(C, TOKEN_FUNCTION)) {
+        declare_function(C);
     } else {
-        statement(this);
+        statement(C);
     }
 }
 
-static void block(Compiler *this) {
-    begin_scope(this);
-    while (!check(this, TOKEN_END) && !check(this, TOKEN_EOF)) {
-        declaration(this);
+static void block(Compiler *C) {
+    begin_scope(C);
+    while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+        declaration(C);
     }
-    end_scope(this);
+    end_scope(C);
 }
 
 static void if_statement(Compiler *C) {
     expression(C);
     int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-    free_jumps(C, C->jump_or);
-    C->jump_or = NULL;
+    free_jump_or_list(C);
 
     begin_scope(C);
     while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
@@ -3147,8 +3266,7 @@ static void if_statement(Compiler *C) {
 
     if (check(C, TOKEN_END)) {
         patch_jump(C, jump);
-        free_jumps(C, C->jump_and);
-        C->jump_and = NULL;
+        free_jump_and_list(C);
 
     } else {
         struct JumpList jump_end = {0};
@@ -3158,15 +3276,12 @@ static void if_statement(Compiler *C) {
 
         while (match(C, TOKEN_ELIF)) {
             patch_jump(C, jump);
-
-            free_jumps(C, C->jump_and);
-            C->jump_and = NULL;
+            free_jump_and_list(C);
 
             expression(C);
             jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-            free_jumps(C, C->jump_or);
-            C->jump_or = NULL;
+            free_jump_or_list(C);
 
             begin_scope(C);
             while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
@@ -3182,8 +3297,7 @@ static void if_statement(Compiler *C) {
         }
 
         patch_jump(C, jump);
-        free_jumps(C, C->jump_and);
-        C->jump_and = NULL;
+        free_jump_and_list(C);
 
         if (match(C, TOKEN_ELSE)) {
             block(C);
@@ -3193,78 +3307,78 @@ static void if_statement(Compiler *C) {
         free_jumps(C, jump_end.next);
     }
 
-    consume(C, TOKEN_END, "If statement is missing \"end\".");
+    consume(C, TOKEN_END, "If statement is missing \"end\"");
 }
 
-static bool compile_literal(Compiler *this) {
-    advance(this);
-    switch (this->previous.type) {
+static bool compile_literal(Compiler *C) {
+    advance(C);
+    switch (C->previous.type) {
     case TOKEN_NONE:
-        compile_none(this, false);
+        compile_none(C, false);
         return true;
     case TOKEN_TRUE:
-        compile_true(this, false);
+        compile_true(C, false);
         return true;
     case TOKEN_FALSE:
-        compile_false(this, false);
+        compile_false(C, false);
         return true;
     case TOKEN_INTEGER:
-        compile_integer(this, false);
+        compile_integer(C, false);
         return true;
     case TOKEN_FLOAT:
-        compile_float(this, false);
+        compile_float(C, false);
         return true;
     case TOKEN_STRING:
-        compile_string(this, false);
+        compile_string(C, false);
         return true;
     default:
         return false;
     }
 }
 
-static void emit_loop(Compiler *this, int start) {
-    emit(this, OP_LOOP);
-    int offset = current(this)->count - start + 2;
+static void emit_loop(Compiler *C, int start) {
+    emit(C, OP_LOOP);
+    int offset = current(C)->count - start + 2;
     if (offset > UINT16_MAX) {
-        compile_error(this, &this->previous, "Loop is too large.");
+        compile_error(C, &C->previous, "Loop is too large");
     }
-    emit_byte(this, (offset >> 8) & UINT8_MAX);
-    emit_byte(this, offset & UINT8_MAX);
+    emit_byte(C, (offset >> 8) & UINT8_MAX);
+    emit_byte(C, offset & UINT8_MAX);
 }
 
-static void patch_jump_list(Compiler *this) {
-    while (this->jump != NULL) {
+static void patch_jump_list(Compiler *C) {
+    while (C->jump != NULL) {
         int depth;
-        if (this->loop == NULL) {
+        if (C->loop == NULL) {
             depth = 1;
         } else {
-            depth = this->loop->depth + 1;
+            depth = C->loop->depth + 1;
         }
-        if (this->jump->depth < depth) {
+        if (C->jump->depth < depth) {
             break;
         }
-        patch_jump(this, this->jump->jump);
-        struct JumpList *next = this->jump->next;
-        free(this->jump);
-        this->jump = next;
+        patch_jump(C, C->jump->jump);
+        struct JumpList *next = C->jump->next;
+        free(C->jump);
+        C->jump = next;
     }
 }
 
-static void patch_jump_for_list(Compiler *this) {
-    while (this->jump_for != NULL) {
+static void patch_jump_for_list(Compiler *C) {
+    while (C->jump_for != NULL) {
         int depth;
-        if (this->loop == NULL) {
+        if (C->loop == NULL) {
             depth = 1;
         } else {
-            depth = this->loop->depth;
+            depth = C->loop->depth;
         }
-        if (this->jump_for->depth < depth) {
+        if (C->jump_for->depth < depth) {
             break;
         }
-        patch_jump(this, this->jump_for->jump);
-        struct JumpList *next = this->jump_for->next;
-        free(this->jump_for);
-        this->jump_for = next;
+        patch_jump(C, C->jump_for->jump);
+        struct JumpList *next = C->jump_for->next;
+        free(C->jump_for);
+        C->jump_for = next;
     }
 }
 
@@ -3426,291 +3540,291 @@ static void for_statement(Compiler *C) {
     consume(C, TOKEN_END, "Missing `end` in for loop");
 }
 
-static void while_statement(Compiler *this) {
-    int start = current(this)->count;
+static void while_statement(Compiler *C) {
+    int start = current(C)->count;
 
-    struct LoopList loop = {.start = start, .depth = this->scope->depth + 1, .next = this->loop, .is_for = false};
-    this->loop = &loop;
+    struct LoopList loop = {.start = start, .depth = C->scope->depth + 1, .next = C->loop, .is_for = false};
+    C->loop = &loop;
 
-    expression(this);
+    expression(C);
 
-    int jump = emit_jump(this, OP_JUMP_IF_FALSE);
+    int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-    block(this);
-    emit_loop(this, start);
+    block(C);
+    emit_loop(C, start);
 
-    this->loop = loop.next;
+    C->loop = loop.next;
 
-    patch_jump(this, jump);
-    patch_jump_list(this);
+    patch_jump(C, jump);
+    patch_jump_list(C);
 
-    consume(this, TOKEN_END, "While: Missing 'end'.");
+    consume(C, TOKEN_END, "While: Missing 'end'");
 }
 
-static void return_statement(Compiler *this) {
-    if (this->scope->type == TYPE_SCRIPT) {
-        compile_error(this, &this->previous, "Return: Outside of function.");
+static void return_statement(Compiler *C) {
+    if (C->scope->type == TYPE_SCRIPT) {
+        compile_error(C, &C->previous, "Return: Outside of function");
     }
-    if (check(this, TOKEN_END)) {
-        emit(this, OP_NONE);
+    if (check(C, TOKEN_END)) {
+        emit(C, OP_NONE);
     } else {
-        expression(this);
+        expression(C);
     }
-    emit(this, OP_RETURN);
+    emit(C, OP_RETURN);
 }
 
-static void pop_stack_loop(Compiler *this) {
-    int depth = this->loop->depth;
-    Scope *scope = this->scope;
+static void pop_stack_loop(Compiler *C) {
+    int depth = C->loop->depth;
+    Scope *scope = C->scope;
     for (int i = scope->local_count; i > 0; i--) {
         if (scope->locals[i - 1].depth < depth) {
             return;
         }
-        emit(this, OP_POP);
+        emit(C, OP_POP);
     }
 }
 
-static void break_statement(Compiler *this) {
-    if (this->loop == NULL) {
-        compile_error(this, &this->previous, "Break Error: Outside of loop.");
+static void break_statement(Compiler *C) {
+    if (C->loop == NULL) {
+        compile_error(C, &C->previous, "Break Error: Outside of loop");
     }
-    pop_stack_loop(this);
-    struct JumpList *jump_next = this->jump;
+    pop_stack_loop(C);
+    struct JumpList *jump_next = C->jump;
     struct JumpList *jump = hymn_malloc(sizeof(struct JumpList));
-    jump->jump = emit_jump(this, OP_JUMP);
-    jump->depth = this->loop->depth;
+    jump->jump = emit_jump(C, OP_JUMP);
+    jump->depth = C->loop->depth;
     jump->next = jump_next;
-    this->jump = jump;
+    C->jump = jump;
 }
 
-static void continue_statement(Compiler *this) {
-    if (this->loop == NULL) {
-        compile_error(this, &this->previous, "Continue Error: Outside of loop.");
+static void continue_statement(Compiler *C) {
+    if (C->loop == NULL) {
+        compile_error(C, &C->previous, "Continue Error: Outside of loop");
     }
-    pop_stack_loop(this);
-    if (this->loop->is_for) {
-        struct JumpList *jump_next = this->jump_for;
+    pop_stack_loop(C);
+    if (C->loop->is_for) {
+        struct JumpList *jump_next = C->jump_for;
         struct JumpList *jump = hymn_malloc(sizeof(struct JumpList));
-        jump->jump = emit_jump(this, OP_JUMP);
-        jump->depth = this->loop->depth;
+        jump->jump = emit_jump(C, OP_JUMP);
+        jump->depth = C->loop->depth;
         jump->next = jump_next;
-        this->jump_for = jump;
+        C->jump_for = jump;
     } else {
-        emit_loop(this, this->loop->start);
+        emit_loop(C, C->loop->start);
     }
 }
 
-static void try_statement(Compiler *this) {
-    HymnByteCode *code = current(this);
+static void try_statement(Compiler *C) {
+    HymnByteCode *code = current(C);
 
     HymnExceptList *except = hymn_calloc(1, sizeof(HymnExceptList));
-    except->locals = this->scope->local_count;
+    except->locals = C->scope->local_count;
     except->start = code->count;
 
-    HymnFunction *func = current_func(this);
+    HymnFunction *func = current_func(C);
     except->next = func->except;
     func->except = except;
 
-    begin_scope(this);
-    while (!check(this, TOKEN_EXCEPT) && !check(this, TOKEN_EOF)) {
-        declaration(this);
+    begin_scope(C);
+    while (!check(C, TOKEN_EXCEPT) && !check(C, TOKEN_EOF)) {
+        declaration(C);
     }
-    end_scope(this);
+    end_scope(C);
 
-    int jump = emit_jump(this, OP_JUMP);
+    int jump = emit_jump(C, OP_JUMP);
 
-    consume(this, TOKEN_EXCEPT, "Try: Missing 'except'.");
+    consume(C, TOKEN_EXCEPT, "Try: Missing 'except'");
 
     except->end = code->count;
 
-    begin_scope(this);
-    uint8_t message = variable(this, "Try: Missing variable after 'except'.");
-    finalize_variable(this, message);
-    while (!check(this, TOKEN_END) && !check(this, TOKEN_EOF)) {
-        declaration(this);
+    begin_scope(C);
+    uint8_t message = variable(C, "Try: Missing variable after 'except'");
+    finalize_variable(C, message);
+    while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+        declaration(C);
     }
-    end_scope(this);
+    end_scope(C);
 
-    consume(this, TOKEN_END, "Try: Missing 'end'.");
+    consume(C, TOKEN_END, "Try: Missing 'end'");
 
-    patch_jump(this, jump);
+    patch_jump(C, jump);
 }
 
-static void print_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_PRINT);
+static void print_statement(Compiler *C) {
+    expression(C);
+    emit(C, OP_PRINT);
 }
 
-static void use_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_USE);
+static void use_statement(Compiler *C) {
+    expression(C);
+    emit(C, OP_USE);
 }
 
-static void throw_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_THROW);
+static void throw_statement(Compiler *C) {
+    expression(C);
+    emit(C, OP_THROW);
 }
 
-static void statement(Compiler *this) {
-    if (match(this, TOKEN_PRINT)) {
-        print_statement(this);
-    } else if (match(this, TOKEN_USE)) {
-        use_statement(this);
-    } else if (match(this, TOKEN_IF)) {
-        if_statement(this);
-    } else if (match(this, TOKEN_FOR)) {
-        for_statement(this);
-    } else if (match(this, TOKEN_WHILE)) {
-        while_statement(this);
-    } else if (match(this, TOKEN_RETURN)) {
-        return_statement(this);
-    } else if (match(this, TOKEN_BREAK)) {
-        break_statement(this);
-    } else if (match(this, TOKEN_CONTINUE)) {
-        continue_statement(this);
-    } else if (match(this, TOKEN_TRY)) {
-        try_statement(this);
-    } else if (match(this, TOKEN_THROW)) {
-        throw_statement(this);
-    } else if (match(this, TOKEN_BEGIN)) {
-        block(this);
-        consume(this, TOKEN_END, "Expected 'end' after block.");
+static void statement(Compiler *C) {
+    if (match(C, TOKEN_PRINT)) {
+        print_statement(C);
+    } else if (match(C, TOKEN_USE)) {
+        use_statement(C);
+    } else if (match(C, TOKEN_IF)) {
+        if_statement(C);
+    } else if (match(C, TOKEN_FOR)) {
+        for_statement(C);
+    } else if (match(C, TOKEN_WHILE)) {
+        while_statement(C);
+    } else if (match(C, TOKEN_RETURN)) {
+        return_statement(C);
+    } else if (match(C, TOKEN_BREAK)) {
+        break_statement(C);
+    } else if (match(C, TOKEN_CONTINUE)) {
+        continue_statement(C);
+    } else if (match(C, TOKEN_TRY)) {
+        try_statement(C);
+    } else if (match(C, TOKEN_THROW)) {
+        throw_statement(C);
+    } else if (match(C, TOKEN_BEGIN)) {
+        block(C);
+        consume(C, TOKEN_END, "Expected `end` after block");
     } else {
-        expression_statement(this);
+        expression_statement(C);
     }
 }
 
-static void array_push_expression(Compiler *this, bool assign) {
+static void array_push_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after push.");
-    expression(this);
-    consume(this, TOKEN_COMMA, "Expected ',' between push arguments.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after push expression.");
-    emit(this, OP_ARRAY_PUSH);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after push");
+    expression(C);
+    consume(C, TOKEN_COMMA, "Expected `,` between push arguments");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after push expression");
+    emit(C, OP_ARRAY_PUSH);
 }
 
-static void array_insert_expression(Compiler *this, bool assign) {
+static void array_insert_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after insert.");
-    expression(this);
-    consume(this, TOKEN_COMMA, "Expected ',' between insert arguments.");
-    expression(this);
-    consume(this, TOKEN_COMMA, "Expected ',' between insert arguments.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after insert expression.");
-    emit(this, OP_ARRAY_INSERT);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after insert");
+    expression(C);
+    consume(C, TOKEN_COMMA, "Expected `,` between insert arguments");
+    expression(C);
+    consume(C, TOKEN_COMMA, "Expected `,` between insert arguments");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after insert expression");
+    emit(C, OP_ARRAY_INSERT);
 }
 
-static void array_pop_expression(Compiler *this, bool assign) {
+static void array_pop_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after pop.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after pop expression.");
-    emit(this, OP_ARRAY_POP);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after pop");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after pop expression");
+    emit(C, OP_ARRAY_POP);
 }
 
-static void delete_expression(Compiler *this, bool assign) {
+static void delete_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after delete.");
-    expression(this);
-    consume(this, TOKEN_COMMA, "Expected ',' between delete arguments.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after delete expression.");
-    emit(this, OP_DELETE);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after delete");
+    expression(C);
+    consume(C, TOKEN_COMMA, "Expected `,` between delete arguments");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after delete expression");
+    emit(C, OP_DELETE);
 }
 
-static void len_expression(Compiler *this, bool assign) {
+static void len_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after len.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after len expression.");
-    emit(this, OP_LEN);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after len");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after len expression");
+    emit(C, OP_LEN);
 }
 
-static void cast_integer_expression(Compiler *this, bool assign) {
+static void cast_integer_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after integer.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after integer expression.");
-    emit(this, OP_TO_INTEGER);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after integer");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after integer expression");
+    emit(C, OP_TO_INTEGER);
 }
 
-static void cast_float_expression(Compiler *this, bool assign) {
+static void cast_float_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after float.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after float expression.");
-    emit(this, OP_TO_FLOAT);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after float");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after float expression");
+    emit(C, OP_TO_FLOAT);
 }
 
-static void cast_string_expression(Compiler *this, bool assign) {
+static void cast_string_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after string.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after string expression.");
-    emit(this, OP_TO_STRING);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after string");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after string expression");
+    emit(C, OP_TO_STRING);
 }
 
-static void type_expression(Compiler *this, bool assign) {
+static void type_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after type.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after type expression.");
-    emit(this, OP_TYPE);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after type");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after type expression");
+    emit(C, OP_TYPE);
 }
 
-static void clear_expression(Compiler *this, bool assign) {
+static void clear_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after clear.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after clear expression.");
-    emit(this, OP_CLEAR);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after clear");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after clear expression");
+    emit(C, OP_CLEAR);
 }
 
-static void copy_expression(Compiler *this, bool assign) {
+static void copy_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after copy.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after copy expression.");
-    emit(this, OP_COPY);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after copy");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after copy expression");
+    emit(C, OP_COPY);
 }
 
-static void keys_expression(Compiler *this, bool assign) {
+static void keys_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Expected '(' after keys.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Expected ')' after keys expression.");
-    emit(this, OP_KEYS);
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after keys");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after keys expression");
+    emit(C, OP_KEYS);
 }
 
-static void index_expression(Compiler *this, bool assign) {
+static void index_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(this, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `index` function.");
-    expression(this);
-    consume(this, TOKEN_COMMA, "Expected 2 arguments for `index` function.");
-    expression(this);
-    consume(this, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function.");
-    emit(this, OP_INDEX);
+    consume(C, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `index` function");
+    expression(C);
+    consume(C, TOKEN_COMMA, "Expected 2 arguments for `index` function");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function");
+    emit(C, OP_INDEX);
 }
 
-static void expression_statement(Compiler *this) {
-    expression(this);
-    emit(this, OP_POP);
+static void expression_statement(Compiler *C) {
+    expression(C);
+    emit(C, OP_POP);
 }
 
-static void expression(Compiler *this) {
-    compile_with_precedence(this, PRECEDENCE_ASSIGN);
+static void expression(Compiler *C) {
+    compile_with_precedence(C, PRECEDENCE_ASSIGN);
 }
 
-static HymnFrame *parent_frame(Hymn *this, int offset) {
-    int frame_count = this->frame_count;
+static HymnFrame *parent_frame(Hymn *H, int offset) {
+    int frame_count = H->frame_count;
     if (offset > frame_count) return NULL;
-    return &this->frames[frame_count - offset];
+    return &H->frames[frame_count - offset];
 }
 
-static HymnFrame *current_frame(Hymn *this) {
-    return &this->frames[this->frame_count - 1];
+static HymnFrame *current_frame(Hymn *H) {
+    return &H->frames[H->frame_count - 1];
 }
 
 struct CompileReturn {
@@ -3900,9 +4014,9 @@ static void debug_value_message(const char *prefix, HymnValue value) {
     printf("\n");
 }
 
-static void reset_stack(Hymn *this) {
-    this->stack_top = this->stack;
-    this->frame_count = 0;
+static void reset_stack(Hymn *H) {
+    H->stack_top = H->stack;
+    H->frame_count = 0;
 }
 
 static bool is_object(HymnValue value) {
@@ -3980,19 +4094,19 @@ static void reference(HymnValue value) {
 #endif
 
 #ifdef HYMN_NO_MEMORY_MANAGE
-static void dereference_string(Hymn *this, HymnObjectString *string) {
+static void dereference_string(Hymn *H, HymnObjectString *string) {
     (void)this;
     (void)string;
 }
 #else
-static void dereference_string(Hymn *this, HymnObjectString *string) {
+static void dereference_string(Hymn *H, HymnObjectString *string) {
 #ifdef HYMN_DEBUG_MEMORY
     debug_dereference(hymn_new_string_value(string));
 #endif
     int count = --(string->object.count);
     assert(count >= 0);
     if (count == 0) {
-        set_remove(&this->strings, string->string);
+        set_remove(&H->strings, string->string);
         hymn_string_delete(string->string);
         free(string);
     }
@@ -4000,16 +4114,16 @@ static void dereference_string(Hymn *this, HymnObjectString *string) {
 #endif
 
 #ifdef HYMN_NO_MEMORY_MANAGE
-static void dereference(Hymn *this, HymnValue value) {
+static void dereference(Hymn *H, HymnValue value) {
     (void)this;
     (void)value;
 }
 #else
-static void dereference(Hymn *this, HymnValue value) {
+static void dereference(Hymn *H, HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING: {
         HymnObjectString *string = hymn_as_hymn_string(value);
-        dereference_string(this, string);
+        dereference_string(H, string);
         break;
     }
     case HYMN_VALUE_ARRAY: {
@@ -4020,7 +4134,7 @@ static void dereference(Hymn *this, HymnValue value) {
         int count = --(array->object.count);
         assert(count >= 0);
         if (count == 0) {
-            array_delete(this, array);
+            array_delete(H, array);
         }
         break;
     }
@@ -4032,7 +4146,7 @@ static void dereference(Hymn *this, HymnValue value) {
         int count = --(table->object.count);
         assert(count >= 0);
         if (count == 0) {
-            table_delete(this, table);
+            table_delete(H, table);
         }
         break;
     }
@@ -4054,26 +4168,26 @@ static void dereference(Hymn *this, HymnValue value) {
 }
 #endif
 
-static void push(Hymn *this, HymnValue value) {
-    *this->stack_top = value;
-    this->stack_top++;
+static void push(Hymn *H, HymnValue value) {
+    *H->stack_top = value;
+    H->stack_top++;
 }
 
-static HymnValue peek(Hymn *this, int dist) {
-    assert(&this->stack_top[-dist] >= this->stack);
-    return this->stack_top[-dist];
+static HymnValue peek(Hymn *H, int dist) {
+    assert(&H->stack_top[-dist] >= H->stack);
+    return H->stack_top[-dist];
 }
 
-static HymnValue pop(Hymn *this) {
-    assert(&this->stack_top[-1] >= this->stack);
-    this->stack_top--;
-    return *this->stack_top;
+static HymnValue pop(Hymn *H) {
+    assert(&H->stack_top[-1] >= H->stack);
+    H->stack_top--;
+    return *H->stack_top;
 }
 
-static void machine_push_intern_string(Hymn *this, HymnString *string) {
-    HymnObjectString *intern = machine_intern_string(this, string);
+static void machine_push_intern_string(Hymn *H, HymnString *string) {
+    HymnObjectString *intern = machine_intern_string(H, string);
     reference_string(intern);
-    push(this, hymn_new_string_value(intern));
+    push(H, hymn_new_string_value(intern));
 }
 
 static HymnFrame *machine_exception(Hymn *H) {
@@ -4114,11 +4228,11 @@ static HymnFrame *machine_exception(Hymn *H) {
     }
 }
 
-static HymnString *machine_stacktrace(Hymn *this) {
+static HymnString *machine_stacktrace(Hymn *H) {
     HymnString *trace = hymn_new_string("");
 
-    for (int i = this->frame_count - 1; i >= 0; i--) {
-        HymnFrame *frame = &this->frames[i];
+    for (int i = H->frame_count - 1; i >= 0; i--) {
+        HymnFrame *frame = &H->frames[i];
         HymnFunction *func = frame->func;
         int row = func->code.lines[frame->ip - func->code.instructions - 1];
 
@@ -4140,20 +4254,20 @@ static HymnString *machine_stacktrace(Hymn *this) {
     return trace;
 }
 
-static HymnFrame *machine_push_error(Hymn *this, HymnString *error) {
-    HymnObjectString *message = machine_intern_string(this, error);
+static HymnFrame *machine_push_error(Hymn *H, HymnString *error) {
+    HymnObjectString *message = machine_intern_string(H, error);
     reference_string(message);
-    push(this, hymn_new_string_value(message));
-    return machine_exception(this);
+    push(H, hymn_new_string_value(message));
+    return machine_exception(H);
 }
 
-static HymnFrame *machine_throw_existing_error(Hymn *this, char *error) {
+static HymnFrame *machine_throw_existing_error(Hymn *H, char *error) {
     HymnString *message = hymn_new_string(error);
     free(error);
-    return machine_push_error(this, message);
+    return machine_push_error(H, message);
 }
 
-static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
+static HymnFrame *machine_throw_error(Hymn *H, const char *format, ...) {
     va_list ap;
     va_start(ap, format);
     int len = vsnprintf(NULL, 0, format, ap);
@@ -4165,16 +4279,16 @@ static HymnFrame *machine_throw_error(Hymn *this, const char *format, ...) {
     HymnString *error = hymn_new_string(chars);
     free(chars);
 
-    HymnString *trace = machine_stacktrace(this);
+    HymnString *trace = machine_stacktrace(H);
     error = hymn_string_append(error, "\n\n");
     error = hymn_string_append(error, trace);
     hymn_string_delete(trace);
 
-    return machine_push_error(this, error);
+    return machine_push_error(H, error);
 }
 
-static HymnFrame *machine_throw_error_string(Hymn *this, HymnString *string) {
-    HymnFrame *frame = machine_throw_error(this, string);
+static HymnFrame *machine_throw_error_string(Hymn *H, HymnString *string) {
+    HymnFrame *frame = machine_throw_error(H, string);
     hymn_string_delete(string);
     return frame;
 }
@@ -4221,50 +4335,50 @@ static bool machine_false(HymnValue value) {
     }
 }
 
-static HymnFrame *call(Hymn *this, HymnFunction *func, int count) {
+static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     if (count != func->arity) {
-        return machine_throw_error(this, "Expected %d function arguments but found %d.", func->arity, count);
-    } else if (this->frame_count == HYMN_FRAMES_MAX) {
-        return machine_throw_error(this, "Stack overflow.");
+        return machine_throw_error(H, "Expected %d function arguments but found %d.", func->arity, count);
+    } else if (H->frame_count == HYMN_FRAMES_MAX) {
+        return machine_throw_error(H, "Stack overflow");
     }
 
-    HymnFrame *frame = &this->frames[this->frame_count++];
+    HymnFrame *frame = &H->frames[H->frame_count++];
     frame->func = func;
     frame->ip = func->code.instructions;
-    frame->stack = this->stack_top - count - 1;
+    frame->stack = H->stack_top - count - 1;
 
     return frame;
 }
 
-static HymnFrame *call_value(Hymn *this, HymnValue value, int count) {
+static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
     switch (value.is) {
     case HYMN_VALUE_FUNC:
-        return call(this, hymn_as_func(value), count);
+        return call(H, hymn_as_func(value), count);
     case HYMN_VALUE_FUNC_NATIVE: {
         HymnNativeCall func = hymn_as_native(value)->func;
-        HymnValue result = func(this, count, this->stack_top - count);
+        HymnValue result = func(H, count, H->stack_top - count);
         reference(result);
-        HymnValue *top = this->stack_top - (count + 1);
-        while (this->stack_top != top) {
-            dereference(this, pop(this));
+        HymnValue *top = H->stack_top - (count + 1);
+        while (H->stack_top != top) {
+            dereference(H, pop(H));
         }
-        push(this, result);
-        return current_frame(this);
+        push(H, result);
+        return current_frame(H);
     }
     default: {
         const char *is = value_name(value.is);
-        return machine_throw_error(this, "Call: Requires `Function`, but was `%s`.", is);
+        return machine_throw_error(H, "Call: Requires `Function`, but was `%s`.", is);
     }
     }
 }
 
-static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
-    HymnTable *imports = this->imports;
+static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
+    HymnTable *imports = H->imports;
 
     HymnString *script = NULL;
     int p = 1;
     while (true) {
-        HymnFrame *frame = parent_frame(this, p);
+        HymnFrame *frame = parent_frame(H, p);
         if (frame == NULL) break;
         script = frame->func->script;
         if (script) break;
@@ -4274,7 +4388,7 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
 
     HymnObjectString *module = NULL;
 
-    HymnArray *paths = this->paths;
+    HymnArray *paths = H->paths;
     int64_t size = paths->length;
     for (int64_t i = 0; i < size; i++) {
         HymnValue value = paths->items[i];
@@ -4286,16 +4400,16 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
         HymnString *replace = string_replace(question, "<path>", file->string);
         HymnString *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
 
-        HymnObjectString *use = machine_intern_string(this, path_absolute(path));
+        HymnObjectString *use = machine_intern_string(H, path_absolute(path));
         reference_string(use);
 
         hymn_string_delete(path);
         hymn_string_delete(replace);
 
         if (!hymn_is_undefined(table_get(imports, use))) {
-            dereference_string(this, use);
+            dereference_string(H, use);
             if (parent) hymn_string_delete(parent);
-            return current_frame(this);
+            return current_frame(H);
         }
 
         if (hymn_file_exists(use->string)) {
@@ -4303,7 +4417,7 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
             break;
         }
 
-        dereference_string(this, use);
+        dereference_string(H, use);
     }
 
     if (module == NULL) {
@@ -4331,7 +4445,7 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
             hymn_string_delete(parent);
         }
 
-        return machine_throw_error_string(this, missing);
+        return machine_throw_error_string(H, missing);
     }
 
     if (parent) {
@@ -4342,7 +4456,7 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
 
     HymnString *source = hymn_read_file(module->string);
 
-    struct CompileReturn result = compile(this, module->string, source);
+    struct CompileReturn result = compile(H, module->string, source);
 
     HymnFunction *func = result.func;
     char *error = result.error;
@@ -4351,21 +4465,21 @@ static HymnFrame *machine_import(Hymn *this, HymnObjectString *file) {
 
     if (error) {
         function_delete(func);
-        return machine_throw_existing_error(this, error);
+        return machine_throw_existing_error(H, error);
     }
 
     HymnValue function = hymn_new_func_value(func);
     reference(function);
 
-    push(this, function);
-    call(this, func, 0);
+    push(H, function);
+    call(H, func, 0);
 
-    error = machine_interpret(this);
+    error = machine_interpret(H);
     if (error) {
-        return machine_throw_existing_error(this, error);
+        return machine_throw_existing_error(H, error);
     }
 
-    return current_frame(this);
+    return current_frame(H);
 }
 
 static size_t debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
@@ -4513,77 +4627,77 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
 
 #define READ_CONSTANT(frame) (frame->func->code.constants.values[READ_BYTE(frame)])
 
-#define THROW(...)                                    \
-    frame = machine_throw_error(this, ##__VA_ARGS__); \
-    if (frame == NULL) return;                        \
+#define THROW(...)                                 \
+    frame = machine_throw_error(H, ##__VA_ARGS__); \
+    if (frame == NULL) return;                     \
     HYMN_DISPATCH;
 
-#define ARITHMETIC_OP(_arithmetic_)                                                    \
-    HymnValue b = pop(this);                                                           \
-    HymnValue a = pop(this);                                                           \
-    if (hymn_is_int(a)) {                                                              \
-        if (hymn_is_int(b)) {                                                          \
-            a.as.i _arithmetic_ b.as.i;                                                \
-            push(this, a);                                                             \
-        } else if (hymn_is_float(b)) {                                                 \
-            HymnValue new = hymn_new_float((double)a.as.i);                            \
-            new.as.f _arithmetic_ b.as.f;                                              \
-            push(this, new);                                                           \
-        } else {                                                                       \
-            dereference(this, a);                                                      \
-            dereference(this, b);                                                      \
-            THROW("Operation Error: 2nd value must be `Integer` or `Float`.")          \
-        }                                                                              \
-    } else if (hymn_is_float(a)) {                                                     \
-        if (hymn_is_int(b)) {                                                          \
-            a.as.f _arithmetic_(double) b.as.i;                                        \
-            push(this, a);                                                             \
-        } else if (hymn_is_float(b)) {                                                 \
-            a.as.f _arithmetic_ b.as.f;                                                \
-            push(this, a);                                                             \
-        } else {                                                                       \
-            dereference(this, a);                                                      \
-            dereference(this, b);                                                      \
-            THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`.") \
-        }                                                                              \
-    } else {                                                                           \
-        dereference(this, a);                                                          \
-        dereference(this, b);                                                          \
-        THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`.")     \
+#define ARITHMETIC_OP(_arithmetic_)                                                   \
+    HymnValue b = pop(H);                                                             \
+    HymnValue a = pop(H);                                                             \
+    if (hymn_is_int(a)) {                                                             \
+        if (hymn_is_int(b)) {                                                         \
+            a.as.i _arithmetic_ b.as.i;                                               \
+            push(H, a);                                                               \
+        } else if (hymn_is_float(b)) {                                                \
+            HymnValue new = hymn_new_float((double)a.as.i);                           \
+            new.as.f _arithmetic_ b.as.f;                                             \
+            push(H, new);                                                             \
+        } else {                                                                      \
+            dereference(H, a);                                                        \
+            dereference(H, b);                                                        \
+            THROW("Operation Error: 2nd value must be `Integer` or `Float`")          \
+        }                                                                             \
+    } else if (hymn_is_float(a)) {                                                    \
+        if (hymn_is_int(b)) {                                                         \
+            a.as.f _arithmetic_(double) b.as.i;                                       \
+            push(H, a);                                                               \
+        } else if (hymn_is_float(b)) {                                                \
+            a.as.f _arithmetic_ b.as.f;                                               \
+            push(H, a);                                                               \
+        } else {                                                                      \
+            dereference(H, a);                                                        \
+            dereference(H, b);                                                        \
+            THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`") \
+        }                                                                             \
+    } else {                                                                          \
+        dereference(H, a);                                                            \
+        dereference(H, b);                                                            \
+        THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`")     \
     }
 
-#define COMPARE_OP(compare)                                                             \
-    HymnValue b = pop(this);                                                            \
-    HymnValue a = pop(this);                                                            \
-    if (hymn_is_int(a)) {                                                               \
-        if (hymn_is_int(b)) {                                                           \
-            push(this, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));           \
-        } else if (hymn_is_float(b)) {                                                  \
-            push(this, hymn_new_bool((double)hymn_as_int(a) compare hymn_as_float(b))); \
-        } else {                                                                        \
-            dereference(this, a);                                                       \
-            dereference(this, b);                                                       \
-            THROW("Operands must be numbers.")                                          \
-        }                                                                               \
-    } else if (hymn_is_float(a)) {                                                      \
-        if (hymn_is_int(b)) {                                                           \
-            push(this, hymn_new_bool(hymn_as_float(a) compare(double) hymn_as_int(b))); \
-        } else if (hymn_is_float(b)) {                                                  \
-            push(this, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));       \
-        } else {                                                                        \
-            dereference(this, a);                                                       \
-            dereference(this, b);                                                       \
-            THROW("Operands must be numbers.")                                          \
-        }                                                                               \
-    } else {                                                                            \
-        dereference(this, a);                                                           \
-        dereference(this, b);                                                           \
-        THROW("Operands must be numbers.")                                              \
+#define COMPARE_OP(compare)                                                          \
+    HymnValue b = pop(H);                                                            \
+    HymnValue a = pop(H);                                                            \
+    if (hymn_is_int(a)) {                                                            \
+        if (hymn_is_int(b)) {                                                        \
+            push(H, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));           \
+        } else if (hymn_is_float(b)) {                                               \
+            push(H, hymn_new_bool((double)hymn_as_int(a) compare hymn_as_float(b))); \
+        } else {                                                                     \
+            dereference(H, a);                                                       \
+            dereference(H, b);                                                       \
+            THROW("Operands must be numbers")                                        \
+        }                                                                            \
+    } else if (hymn_is_float(a)) {                                                   \
+        if (hymn_is_int(b)) {                                                        \
+            push(H, hymn_new_bool(hymn_as_float(a) compare(double) hymn_as_int(b))); \
+        } else if (hymn_is_float(b)) {                                               \
+            push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));       \
+        } else {                                                                     \
+            dereference(H, a);                                                       \
+            dereference(H, b);                                                       \
+            THROW("Operands must be numbers")                                        \
+        }                                                                            \
+    } else {                                                                         \
+        dereference(H, a);                                                           \
+        dereference(H, b);                                                           \
+        THROW("Operands must be numbers")                                            \
     }
 
 #define JUMP_COMPARE_OP(compare)                                      \
-    HymnValue b = pop(this);                                          \
-    HymnValue a = pop(this);                                          \
+    HymnValue b = pop(H);                                             \
+    HymnValue a = pop(H);                                             \
     bool answer;                                                      \
     if (hymn_is_int(a)) {                                             \
         if (hymn_is_int(b)) {                                         \
@@ -4591,9 +4705,9 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
         } else if (hymn_is_float(b)) {                                \
             answer = (double)hymn_as_int(a) compare hymn_as_float(b); \
         } else {                                                      \
-            dereference(this, a);                                     \
-            dereference(this, b);                                     \
-            THROW("Comparison: Operands must be numbers.")            \
+            dereference(H, a);                                        \
+            dereference(H, b);                                        \
+            THROW("Comparison: Operands must be numbers")             \
         }                                                             \
     } else if (hymn_is_float(a)) {                                    \
         if (hymn_is_int(b)) {                                         \
@@ -4601,30 +4715,30 @@ void disassemble_byte_code(HymnByteCode *this, const char *name) {
         } else if (hymn_is_float(b)) {                                \
             answer = hymn_as_float(a) compare hymn_as_float(b);       \
         } else {                                                      \
-            dereference(this, a);                                     \
-            dereference(this, b);                                     \
-            THROW("Comparison: Operands must be numbers.")            \
+            dereference(H, a);                                        \
+            dereference(H, b);                                        \
+            THROW("Comparison: Operands must be numbers")             \
         }                                                             \
     } else {                                                          \
-        dereference(this, a);                                         \
-        dereference(this, b);                                         \
-        THROW("Comparison: Operands must be numbers.")                \
+        dereference(H, a);                                            \
+        dereference(H, b);                                            \
+        THROW("Comparison: Operands must be numbers")                 \
     }                                                                 \
     uint16_t jump = READ_SHORT(frame);                                \
     if (answer) {                                                     \
         frame->ip += jump;                                            \
     }
 
-static void machine_run(Hymn *this) {
-    HymnFrame *frame = current_frame(this);
+static void machine_run(Hymn *H) {
+    HymnFrame *frame = current_frame(H);
 
 #define HYMN_DISPATCH goto dispatch
 
 dispatch:
 #ifdef HYMN_DEBUG_STACK
-    if (this->stack_top != this->stack) {
+    if (H->stack_top != H->stack) {
         HymnString *debug = hymn_new_string("");
-        for (HymnValue *i = this->stack; i != this->stack_top; i++) {
+        for (HymnValue *i = H->stack; i != H->stack_top; i++) {
             debug = hymn_string_append_char(debug, '[');
             HymnString *stack_debug = debug_value_to_string(*i);
             debug = hymn_string_append(debug, stack_debug);
@@ -4645,59 +4759,59 @@ dispatch:
 #endif
     switch (READ_BYTE(frame)) {
     case OP_RETURN: {
-        HymnValue result = pop(this);
-        this->frame_count--;
-        if (this->frame_count == 0 || frame->func->name == NULL) {
-            dereference(this, pop(this));
+        HymnValue result = pop(H);
+        H->frame_count--;
+        if (H->frame_count == 0 || frame->func->name == NULL) {
+            dereference(H, pop(H));
             return;
         }
-        while (this->stack_top != frame->stack) {
-            dereference(this, pop(this));
+        while (H->stack_top != frame->stack) {
+            dereference(H, pop(H));
         }
-        push(this, result);
-        frame = current_frame(this);
+        push(H, result);
+        frame = current_frame(H);
         HYMN_DISPATCH;
     }
     case OP_POP: {
-        dereference(this, pop(this));
+        dereference(H, pop(H));
         HYMN_DISPATCH;
     }
     case OP_POP_TWO: {
-        dereference(this, pop(this));
-        dereference(this, pop(this));
+        dereference(H, pop(H));
+        dereference(H, pop(H));
         HYMN_DISPATCH;
     }
     case OP_POP_N: {
         int count = READ_BYTE(frame);
         while (count--) {
-            dereference(this, pop(this));
+            dereference(H, pop(H));
         }
         HYMN_DISPATCH;
     }
     case OP_TRUE: {
-        push(this, hymn_new_bool(true));
+        push(H, hymn_new_bool(true));
         HYMN_DISPATCH;
     }
     case OP_FALSE: {
-        push(this, hymn_new_bool(false));
+        push(H, hymn_new_bool(false));
         HYMN_DISPATCH;
     }
     case OP_NONE: {
-        push(this, hymn_new_none());
+        push(H, hymn_new_none());
         HYMN_DISPATCH;
     }
     case OP_CALL: {
         int count = READ_BYTE(frame);
-        HymnValue value = peek(this, count + 1);
-        frame = call_value(this, value, count);
+        HymnValue value = peek(H, count + 1);
+        frame = call_value(H, value, count);
         if (frame == NULL) return;
         HYMN_DISPATCH;
     }
     case OP_TAIL_CALL: {
         // TODO
         int count = READ_BYTE(frame);
-        HymnValue value = peek(this, count + 1);
-        frame = call_value(this, value, count);
+        HymnValue value = peek(H, count + 1);
+        frame = call_value(H, value, count);
         if (frame == NULL) return;
         HYMN_DISPATCH;
     }
@@ -4707,43 +4821,43 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_FALSE: {
-        HymnValue a = pop(this);
+        HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
         if (machine_false(a)) {
             frame->ip += jump;
         }
-        dereference(this, a);
+        dereference(H, a);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_TRUE: {
-        HymnValue a = pop(this);
+        HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
         if (!machine_false(a)) {
             frame->ip += jump;
         }
-        dereference(this, a);
+        dereference(H, a);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_EQUAL: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
         if (machine_equal(a, b)) {
             frame->ip += jump;
         }
-        dereference(this, a);
-        dereference(this, b);
+        dereference(H, a);
+        dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_NOT_EQUAL: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
         if (!machine_equal(a, b)) {
             frame->ip += jump;
         }
-        dereference(this, a);
-        dereference(this, b);
+        dereference(H, a);
+        dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_LESS: {
@@ -4770,7 +4884,7 @@ dispatch:
     case OP_FOR: {
         uint8_t slot = READ_BYTE(frame);
         HymnValue object = frame->stack[slot];
-        this->stack_top += 2;
+        H->stack_top += 2;
         if (hymn_is_table(object)) {
             HymnTable *table = hymn_as_table(object);
             HymnTableItem *next = table_next(table, NULL);
@@ -4819,8 +4933,8 @@ dispatch:
             if (next == NULL) {
                 frame->ip += 2;
             } else {
-                dereference(this, frame->stack[index]);
-                dereference(this, frame->stack[value]);
+                dereference(H, frame->stack[index]);
+                dereference(H, frame->stack[value]);
                 frame->stack[index] = hymn_new_string_value(next->key);
                 frame->stack[value] = next->value;
                 reference_string(next->key);
@@ -4834,7 +4948,7 @@ dispatch:
             if (key >= array->length) {
                 frame->ip += 2;
             } else {
-                dereference(this, frame->stack[value]);
+                dereference(H, frame->stack[value]);
                 HymnValue item = array->items[key];
                 frame->stack[index].as.i++;
                 frame->stack[value] = item;
@@ -4846,19 +4960,19 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_EQUAL: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
-        push(this, hymn_new_bool(machine_equal(a, b)));
-        dereference(this, a);
-        dereference(this, b);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
+        push(H, hymn_new_bool(machine_equal(a, b)));
+        dereference(H, a);
+        dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_NOT_EQUAL: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
-        push(this, hymn_new_bool(!machine_equal(a, b)));
-        dereference(this, a);
-        dereference(this, b);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
+        push(H, hymn_new_bool(!machine_equal(a, b)));
+        dereference(H, a);
+        dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_LESS: {
@@ -4878,59 +4992,59 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_ADD: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_none(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i += b.as.i;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_float(b)) {
                 b.as.f += a.as.i;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
                 a.as.f += b.as.i;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_float(b)) {
                 a.as.f += b.as.f;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_string(a)) {
-            machine_push_intern_string(this, value_concat(a, b));
+            machine_push_intern_string(H, value_concat(a, b));
         } else {
-            THROW("Add: 1st and 2nd values can't be added.")
+            THROW("Add: 1st and 2nd values can't be added")
         }
-        dereference(this, a);
-        dereference(this, b);
+        dereference(H, a);
+        dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_ADD_TWO_LOCAL: {
@@ -4938,76 +5052,76 @@ dispatch:
         HymnValue b = frame->stack[READ_BYTE(frame)];
         if (hymn_is_none(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i += b.as.i;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_float(b)) {
                 b.as.f += a.as.i;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
                 a.as.f += b.as.i;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_float(b)) {
                 a.as.f += b.as.f;
-                push(this, a);
+                push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(this, value_concat(a, b));
+                machine_push_intern_string(H, value_concat(a, b));
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Add: 1st and 2nd values can't be added.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_string(a)) {
-            machine_push_intern_string(this, value_concat(a, b));
+            machine_push_intern_string(H, value_concat(a, b));
         } else {
-            THROW("Add: 1st and 2nd values can't be added.")
+            THROW("Add: 1st and 2nd values can't be added")
         }
         HYMN_DISPATCH;
     }
     case OP_INCREMENT: {
-        HymnValue a = pop(this);
+        HymnValue a = pop(H);
         uint8_t increment = READ_BYTE(frame);
         if (hymn_is_none(a)) {
-            dereference(this, a);
-            THROW("Increment: 1st and 2nd values can't be added.")
+            dereference(H, a);
+            THROW("Increment: 1st and 2nd values can't be added")
         } else if (hymn_is_bool(a)) {
-            dereference(this, a);
-            THROW("Increment: 1st and 2nd values can't be added.")
+            dereference(H, a);
+            THROW("Increment: 1st and 2nd values can't be added")
         } else if (hymn_is_int(a)) {
             a.as.i += (int64_t)increment;
-            push(this, a);
+            push(H, a);
         } else if (hymn_is_float(a)) {
             a.as.f += (double)increment;
-            push(this, a);
+            push(H, a);
         } else if (hymn_is_string(a)) {
-            machine_push_intern_string(this, value_concat(a, hymn_new_int((int64_t)increment)));
+            machine_push_intern_string(H, value_concat(a, hymn_new_int((int64_t)increment)));
         } else {
-            THROW("Increment: 1st and 2nd values can't be added.")
+            THROW("Increment: 1st and 2nd values can't be added")
         }
-        dereference(this, a);
+        dereference(H, a);
         HYMN_DISPATCH;
     }
     case OP_SUBTRACT: {
@@ -5023,152 +5137,152 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_MODULO: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i %= b.as.i;
-                push(this, a);
+                push(H, a);
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Modulo Error: 2nd value must be `Integer`.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Modulo Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Modulo Error: 1st and 2nd values must be `Integer`.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Modulo Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_NOT: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         if (hymn_is_int(value)) {
             value.as.i = ~value.as.i;
-            push(this, value);
+            push(H, value);
         } else {
-            dereference(this, value);
-            THROW("Bitwise operand must integer.")
+            dereference(H, value);
+            THROW("Bitwise operand must integer")
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_OR: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i |= b.as.i;
-                push(this, a);
+                push(H, a);
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Or Error: 2nd value must be `Integer`.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Bit Or Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Bit Or Error: 1st and 2nd values must be `Integer`.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Bit Or Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_AND: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i &= b.as.i;
-                push(this, a);
+                push(H, a);
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit And Error: 2nd value must be `Integer`.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Bit And Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Bit And Error: 1st and 2nd values must be `Integer`.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Bit And Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_XOR: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i ^= b.as.i;
-                push(this, a);
+                push(H, a);
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Xor Error: 2nd value must be `Integer`.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Bit Xor Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Bit Xor Error: 1st and 2nd values must be `Integer`.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Bit Xor Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_LEFT_SHIFT: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i <<= b.as.i;
-                push(this, a);
+                push(H, a);
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Left Shift Error: 2nd value must be `Integer`.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Bit Left Shift Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Bit Left Shift Error: 1st and 2nd values must be `Integer`.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Bit Left Shift Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_RIGHT_SHIFT: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
                 a.as.i >>= b.as.i;
-                push(this, a);
+                push(H, a);
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Bit Right Shift Error: 2nd value must be `Integer`.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Bit Right Shift Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Bit Right Shift Error: 1st and 2nd values must be `Integer`.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Bit Right Shift Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
     case OP_NEGATE: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         if (hymn_is_int(value)) {
             value.as.i = -value.as.i;
         } else if (hymn_is_float(value)) {
             value.as.f = -value.as.f;
         } else {
-            dereference(this, value);
-            THROW("Negate: Must be a number.")
+            dereference(H, value);
+            THROW("Negate: Must be a number")
         }
-        push(this, value);
+        push(H, value);
         HYMN_DISPATCH;
     }
     case OP_NOT: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         if (hymn_is_bool(value)) {
             value.as.b = !value.as.b;
         } else {
-            dereference(this, value);
-            THROW("Not: Operand must be a boolean.")
+            dereference(H, value);
+            THROW("Not: Operand must be a boolean")
         }
-        push(this, value);
+        push(H, value);
         HYMN_DISPATCH;
     }
     case OP_CONSTANT: {
@@ -5186,13 +5300,13 @@ dispatch:
             break;
         }
         reference(constant);
-        push(this, constant);
+        push(H, constant);
         HYMN_DISPATCH;
     }
     case OP_DEFINE_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue value = pop(this);
-        HymnValue previous = table_put(&this->globals, name, value);
+        HymnValue value = pop(H);
+        HymnValue previous = table_put(&H->globals, name, value);
         if (!hymn_is_undefined(previous)) {
             THROW("Global `%s` was previously defined.", name->string)
         }
@@ -5200,34 +5314,30 @@ dispatch:
     }
     case OP_SET_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue value = peek(this, 1);
-        HymnValue exists = table_get(&this->globals, name);
-        if (hymn_is_undefined(exists)) {
-            THROW("Undefined variable `%s`.", name->string)
-        }
-        HymnValue previous = table_put(&this->globals, name, value);
+        HymnValue value = peek(H, 1);
+        HymnValue previous = table_put(&H->globals, name, value);
         if (hymn_is_undefined(previous)) {
-            reference_string(name);
+            THROW("Undefined variable `%s`.", name->string)
         } else {
-            dereference(this, previous);
+            dereference(H, previous);
         }
         reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue get = table_get(&this->globals, name);
+        HymnValue get = table_get(&H->globals, name);
         if (hymn_is_undefined(get)) {
             THROW("Undefined variable `%s`.", name->string)
         }
         reference(get);
-        push(this, get);
+        push(H, get);
         HYMN_DISPATCH;
     }
     case OP_SET_LOCAL: {
         uint8_t slot = READ_BYTE(frame);
-        HymnValue value = peek(this, 1);
-        dereference(this, frame->stack[slot]);
+        HymnValue value = peek(H, 1);
+        dereference(H, frame->stack[slot]);
         frame->stack[slot] = value;
         reference(value);
         HYMN_DISPATCH;
@@ -5236,7 +5346,7 @@ dispatch:
         uint8_t slot = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         reference(value);
-        push(this, value);
+        push(H, value);
         HYMN_DISPATCH;
     }
     case OP_GET_TWO_LOCAL: {
@@ -5246,8 +5356,8 @@ dispatch:
         HymnValue value_b = frame->stack[slot_b];
         reference(value_a);
         reference(value_b);
-        push(this, value_a);
-        push(this, value_b);
+        push(H, value_a);
+        push(H, value_b);
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOCAL: {
@@ -5262,7 +5372,7 @@ dispatch:
             const char *is = value_name(value.is);
             THROW("Increment Local: Expected `Number` but was `%s`", is)
         }
-        push(this, value);
+        push(H, value);
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOCAL_AND_SET: {
@@ -5281,12 +5391,12 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_SET_PROPERTY: {
-        HymnValue value = pop(this);
-        HymnValue table_value = pop(this);
+        HymnValue value = pop(H);
+        HymnValue table_value = pop(H);
         if (!hymn_is_table(table_value)) {
             const char *is = value_name(table_value.is);
-            dereference(this, value);
-            dereference(this, table_value);
+            dereference(H, value);
+            dereference(H, table_value);
             THROW("Set Property: Expected `Table` but was `%s`", is)
         }
         HymnTable *table = hymn_as_table(table_value);
@@ -5295,18 +5405,19 @@ dispatch:
         if (hymn_is_undefined(previous)) {
             reference_string(name);
         } else {
-            dereference(this, previous);
+            dereference(H, previous);
         }
-        push(this, value);
+        push(H, value);
         reference(value);
-        dereference(this, table_value);
+        dereference(H, table_value);
         HYMN_DISPATCH;
     }
     case OP_GET_PROPERTY: {
-        HymnValue v = pop(this);
+        HymnValue v = pop(H);
         if (!hymn_is_table(v)) {
-            dereference(this, v);
-            THROW("Only tables can get properties.")
+            const char *is = value_name(v.is);
+            dereference(H, v);
+            THROW("Get Property: Requires `Table` but was `%s`", is)
         }
         HymnTable *table = hymn_as_table(v);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -5316,51 +5427,52 @@ dispatch:
         } else {
             reference(g);
         }
-        dereference(this, v);
-        push(this, g);
+        dereference(H, v);
+        push(H, g);
         HYMN_DISPATCH;
     }
     case OP_SET_DYNAMIC: {
-        HymnValue value = pop(this);
-        HymnValue property = pop(this);
-        HymnValue object = pop(this);
+        HymnValue value = pop(H);
+        HymnValue property = pop(H);
+        HymnValue object = pop(H);
         if (hymn_is_array(object)) {
             if (!hymn_is_int(property)) {
-                dereference(this, value);
-                dereference(this, property);
-                dereference(this, object);
-                THROW("Dynamic Set: `Integer` required to set `Array` index.")
+                dereference(H, value);
+                dereference(H, property);
+                dereference(H, object);
+                THROW("Dynamic Set: `Integer` required to set `Array` index")
             }
             HymnArray *array = hymn_as_array(object);
             int64_t size = array->length;
             int64_t index = hymn_as_int(property);
             if (index > size) {
-                dereference(this, value);
-                dereference(this, property);
-                dereference(this, object);
+                dereference(H, value);
+                dereference(H, property);
+                dereference(H, object);
                 THROW("Dynamic Set: Array index out of bounds %d > %d.", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(this, value);
-                    dereference(this, property);
-                    dereference(this, object);
+                    dereference(H, value);
+                    dereference(H, property);
+                    dereference(H, object);
                     THROW("Dynamic Set: Array index out of bounds %d.", index)
                 }
             }
             if (index == size) {
                 array_push(array, value);
             } else {
-                dereference(this, array->items[index]);
+                dereference(H, array->items[index]);
                 array->items[index] = value;
             }
         } else if (hymn_is_table(object)) {
             if (!hymn_is_string(property)) {
-                dereference(this, value);
-                dereference(this, property);
-                dereference(this, object);
-                THROW("Dynamic Set: `String` required to set `Table` property.")
+                const char *is = value_name(property.is);
+                dereference(H, value);
+                dereference(H, property);
+                dereference(H, object);
+                THROW("Dynamic Set: Requires `String` to set `Table` property, but was `%s`.", is)
             }
             HymnTable *table = hymn_as_table(object);
             HymnObjectString *name = hymn_as_hymn_string(property);
@@ -5368,84 +5480,85 @@ dispatch:
             if (hymn_is_undefined(previous)) {
                 reference_string(name);
             } else {
-                dereference(this, previous);
+                dereference(H, previous);
             }
         } else {
             const char *is = value_name(object.is);
-            dereference(this, value);
-            dereference(this, property);
-            dereference(this, object);
+            dereference(H, value);
+            dereference(H, property);
+            dereference(H, object);
             THROW("Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.", is)
         }
-        push(this, value);
-        dereference(this, object);
+        push(H, value);
+        dereference(H, object);
         reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_DYNAMIC: {
-        HymnValue i = pop(this);
-        HymnValue v = pop(this);
+        HymnValue i = pop(H);
+        HymnValue v = pop(H);
         switch (v.is) {
         case HYMN_VALUE_STRING: {
             if (!hymn_is_int(i)) {
-                dereference(this, i);
-                dereference(this, v);
-                THROW("Integer required to get string character from index.")
+                const char *is = value_name(v.is);
+                dereference(H, i);
+                dereference(H, v);
+                THROW("Get Dynamic: Requires `Integer` to get string character from index, but was `%s`", is)
             }
             HymnString *string = hymn_as_string(v);
             int64_t size = (int64_t)hymn_string_len(string);
             int64_t index = hymn_as_int(i);
             if (index >= size) {
-                dereference(this, i);
-                dereference(this, v);
-                THROW("String index out of bounds %d >= %d.", index, size)
+                dereference(H, i);
+                dereference(H, v);
+                THROW("String index out of bounds %d >= %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("String index out of bounds %d.", index)
+                    dereference(H, i);
+                    dereference(H, v);
+                    THROW("String index out of bounds %d", index)
                 }
             }
             char c = string[index];
-            machine_push_intern_string(this, char_to_string(c));
-            dereference(this, v);
+            machine_push_intern_string(H, char_to_string(c));
+            dereference(H, v);
             break;
         }
         case HYMN_VALUE_ARRAY: {
             if (!hymn_is_int(i)) {
-                dereference(this, i);
-                dereference(this, v);
-                THROW("Integer required to get array index.")
+                dereference(H, i);
+                dereference(H, v);
+                THROW("Integer required to get array index")
             }
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
             int64_t index = hymn_as_int(i);
             if (index >= size) {
-                dereference(this, i);
-                dereference(this, v);
-                THROW("Array index out of bounds %d >= %d.", index, size)
+                dereference(H, i);
+                dereference(H, v);
+                THROW("Array index out of bounds %d >= %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(this, i);
-                    dereference(this, v);
-                    THROW("Array index out of bounds %d.", index)
+                    dereference(H, i);
+                    dereference(H, v);
+                    THROW("Array index out of bounds %d", index)
                 }
             }
             HymnValue g = array_get(array, index);
             reference(g);
-            push(this, g);
-            dereference(this, v);
+            push(H, g);
+            dereference(H, v);
             break;
         }
         case HYMN_VALUE_TABLE: {
             if (!hymn_is_string(i)) {
                 const char *is = value_name(i.is);
-                dereference(this, i);
-                dereference(this, v);
+                dereference(H, i);
+                dereference(H, v);
                 THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
             }
             HymnTable *table = hymn_as_table(v);
@@ -5456,101 +5569,101 @@ dispatch:
             } else {
                 reference(g);
             }
-            push(this, g);
-            dereference(this, i);
-            dereference(this, v);
+            push(H, g);
+            dereference(H, i);
+            dereference(H, v);
             break;
         }
         default: {
             const char *is = value_name(v.is);
-            dereference(this, i);
-            dereference(this, v);
+            dereference(H, i);
+            dereference(H, v);
             THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
         }
         }
         HYMN_DISPATCH;
     }
     case OP_LEN: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         switch (value.is) {
         case HYMN_VALUE_STRING: {
             int64_t len = (int64_t)hymn_string_len(hymn_as_string(value));
-            push(this, hymn_new_int(len));
+            push(H, hymn_new_int(len));
             break;
         }
         case HYMN_VALUE_ARRAY: {
             int64_t len = hymn_as_array(value)->length;
-            push(this, hymn_new_int(len));
+            push(H, hymn_new_int(len));
             break;
         }
         case HYMN_VALUE_TABLE: {
             int64_t len = (int64_t)hymn_as_table(value)->size;
-            push(this, hymn_new_int(len));
+            push(H, hymn_new_int(len));
             break;
         }
         default:
-            dereference(this, value);
-            THROW("Len: Expected `Array` or `Table`.")
+            dereference(H, value);
+            THROW("Len: Expected `Array` or `Table`")
         }
-        dereference(this, value);
+        dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_ARRAY_POP: {
-        HymnValue a = pop(this);
+        HymnValue a = pop(H);
         if (!hymn_is_array(a)) {
             const char *is = value_name(a.is);
-            dereference(this, a);
+            dereference(H, a);
             THROW("Pop: Expected `Array` for 1st argument, but was `%s`.", is)
         } else {
             HymnValue value = array_pop(hymn_as_array(a));
-            push(this, value);
-            dereference(this, a);
+            push(H, value);
+            dereference(H, a);
         }
         HYMN_DISPATCH;
     }
     case OP_ARRAY_PUSH: {
-        HymnValue value = pop(this);
-        HymnValue array = pop(this);
+        HymnValue value = pop(H);
+        HymnValue array = pop(H);
         if (!hymn_is_array(array)) {
             const char *is = value_name(value.is);
-            dereference(this, array);
-            dereference(this, value);
+            dereference(H, array);
+            dereference(H, value);
             THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
         } else {
             array_push(hymn_as_array(array), value);
-            push(this, value);
+            push(H, value);
             reference(value);
-            dereference(this, array);
+            dereference(H, array);
         }
         HYMN_DISPATCH;
     }
     case OP_ARRAY_INSERT: {
-        HymnValue p = pop(this);
-        HymnValue i = pop(this);
-        HymnValue v = pop(this);
+        HymnValue p = pop(H);
+        HymnValue i = pop(H);
+        HymnValue v = pop(H);
         if (hymn_is_array(v)) {
             if (!hymn_is_int(i)) {
                 const char *is = value_name(i.is);
-                dereference(this, p);
-                dereference(this, i);
-                dereference(this, v);
+                dereference(H, p);
+                dereference(H, i);
+                dereference(H, v);
                 THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
             }
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
             int64_t index = hymn_as_int(i);
             if (index > size) {
-                dereference(this, p);
-                dereference(this, i);
-                dereference(this, v);
+                dereference(H, p);
+                dereference(H, i);
+                dereference(H, v);
                 THROW("Insert Function: Array index out of bounds: %d > %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(this, p);
-                    dereference(this, i);
-                    dereference(this, v);
+                    dereference(H, p);
+                    dereference(H, i);
+                    dereference(H, v);
                     THROW("Insert Function: Array index less than zero: %d", index)
                 }
             }
@@ -5559,51 +5672,51 @@ dispatch:
             } else {
                 array_insert(array, index, p);
             }
-            push(this, p);
+            push(H, p);
             reference(p);
-            dereference(this, v);
+            dereference(H, v);
         } else {
             const char *is = value_name(v.is);
-            dereference(this, p);
-            dereference(this, i);
-            dereference(this, v);
+            dereference(H, p);
+            dereference(H, i);
+            dereference(H, v);
             THROW("Insert Function: Expected `Array` for 1st argument, but was `%s`.", is)
         }
         HYMN_DISPATCH;
     }
     case OP_DELETE: {
-        HymnValue i = pop(this);
-        HymnValue v = pop(this);
+        HymnValue i = pop(H);
+        HymnValue v = pop(H);
         if (hymn_is_array(v)) {
             if (!hymn_is_int(i)) {
-                dereference(this, i);
-                dereference(this, v);
-                THROW("Integer required to delete from array.")
+                dereference(H, i);
+                dereference(H, v);
+                THROW("Integer required to delete from array")
             }
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
             int64_t index = hymn_as_int(i);
             if (index >= size) {
-                dereference(this, i);
-                dereference(this, v);
+                dereference(H, i);
+                dereference(H, v);
                 THROW("Array index out of bounds %d > %d.", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(this, i);
-                    dereference(this, v);
+                    dereference(H, i);
+                    dereference(H, v);
                     THROW("Array index out of bounds %d.", index)
                 }
             }
             HymnValue value = array_remove_index(array, index);
-            push(this, value);
-            dereference(this, v);
+            push(H, value);
+            dereference(H, v);
         } else if (hymn_is_table(v)) {
             if (!hymn_is_string(i)) {
-                dereference(this, i);
-                dereference(this, v);
-                THROW("String required to delete from table.")
+                dereference(H, i);
+                dereference(H, v);
+                THROW("String required to delete from table")
             }
             HymnTable *table = hymn_as_table(v);
             HymnObjectString *name = hymn_as_hymn_string(i);
@@ -5611,20 +5724,20 @@ dispatch:
             if (hymn_is_undefined(value)) {
                 value.is = HYMN_VALUE_NONE;
             } else {
-                dereference_string(this, name);
+                dereference_string(H, name);
             }
-            push(this, value);
-            dereference(this, v);
-            dereference_string(this, name);
+            push(H, value);
+            dereference(H, v);
+            dereference_string(H, name);
         } else {
-            dereference(this, i);
-            dereference(this, v);
-            THROW("Expected array or table for `delete` function.")
+            dereference(H, i);
+            dereference(H, v);
+            THROW("Expected array or table for `delete` function")
         }
         HYMN_DISPATCH;
     }
     case OP_COPY: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         switch (value.is) {
         case HYMN_VALUE_NONE:
         case HYMN_VALUE_BOOL:
@@ -5633,38 +5746,38 @@ dispatch:
         case HYMN_VALUE_STRING:
         case HYMN_VALUE_FUNC:
         case HYMN_VALUE_FUNC_NATIVE:
-            push(this, value);
+            push(H, value);
             break;
         case HYMN_VALUE_ARRAY: {
             HymnArray *copy = new_array_copy(hymn_as_array(value));
             HymnValue new = hymn_new_array_value(copy);
-            push(this, new);
+            push(H, new);
             reference(new);
-            dereference(this, value);
+            dereference(H, value);
             break;
         }
         case HYMN_VALUE_TABLE: {
             HymnTable *copy = new_table_copy(hymn_as_table(value));
             HymnValue new = hymn_new_table_value(copy);
-            push(this, new);
+            push(H, new);
             reference(new);
-            dereference(this, value);
+            dereference(H, value);
             break;
         }
         default:
-            push(this, hymn_new_none());
+            push(H, hymn_new_none());
         }
         HYMN_DISPATCH;
     }
     case OP_SLICE: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
-        HymnValue v = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
+        HymnValue v = pop(H);
         if (!hymn_is_int(a)) {
-            dereference(this, a);
-            dereference(this, b);
-            dereference(this, v);
-            THROW("Integer required for slice expression.")
+            dereference(H, a);
+            dereference(H, b);
+            dereference(H, v);
+            THROW("Integer required for slice expression")
         }
         int64_t start = hymn_as_int(a);
         if (hymn_is_string(v)) {
@@ -5676,34 +5789,34 @@ dispatch:
             } else if (hymn_is_none(b)) {
                 end = size;
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                dereference(this, v);
-                THROW("Integer required for slice expression.")
+                dereference(H, a);
+                dereference(H, b);
+                dereference(H, v);
+                THROW("Integer required for slice expression")
             }
             if (end > size) {
-                dereference(this, a);
-                dereference(this, b);
-                dereference(this, v);
-                THROW("String index out of bounds %d > %d.", end, size)
+                dereference(H, a);
+                dereference(H, b);
+                dereference(H, v);
+                THROW("String index out of bounds %d > %d", end, size)
             }
             if (end < 0) {
                 end = size + end;
                 if (end < 0) {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("String index out of bounds %d.", end)
+                    dereference(H, a);
+                    dereference(H, b);
+                    dereference(H, v);
+                    THROW("String index out of bounds %d", end)
                 }
             }
             if (start >= end) {
-                dereference(this, a);
-                dereference(this, b);
-                dereference(this, v);
-                THROW("String start index %d > end index %d.", start, end)
+                dereference(H, a);
+                dereference(H, b);
+                dereference(H, v);
+                THROW("String start index %d > end index %d", start, end)
             }
             HymnString *sub = hymn_substring(original, (size_t)start, (size_t)end);
-            machine_push_intern_string(this, sub);
+            machine_push_intern_string(H, sub);
         } else if (hymn_is_array(v)) {
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
@@ -5713,70 +5826,70 @@ dispatch:
             } else if (hymn_is_none(b)) {
                 end = size;
             } else {
-                dereference(this, a);
-                dereference(this, b);
-                dereference(this, v);
-                THROW("Integer required for slice expression.")
+                dereference(H, a);
+                dereference(H, b);
+                dereference(H, v);
+                THROW("Integer required for slice expression")
             }
             if (end > size) {
-                dereference(this, a);
-                dereference(this, b);
-                dereference(this, v);
-                THROW("Array index out of bounds %d > %d.", end, size)
+                dereference(H, a);
+                dereference(H, b);
+                dereference(H, v);
+                THROW("Array index out of bounds %d > %d", end, size)
             }
             if (end < 0) {
                 end = size + end;
                 if (end < 0) {
-                    dereference(this, a);
-                    dereference(this, b);
-                    dereference(this, v);
-                    THROW("Array index out of bounds %d.", end)
+                    dereference(H, a);
+                    dereference(H, b);
+                    dereference(H, v);
+                    THROW("Array index out of bounds %d", end)
                 }
             }
             if (start >= end) {
-                dereference(this, a);
-                dereference(this, b);
-                dereference(this, v);
-                THROW("Array start index %d >= end index %d.", start, end)
+                dereference(H, a);
+                dereference(H, b);
+                dereference(H, v);
+                THROW("Array start index %d >= end index %d", start, end)
             }
             HymnArray *copy = new_array_slice(array, start, end);
             HymnValue new = hymn_new_array_value(copy);
             reference(new);
-            push(this, new);
+            push(H, new);
         } else {
-            dereference(this, a);
-            dereference(this, b);
-            dereference(this, v);
-            THROW("Expected string or array for `slice` function.")
+            dereference(H, a);
+            dereference(H, b);
+            dereference(H, v);
+            THROW("Expected string or array for `slice` function")
         }
-        dereference(this, v);
+        dereference(H, v);
         HYMN_DISPATCH;
     }
     case OP_CLEAR: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         switch (value.is) {
         case HYMN_VALUE_BOOL:
-            push(this, hymn_new_bool(false));
+            push(H, hymn_new_bool(false));
             break;
         case HYMN_VALUE_INTEGER:
-            push(this, hymn_new_int(0));
+            push(H, hymn_new_int(0));
             break;
         case HYMN_VALUE_FLOAT:
-            push(this, hymn_new_float(0.0f));
+            push(H, hymn_new_float(0.0f));
             break;
         case HYMN_VALUE_STRING:
-            machine_push_intern_string(this, hymn_new_string(""));
+            machine_push_intern_string(H, hymn_new_string(""));
             break;
         case HYMN_VALUE_ARRAY: {
             HymnArray *array = hymn_as_array(value);
-            array_clear(this, array);
-            push(this, value);
+            array_clear(H, array);
+            push(H, value);
             break;
         }
         case HYMN_VALUE_TABLE: {
             HymnTable *table = hymn_as_table(value);
-            table_clear(this, table);
-            push(this, value);
+            table_clear(H, table);
+            push(H, value);
             break;
         }
         case HYMN_VALUE_UNDEFINED:
@@ -5784,191 +5897,191 @@ dispatch:
         case HYMN_VALUE_FUNC:
         case HYMN_VALUE_FUNC_NATIVE:
         case HYMN_VALUE_POINTER:
-            push(this, hymn_new_none());
+            push(H, hymn_new_none());
             break;
         }
         HYMN_DISPATCH;
     }
     case OP_KEYS: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         if (!hymn_is_table(value)) {
-            dereference(this, value);
-            THROW("Expected table for `keys` function.")
+            dereference(H, value);
+            THROW("Expected table for `keys` function")
         } else {
             HymnTable *table = hymn_as_table(value);
             HymnArray *array = table_keys(table);
             HymnValue keys = hymn_new_array_value(array);
             reference(keys);
-            push(this, keys);
-            dereference(this, value);
+            push(H, keys);
+            dereference(H, value);
         }
         HYMN_DISPATCH;
     }
     case OP_INDEX: {
-        HymnValue b = pop(this);
-        HymnValue a = pop(this);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
         switch (a.is) {
         case HYMN_VALUE_STRING: {
             if (!hymn_is_string(b)) {
-                dereference(this, a);
-                dereference(this, b);
-                THROW("Expected substring for 2nd argument of `index` function.")
+                dereference(H, a);
+                dereference(H, b);
+                THROW("Expected substring for 2nd argument of `index` function")
             }
             size_t index = 0;
             bool found = string_find(hymn_as_string(a), hymn_as_string(b), &index);
             if (found) {
-                push(this, hymn_new_int((int64_t)index));
+                push(H, hymn_new_int((int64_t)index));
             } else {
-                push(this, hymn_new_int(-1));
+                push(H, hymn_new_int(-1));
             }
-            dereference(this, a);
-            dereference(this, b);
+            dereference(H, a);
+            dereference(H, b);
             break;
         }
         case HYMN_VALUE_ARRAY:
-            push(this, hymn_new_int(array_index_of(hymn_as_array(a), b)));
-            dereference(this, a);
-            dereference(this, b);
+            push(H, hymn_new_int(array_index_of(hymn_as_array(a), b)));
+            dereference(H, a);
+            dereference(H, b);
             break;
         case HYMN_VALUE_TABLE: {
             HymnObjectString *key = table_key_of(hymn_as_table(a), b);
             if (key == NULL) {
-                push(this, hymn_new_none());
+                push(H, hymn_new_none());
             } else {
-                push(this, hymn_new_string_value(key));
+                push(H, hymn_new_string_value(key));
             }
-            dereference(this, a);
-            dereference(this, b);
+            dereference(H, a);
+            dereference(H, b);
             break;
         }
         default:
-            dereference(this, a);
-            dereference(this, b);
-            THROW("Expected string, array, or table for `index` function.")
+            dereference(H, a);
+            dereference(H, b);
+            THROW("Index function expects `String`, `Array`, or `Table`")
         }
         HYMN_DISPATCH;
     }
     case OP_TYPE: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         switch (value.is) {
         case HYMN_VALUE_UNDEFINED:
         case HYMN_VALUE_NONE:
-            machine_push_intern_string(this, hymn_new_string(STRING_NONE_TYPE));
+            machine_push_intern_string(H, hymn_new_string(STRING_NONE_TYPE));
             break;
         case HYMN_VALUE_BOOL:
-            machine_push_intern_string(this, hymn_new_string(STRING_BOOL));
+            machine_push_intern_string(H, hymn_new_string(STRING_BOOL));
             break;
         case HYMN_VALUE_INTEGER:
-            machine_push_intern_string(this, hymn_new_string(STRING_INTEGER));
+            machine_push_intern_string(H, hymn_new_string(STRING_INTEGER));
             break;
         case HYMN_VALUE_FLOAT:
-            machine_push_intern_string(this, hymn_new_string(STRING_FLOAT));
+            machine_push_intern_string(H, hymn_new_string(STRING_FLOAT));
             break;
         case HYMN_VALUE_STRING:
-            machine_push_intern_string(this, hymn_new_string(STRING_STRING));
-            dereference(this, value);
+            machine_push_intern_string(H, hymn_new_string(STRING_STRING));
+            dereference(H, value);
             break;
         case HYMN_VALUE_ARRAY:
-            machine_push_intern_string(this, hymn_new_string(STRING_ARRAY));
-            dereference(this, value);
+            machine_push_intern_string(H, hymn_new_string(STRING_ARRAY));
+            dereference(H, value);
             break;
         case HYMN_VALUE_TABLE:
-            machine_push_intern_string(this, hymn_new_string(STRING_TABLE));
-            dereference(this, value);
+            machine_push_intern_string(H, hymn_new_string(STRING_TABLE));
+            dereference(H, value);
             break;
         case HYMN_VALUE_FUNC:
-            machine_push_intern_string(this, hymn_new_string(STRING_FUNC));
-            dereference(this, value);
+            machine_push_intern_string(H, hymn_new_string(STRING_FUNC));
+            dereference(H, value);
             break;
         case HYMN_VALUE_FUNC_NATIVE:
-            machine_push_intern_string(this, hymn_new_string(STRING_NATIVE));
+            machine_push_intern_string(H, hymn_new_string(STRING_NATIVE));
             break;
         case HYMN_VALUE_POINTER:
-            machine_push_intern_string(this, hymn_new_string(STRING_POINTER));
+            machine_push_intern_string(H, hymn_new_string(STRING_POINTER));
             break;
         }
         HYMN_DISPATCH;
     }
     case OP_TO_INTEGER: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         if (hymn_is_int(value)) {
-            push(this, value);
+            push(H, value);
         } else if (hymn_is_float(value)) {
             int64_t number = (int64_t)hymn_as_float(value);
-            push(this, hymn_new_int(number));
+            push(H, hymn_new_int(number));
         } else if (hymn_is_string(value)) {
             HymnString *string = hymn_as_string(value);
             char *end = NULL;
             double number = string_to_double(string, &end);
             if (string == end) {
-                push(this, hymn_new_none());
+                push(H, hymn_new_none());
             } else {
-                push(this, hymn_new_int((int64_t)number));
+                push(H, hymn_new_int((int64_t)number));
             }
-            dereference(this, value);
+            dereference(H, value);
         } else {
-            dereference(this, value);
-            THROW("Can't cast to an integer.")
+            dereference(H, value);
+            THROW("Can't cast to an integer")
         }
         HYMN_DISPATCH;
     }
     case OP_TO_FLOAT: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         if (hymn_is_int(value)) {
             double number = (double)hymn_as_int(value);
-            push(this, hymn_new_float(number));
+            push(H, hymn_new_float(number));
         } else if (hymn_is_float(value)) {
-            push(this, value);
+            push(H, value);
         } else if (hymn_is_string(value)) {
             HymnString *string = hymn_as_string(value);
             char *end = NULL;
             double number = string_to_double(string, &end);
             if (string == end) {
-                push(this, hymn_new_none());
+                push(H, hymn_new_none());
             } else {
-                push(this, hymn_new_float(number));
+                push(H, hymn_new_float(number));
             }
-            dereference(this, value);
+            dereference(H, value);
         } else {
-            dereference(this, value);
-            THROW("Can't cast to a float.")
+            dereference(H, value);
+            THROW("Can't cast to a float")
         }
         HYMN_DISPATCH;
     }
     case OP_TO_STRING: {
-        HymnValue value = pop(this);
-        machine_push_intern_string(this, value_to_string(value));
-        dereference(this, value);
+        HymnValue value = pop(H);
+        machine_push_intern_string(H, value_to_string(value));
+        dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_PRINT: {
-        HymnValue value = pop(this);
+        HymnValue value = pop(H);
         HymnString *string = value_to_string(value);
-        this->print("%s\n", string);
+        H->print("%s\n", string);
         hymn_string_delete(string);
-        dereference(this, value);
+        dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_THROW: {
-        frame = machine_exception(this);
+        frame = machine_exception(H);
         if (frame == NULL) return;
         HYMN_DISPATCH;
     }
     case OP_DUPLICATE: {
-        HymnValue top = peek(this, 1);
-        push(this, top);
+        HymnValue top = peek(H, 1);
+        push(H, top);
         reference(top);
         HYMN_DISPATCH;
     }
     case OP_USE: {
-        HymnValue file = pop(this);
+        HymnValue file = pop(H);
         if (hymn_is_string(file)) {
-            frame = machine_import(this, hymn_as_hymn_string(file));
-            dereference(this, file);
+            frame = machine_import(H, hymn_as_hymn_string(file));
+            dereference(H, file);
             if (frame == NULL) return;
         } else {
-            dereference(this, file);
-            THROW("Expected string for 'use' command.")
+            dereference(H, file);
+            THROW("Expected `String` for `use` command")
         }
         HYMN_DISPATCH;
     }
@@ -5977,13 +6090,13 @@ dispatch:
     }
 }
 
-static char *machine_interpret(Hymn *this) {
-    machine_run(this);
+static char *machine_interpret(Hymn *H) {
+    machine_run(H);
     char *error = NULL;
-    if (this->error) {
-        error = string_to_chars(this->error);
-        hymn_string_delete(this->error);
-        this->error = NULL;
+    if (H->error) {
+        error = string_to_chars(H->error);
+        hymn_string_delete(H->error);
+        H->error = NULL;
     }
     return error;
 }
@@ -5999,51 +6112,51 @@ static void print_stdout(const char *format, ...) {
 }
 
 Hymn *new_hymn() {
-    Hymn *this = hymn_calloc(1, sizeof(Hymn));
-    reset_stack(this);
+    Hymn *H = hymn_calloc(1, sizeof(Hymn));
+    reset_stack(H);
 
-    set_init(&this->strings);
-    table_init(&this->globals);
+    set_init(&H->strings);
+    table_init(&H->globals);
 
-    HymnObjectString *search_this = machine_intern_string(this, hymn_new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_this = machine_intern_string(H, hymn_new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
     reference_string(search_this);
 
-    HymnObjectString *search_relative = machine_intern_string(this, hymn_new_string("." PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_relative = machine_intern_string(H, hymn_new_string("." PATH_SEP_STRING "<path>.hm"));
     reference_string(search_relative);
 
-    HymnObjectString *search_modules = machine_intern_string(this, hymn_new_string("." PATH_SEP_STRING "modules" PATH_SEP_STRING "<path>.hm"));
-    reference_string(search_modules);
+    HymnObjectString *search_libs = machine_intern_string(H, hymn_new_string("." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>.hm"));
+    reference_string(search_libs);
 
-    HymnObjectString *paths = machine_intern_string(this, hymn_new_string("__paths"));
+    HymnObjectString *paths = machine_intern_string(H, hymn_new_string("__paths"));
     reference_string(paths);
 
-    this->paths = new_array(3);
-    this->paths->items[0] = hymn_new_string_value(search_this);
-    this->paths->items[1] = hymn_new_string_value(search_relative);
-    this->paths->items[2] = hymn_new_string_value(search_modules);
+    H->paths = new_array(3);
+    H->paths->items[0] = hymn_new_string_value(search_this);
+    H->paths->items[1] = hymn_new_string_value(search_relative);
+    H->paths->items[2] = hymn_new_string_value(search_libs);
 
-    HymnValue paths_value = hymn_new_array_value(this->paths);
-    table_put(&this->globals, paths, paths_value);
+    HymnValue paths_value = hymn_new_array_value(H->paths);
+    table_put(&H->globals, paths, paths_value);
     reference_string(paths);
     reference(paths_value);
 
-    HymnObjectString *imports = machine_intern_string(this, hymn_new_string("__imports"));
+    HymnObjectString *imports = machine_intern_string(H, hymn_new_string("__imports"));
     reference_string(imports);
 
-    this->imports = new_table();
-    HymnValue imports_value = hymn_new_table_value(this->imports);
-    table_put(&this->globals, imports, imports_value);
+    H->imports = new_table();
+    HymnValue imports_value = hymn_new_table_value(H->imports);
+    table_put(&H->globals, imports, imports_value);
     reference_string(imports);
     reference(imports_value);
 
-    this->print = print_stdout;
+    H->print = print_stdout;
 
-    return this;
+    return H;
 }
 
-void hymn_delete(Hymn *this) {
+void hymn_delete(Hymn *H) {
     {
-        HymnTable *globals = &this->globals;
+        HymnTable *globals = &H->globals;
         unsigned int bins = globals->bins;
         for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = globals->items[i];
@@ -6065,48 +6178,68 @@ void hymn_delete(Hymn *this) {
                 item = next;
             }
         }
-        table_release(this, &this->globals);
-        assert(this->globals.size == 0);
+        table_release(H, &H->globals);
+        assert(H->globals.size == 0);
     }
 
+    HymnSet *strings = &H->strings;
     {
-        HymnSet *strings = &this->strings;
         unsigned int bins = strings->bins;
         for (unsigned int i = 0; i < bins; i++) {
             HymnSetItem *item = strings->items[i];
             while (item != NULL) {
                 HymnSetItem *next = item->next;
-                dereference_string(this, item->string);
+                dereference_string(H, item->string);
                 item = next;
             }
         }
-        assert(strings->size == 0);
-        free(strings->items);
     }
+#ifdef HYMN_DEBUG_MEMORY
+    {
+        unsigned int bins = strings->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            HymnSetItem *item = strings->items[i];
+            while (item != NULL) {
+                fprintf(stderr, "ENDING STRING REFERENCE: %s\n", item->string->string);
+                item = item->next;
+            }
+        }
+    }
+#endif
+    assert(strings->size == 0);
+    free(strings->items);
 
-    hymn_string_delete(this->error);
+    hymn_string_delete(H->error);
 
-    free(this);
+    free(H);
 }
 
-void hymn_add_function(Hymn *this, const char *name, HymnNativeCall func) {
-    HymnObjectString *intern = machine_intern_string(this, hymn_new_string(name));
-    reference_string(intern);
-    HymnString *copy = string_copy(intern->string);
-    HymnNativeFunction *value = new_native_function(copy, func);
-    table_put(&this->globals, intern, hymn_new_native(value));
+void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
+    HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
+    HymnString *string_name = string_copy(string->string);
+    HymnNativeFunction *value = new_native_function(string_name, func);
+    HymnValue previous = table_put(&H->globals, string, hymn_new_native(value));
+    if (hymn_is_undefined(previous)) {
+        reference_string(string);
+    } else {
+        dereference(H, previous);
+    }
 }
 
-void hymn_add_pointer(Hymn *this, const char *name, void *pointer) {
-    HymnObjectString *intern = machine_intern_string(this, hymn_new_string(name));
-    reference_string(intern);
-    table_put(&this->globals, intern, hymn_new_pointer(pointer));
+void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
+    HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
+    HymnValue previous = table_put(&H->globals, string, hymn_new_pointer(pointer));
+    if (hymn_is_undefined(previous)) {
+        reference_string(string);
+    } else {
+        dereference(H, previous);
+    }
 }
 
-char *hymn_debug(Hymn *this, const char *script) {
+char *hymn_debug(Hymn *H, const char *script) {
     HymnString *source = hymn_read_file(script);
 
-    struct CompileReturn result = compile(this, script, source);
+    struct CompileReturn result = compile(H, script, source);
 
     HymnFunction *main = result.func;
 
@@ -6130,8 +6263,35 @@ char *hymn_debug(Hymn *this, const char *script) {
     return NULL;
 }
 
-char *hymn_do(Hymn *this, const char *script, const char *source) {
-    struct CompileReturn result = compile(this, script, source);
+char *hymn_call(Hymn *H, const char *name, int arguments) {
+
+    // TODO: NEED A NON-INTERN STRING LOOKUP FOR GLOBALS
+
+    HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
+
+    HymnValue function = table_get(&H->globals, string);
+    if (hymn_is_undefined(function)) {
+        dereference_string(H, string);
+        return NULL;
+    }
+    reference(function);
+
+    push(H, function);
+    call_value(H, function, arguments);
+
+    char *error = machine_interpret(H);
+    if (error) {
+        return error;
+    }
+
+    assert(H->stack_top == H->stack);
+    reset_stack(H);
+
+    return NULL;
+}
+
+char *hymn_run(Hymn *H, const char *script, const char *source) {
+    struct CompileReturn result = compile(H, script, source);
 
     HymnFunction *main = result.func;
 
@@ -6144,23 +6304,27 @@ char *hymn_do(Hymn *this, const char *script, const char *source) {
     HymnValue function = hymn_new_func_value(main);
     reference(function);
 
-    push(this, function);
-    call(this, main, 0);
+    push(H, function);
+    call(H, main, 0);
 
-    error = machine_interpret(this);
+    error = machine_interpret(H);
     if (error) {
         return error;
     }
 
-    assert(this->stack_top == this->stack);
-    reset_stack(this);
+    assert(H->stack_top == H->stack);
+    reset_stack(H);
 
     return NULL;
 }
 
-char *hymn_read(Hymn *this, const char *script) {
+char *hymn_do(Hymn *H, const char *source) {
+    return hymn_run(H, NULL, source);
+}
+
+char *hymn_read(Hymn *H, const char *script) {
     HymnString *source = hymn_read_file(script);
-    char *error = hymn_do(this, script, source);
+    char *error = hymn_run(H, script, source);
     hymn_string_delete(source);
     return error;
 }

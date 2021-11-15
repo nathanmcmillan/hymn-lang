@@ -1,0 +1,20 @@
+function load_texture(wad)
+    let name = wad_get(wad, "paint")
+    let width = int(wad_get(wad, "columns"))
+    let height = int(wad_get(wad, "rows"))
+    let transparency = 0
+    if wad_has(wad, "transparency") transparency = int(wad_get(wad, "transparency")) end
+    let data = wad_get(wad, "pixels")
+    let pixels = []
+    for h = 0, h < height
+        let row = h * width
+        for c = 0, c < width
+            let i = c + row
+            let p = int(data[c])
+            if p == transparency pixels[i] = 255
+            else pixels[i] = p end
+        end
+    end
+    let sprites = none
+    return { name: name, width: width, height: height, pixels: pixels, sprites: sprites }
+end

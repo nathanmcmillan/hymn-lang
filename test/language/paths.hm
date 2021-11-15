@@ -1,0 +1,7 @@
+-- ["<parent>/<path>.hm", "./<path>.hm", "./libs/<path>.hm", "src/<path>.hm"]
+
+push(__paths, "src/<path>.hm")
+
+use "std"
+
+print(__paths)

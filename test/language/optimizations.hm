@@ -4,9 +4,10 @@
 -- 6
 -- 4
 -- 6
--- foo
--- foo
--- bar
+-- X
+-- Y
+-- Z
+-- W
 -- 256
 -- 256
 -- 256
@@ -52,13 +53,16 @@ begin
 end
 
 -- if less
-if 0 < 1 print "foo" else print "bar" end
+if 0 < 1 print "X" else print "no" end
 
 -- if true
-if true print "foo" else print "bar" end
+if true print "Y" else print "no" end
 
 -- if false
-if false print "foo" else print "bar" end
+if false print "no" else print "Z" end
+
+-- if not
+if !false print "W" else print "no" end
 
 -- increment
 let x = 1

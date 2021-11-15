@@ -1,0 +1,14 @@
+
+-- trim returns a string with spaces removed from the head and tail
+function trim(s)
+  if len(s) == 0
+      return s
+  end
+  while s[0] == ' '
+      s = s[1:]
+  end
+  while s[-1] == ' '
+      s = s[:-1]
+  end
+  return s
+end
