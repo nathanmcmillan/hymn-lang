@@ -117,14 +117,12 @@ $ callgrind_annotate --auto=yes callgrind.out.* | less
 1. Keywords `yield` `resume` `start` for coroutines
 1. Keywords `#if` `#else` `#define` `#end` for macros
 1. Instead of `OP_PRINT` etc, should they be calls to C functions
-1. Remove `pass`
-1. Remove `do` maybe
 
 ## Progress
 
 | Implementation | Status      |
 | -------------- | ----------- |
-| C              | Version 0.1 |
+| C              | Version 0.2 |
 | JavaScript     | Version 0.1 |
 | Go             | Not Started |
 | Java           | Not Started |

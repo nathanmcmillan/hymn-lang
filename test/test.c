@@ -242,11 +242,9 @@ static void test_hymn(const char *filter) {
         printf("%s\n", script);
         HymnString *result = test_source(script);
         if (result != NULL) {
-            // printf("⨯ %s\n\n", result);
             printf("%s\n\n", result);
             tests_fail++;
         } else {
-            // printf(" ✓\n");
             tests_success++;
         }
         hymn_string_delete(result);
@@ -256,7 +254,9 @@ static void test_hymn(const char *filter) {
     hymn_delete_filter_list(&scripts);
     hymn_string_delete(end);
 
-    test_api();
+    if (filter == NULL) {
+        test_api();
+    }
 
     hymn_string_delete(out);
 }

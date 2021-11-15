@@ -2743,12 +2743,10 @@ static void patch_jump(Compiler *C, int jump) {
 }
 
 static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode code) {
-    // What about a function call inside an if, need to check the active ByteCode object as well?
     struct JumpList *jump = hymn_calloc(1, sizeof(struct JumpList));
     jump->jump = emit_jump(C, code);
     jump->depth = C->scope->depth;
     jump->code = current(C);
-    printf("ADD JUMP: %d\n", jump->depth);
     jump->next = list;
     return jump;
 }
@@ -2757,12 +2755,10 @@ static void free_jump_and_list(Compiler *C) {
     struct JumpList *jump = C->jump_and;
     HymnByteCode *code = current(C);
     int depth = C->scope->depth;
-    printf("PATCH AND JUMP LIST: %d\n", depth);
     while (jump != NULL) {
         if (jump->code != code || jump->depth < depth) {
             break;
         }
-        printf("FREE AND JUMP: %d\n", jump->depth);
         patch_jump(C, jump->jump);
         struct JumpList *next = jump->next;
         free(jump);
@@ -2775,12 +2771,10 @@ static void free_jump_or_list(Compiler *C) {
     struct JumpList *jump = C->jump_or;
     HymnByteCode *code = current(C);
     int depth = C->scope->depth;
-    printf("PATCH OR JUMP LIST: %d\n", depth);
     while (jump != NULL) {
         if (jump->code != code || jump->depth < depth) {
             break;
         }
-        printf("FREE OR JUMP: %d\n", jump->depth);
         patch_jump(C, jump->jump);
         struct JumpList *next = jump->next;
         free(jump);
@@ -2849,10 +2843,10 @@ static int next(uint8_t instruction) {
     }
 }
 
-static bool adjustable(uint8_t *instructions, int count, int at) {
-    // TODO THIS NEEDS TO BE WAY MORE EFFICIENT
+static bool adjustable(uint8_t *instructions, int count, int target) {
+    // TODO: THIS NEEDS TO BE WAY MORE EFFICIENT
     int i = 0;
-    while (i < at) {
+    while (i < target) {
         uint8_t instruction = instructions[i];
         switch (instruction) {
         case OP_JUMP:
@@ -2864,15 +2858,15 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            if (i + offset == at) {
+            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            if (i + 3 + jump == target) {
                 return false;
             }
             break;
         }
         case OP_FOR: {
-            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            if (i + offset == at) {
+            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            if (i + 3 + jump == target) {
                 return false;
             }
             break;
@@ -2884,15 +2878,15 @@ static bool adjustable(uint8_t *instructions, int count, int at) {
         uint8_t instruction = instructions[i];
         switch (instruction) {
         case OP_LOOP: {
-            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            if (i - offset == at) {
+            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            if (i + 3 - jump == target) {
                 return false;
             }
             break;
         }
         case OP_FOR_LOOP: {
-            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            if (i - offset == at) {
+            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            if (i + 3 - jump == target) {
                 return false;
             }
             break;
@@ -2917,22 +2911,20 @@ static int rewrite(uint8_t *instructions, int *lines, int count, int start, int 
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            int jump = i + offset;
-            if (jump > start) {
-                offset -= (uint16_t)shift;
-                instructions[i + 1] = (offset >> 8) & UINT8_MAX;
-                instructions[i + 2] = offset & UINT8_MAX;
+            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            if (i + 3 + jump > start) {
+                jump -= (uint16_t)shift;
+                instructions[i + 1] = (jump >> 8) & UINT8_MAX;
+                instructions[i + 2] = jump & UINT8_MAX;
             }
             break;
         }
         case OP_FOR: {
-            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            int jump = i + offset;
-            if (jump > start) {
-                offset -= (uint16_t)shift;
-                instructions[i + 2] = (offset >> 8) & UINT8_MAX;
-                instructions[i + 3] = offset & UINT8_MAX;
+            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            if (i + 3 + jump > start) {
+                jump -= (uint16_t)shift;
+                instructions[i + 2] = (jump >> 8) & UINT8_MAX;
+                instructions[i + 3] = jump & UINT8_MAX;
             }
             break;
         }
@@ -2943,22 +2935,20 @@ static int rewrite(uint8_t *instructions, int *lines, int count, int start, int 
         uint8_t instruction = instructions[i];
         switch (instruction) {
         case OP_LOOP: {
-            uint16_t offset = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            int jump = i - offset;
-            if (jump < start) {
-                offset -= (uint16_t)shift;
-                instructions[i + 1] = (offset >> 8) & UINT8_MAX;
-                instructions[i + 2] = offset & UINT8_MAX;
+            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+            if (i + 3 - jump < start) {
+                jump -= (uint16_t)shift;
+                instructions[i + 1] = (jump >> 8) & UINT8_MAX;
+                instructions[i + 2] = jump & UINT8_MAX;
             }
             break;
         }
         case OP_FOR_LOOP: {
-            uint16_t offset = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            int jump = i - offset;
-            if (jump < start) {
-                offset -= (uint16_t)shift;
-                instructions[i + 2] = (offset >> 8) & UINT8_MAX;
-                instructions[i + 3] = offset & UINT8_MAX;
+            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+            if (i + 3 - jump < start) {
+                jump -= (uint16_t)shift;
+                instructions[i + 2] = (jump >> 8) & UINT8_MAX;
+                instructions[i + 3] = jump & UINT8_MAX;
             }
             break;
         }
@@ -3002,7 +2992,7 @@ static void optimize(Compiler *C) {
         if (two >= count) break;
         uint8_t second = instructions[two];
 
-        if (!adjustable(instructions, count, two)) {
+        if (!adjustable(instructions, count, one) || !adjustable(instructions, count, two)) {
             one = two;
             continue;
         }
@@ -3020,9 +3010,6 @@ static void optimize(Compiler *C) {
                 REWRITE(0, 1);
                 SET(one, OP_POP_TWO);
                 REPEAT;
-            } else if (second == OP_DUPLICATE) {
-                // REWRITE(0, 2);
-                // REPEAT;
             }
             break;
         }
@@ -3408,7 +3395,7 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     C->scope->locals[object].name = (Token){0};
 
-    // in
+    // IN
 
     expression(C);
 
@@ -3422,11 +3409,11 @@ static void iterator_statement(Compiler *C, bool pair) {
     struct LoopList loop = {.start = start, .depth = C->scope->depth + 1, .next = C->loop, .is_for = true};
     C->loop = &loop;
 
-    // body
+    // BODY
 
     block(C);
 
-    // loop
+    // LOOP
 
     patch_jump_for_list(C);
 
@@ -3438,7 +3425,7 @@ static void iterator_statement(Compiler *C, bool pair) {
     emit_byte(C, (offset >> 8) & UINT8_MAX);
     emit_byte(C, offset & UINT8_MAX);
 
-    // end
+    // END
 
     C->loop = loop.next;
 
@@ -3453,7 +3440,7 @@ static void iterator_statement(Compiler *C, bool pair) {
 static void for_statement(Compiler *C) {
     begin_scope(C);
 
-    // assign
+    // ASSIGN
 
     uint8_t index = (uint8_t)C->scope->local_count;
 
@@ -3477,7 +3464,7 @@ static void for_statement(Compiler *C) {
         return;
     }
 
-    // compare
+    // COMPARE
 
     int compare = current(C)->count;
 
@@ -3485,7 +3472,7 @@ static void for_statement(Compiler *C) {
 
     int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-    // increment
+    // INCREMENT
 
     int increment = current(C)->count;
 
@@ -3507,11 +3494,11 @@ static void for_statement(Compiler *C) {
     memcpy(lines, &code->lines[increment], count * sizeof(int));
     code->count = increment;
 
-    // body
+    // BODY
 
     block(C);
 
-    // increment
+    // INCREMENT
 
     patch_jump_for_list(C);
 
@@ -3528,13 +3515,13 @@ static void for_statement(Compiler *C) {
 
     emit_loop(C, compare);
 
-    // end
+    // END
 
     C->loop = loop.next;
 
     patch_jump(C, jump);
-
     patch_jump_list(C);
+
     end_scope(C);
 
     consume(C, TOKEN_END, "Missing `end` in for loop");

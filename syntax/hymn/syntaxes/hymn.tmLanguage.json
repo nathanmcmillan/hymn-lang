@@ -8,50 +8,42 @@
       "name": "comment.line.double-slash.hymn"
     },
     {
-      "name": "string.quoted.single.hymn",
       "begin": "'",
       "beginCaptures": {
         "0": {
           "name": "punctuation.definition.string.begin.hymn"
         }
       },
-      "end": "(\\')|((?:[^\\\\\\n])$)",
+      "end": "'",
       "endCaptures": {
-        "1": {
+        "0": {
           "name": "punctuation.definition.string.end.hymn"
-        },
-        "2": {
-          "name": "invalid.illegal.newline.hymn"
         }
       },
+      "name": "string.quoted.single.hymn",
       "patterns": [
         {
-          "name": "constant.character.escape.hymn",
-          "match": "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
+          "include": "#escaped"
         }
       ]
     },
     {
-      "name": "string.quoted.double.hymn",
       "begin": "\"",
       "beginCaptures": {
         "0": {
           "name": "punctuation.definition.string.begin.hymn"
         }
       },
-      "end": "(\")|((?:[^\\\\\\n])$)",
+      "end": "\"",
       "endCaptures": {
-        "1": {
+        "0": {
           "name": "punctuation.definition.string.end.hymn"
-        },
-        "2": {
-          "name": "invalid.illegal.newline.hymn"
         }
       },
+      "name": "string.quoted.double.hymn",
       "patterns": [
         {
-          "name": "constant.character.escape.hymn",
-          "match": "\\\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
+          "include": "#escaped"
         }
       ]
     },
@@ -169,5 +161,31 @@
         }
       }
     }
-  ]
+  ],
+  "repository": {
+    "escaped": {
+      "patterns": [
+        {
+          "match": "\\\\[abfnrtvz\\\\\"'\\n]",
+          "name": "constant.character.escape.hymn"
+        },
+        {
+          "match": "\\\\\\d{1,3}",
+          "name": "constant.character.escape.byte.hymn"
+        },
+        {
+          "match": "\\\\x[0-9A-Fa-f][0-9A-Fa-f]",
+          "name": "constant.character.escape.byte.hymn"
+        },
+        {
+          "match": "\\\\u\\{[0-9A-Fa-f]+\\}",
+          "name": "constant.character.escape.unicode.hymn"
+        },
+        {
+          "match": "\\\\.",
+          "name": "invalid.illegal.character.escape.hymn"
+        }
+      ]
+    }
+  }
 }
