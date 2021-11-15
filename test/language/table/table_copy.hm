@@ -3,10 +3,10 @@
 -- { foo: "bar", hello: "world" }
 
 let table = { foo: "bar", hello: "world" }
-print table
+print(table)
 
 let copied = copy(table)
 copied.foo = "baz"
 
-print copied
-print table
+print(copied)
+print(table)

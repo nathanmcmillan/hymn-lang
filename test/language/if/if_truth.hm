@@ -14,17 +14,17 @@
 
 function example() end
 
-if true print "boolean" else print "bad" end
-if 1 print "integer" else print "bad" end
-if 0.4 print "float" else print "bad" end
-if "foo" print "string" else print "bad" end
-if [1] print "array" else print "bad" end
-if { foo: 1 } print "table" else print "bad" end
-if example print "function" else print "bad" end
+if true print("boolean") else print("bad") end
+if 1 print("integer") else print("bad") end
+if 0.4 print("float") else print("bad") end
+if "foo" print("string") else print("bad") end
+if [1] print("array") else print("bad") end
+if { foo: 1 } print("table") else print("bad") end
+if example print("function") else print("bad") end
 
-if false print "bad" else print "false" end
-if none print "bad" else print "none" end
-if 0 print "bad" else print "zero" end
-if "" print "bad" else print "empty" end
-if [] print "bad" else print "length" end
-if {} print "bad" else print "size" end
+if false print("bad") else print("false") end
+if none print("bad") else print("none") end
+if 0 print("bad") else print("zero") end
+if "" print("bad") else print("empty") end
+if [] print("bad") else print("length") end
+if {} print("bad") else print("size") end

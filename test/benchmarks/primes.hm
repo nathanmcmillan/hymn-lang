@@ -18,4 +18,4 @@ for i = 0, i < N
 end
 
 let seconds = os_clock() - start
-print "elapsed: " + seconds + "s | " + primes[-1]
+print("elapsed: " + seconds + "s | " + primes[-1])

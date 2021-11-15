@@ -3,10 +3,10 @@
 
 begin
   let table = {}
-  print table
+  print(table)
 end
 
 begin
   let table = { a: 2, b: 4, c: 6 }
-  print table
+  print(table)
 end

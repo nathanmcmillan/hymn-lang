@@ -5,10 +5,10 @@
 
 let foo = "foo"
 let bar = "bar"
-print foo + bar
+print(foo + bar)
 let cat = foo + bar
-print cat
+print(cat)
 
-print "hello " + "world"
+print("hello " + "world")
 
-print "hello " + cat + " world"
+print("hello " + cat + " world")

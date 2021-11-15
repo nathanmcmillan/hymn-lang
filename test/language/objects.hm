@@ -20,5 +20,5 @@ end
 let k = cat("Mittens")
 let d = dog("Cookies")
 
-print "My cat is " + k.name + " and says " + k.says()
-print "My dog is " + d.name + " and says " + d.says()
+print("My cat is " + k.name + " and says " + k.says())
+print("My dog is " + d.name + " and says " + d.says())

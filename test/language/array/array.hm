@@ -3,10 +3,10 @@
 
 begin
   let array = []
-  print array
+  print(array)
 end
 
 begin
   let array = [2, 4, 6]
-  print array
+  print(array)
 end

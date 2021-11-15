@@ -6,23 +6,23 @@
 begin
   let x = 4
   x += 2
-  print x
+  print(x)
 end
 
 begin
   let x = 12
   x -= 2
-  print x
+  print(x)
 end
 
 begin
   let x = 4
   x *= 2
-  print x
+  print(x)
 end
 
 begin
   let x = 4
   x /= 2
-  print x
+  print(x)
 end

@@ -21,4 +21,4 @@ end
 reverse(list)
 
 let seconds = os_clock() - start
-print "elapsed: " + seconds + "s | " + list[0]
+print("elapsed: " + seconds + "s | " + list[0])

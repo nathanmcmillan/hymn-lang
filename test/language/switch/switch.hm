@@ -6,35 +6,35 @@
 let x = 3
 
 if x == 3
-  print "first"
+  print("first")
 elif x == 5
-  print "bad"
+  print("bad")
 else
-  print "bad"
+  print("bad")
 end
 
 if x == 5
-  print "bad"
+  print("bad")
 elif x == 3
-  print "second"
+  print("second")
 else
-  print "bad"
+  print("bad")
 end
 
 if x == none
-  print "bad"
+  print("bad")
 elif x == true
-  print "bad"
+  print("bad")
 elif x == 2 or x == 3 or x == 4
-  print "or"
+  print("or")
 else
-  print "bad"
+  print("bad")
 end
 
 if x == 4
-  print "bad"
+  print("bad")
 elif x == 5
-  print "bad"
+  print("bad")
 else
-  print "else"
+  print("else")
 end

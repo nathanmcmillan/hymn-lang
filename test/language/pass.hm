@@ -2,6 +2,6 @@
 
 if true
 else
-  print "bad"
+  print("bad")
 end
-print "ok"
+print("ok")

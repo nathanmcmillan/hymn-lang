@@ -2,4 +2,4 @@
 
 try use "nope" except _ end
 
-print "foobar"
+print("foobar")

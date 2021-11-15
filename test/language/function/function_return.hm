@@ -22,21 +22,21 @@ function h() return { hello: "world" } end
 function bar() return 2 end
 function foo() return bar end
 
-print a()
-print b()
-print c()
-print d()
-print e()
-print f()
-print g()
-print h()
+print(a())
+print(b())
+print(c())
+print(d())
+print(e())
+print(f())
+print(g())
+print(h())
 
-print foo()
-print foo()()
+print(foo())
+print(foo()())
 
 function min(a, b)
   if a < b return a end
   return b
 end
 
-print min(4, 6)
+print(min(4, 6))

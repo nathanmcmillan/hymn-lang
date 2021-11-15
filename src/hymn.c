@@ -3633,7 +3633,7 @@ static void try_statement(Compiler *C) {
 
     int jump = emit_jump(C, OP_JUMP);
 
-    consume(C, TOKEN_EXCEPT, "Try: Missing 'except'");
+    consume(C, TOKEN_EXCEPT, "Try statement is missing `except`");
 
     except->end = code->count;
 
@@ -3651,7 +3651,9 @@ static void try_statement(Compiler *C) {
 }
 
 static void print_statement(Compiler *C) {
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` around print statement");
     expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` around print statement");
     emit(C, OP_PRINT);
 }
 

@@ -5,25 +5,25 @@
 let x = 3
 
 if x == 3
-  print "if"
+  print("if")
 elif x == 4
-  print "bad"
+  print("bad")
 else
-  print "bad"
+  print("bad")
 end
 
 if x == 2
-  print "bad"
+  print("bad")
 elif x == 3
-  print "elif"
+  print("elif")
 else
-  print "bad"
+  print("bad")
 end
 
 if x == 1
-  print "bad"
+  print("bad")
 elif x == 2
-  print "bad"
+  print("bad")
 else
-  print "else"
+  print("else")
 end

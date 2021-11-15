@@ -5,12 +5,12 @@
 -- [True, False]
 
 let array = [true, true, false, false]
-print array
+print(array)
 
 let one = delete(array, 0)
-print one
-print array
+print(one)
+print(array)
 
 let two = delete(array, 1)
-print two
-print array
+print(two)
+print(array)

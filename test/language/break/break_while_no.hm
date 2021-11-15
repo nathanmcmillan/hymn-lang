@@ -4,11 +4,11 @@
 -- 3
 -- end
 
-print "begin"
+print("begin")
 let i = 1
 while i < 4
   if i == 10 break end
-  print i
+  print(i)
   i = i + 1
 end
-print "end"
+print("end")

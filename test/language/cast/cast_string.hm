@@ -9,13 +9,13 @@
 -- False
 -- foobar
 
-print string(none)
-print string(0)
-print string(0.0)
-print string(1)
-print string(-1)
-print string(1.2)
-print string(-1.2)
-print string(true)
-print string(false)
-print string("foobar")
+print(string(none))
+print(string(0))
+print(string(0.0))
+print(string(1))
+print(string(-1))
+print(string(1.2))
+print(string(-1.2))
+print(string(true))
+print(string(false))
+print(string("foobar"))

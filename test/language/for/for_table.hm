@@ -24,34 +24,34 @@
 
 let table = { a: 2, b: 4, c: 8 }
 
-print "begin"
+print("begin")
 for value in table
-  print value
+  print(value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for k, value in table
-  print k + " -> " + value
+  print(k + " -> " + value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for value in { d: 10, e: 12, f: 14 }
-  print value
+  print(value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for k, value in { d: 10, e: 12, f: 14 }
   if k == "f" break end
-  print k + " -> " + value
+  print(k + " -> " + value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for value in table
   if value == 2 continue end
-  print value
+  print(value)
 end
-print "end"
+print("end")

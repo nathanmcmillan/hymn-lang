@@ -30,133 +30,133 @@
 -- end
 
 if 0 == 1 and 2 == 2
-  print "no"
+  print("no")
 else
-  print "A"
+  print("A")
 end
-print "end"
+print("end")
 
 if 0 == 1 and 2 == 2 and 4 == 4
-  print "no"
+  print("no")
 else
-  print "B"
+  print("B")
 end
-print "end"
+print("end")
 
 if 0 == 1 or 2 == 2
-  print "C"
+  print("C")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 if 0 == 1 or 2 == 2 or 4 == 4
-  print "D"
+  print("D")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 -- if A or (B and C)
 if 0 == 1 or 2 == 2 and 4 == 4
-  print "E"
+  print("E")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 -- if (A and B) or C
 if 0 == 1 and 2 == 2 or 4 == 4
-  print "F"
+  print("F")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 -- if (A and B) || (C and D)
 if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4
-  print "G"
+  print("G")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 -- if ((A and B) and C) or D
 if 0 == 1 and 0 == 2 and 0 == 4 or 4 == 4
-  print "H"
+  print("H")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 -- if (A and B) || (C and D) || (E and F)
 if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4 or 6 == 8 and 10 == 12
-  print "I"
+  print("I")
 else
-  print "no"
+  print("no")
 end
-print "end"
+print("end")
 
 if 0 == 1
-  print "no"
+  print("no")
 elif 0 == 2
-  print "no"
+  print("no")
 elif 0 == 4
-  print "no"
+  print("no")
 else
-  print "J"
+  print("J")
 end
-print "end"
+print("end")
 
 if 0 == 1 and 1 == 1
-  print "no"
+  print("no")
 elif 0 == 2 and 2 == 2
-  print "no"
+  print("no")
 elif 4 == 4 and 8 == 10
-  print "no"
+  print("no")
 else
-  print "K"
+  print("K")
 end
-print "end"
+print("end")
 
 if 0 == 1 or 0 == 2
-  print "no"
+  print("no")
 elif 4 == 6 or 4 == 8
-  print "no"
+  print("no")
 elif 10 == 12 or 10 == 14
-  print "no"
+  print("no")
 else
-  print "L"
+  print("L")
 end
-print "end"
+print("end")
 
 if 0 == 1 or 0 == 2 and 0 == 100
-  print "no"
+  print("no")
 elif 4 == 6 or 4 == 8 and 4 == 104
-  print "no"
+  print("no")
 elif 10 == 12 or 10 == 14 and 10 == 108
-  print "no"
+  print("no")
 else
-  print "M"
+  print("M")
 end
-print "end"
+print("end")
 
 if 0 == 1 and 0 == 2 or 0 == 100
-  print "no"
+  print("no")
 elif 4 == 6 and 4 == 8 or 4 == 104
-  print "no"
+  print("no")
 elif 10 == 12 and 10 == 14 or 10 == 108
-  print "no"
+  print("no")
 else
-  print "N"
+  print("N")
 end
-print "end"
+print("end")
 
 if 1 == 1 and 2 == 2 or 0 == 100
   if 0 == 1 and 0 == 2 or 3 == 3
     if 4 == 4 or 6 == 8 or 10 == 12
-      print "M"
+      print("M")
     end
   end
 end
-print "end"
+print("end")

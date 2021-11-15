@@ -2,7 +2,7 @@
 -- ["hello", "world"]
 
 let array = ["hello"]
-print array
+print(array)
 
 push(array, "world")
-print array
+print(array)

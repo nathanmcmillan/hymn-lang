@@ -4,10 +4,10 @@
 function process()
   for v in [1, 2, 3]
     if v == 2 return end
-    print v
+    print(v)
   end
-  print "bad"
+  print("bad")
 end
 
 process()
-print "done"
+print("done")

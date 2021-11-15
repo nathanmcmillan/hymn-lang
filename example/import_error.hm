@@ -3,13 +3,13 @@
 try
   use "runtime_error"
 except m
-  print "runtime: " + m
+  print("runtime: " + m)
 end
 
 try
   use "compiler_error"
 except m
-  print "compile: " + m
+  print("compile: " + m)
 end
 
 print("exit")

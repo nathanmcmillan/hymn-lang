@@ -10,4 +10,4 @@ for i = 1, i <= N
 end
 
 let seconds = os_clock() - start
-print "elapsed: " + seconds + "s | " + factors[-1]
+print("elapsed: " + seconds + "s | " + factors[-1])

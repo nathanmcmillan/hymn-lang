@@ -9,10 +9,12 @@
 
 let i = 0
 while i < 4
-  print i
+  print(i)
   i = i + 1
 end
-print ""
+print("")
 
 i = 2
-while i < 8 print i = i + 2 end
+while i < 8
+  print(i = i + 2)
+end

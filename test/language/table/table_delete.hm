@@ -5,12 +5,12 @@
 -- { b: True, d: False }
 
 let table = { a: true, b: true, c: false, d: false }
-print table
+print(table)
 
 let one = delete(table, "a")
-print one
-print table
+print(one)
+print(table)
 
 let two = delete(table, "c")
-print two
-print table
+print(two)
+print(table)

@@ -1,8 +1,8 @@
 -- begin
 -- end
 
-print "begin"
+print("begin")
 for v in []
-  print v
+  print(v)
 end
-print "end"
+print("end")

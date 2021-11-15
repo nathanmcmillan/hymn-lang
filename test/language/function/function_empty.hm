@@ -4,5 +4,5 @@
 function a() return end
 function b() end
 
-print a()
-print b()
+print(a())
+print(b())

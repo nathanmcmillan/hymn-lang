@@ -14,20 +14,20 @@
 --
 -- None
 
-print int(0)
-print int(0.0)
-print int(1)
-print int(-1)
-print int(1.2)
-print int(-1.2)
-print ""
+print(int(0))
+print(int(0.0))
+print(int(1))
+print(int(-1))
+print(int(1.2))
+print(int(-1.2))
+print("")
 
-print int("0")
-print int("0.0")
-print int("1")
-print int("-1")
-print int("1.2")
-print int("-1.2")
-print ""
+print(int("0"))
+print(int("0.0"))
+print(int("1"))
+print(int("-1"))
+print(int("1.2"))
+print(int("-1.2"))
+print("")
 
-print int("no!")
+print(int("no!"))

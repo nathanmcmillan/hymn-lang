@@ -3,9 +3,9 @@
 -- end
 
 if false
-  print "bad"
+  print("bad")
 else
-  print "else"
-  print "block"
-  print "end"
+  print("else")
+  print("block")
+  print("end")
 end

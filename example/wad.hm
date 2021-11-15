@@ -118,17 +118,15 @@ function load_wad(s)
         elif is_key
             pc = c
             key += c
-            print "(K) " + key
         else
             pc = c
             value += c
-            print "(V) " + value
         end
     end
     if pc != ' ' and pc != ']' and pc != '}' and pc != '\n'
         stack[0][trim(key)] = value
     end
-    print wad
+    print(wad)
     return wad
 end
 

@@ -8,4 +8,4 @@ try
 except e
   foo = e
 end
-print foo
+print(foo)

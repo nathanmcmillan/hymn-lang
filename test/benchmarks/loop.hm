@@ -14,4 +14,4 @@ for i = 0, i < N
 end
 
 let seconds = os_clock() - start
-print "elapsed: " + seconds + "s | " + sum
+print("elapsed: " + seconds + "s | " + sum)

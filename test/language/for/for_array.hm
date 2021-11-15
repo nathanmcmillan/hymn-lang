@@ -24,34 +24,34 @@
 
 let array = [2, 4, 8]
 
-print "begin"
+print("begin")
 for value in array
-  print value
+  print(value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for i, value in array
-  print i + " -> " + value
+  print(i + " -> " + value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for value in [10, 12, 14]
-  print value
+  print(value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for i, value in [10, 12, 14]
   if i == 2 break end
-  print i + " -> " + value
+  print(i + " -> " + value)
 end
-print "end"
+print("end")
 
-print "begin"
+print("begin")
 for value in array
   if value == 2 continue end
-  print value
+  print(value)
 end
-print "end"
+print("end")

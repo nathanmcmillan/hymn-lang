@@ -12,8 +12,8 @@ let b = ["bar"]
 push(a, b)
 push(b, a)
 
-print a
-print b
+print(a)
+print(b)
 
 clear(a)
 clear(b)
@@ -24,8 +24,8 @@ let d = { name: "bar" }
 c.point = d
 d.point = c
 
-print c
-print d
+print(c)
+print(d)
 
 clear(c)
 clear(d)
@@ -38,9 +38,9 @@ push(e, f)
 push(f, g)
 push(g, e)
 
-print e
-print f
-print g
+print(e)
+print(f)
+print(g)
 
 clear(e)
 clear(f)

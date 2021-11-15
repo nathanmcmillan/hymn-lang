@@ -4,9 +4,9 @@
 -- 3
 -- end
 
-print "begin"
+print("begin")
 for i = 1, i < 4
   if i == 10 break end
-  print i
+  print(i)
 end
-print "end"
+print("end")

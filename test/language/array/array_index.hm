@@ -10,13 +10,13 @@
 
 let array = [2, 4, 8]
 
-print index(array, 2)
-print index(array, 4)
-print index(array, 8)
+print(index(array, 2))
+print(index(array, 4))
+print(index(array, 8))
 
-print index(array, 0)
-print index(array, -1)
-print index(array, none)
-print index(array, true)
-print index(array, false)
-print index(array, "foo")
+print(index(array, 0))
+print(index(array, -1))
+print(index(array, none))
+print(index(array, true))
+print(index(array, false))
+print(index(array, "foo"))
