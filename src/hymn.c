@@ -1963,7 +1963,7 @@ static HymnArray *new_array_with_capacity(int64_t length, int64_t capacity) {
     return this;
 }
 
-static HymnArray *new_array(int64_t length) {
+HymnArray *hymn_new_array(int64_t length) {
     return new_array_with_capacity(length, length);
 }
 
@@ -2066,14 +2066,14 @@ static void array_delete(Hymn *H, HymnArray *this) {
     free(this);
 }
 
-static HymnTable *new_table() {
+HymnTable *hymn_new_table() {
     HymnTable *this = hymn_calloc(1, sizeof(HymnTable));
     table_init(this);
     return this;
 }
 
 static HymnTable *new_table_copy(HymnTable *from) {
-    HymnTable *this = new_table();
+    HymnTable *this = hymn_new_table();
     unsigned int bins = from->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = from->items[i];
@@ -5278,11 +5278,11 @@ dispatch:
         HymnValue constant = READ_CONSTANT(frame);
         switch (constant.is) {
         case HYMN_VALUE_ARRAY: {
-            constant = hymn_new_array_value(new_array(0));
+            constant = hymn_new_array_value(hymn_new_array(0));
             break;
         }
         case HYMN_VALUE_TABLE: {
-            constant = hymn_new_table_value(new_table());
+            constant = hymn_new_table_value(hymn_new_table());
             break;
         }
         default:
@@ -6119,7 +6119,7 @@ Hymn *new_hymn() {
     HymnObjectString *paths = machine_intern_string(H, hymn_new_string("__paths"));
     reference_string(paths);
 
-    H->paths = new_array(3);
+    H->paths = hymn_new_array(3);
     H->paths->items[0] = hymn_new_string_value(search_this);
     H->paths->items[1] = hymn_new_string_value(search_relative);
     H->paths->items[2] = hymn_new_string_value(search_libs);
@@ -6132,7 +6132,7 @@ Hymn *new_hymn() {
     HymnObjectString *imports = machine_intern_string(H, hymn_new_string("__imports"));
     reference_string(imports);
 
-    H->imports = new_table();
+    H->imports = hymn_new_table();
     HymnValue imports_value = hymn_new_table_value(H->imports);
     table_put(&H->globals, imports, imports_value);
     reference_string(imports);

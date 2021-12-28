@@ -63,22 +63,42 @@ $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
 ### Debug
 
 ```
-> cl src/*.c /W4 /WX /wd4996 /link /out:hymn.exe
+> cl src/*.c /W4 /WX /wd4996 /link /out:HYMN.exe
 ```
 
 ### Testing
 
 ```
-> cl test/*.c src/*.c /Isrc /W4 /WX /wd4996 -DHYMN_TESTING /link /out:hymntest.exe
+> cl test/*.c src/*.c /Isrc /W4 /WX /wd4996 -DHYMN_TESTING /link /out:HYMNTEST.exe
 ```
 
 ### Release
 
 ```
-> cl src/*.c /O2 /DNDEBUG /link /out:hymn.exe
+> cl src/*.c /O2 /DNDEBUG /link /out:HYMN.exe
 ```
 
-## Profiling on Linux
+## Clang
+
+### Debug
+
+```
+> clang src/*.c -Isrc -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -o HYMN.exe
+```
+
+### Testing
+
+```
+> clang test/*.c src/*.c -Isrc -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -DHYMN_TESTING -o HYMNTEST.exe
+```
+
+### Release
+
+```
+> clang -O2 src/*.c -Isrc -Wno-deprecated-declarations -std=c11 -o HYMN.exe
+```
+
+# Profiling on Linux
 
 ```
 $ gcc src/*.c -O0 -pg -o profile -lm
@@ -92,6 +112,11 @@ $ callgrind_annotate --auto=yes callgrind.out.* | less
 ```
 
 # Development
+
+## IMPORTANT
+
+1. Need public set property function
+1. Refactor string related functions, reduce copying
 
 ## Principles
 

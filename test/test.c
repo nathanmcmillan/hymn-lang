@@ -80,7 +80,7 @@ static bool recurse_directories(const char *path, struct FileList *list) {
     WIN32_FIND_DATA find;
     HANDLE handle = FindFirstFile(search, &find);
     if (handle == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Find files failed: %d\n", GetLastError());
+        fprintf(stderr, "Find files failed: %lu\n", GetLastError());
     } else {
         char file[PATH_MAX];
         do {

@@ -200,6 +200,9 @@ HymnString *hymn_substring(const char *init, size_t start, size_t end);
 struct HymnFilterList hymn_string_filter_ends_with(HymnString **input, int count, const char *with);
 void hymn_delete_filter_list(struct HymnFilterList *list);
 
+HymnArray *hymn_new_array(int64_t length);
+HymnTable *hymn_new_table();
+
 HymnValue hymn_new_undefined();
 HymnValue hymn_new_none();
 HymnValue hymn_new_bool(bool v);
