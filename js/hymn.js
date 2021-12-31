@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const HYMN_DEBUG_TOKEN = false
 const HYMN_DEBUG_TRACE = false
 const HYMN_DEBUG_STACK = false
 
@@ -126,60 +125,60 @@ const STRING_POINTER = 'Pointer'
 const TOKEN_ADD = 0
 const TOKEN_AND = 1
 const TOKEN_ASSIGN = 2
-const TOKEN_BEGIN = 3
-const TOKEN_BIT_AND = 4
-const TOKEN_BIT_LEFT_SHIFT = 5
-const TOKEN_BIT_NOT = 6
-const TOKEN_BIT_OR = 7
-const TOKEN_BIT_RIGHT_SHIFT = 8
-const TOKEN_BIT_XOR = 9
-const TOKEN_BREAK = 10
-const TOKEN_CASE = 11
-const TOKEN_CLEAR = 12
-const TOKEN_COLON = 13
-const TOKEN_COMMA = 14
-const TOKEN_CONTINUE = 15
-const TOKEN_COPY = 16
-const TOKEN_DELETE = 17
-const TOKEN_DIVIDE = 18
-const TOKEN_DO = 19
-const TOKEN_DOT = 20
-const TOKEN_ELIF = 21
-const TOKEN_ELSE = 22
-const TOKEN_END = 23
-const TOKEN_EOF = 24
-const TOKEN_EQUAL = 25
-const TOKEN_ERROR = 26
-const TOKEN_EXCEPT = 27
-const TOKEN_FALSE = 28
-const TOKEN_FLOAT = 29
-const TOKEN_FOR = 30
-const TOKEN_FUNCTION = 31
-const TOKEN_GREATER = 32
-const TOKEN_GREATER_EQUAL = 33
-const TOKEN_IDENT = 34
-const TOKEN_IF = 35
-const TOKEN_IN = 36
-const TOKEN_INDEX = 37
-const TOKEN_INSERT = 38
-const TOKEN_INTEGER = 39
-const TOKEN_ITERATE = 40
-const TOKEN_KEYS = 41
-const TOKEN_LEFT_CURLY = 42
-const TOKEN_LEFT_PAREN = 43
-const TOKEN_LEFT_SQUARE = 44
-const TOKEN_LEN = 45
-const TOKEN_LESS = 46
-const TOKEN_LESS_EQUAL = 47
-const TOKEN_LET = 48
-const TOKEN_LINE = 49
-const TOKEN_MODULO = 50
-const TOKEN_MULTIPLY = 51
-const TOKEN_NONE = 52
-const TOKEN_NOT = 53
-const TOKEN_NOT_EQUAL = 54
-const TOKEN_OR = 55
-const TOKEN_PASS = 56
+const TOKEN_ASSIGN_ADD = 3
+const TOKEN_ASSIGN_SUBTRACT = 4
+const TOKEN_ASSIGN_MULTIPLY = 5
+const TOKEN_ASSIGN_DIVIDE = 6
+const TOKEN_BEGIN = 7
+const TOKEN_BIT_AND = 8
+const TOKEN_BIT_LEFT_SHIFT = 9
+const TOKEN_BIT_NOT = 10
+const TOKEN_BIT_OR = 11
+const TOKEN_BIT_RIGHT_SHIFT = 12
+const TOKEN_BIT_XOR = 13
+const TOKEN_BREAK = 14
+const TOKEN_CLEAR = 15
+const TOKEN_COLON = 16
+const TOKEN_COMMA = 17
+const TOKEN_CONTINUE = 18
+const TOKEN_COPY = 19
+const TOKEN_DELETE = 20
+const TOKEN_DIVIDE = 21
+const TOKEN_DOT = 22
+const TOKEN_ELIF = 23
+const TOKEN_ELSE = 24
+const TOKEN_END = 25
+const TOKEN_EOF = 26
+const TOKEN_EQUAL = 27
+const TOKEN_ERROR = 28
+const TOKEN_EXCEPT = 29
+const TOKEN_FALSE = 30
+const TOKEN_FLOAT = 31
+const TOKEN_FOR = 32
+const TOKEN_FUNCTION = 33
+const TOKEN_GREATER = 34
+const TOKEN_GREATER_EQUAL = 35
+const TOKEN_IDENT = 36
+const TOKEN_IF = 37
+const TOKEN_IN = 38
+const TOKEN_INDEX = 39
+const TOKEN_INSERT = 40
+const TOKEN_INTEGER = 41
+const TOKEN_KEYS = 42
+const TOKEN_LEFT_CURLY = 43
+const TOKEN_LEFT_PAREN = 44
+const TOKEN_LEFT_SQUARE = 45
+const TOKEN_LEN = 46
+const TOKEN_LESS = 47
+const TOKEN_LESS_EQUAL = 48
+const TOKEN_LET = 49
+const TOKEN_LINE = 50
+const TOKEN_MODULO = 51
+const TOKEN_MULTIPLY = 52
+const TOKEN_NONE = 53
+const TOKEN_NOT = 54
+const TOKEN_NOT_EQUAL = 55
+const TOKEN_OR = 56
 const TOKEN_POP = 57
 const TOKEN_PRINT = 58
 const TOKEN_PUSH = 59
@@ -190,18 +189,17 @@ const TOKEN_RIGHT_SQUARE = 63
 const TOKEN_SEMICOLON = 64
 const TOKEN_STRING = 65
 const TOKEN_SUBTRACT = 66
-const TOKEN_SWITCH = 67
-const TOKEN_THROW = 68
-const TOKEN_TO_FLOAT = 69
-const TOKEN_TO_INTEGER = 70
-const TOKEN_TO_STRING = 71
-const TOKEN_TRUE = 72
-const TOKEN_TRY = 73
-const TOKEN_TYPE = 74
-const TOKEN_UNDEFINED = 75
-const TOKEN_USE = 76
-const TOKEN_VALUE = 77
-const TOKEN_WHILE = 78
+const TOKEN_THROW = 67
+const TOKEN_TO_FLOAT = 68
+const TOKEN_TO_INTEGER = 69
+const TOKEN_TO_STRING = 70
+const TOKEN_TRUE = 71
+const TOKEN_TRY = 72
+const TOKEN_TYPE_FUNC = 73
+const TOKEN_UNDEFINED = 74
+const TOKEN_USE = 75
+const TOKEN_VALUE = 76
+const TOKEN_WHILE = 77
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -217,64 +215,78 @@ const PRECEDENCE_CALL = 10
 const PRECEDENCE_PRIMARY = 11
 
 const OP_ADD = 0
-const OP_ARRAY_INSERT = 1
-const OP_ARRAY_POP = 2
-const OP_ARRAY_PUSH = 3
-const OP_BIT_AND = 4
-const OP_BIT_LEFT_SHIFT = 5
-const OP_BIT_NOT = 6
-const OP_BIT_OR = 7
-const OP_BIT_RIGHT_SHIFT = 8
-const OP_BIT_XOR = 9
-const OP_CALL = 10
-const OP_CLEAR = 11
-const OP_CONSTANT = 12
-const OP_CONSTANT_TWO = 13
-const OP_COPY = 14
-const OP_DEFINE_GLOBAL = 15
-const OP_DELETE = 16
-const OP_DIVIDE = 17
-const OP_DO = 18
-const OP_DUPLICATE = 19
-const OP_EQUAL = 20
-const OP_FALSE = 21
-const OP_GET_DYNAMIC = 22
-const OP_GET_GLOBAL = 23
-const OP_GET_LOCAL = 24
-const OP_GET_PROPERTY = 25
-const OP_GREATER = 26
-const OP_GREATER_EQUAL = 27
-const OP_INDEX = 28
-const OP_JUMP = 29
-const OP_JUMP_IF_FALSE = 30
-const OP_JUMP_IF_TRUE = 31
-const OP_KEYS = 32
-const OP_LEN = 33
-const OP_LESS = 34
-const OP_LESS_EQUAL = 35
-const OP_LOOP = 36
-const OP_MODULO = 37
-const OP_MULTIPLY = 38
-const OP_NEGATE = 39
-const OP_NONE = 40
-const OP_NOT = 41
-const OP_NOT_EQUAL = 42
-const OP_POP = 43
-const OP_PRINT = 44
-const OP_RETURN = 45
-const OP_SET_DYNAMIC = 46
-const OP_SET_GLOBAL = 47
-const OP_SET_LOCAL = 48
-const OP_SET_PROPERTY = 49
-const OP_SLICE = 50
-const OP_SUBTRACT = 51
-const OP_THROW = 52
-const OP_TO_FLOAT = 53
-const OP_TO_INTEGER = 54
-const OP_TO_STRING = 55
-const OP_TRUE = 56
-const OP_TYPE = 57
-const OP_USE = 58
+const OP_ADD_TWO_LOCAL = 1
+const OP_INCREMENT = 2
+const OP_ARRAY_INSERT = 3
+const OP_ARRAY_POP = 4
+const OP_ARRAY_PUSH = 5
+const OP_BIT_AND = 6
+const OP_BIT_LEFT_SHIFT = 7
+const OP_BIT_NOT = 8
+const OP_BIT_OR = 9
+const OP_BIT_RIGHT_SHIFT = 10
+const OP_BIT_XOR = 11
+const OP_CALL = 12
+const OP_TAIL_CALL = 13
+const OP_CLEAR = 14
+const OP_CONSTANT = 15
+const OP_COPY = 16
+const OP_DEFINE_GLOBAL = 17
+const OP_DELETE = 18
+const OP_DIVIDE = 19
+const OP_DUPLICATE = 20
+const OP_EQUAL = 21
+const OP_FALSE = 22
+const OP_GET_DYNAMIC = 23
+const OP_GET_GLOBAL = 24
+const OP_GET_LOCAL = 25
+const OP_GET_TWO_LOCAL = 26
+const OP_GET_PROPERTY = 27
+const OP_GREATER = 28
+const OP_GREATER_EQUAL = 29
+const OP_INDEX = 30
+const OP_JUMP = 31
+const OP_JUMP_IF_EQUAL = 32
+const OP_JUMP_IF_NOT_EQUAL = 33
+const OP_JUMP_LESS = 34
+const OP_JUMP_GREATER = 35
+const OP_JUMP_LESS_EQUAL = 36
+const OP_JUMP_GREATER_EQUAL = 37
+const OP_JUMP_IF_FALSE = 38
+const OP_JUMP_IF_TRUE = 39
+const OP_KEYS = 40
+const OP_LEN = 41
+const OP_LESS = 42
+const OP_LESS_EQUAL = 43
+const OP_LOOP = 44
+const OP_MODULO = 45
+const OP_MULTIPLY = 46
+const OP_NEGATE = 47
+const OP_NONE = 48
+const OP_NOT = 49
+const OP_NOT_EQUAL = 50
+const OP_POP = 51
+const OP_POP_TWO = 52
+const OP_POP_N = 53
+const OP_PRINT = 54
+const OP_RETURN = 55
+const OP_SET_DYNAMIC = 56
+const OP_SET_GLOBAL = 57
+const OP_SET_LOCAL = 58
+const OP_INCREMENT_LOCAL = 59
+const OP_INCREMENT_LOCAL_AND_SET = 60
+const OP_SET_PROPERTY = 61
+const OP_SLICE = 62
+const OP_SUBTRACT = 63
+const OP_THROW = 64
+const OP_TO_FLOAT = 65
+const OP_TO_INTEGER = 66
+const OP_TO_STRING = 67
+const OP_TRUE = 68
+const OP_TYPE = 69
+const OP_USE = 70
+const OP_FOR = 71
+const OP_FOR_LOOP = 72
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -361,6 +373,10 @@ const rules = []
 rules[TOKEN_ADD] = new Rule(null, compileBinary, PRECEDENCE_TERM)
 rules[TOKEN_AND] = new Rule(null, compileAnd, PRECEDENCE_AND)
 rules[TOKEN_ASSIGN] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_ADD] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_SUBTRACT] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_MULTIPLY] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_DIVIDE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_BEGIN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_BIT_AND] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_LEFT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
@@ -369,13 +385,11 @@ rules[TOKEN_BIT_OR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_RIGHT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_XOR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BREAK] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_CASE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CLEAR] = new Rule(clearExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_DO] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DIVIDE] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
@@ -398,7 +412,6 @@ rules[TOKEN_IN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_INDEX] = new Rule(indexExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INSERT] = new Rule(arrayInsertExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INTEGER] = new Rule(compileInteger, null, PRECEDENCE_NONE)
-rules[TOKEN_ITERATE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_KEYS] = new Rule(keysExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LEFT_CURLY] = new Rule(compileTable, null, PRECEDENCE_NONE)
 rules[TOKEN_LEFT_PAREN] = new Rule(compileGroup, compileCall, PRECEDENCE_CALL)
@@ -414,7 +427,6 @@ rules[TOKEN_NONE] = new Rule(compileNone, null, PRECEDENCE_NONE)
 rules[TOKEN_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
 rules[TOKEN_NOT_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
 rules[TOKEN_OR] = new Rule(null, compileOr, PRECEDENCE_OR)
-rules[TOKEN_PASS] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_POP] = new Rule(arrayPopExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_PRINT] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_PUSH] = new Rule(arrayPushExpression, null, PRECEDENCE_NONE)
@@ -424,14 +436,13 @@ rules[TOKEN_RIGHT_PAREN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_RIGHT_SQUARE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_STRING] = new Rule(compileString, null, PRECEDENCE_NONE)
 rules[TOKEN_SUBTRACT] = new Rule(compileUnary, compileBinary, PRECEDENCE_TERM)
-rules[TOKEN_SWITCH] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_TO_FLOAT] = new Rule(castFloatExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_TO_INTEGER] = new Rule(castIntegerExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_TO_STRING] = new Rule(castStringExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_TRUE] = new Rule(compileTrue, null, PRECEDENCE_NONE)
 rules[TOKEN_TRY] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_THROW] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_TYPE] = new Rule(typeExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_TYPE_FUNC] = new Rule(typeExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_UNDEFINED] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_USE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_VALUE] = new Rule(null, null, PRECEDENCE_NONE)
@@ -458,161 +469,6 @@ function valueName(type) {
       return STRING_FUNC
     case HYMN_VALUE_FUNC_NATIVE:
       return STRING_NATIVE
-    default:
-      return '?'
-  }
-}
-
-function tokenName(token) {
-  switch (token.type) {
-    case TOKEN_ADD:
-      return 'ADD'
-    case TOKEN_AND:
-      return 'AND'
-    case TOKEN_ASSIGN:
-      return 'ASSIGN'
-    case TOKEN_BEGIN:
-      return 'BEGIN'
-    case TOKEN_BIT_AND:
-      return 'BTIWISE_AND'
-    case TOKEN_BIT_LEFT_SHIFT:
-      return 'BTIWISE_LEFT_SHIFT'
-    case TOKEN_BIT_NOT:
-      return 'BTIWISE_NOT'
-    case TOKEN_BIT_OR:
-      return 'BTIWISE_OR'
-    case TOKEN_BIT_RIGHT_SHIFT:
-      return 'BTIWISE_RIGHT_SHIFT'
-    case TOKEN_BIT_XOR:
-      return 'BTIWISE_XOR'
-    case TOKEN_BREAK:
-      return 'BREAK'
-    case TOKEN_CASE:
-      return 'CASE'
-    case TOKEN_CLEAR:
-      return 'CLEAR'
-    case TOKEN_COLON:
-      return 'COLON'
-    case TOKEN_CONTINUE:
-      return 'CONTINUE'
-    case TOKEN_COPY:
-      return 'COPY'
-    case TOKEN_DO:
-      return 'DO'
-    case TOKEN_DOT:
-      return 'DOT'
-    case TOKEN_DELETE:
-      return 'DELETE'
-    case TOKEN_DIVIDE:
-      return 'DIVIDE'
-    case TOKEN_ELIF:
-      return 'ELIF'
-    case TOKEN_ELSE:
-      return 'ELSE'
-    case TOKEN_END:
-      return 'END'
-    case TOKEN_EOF:
-      return 'EOF'
-    case TOKEN_EQUAL:
-      return 'EQUAL'
-    case TOKEN_EXCEPT:
-      return 'EXCEPT'
-    case TOKEN_FALSE:
-      return 'FALSE'
-    case TOKEN_FLOAT:
-      return 'FLOAT'
-    case TOKEN_FOR:
-      return 'FOR'
-    case TOKEN_FUNCTION:
-      return 'FUNCTION'
-    case TOKEN_GREATER:
-      return 'GREATER'
-    case TOKEN_GREATER_EQUAL:
-      return 'GREATER_EQUAL'
-    case TOKEN_IDENT:
-      return 'IDENTITY'
-    case TOKEN_IF:
-      return 'IF'
-    case TOKEN_IN:
-      return 'IN'
-    case TOKEN_INDEX:
-      return 'INDEX'
-    case TOKEN_INSERT:
-      return 'INSERT'
-    case TOKEN_INTEGER:
-      return 'INTEGER'
-    case TOKEN_ITERATE:
-      return 'ITERATE'
-    case TOKEN_KEYS:
-      return 'KEYS'
-    case TOKEN_LEFT_PAREN:
-      return 'LEFT_PAREN'
-    case TOKEN_LEN:
-      return 'LEN'
-    case TOKEN_LESS:
-      return 'LESS'
-    case TOKEN_LESS_EQUAL:
-      return 'LESS_EQUAL'
-    case TOKEN_LET:
-      return 'LET'
-    case TOKEN_MODULO:
-      return 'MODULO'
-    case TOKEN_MULTIPLY:
-      return 'MULTIPLY'
-    case TOKEN_NONE:
-      return 'NONE'
-    case TOKEN_NOT:
-      return 'NOT'
-    case TOKEN_NOT_EQUAL:
-      return 'NOT_EQUAL'
-    case TOKEN_OR:
-      return 'OR'
-    case TOKEN_PASS:
-      return 'PASS'
-    case TOKEN_POP:
-      return 'POP'
-    case TOKEN_PRINT:
-      return 'PRINT'
-    case TOKEN_PUSH:
-      return 'PUSH'
-    case TOKEN_RETURN:
-      return 'RETURN'
-    case TOKEN_RIGHT_PAREN:
-      return 'RIGHT_PAREN'
-    case TOKEN_SEMICOLON:
-      return 'SEMICOLON'
-    case TOKEN_STRING:
-      return 'STRING'
-    case TOKEN_SUBTRACT:
-      return 'SUBTRACT'
-    case TOKEN_SWITCH:
-      return 'SWITCH'
-    case TOKEN_TO_FLOAT:
-      return 'FLOAT'
-    case TOKEN_TO_INTEGER:
-      return 'INT'
-    case TOKEN_TO_STRING:
-      return 'STRING'
-    case TOKEN_TRUE:
-      return 'TRUE'
-    case TOKEN_TRY:
-      return 'TRY'
-    case TOKEN_THROW:
-      return 'THROW'
-    case TOKEN_TYPE:
-      return 'TYPE'
-    case TOKEN_WHILE:
-      return 'WHILE'
-    case TOKEN_USE:
-      return 'USE'
-    case TOKEN_LEFT_CURLY:
-      return 'LEFT_CURLY'
-    case TOKEN_RIGHT_CURLY:
-      return 'RIGHT_CURLY'
-    case TOKEN_LEFT_SQUARE:
-      return 'LEFT_SQUARE'
-    case TOKEN_RIGHT_SQUARE:
-      return 'RIGHT_SQUARE'
     default:
       return '?'
   }
@@ -755,10 +611,6 @@ function peekChar(compiler) {
   return compiler.source[compiler.pos]
 }
 
-function debugToken(compiler, token) {
-  return 'TOKEN: ' + tokenName(token) + ': ' + sourceSubstring(compiler, token.len, token.start)
-}
-
 function token(compiler, type) {
   let token = compiler.current
   token.type = type
@@ -766,7 +618,6 @@ function token(compiler, type) {
   token.column = compiler.column
   token.start = compiler.pos - 1
   token.len = 1
-  if (HYMN_DEBUG_TOKEN) console.debug(debugToken(compiler, token))
 }
 
 function tokenSpecial(compiler, type, offset, len) {
@@ -776,7 +627,6 @@ function tokenSpecial(compiler, type, offset, len) {
   token.column = compiler.column
   token.start = compiler.pos - offset
   token.len = len
-  if (HYMN_DEBUG_TOKEN) console.debug(debugToken(compiler, token))
 }
 
 function valueToken(compiler, type, start, end) {
@@ -786,7 +636,6 @@ function valueToken(compiler, type, start, end) {
   token.column = compiler.column
   token.start = start
   token.len = end - start
-  if (HYMN_DEBUG_TOKEN) console.debug(debugToken(compiler, token))
 }
 
 function identTrie(ident, offset, rest, type) {
@@ -823,27 +672,20 @@ function identKey(ident, size) {
       break
     case 'd':
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
-      if (size === 2 && ident[1] === 'o') return TOKEN_DO
       break
     case 'r':
       if (size === 6) return identTrie(ident, 1, 'eturn', TOKEN_RETURN)
       break
     case 's':
-      if (size === 6) {
-        if (ident[1] === 'w') return identTrie(ident, 2, 'itch', TOKEN_SWITCH)
-        if (ident[1] === 't') return identTrie(ident, 2, 'ring', TOKEN_TO_STRING)
-      }
+      if (size === 6) return identTrie(ident, 1, 'tring', TOKEN_TO_STRING)
       break
     case 'k':
       if (size === 4) return identTrie(ident, 1, 'eys', TOKEN_KEYS)
       break
     case 'c':
+      if (size === 4) return identTrie(ident, 1, 'opy', TOKEN_COPY)
       if (size === 5) return identTrie(ident, 1, 'lear', TOKEN_CLEAR)
       if (size === 8) return identTrie(ident, 1, 'ontinue', TOKEN_CONTINUE)
-      if (size === 4) {
-        if (ident[1] === 'o') return identTrie(ident, 2, 'py', TOKEN_COPY)
-        if (ident[1] === 'a') return identTrie(ident, 2, 'se', TOKEN_CASE)
-      }
       break
     case 'l':
       if (size === 3 && ident[1] === 'e') {
@@ -856,14 +698,13 @@ function identKey(ident, size) {
       if (size === 5) return identTrie(ident, 1, 'hrow', TOKEN_THROW)
       if (size === 4) {
         if (ident[1] === 'r') return identTrie(ident, 2, 'ue', TOKEN_TRUE)
-        if (ident[1] === 'y') return identTrie(ident, 2, 'pe', TOKEN_TYPE)
+        if (ident[1] === 'y') return identTrie(ident, 2, 'pe', TOKEN_TYPE_FUNC)
       }
       break
     case 'i':
       if (size === 3) return identTrie(ident, 1, 'nt', TOKEN_TO_INTEGER)
       if (size === 5) return identTrie(ident, 1, 'ndex', TOKEN_INDEX)
       if (size === 6) return identTrie(ident, 1, 'nsert', TOKEN_INSERT)
-      if (size === 7) return identTrie(ident, 1, 'terate', TOKEN_ITERATE)
       if (size === 2) {
         if (ident[1] === 'f') return TOKEN_IF
         if (ident[1] === 'n') return TOKEN_IN
@@ -872,10 +713,7 @@ function identKey(ident, size) {
     case 'p':
       if (size === 3) return identTrie(ident, 1, 'op', TOKEN_POP)
       if (size === 5) return identTrie(ident, 1, 'rint', TOKEN_PRINT)
-      if (size === 4) {
-        if (ident[1] === 'u') return identTrie(ident, 2, 'sh', TOKEN_PUSH)
-        if (ident[1] === 'a') return identTrie(ident, 2, 'ss', TOKEN_PASS)
-      }
+      if (size === 4) return identTrie(ident, 1, 'ush', TOKEN_PUSH)
       break
     case 'e':
       if (size === 3) return identTrie(ident, 1, 'nd', TOKEN_END)
@@ -1820,108 +1658,6 @@ function compileLiteral(compiler) {
   }
 }
 
-function switchStatement(compiler) {
-  beginScope(compiler)
-
-  const local = pushHiddenLocal(compiler)
-  expression(compiler)
-
-  if (!check(compiler, TOKEN_CASE)) {
-    compileError(compiler, compiler.current, 'Expected case.')
-    return
-  }
-
-  let jump = -1
-
-  let head = null
-  let tail = null
-
-  while (match(compiler, TOKEN_CASE)) {
-    if (jump !== -1) {
-      patchJump(compiler, jump)
-      emit(compiler, OP_POP)
-    }
-
-    if (!compileLiteral(compiler)) {
-      compileError(compiler, compiler.current, 'Expected literal for case.')
-    }
-    emitTwo(compiler, OP_GET_LOCAL, local)
-    emit(compiler, OP_EQUAL)
-
-    let body = null
-
-    if (match(compiler, TOKEN_OR)) {
-      body = new JumpList()
-      let link = body
-      body.jump = emitJump(compiler, OP_JUMP_IF_TRUE)
-      emit(compiler, OP_POP)
-
-      while (true) {
-        if (!compileLiteral(compiler)) {
-          compileError(compiler, compiler.current, "Expected literal after 'or' in case.")
-        }
-        emitTwo(compiler, OP_GET_LOCAL, local)
-        emit(compiler, OP_EQUAL)
-
-        if (match(compiler, TOKEN_OR)) {
-          let next = new JumpList()
-          next.jump = emitJump(compiler, OP_JUMP_IF_TRUE)
-          emit(compiler, OP_POP)
-
-          link.next = next
-          link = next
-        } else {
-          break
-        }
-      }
-    }
-
-    jump = emitJump(compiler, OP_JUMP_IF_FALSE)
-
-    while (body !== null) {
-      patchJump(compiler, body.jump)
-      body = body.next
-    }
-
-    emit(compiler, OP_POP)
-
-    beginScope(compiler)
-    while (!check(compiler, TOKEN_CASE) && !check(compiler, TOKEN_ELSE) && !check(compiler, TOKEN_END) && !check(compiler, TOKEN_EOF)) {
-      declaration(compiler)
-    }
-    endScope(compiler)
-
-    let next = new JumpList()
-    next.jump = emitJump(compiler, OP_JUMP)
-
-    if (head === null) {
-      head = next
-      tail = next
-    } else {
-      tail.next = next
-      tail = next
-    }
-  }
-
-  if (jump !== -1) {
-    patchJump(compiler, jump)
-    emit(compiler, OP_POP)
-  }
-
-  if (match(compiler, TOKEN_ELSE)) {
-    block(compiler)
-  }
-
-  while (head !== null) {
-    patchJump(compiler, head.jump)
-    head = head.next
-  }
-
-  endScope(compiler)
-
-  consume(compiler, TOKEN_END, "Expected 'end' after switch statement.")
-}
-
 function emitLoop(compiler, start) {
   emit(compiler, OP_LOOP)
   const offset = current(compiler).count - start + 2
@@ -1959,186 +1695,10 @@ function patchIteratorJumpList(compiler) {
   }
 }
 
-function iterateStatement(compiler) {
-  beginScope(compiler)
-
-  // parameters
-
-  let id
-
-  let value = compiler.scope.localCount
-  variable(compiler, 'Iterator: Missing parameter.')
-  localInitialize(compiler)
-
-  if (match(compiler, TOKEN_COMMA)) {
-    id = value
-    emit(compiler, OP_NONE)
-
-    value = compiler.scope.localCount
-    variable(compiler, 'Iterator: Missing second parameter.')
-    localInitialize(compiler)
-    emit(compiler, OP_NONE)
-  } else {
-    emit(compiler, OP_NONE)
-
-    id = pushHiddenLocal(compiler)
-    emit(compiler, OP_NONE)
-  }
-
-  consume(compiler, TOKEN_IN, "Iterator: Missing 'in' after parameters.")
-
-  // setup
-
-  const object = pushHiddenLocal(compiler)
-  expression(compiler)
-
-  const keys = pushHiddenLocal(compiler)
-  emit(compiler, OP_NONE)
-
-  const length = pushHiddenLocal(compiler)
-  emit(compiler, OP_NONE)
-
-  const index = pushHiddenLocal(compiler)
-  writeConstant(compiler, newInt(0), compiler.previous.row)
-
-  // type check
-
-  const type = pushHiddenLocal(compiler)
-  emitTwo(compiler, OP_GET_LOCAL, object)
-  emit(compiler, OP_TYPE)
-
-  emitTwo(compiler, OP_GET_LOCAL, type)
-  writeConstant(compiler, newString(STRING_TABLE), compiler.previous.row)
-  emit(compiler, OP_EQUAL)
-
-  const jump_not_table = emitJump(compiler, OP_JUMP_IF_FALSE)
-
-  // type is table
-
-  emit(compiler, OP_POP)
-
-  emitTwo(compiler, OP_GET_LOCAL, object)
-  emit(compiler, OP_KEYS)
-  emitTwo(compiler, OP_SET_LOCAL, keys)
-  emit(compiler, OP_LEN)
-  emitTwo(compiler, OP_SET_LOCAL, length)
-  emit(compiler, OP_POP)
-
-  const jumpTableEnd = emitJump(compiler, OP_JUMP)
-
-  patchJump(compiler, jump_not_table)
-
-  emit(compiler, OP_POP)
-
-  emitTwo(compiler, OP_GET_LOCAL, type)
-  writeConstant(compiler, newString(STRING_ARRAY), compiler.previous.row)
-  emit(compiler, OP_EQUAL)
-
-  const jumpNotArray = emitJump(compiler, OP_JUMP_IF_FALSE)
-
-  // type is array
-
-  emit(compiler, OP_POP)
-  emitTwo(compiler, OP_GET_LOCAL, object)
-  emit(compiler, OP_LEN)
-  emitTwo(compiler, OP_SET_LOCAL, length)
-  emit(compiler, OP_POP)
-
-  const jump_array_end = emitJump(compiler, OP_JUMP)
-
-  // unexpected type
-
-  patchJump(compiler, jumpNotArray)
-
-  emit(compiler, OP_POP)
-  writeConstant(compiler, newString('Iterator: Expected `Array` or `Table`'), compiler.previous.row)
-  emit(compiler, OP_THROW)
-
-  patchJump(compiler, jumpTableEnd)
-  patchJump(compiler, jump_array_end)
-
-  // compare
-
-  const compare = current(compiler).count
-
-  emitTwo(compiler, OP_GET_LOCAL, index)
-  emitTwo(compiler, OP_GET_LOCAL, length)
-  emit(compiler, OP_LESS)
-
-  const jump = emitJump(compiler, OP_JUMP_IF_FALSE)
-  emit(compiler, OP_POP)
-
-  // increment
-
-  const body = emitJump(compiler, OP_JUMP)
-  const increment = current(compiler).count
-
-  const loop = new LoopList()
-  loop.start = increment
-  loop.depth = compiler.scope.depth + 1
-  loop.next = compiler.loop
-  compiler.loop = loop
-
-  emitTwo(compiler, OP_GET_LOCAL, index)
-  writeConstant(compiler, newInt(1), compiler.previous.row)
-  emit(compiler, OP_ADD)
-  emitTwo(compiler, OP_SET_LOCAL, index)
-
-  emit(compiler, OP_POP)
-  emitLoop(compiler, compare)
-
-  // body
-
-  patchJump(compiler, body)
-
-  emitTwo(compiler, OP_GET_LOCAL, object)
-
-  emitTwo(compiler, OP_GET_LOCAL, keys)
-  emit(compiler, OP_NONE)
-  emit(compiler, OP_EQUAL)
-
-  const jumpNoKeys = emitJump(compiler, OP_JUMP_IF_FALSE)
-
-  emit(compiler, OP_POP)
-  emitTwo(compiler, OP_GET_LOCAL, index)
-
-  const jumpNoKeysEnd = emitJump(compiler, OP_JUMP)
-
-  patchJump(compiler, jumpNoKeys)
-
-  emit(compiler, OP_POP)
-  emitTwo(compiler, OP_GET_LOCAL, keys)
-  emitTwo(compiler, OP_GET_LOCAL, index)
-  emit(compiler, OP_GET_DYNAMIC)
-
-  patchJump(compiler, jumpNoKeysEnd)
-
-  emitTwo(compiler, OP_SET_LOCAL, id)
-  emit(compiler, OP_GET_DYNAMIC)
-
-  emitTwo(compiler, OP_SET_LOCAL, value)
-  emit(compiler, OP_POP)
-
-  block(compiler)
-  emitLoop(compiler, increment)
-
-  // end
-
-  compiler.loop = loop.next
-
-  patchJump(compiler, jump)
-  emit(compiler, OP_POP)
-
-  patchJumpList(compiler)
-  endScope(compiler)
-
-  consume(compiler, TOKEN_END, "Iterator: Missing 'end'.")
-}
-
 function forStatement(compiler) {
   beginScope(compiler)
 
-  // assign
+  // ASSIGN
 
   if (match(compiler, TOKEN_LET)) {
     defineNewVariable(compiler)
@@ -2148,7 +1708,7 @@ function forStatement(compiler) {
 
   consume(compiler, TOKEN_SEMICOLON, "Expected ';' in for.")
 
-  // compare
+  // COMPARE
 
   const compare = current(compiler).count
 
@@ -2159,7 +1719,7 @@ function forStatement(compiler) {
 
   consume(compiler, TOKEN_SEMICOLON, "Expected ';' in for.")
 
-  // increment
+  // INCREMENT
 
   const body = emitJump(compiler, OP_JUMP)
   const increment = current(compiler).count
@@ -2175,14 +1735,14 @@ function forStatement(compiler) {
   emit(compiler, OP_POP)
   emitLoop(compiler, compare)
 
-  // body
+  // BODY
 
   patchJump(compiler, body)
 
   block(compiler)
   emitLoop(compiler, increment)
 
-  // end
+  // END
 
   compiler.loop = loop.next
 
@@ -2318,11 +1878,6 @@ function useStatement(compiler) {
   emit(compiler, OP_USE)
 }
 
-function doStatement(compiler) {
-  expression(compiler)
-  emit(compiler, OP_DO)
-}
-
 function throwStatement(compiler) {
   expression(compiler)
   emit(compiler, OP_THROW)
@@ -2331,16 +1886,10 @@ function throwStatement(compiler) {
 function statement(compiler) {
   if (match(compiler, TOKEN_PRINT)) {
     printStatement(compiler)
-  } else if (match(compiler, TOKEN_DO)) {
-    doStatement(compiler)
   } else if (match(compiler, TOKEN_USE)) {
     useStatement(compiler)
   } else if (match(compiler, TOKEN_IF)) {
     ifStatement(compiler)
-  } else if (match(compiler, TOKEN_SWITCH)) {
-    switchStatement(compiler)
-  } else if (match(compiler, TOKEN_ITERATE)) {
-    iterateStatement(compiler)
   } else if (match(compiler, TOKEN_FOR)) {
     forStatement(compiler)
   } else if (match(compiler, TOKEN_WHILE)) {
@@ -2355,8 +1904,6 @@ function statement(compiler) {
     tryStatement(compiler)
   } else if (match(compiler, TOKEN_THROW)) {
     throwStatement(compiler)
-  } else if (match(compiler, TOKEN_PASS)) {
-    // do nothing
   } else if (match(compiler, TOKEN_BEGIN)) {
     block(compiler)
     consume(compiler, TOKEN_END, "Expected 'end' after block.")

@@ -98,6 +98,14 @@ $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
 > clang -O2 src/*.c -Isrc -Wno-deprecated-declarations -std=c11 -o HYMN.exe
 ```
 
+## Node
+
+### Testing
+
+```
+$ node js/test.js
+```
+
 # Profiling on Linux
 
 ```

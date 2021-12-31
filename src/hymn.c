@@ -581,7 +581,6 @@ enum TokenType {
     TOKEN_BIT_RIGHT_SHIFT,
     TOKEN_BIT_XOR,
     TOKEN_BREAK,
-    TOKEN_CASE,
     TOKEN_CLEAR,
     TOKEN_COLON,
     TOKEN_COMMA,
@@ -996,7 +995,6 @@ Rule rules[] = {
     [TOKEN_BIT_RIGHT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BIT_XOR] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BREAK] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_CASE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CLEAR] = {clear_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE},
@@ -1623,12 +1621,9 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
         break;
     case 'c':
+        if (size == 4) return ident_trie(ident, 1, "opy", TOKEN_COPY);
         if (size == 5) return ident_trie(ident, 1, "lear", TOKEN_CLEAR);
         if (size == 8) return ident_trie(ident, 1, "ontinue", TOKEN_CONTINUE);
-        if (size == 4) {
-            if (ident[1] == 'o') return ident_trie(ident, 2, "py", TOKEN_COPY);
-            if (ident[1] == 'a') return ident_trie(ident, 2, "se", TOKEN_CASE);
-        }
         break;
     case 'l':
         if (size == 3 && ident[1] == 'e') {
