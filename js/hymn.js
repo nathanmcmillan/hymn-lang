@@ -3305,6 +3305,8 @@ function disassembleInstruction(debug, code, index) {
       return debugByteInstruction(debug, 'OP_GET_LOCAL', code, index)
     case OP_GET_PROPERTY:
       return debugConstantInstruction(debug, 'OP_GET_PROPERTY', code, index)
+    case OP_GET_TWO_LOCAL:
+      return debugThreeByteInstruction(debug, 'OP_GET_TWO_LOCAL', code, index)
     case OP_GREATER:
       return debugInstruction(debug, 'OP_GREATER', index)
     case OP_GREATER_EQUAL:
