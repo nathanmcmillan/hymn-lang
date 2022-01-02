@@ -23,19 +23,19 @@ int main(int argc, char **argv) {
     signal(SIGINT, signal_handle);
 
     Hymn *hymn = new_hymn();
-
     char *error = NULL;
-    if (argc > 1) {
+
+    if (argc == 0) {
+        printf("Usage: hymn [-d] FILE\n");
+        printf("Interprets a Hymn script FILE.\n\n");
+        printf("  -d  Print byte\n");
+    } else {
         hymn_use_libs(hymn);
         if (argc > 2 && strcmp(argv[1], "-d") == 0) {
             error = hymn_debug(hymn, argv[2]);
         } else {
             error = hymn_read(hymn, argv[1]);
         }
-    } else {
-        printf("Usage: hymn [-d] FILE\n");
-        printf("Interprets a Hymn script FILE.\n\n");
-        printf("  -d  Print byte\n");
     }
 
     int code = 0;

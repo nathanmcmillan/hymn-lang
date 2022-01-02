@@ -57,7 +57,7 @@ class HymnByteCode {
   constructor() {
     this.count = 0
     this.instructions = new Uint8Array(128)
-    this.rows = new Uint32Array(128)
+    this.lines = new Uint32Array(128)
     this.constants = []
   }
 }
@@ -126,80 +126,86 @@ const TOKEN_ADD = 0
 const TOKEN_AND = 1
 const TOKEN_ASSIGN = 2
 const TOKEN_ASSIGN_ADD = 3
-const TOKEN_ASSIGN_SUBTRACT = 4
-const TOKEN_ASSIGN_MULTIPLY = 5
-const TOKEN_ASSIGN_DIVIDE = 6
-const TOKEN_BEGIN = 7
-const TOKEN_BIT_AND = 8
-const TOKEN_BIT_LEFT_SHIFT = 9
-const TOKEN_BIT_NOT = 10
-const TOKEN_BIT_OR = 11
-const TOKEN_BIT_RIGHT_SHIFT = 12
-const TOKEN_BIT_XOR = 13
-const TOKEN_BREAK = 14
-const TOKEN_CLEAR = 15
-const TOKEN_COLON = 16
-const TOKEN_COMMA = 17
-const TOKEN_CONTINUE = 18
-const TOKEN_COPY = 19
-const TOKEN_DELETE = 20
-const TOKEN_DIVIDE = 21
-const TOKEN_DOT = 22
-const TOKEN_ELIF = 23
-const TOKEN_ELSE = 24
-const TOKEN_END = 25
-const TOKEN_EOF = 26
-const TOKEN_EQUAL = 27
-const TOKEN_ERROR = 28
-const TOKEN_EXCEPT = 29
-const TOKEN_FALSE = 30
-const TOKEN_FLOAT = 31
-const TOKEN_FOR = 32
-const TOKEN_FUNCTION = 33
-const TOKEN_GREATER = 34
-const TOKEN_GREATER_EQUAL = 35
-const TOKEN_IDENT = 36
-const TOKEN_IF = 37
-const TOKEN_IN = 38
-const TOKEN_INDEX = 39
-const TOKEN_INSERT = 40
-const TOKEN_INTEGER = 41
-const TOKEN_KEYS = 42
-const TOKEN_LEFT_CURLY = 43
-const TOKEN_LEFT_PAREN = 44
-const TOKEN_LEFT_SQUARE = 45
-const TOKEN_LEN = 46
-const TOKEN_LESS = 47
-const TOKEN_LESS_EQUAL = 48
-const TOKEN_LET = 49
-const TOKEN_LINE = 50
-const TOKEN_MODULO = 51
-const TOKEN_MULTIPLY = 52
-const TOKEN_NONE = 53
-const TOKEN_NOT = 54
-const TOKEN_NOT_EQUAL = 55
-const TOKEN_OR = 56
-const TOKEN_POP = 57
-const TOKEN_PRINT = 58
-const TOKEN_PUSH = 59
-const TOKEN_RETURN = 60
-const TOKEN_RIGHT_CURLY = 61
-const TOKEN_RIGHT_PAREN = 62
-const TOKEN_RIGHT_SQUARE = 63
-const TOKEN_SEMICOLON = 64
-const TOKEN_STRING = 65
-const TOKEN_SUBTRACT = 66
-const TOKEN_THROW = 67
-const TOKEN_TO_FLOAT = 68
-const TOKEN_TO_INTEGER = 69
-const TOKEN_TO_STRING = 70
-const TOKEN_TRUE = 71
-const TOKEN_TRY = 72
-const TOKEN_TYPE_FUNC = 73
-const TOKEN_UNDEFINED = 74
-const TOKEN_USE = 75
-const TOKEN_VALUE = 76
-const TOKEN_WHILE = 77
+const TOKEN_ASSIGN_BIT_AND = 4
+const TOKEN_ASSIGN_BIT_LEFT_SHIFT = 5
+const TOKEN_ASSIGN_BIT_OR = 6
+const TOKEN_ASSIGN_BIT_RIGHT_SHIFT = 7
+const TOKEN_ASSIGN_BIT_XOR = 8
+const TOKEN_ASSIGN_DIVIDE = 9
+const TOKEN_ASSIGN_MODULO = 10
+const TOKEN_ASSIGN_MULTIPLY = 11
+const TOKEN_ASSIGN_SUBTRACT = 12
+const TOKEN_BEGIN = 13
+const TOKEN_BIT_AND = 14
+const TOKEN_BIT_LEFT_SHIFT = 15
+const TOKEN_BIT_NOT = 16
+const TOKEN_BIT_OR = 17
+const TOKEN_BIT_RIGHT_SHIFT = 18
+const TOKEN_BIT_XOR = 19
+const TOKEN_BREAK = 20
+const TOKEN_CLEAR = 21
+const TOKEN_COLON = 22
+const TOKEN_COMMA = 23
+const TOKEN_CONTINUE = 24
+const TOKEN_COPY = 25
+const TOKEN_DELETE = 26
+const TOKEN_DIVIDE = 27
+const TOKEN_DOT = 28
+const TOKEN_ELIF = 29
+const TOKEN_ELSE = 30
+const TOKEN_END = 31
+const TOKEN_EOF = 32
+const TOKEN_EQUAL = 33
+const TOKEN_ERROR = 34
+const TOKEN_EXCEPT = 35
+const TOKEN_FALSE = 36
+const TOKEN_FLOAT = 37
+const TOKEN_FOR = 38
+const TOKEN_FUNCTION = 39
+const TOKEN_GREATER = 40
+const TOKEN_GREATER_EQUAL = 41
+const TOKEN_IDENT = 42
+const TOKEN_IF = 43
+const TOKEN_IN = 44
+const TOKEN_INDEX = 45
+const TOKEN_INSERT = 46
+const TOKEN_INTEGER = 47
+const TOKEN_KEYS = 48
+const TOKEN_LEFT_CURLY = 49
+const TOKEN_LEFT_PAREN = 50
+const TOKEN_LEFT_SQUARE = 51
+const TOKEN_LEN = 52
+const TOKEN_LESS = 53
+const TOKEN_LESS_EQUAL = 54
+const TOKEN_LET = 55
+const TOKEN_LINE = 56
+const TOKEN_MODULO = 57
+const TOKEN_MULTIPLY = 58
+const TOKEN_NONE = 59
+const TOKEN_NOT = 60
+const TOKEN_NOT_EQUAL = 61
+const TOKEN_OR = 62
+const TOKEN_POP = 63
+const TOKEN_PRINT = 64
+const TOKEN_PUSH = 65
+const TOKEN_RETURN = 66
+const TOKEN_RIGHT_CURLY = 67
+const TOKEN_RIGHT_PAREN = 68
+const TOKEN_RIGHT_SQUARE = 69
+const TOKEN_SEMICOLON = 70
+const TOKEN_STRING = 71
+const TOKEN_SUBTRACT = 72
+const TOKEN_THROW = 73
+const TOKEN_TO_FLOAT = 74
+const TOKEN_TO_INTEGER = 75
+const TOKEN_TO_STRING = 76
+const TOKEN_TRUE = 77
+const TOKEN_TRY = 78
+const TOKEN_TYPE_FUNC = 79
+const TOKEN_UNDEFINED = 80
+const TOKEN_USE = 81
+const TOKEN_VALUE = 82
+const TOKEN_WHILE = 83
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -248,10 +254,10 @@ const OP_INDEX = 30
 const OP_JUMP = 31
 const OP_JUMP_IF_EQUAL = 32
 const OP_JUMP_IF_NOT_EQUAL = 33
-const OP_JUMP_LESS = 34
-const OP_JUMP_GREATER = 35
-const OP_JUMP_LESS_EQUAL = 36
-const OP_JUMP_GREATER_EQUAL = 37
+const OP_JUMP_IF_LESS = 34
+const OP_JUMP_IF_GREATER = 35
+const OP_JUMP_IF_LESS_EQUAL = 36
+const OP_JUMP_IF_GREATER_EQUAL = 37
 const OP_JUMP_IF_FALSE = 38
 const OP_JUMP_IF_TRUE = 39
 const OP_KEYS = 40
@@ -348,7 +354,9 @@ class Compiler {
     this.scope = null
     this.loop = null
     this.jump = null
-    this.iteratorJump = null
+    this.jumpOr = null
+    this.jumpAnd = null
+    this.jumpFor = null
     this.error = null
   }
 }
@@ -362,10 +370,11 @@ class JumpList {
 }
 
 class LoopList {
-  constructor() {
-    this.start = 0
-    this.depth = 0
-    this.next = null
+  constructor(start, depth, next, isFor) {
+    this.start = start
+    this.depth = depth
+    this.next = next
+    this.isFor = isFor
   }
 }
 
@@ -374,9 +383,15 @@ rules[TOKEN_ADD] = new Rule(null, compileBinary, PRECEDENCE_TERM)
 rules[TOKEN_AND] = new Rule(null, compileAnd, PRECEDENCE_AND)
 rules[TOKEN_ASSIGN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_ADD] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_ASSIGN_SUBTRACT] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_ASSIGN_MULTIPLY] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_BIT_AND] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_BIT_LEFT_SHIFT] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_BIT_OR] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_BIT_RIGHT_SHIFT] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_BIT_XOR] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_DIVIDE] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_MODULO] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_MULTIPLY] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_ASSIGN_SUBTRACT] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_BEGIN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_BIT_AND] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_LEFT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
@@ -776,20 +791,6 @@ function advance(C) {
           c = peekChar(C)
         }
         continue
-      case '-': {
-        if (peekChar(C) === '-') {
-          nextChar(C)
-          c = peekChar(C)
-          while (c !== '\n' && c !== '\0') {
-            nextChar(C)
-            c = peekChar(C)
-          }
-          continue
-        } else {
-          token(C, TOKEN_SUBTRACT)
-          return
-        }
-      }
       case '!':
         if (peekChar(C) === '=') {
           nextChar(C)
@@ -806,13 +807,92 @@ function advance(C) {
           token(C, TOKEN_ASSIGN)
         }
         return
+      case '-': {
+        if (peekChar(C) === '-') {
+          nextChar(C)
+          c = peekChar(C)
+          while (c !== '\n' && c !== '\0') {
+            nextChar(C)
+            c = peekChar(C)
+          }
+          continue
+        } else if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_SUBTRACT, 2, 2)
+          return
+        } else {
+          token(C, TOKEN_SUBTRACT)
+          return
+        }
+      }
+      case '+':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_ADD, 2, 2)
+        } else {
+          token(C, TOKEN_ADD)
+        }
+        return
+      case '*':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_MULTIPLY, 2, 2)
+        } else {
+          token(C, TOKEN_MULTIPLY)
+        }
+        return
+      case '/':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_DIVIDE, 2, 2)
+        } else {
+          token(C, TOKEN_DIVIDE)
+        }
+        return
+      case '%':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_MODULO, 2, 2)
+        } else {
+          token(C, TOKEN_MODULO)
+        }
+        return
+      case '&':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_BIT_AND, 2, 2)
+        } else {
+          token(C, TOKEN_BIT_AND)
+        }
+        return
+      case '|':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_BIT_OR, 2, 2)
+        } else {
+          token(C, TOKEN_BIT_OR)
+        }
+        return
+      case '^':
+        if (peekChar(C) === '=') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_ASSIGN_BIT_XOR, 2, 2)
+        } else {
+          token(C, TOKEN_BIT_XOR)
+        }
+        return
       case '>':
         if (peekChar(C) === '=') {
           nextChar(C)
           tokenSpecial(C, TOKEN_GREATER_EQUAL, 2, 2)
         } else if (peekChar(C) === '>') {
           nextChar(C)
-          tokenSpecial(C, TOKEN_BIT_RIGHT_SHIFT, 2, 2)
+          if (peekChar(C) === '=') {
+            nextChar(C)
+            tokenSpecial(C, TOKEN_ASSIGN_BIT_RIGHT_SHIFT, 2, 2)
+          } else {
+            tokenSpecial(C, TOKEN_BIT_RIGHT_SHIFT, 2, 2)
+          }
         } else {
           token(C, TOKEN_GREATER)
         }
@@ -823,34 +903,18 @@ function advance(C) {
           tokenSpecial(C, TOKEN_LESS_EQUAL, 2, 2)
         } else if (peekChar(C) === '<') {
           nextChar(C)
-          tokenSpecial(C, TOKEN_BIT_LEFT_SHIFT, 2, 2)
+          if (peekChar(C) === '=') {
+            nextChar(C)
+            tokenSpecial(C, TOKEN_ASSIGN_BIT_LEFT_SHIFT, 2, 2)
+          } else {
+            tokenSpecial(C, TOKEN_BIT_LEFT_SHIFT, 2, 2)
+          }
         } else {
           token(C, TOKEN_LESS)
         }
         return
-      case '&':
-        token(C, TOKEN_BIT_AND)
-        return
-      case '|':
-        token(C, TOKEN_BIT_OR)
-        return
-      case '^':
-        token(C, TOKEN_BIT_XOR)
-        return
       case '~':
         token(C, TOKEN_BIT_NOT)
-        return
-      case '+':
-        token(C, TOKEN_ADD)
-        return
-      case '%':
-        token(C, TOKEN_MODULO)
-        return
-      case '*':
-        token(C, TOKEN_MULTIPLY)
-        return
-      case '/':
-        token(C, TOKEN_DIVIDE)
         return
       case ',':
         token(C, TOKEN_COMMA)
@@ -998,9 +1062,15 @@ function newCompiler(script, source, H, scope) {
   return C
 }
 
-function byteCodeAddConstant(code, value) {
+function byteCodeNewConstant(C, value) {
+  const code = current(C)
   code.constants.push(value)
-  return code.constants.length - 1
+  let constant = code.constants.length - 1
+  if (constant > UINT8_MAX) {
+    compileError(C, C.previous, 'Too many constants.')
+    constant = 0
+  }
+  return constant
 }
 
 function arrayIndexOf(array, input) {
@@ -1021,35 +1091,64 @@ function tableKeyOf(table, input) {
   return newNone()
 }
 
-function writeOp(code, byte, row) {
+function writeByte(code, byte, row) {
   const count = code.count
   const size = code.instructions.length
   if (count + 1 > size) {
     const instructions = new Uint8Array(size * 2)
-    const rows = new Uint32Array(size * 2)
+    const lines = new Uint32Array(size * 2)
     for (let i = 0; i < size; i++) instructions[i] = code.instructions[i]
-    for (let i = 0; i < size; i++) rows[i] = code.rows[i]
+    for (let i = 0; i < size; i++) lines[i] = code.lines[i]
     code.instructions = instructions
-    code.rows = rows
+    code.lines = lines
   }
   code.instructions[count] = byte
-  code.rows[count] = row
+  code.lines[count] = row
   code.count = count + 1
 }
 
-function writeTwoOp(code, byteOne, byteTwo, row) {
-  writeOp(code, byteOne, row)
-  writeOp(code, byteTwo, row)
+function emit(C, i) {
+  writeByte(current(C), i, C.previous.row)
 }
 
-function writeConstant(C, value, row) {
-  let constant = byteCodeAddConstant(current(C), value)
-  if (constant > UINT8_MAX) {
-    compileError(C, C.previous, 'Too many constants.')
-    constant = 0
-  }
-  writeTwoOp(current(C), OP_CONSTANT, constant, row)
+function emitShort(C, i, b) {
+  const row = C.previous.row
+  const code = current(C)
+  writeByte(code, i, row)
+  writeByte(code, b, row)
+}
+
+function emitWord(C, i, b, n) {
+  const row = C.previous.row
+  const code = current(C)
+  writeByte(code, i, row)
+  writeByte(code, b, row)
+  writeByte(code, n, row)
+}
+
+function emitConstant(C, value) {
+  const constant = byteCodeNewConstant(C, value)
+  emitShort(C, OP_CONSTANT, constant)
   return constant
+}
+
+function checkAssign(C) {
+  switch (C.current.type) {
+    case TOKEN_ASSIGN:
+    case TOKEN_ASSIGN_ADD:
+    case TOKEN_ASSIGN_BIT_AND:
+    case TOKEN_ASSIGN_BIT_LEFT_SHIFT:
+    case TOKEN_ASSIGN_BIT_OR:
+    case TOKEN_ASSIGN_BIT_RIGHT_SHIFT:
+    case TOKEN_ASSIGN_BIT_XOR:
+    case TOKEN_ASSIGN_DIVIDE:
+    case TOKEN_ASSIGN_MODULO:
+    case TOKEN_ASSIGN_MULTIPLY:
+    case TOKEN_ASSIGN_SUBTRACT:
+      return true
+    default:
+      return false
+  }
 }
 
 function check(C, type) {
@@ -1062,14 +1161,6 @@ function match(C, type) {
   }
   advance(C)
   return true
-}
-
-function emit(C, byte) {
-  writeOp(current(C), byte, C.previous.row)
-}
-
-function emitTwo(C, byteOne, byteTwo) {
-  writeTwoOp(current(C), byteOne, byteTwo, C.previous.row)
 }
 
 function compileWithPrecedence(C, precedence) {
@@ -1090,7 +1181,8 @@ function compileWithPrecedence(C, precedence) {
     }
     infix(C, assign)
   }
-  if (assign && match(C, TOKEN_ASSIGN)) {
+  if (assign && checkAssign(C)) {
+    advance(C)
     compileError(C, C.current, 'Invalid assignment target.')
   }
 }
@@ -1134,7 +1226,7 @@ function args(C) {
 
 function compileCall(C, assign) {
   const count = args(C)
-  emitTwo(C, OP_CALL, count)
+  emitShort(C, OP_CALL, count)
 }
 
 function compileGroup(C, assign) {
@@ -1155,15 +1247,15 @@ function compileFalse(C, assign) {
 }
 
 function compileInteger(C, assign) {
-  const alpha = C.previous
-  const number = parseInt(sourceSubstring(C, alpha.len, alpha.start))
-  writeConstant(C, newInt(number), alpha.row)
+  const previous = C.previous
+  const number = parseInt(sourceSubstring(C, previous.len, previous.start))
+  emitConstant(C, newInt(number))
 }
 
 function compileFloat(C, assign) {
-  const alpha = C.previous
-  const number = parseFloat(sourceSubstring(C, alpha.len, alpha.start))
-  writeConstant(C, newFloat(number), alpha.row)
+  const previous = C.previous
+  const number = parseFloat(sourceSubstring(C, previous.len, previous.start))
+  emitConstant(C, newFloat(number))
 }
 
 function escapeSequence(c) {
@@ -1212,12 +1304,12 @@ function parseStringLiteral(string, start, len) {
 function compileString(C, assign) {
   const previous = C.previous
   const string = parseStringLiteral(C.source, previous.start, previous.len)
-  writeConstant(C, newString(string), previous.row)
+  emitConstant(C, newString(string))
 }
 
 function identConstant(C, token) {
   const string = sourceSubstring(C, token.len, token.start)
-  return byteCodeAddConstant(current(C), newString(string))
+  return byteCodeNewConstant(C, newString(string))
 }
 
 function beginScope(C) {
@@ -1234,14 +1326,14 @@ function endScope(C) {
 }
 
 function compileArray(C, assign) {
-  writeConstant(C, newArrayValue(null), C.previous.row)
+  emitConstant(C, newArrayValue(null))
   if (match(C, TOKEN_RIGHT_SQUARE)) {
     return
   }
   while (!check(C, TOKEN_RIGHT_SQUARE) && !check(C, TOKEN_EOF)) {
     emit(C, OP_DUPLICATE)
     expression(C)
-    emitTwo(C, OP_ARRAY_PUSH, OP_POP)
+    emitShort(C, OP_ARRAY_PUSH, OP_POP)
     if (!check(C, TOKEN_RIGHT_SQUARE)) {
       consume(C, TOKEN_COMMA, "Expected ','.")
     }
@@ -1250,7 +1342,7 @@ function compileArray(C, assign) {
 }
 
 function compileTable(C, assign) {
-  writeConstant(C, newTableValue(null), C.previous.row)
+  emitConstant(C, newTableValue(null))
   if (match(C, TOKEN_RIGHT_CURLY)) {
     return
   }
@@ -1260,7 +1352,7 @@ function compileTable(C, assign) {
     const name = identConstant(C, C.previous)
     consume(C, TOKEN_COLON, "Expected ':'.")
     expression(C)
-    emitTwo(C, OP_SET_PROPERTY, name)
+    emitShort(C, OP_SET_PROPERTY, name)
     emit(C, OP_POP)
     if (!check(C, TOKEN_RIGHT_CURLY)) {
       consume(C, TOKEN_COMMA, "Expected ','.")
@@ -1313,7 +1405,7 @@ function finalizeVariable(C, global) {
     localInitialize(C)
     return
   }
-  emitTwo(C, OP_DEFINE_GLOBAL, global)
+  emitShort(C, OP_DEFINE_GLOBAL, global)
 }
 
 function defineNewVariable(C) {
@@ -1350,13 +1442,51 @@ function namedVariable(C, token, assign) {
     set = OP_SET_GLOBAL
     v = identConstant(C, token)
   }
-  if (assign && match(C, TOKEN_ASSIGN)) {
+  if (assign && checkAssign(C)) {
+    const type = C.current.type
+    advance(C)
+    if (type !== TOKEN_ASSIGN) {
+      emitShort(C, get, v)
+    }
     expression(C)
-    emit(C, set)
+    switch (type) {
+      case TOKEN_ASSIGN_ADD:
+        emit(C, OP_ADD)
+        break
+      case TOKEN_ASSIGN_BIT_AND:
+        emit(C, OP_BIT_AND)
+        break
+      case TOKEN_ASSIGN_BIT_LEFT_SHIFT:
+        emit(C, OP_BIT_LEFT_SHIFT)
+        break
+      case TOKEN_ASSIGN_BIT_OR:
+        emit(C, OP_BIT_OR)
+        break
+      case TOKEN_ASSIGN_BIT_RIGHT_SHIFT:
+        emit(C, OP_BIT_RIGHT_SHIFT)
+        break
+      case TOKEN_ASSIGN_BIT_XOR:
+        emit(C, OP_BIT_XOR)
+        break
+      case TOKEN_ASSIGN_DIVIDE:
+        emit(C, OP_DIVIDE)
+        break
+      case TOKEN_ASSIGN_MODULO:
+        emit(C, OP_MODULO)
+        break
+      case TOKEN_ASSIGN_MULTIPLY:
+        emit(C, OP_MULTIPLY)
+        break
+      case TOKEN_ASSIGN_SUBTRACT:
+        emit(C, OP_SUBTRACT)
+        break
+      default:
+        break
+    }
+    emitShort(C, set, v)
   } else {
-    emit(C, get)
+    emitShort(C, get, v)
   }
-  emit(C, v)
 }
 
 function compileVariable(C, assign) {
@@ -1444,17 +1574,17 @@ function compileDot(C, assign) {
   const name = identConstant(C, C.previous)
   if (assign && match(C, TOKEN_ASSIGN)) {
     expression(C)
-    emitTwo(C, OP_SET_PROPERTY, name)
+    emitShort(C, OP_SET_PROPERTY, name)
   } else {
-    emitTwo(C, OP_GET_PROPERTY, name)
+    emitShort(C, OP_GET_PROPERTY, name)
   }
 }
 
 function compileSquare(C, assign) {
   if (match(C, TOKEN_COLON)) {
-    writeConstant(C, newInt(0), C.previous.row)
+    emitConstant(C, newInt(0))
     if (match(C, TOKEN_RIGHT_SQUARE)) {
-      writeConstant(C, newNone(), C.previous.row)
+      emitConstant(C, newNone())
     } else {
       expression(C)
       consume(C, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.")
@@ -1464,7 +1594,7 @@ function compileSquare(C, assign) {
     expression(C)
     if (match(C, TOKEN_COLON)) {
       if (match(C, TOKEN_RIGHT_SQUARE)) {
-        writeConstant(C, newNone(), C.previous.row)
+        emitConstant(C, newNone())
       } else {
         expression(C)
         consume(C, TOKEN_RIGHT_SQUARE, "Expected ']' after expression.")
@@ -1484,11 +1614,14 @@ function compileSquare(C, assign) {
 
 function emitJump(C, instruction) {
   emit(C, instruction)
-  emitTwo(C, UINT8_MAX, UINT8_MAX)
+  emitShort(C, UINT8_MAX, UINT8_MAX)
   return current(C).count - 2
 }
 
 function patchJump(C, jump) {
+  if (jump === -1) {
+    return
+  }
   const code = current(C)
   const offset = code.count - jump - 2
   if (offset > UINT16_MAX) {
@@ -1499,24 +1632,463 @@ function patchJump(C, jump) {
   code.instructions[jump + 1] = offset & UINT8_MAX
 }
 
+function addJump(C, list, instruction) {
+  const jump = new JumpList()
+  jump.jump = emitJump(C, instruction)
+  jump.depth = C.scope.depth
+  jump.code = current(C)
+  jump.next = list
+  return jump
+}
+
+function freeJumpAndList(C) {
+  let jump = C.jumpAnd
+  const code = current(C)
+  const depth = C.scope.depth
+  while (jump !== null) {
+    if (jump.code !== code || jump.depth < depth) {
+      break
+    }
+    patchJump(C, jump.jump)
+    jump = jump.next
+  }
+  C.jumpAnd = jump
+}
+
+function freeJumpOrList(C) {
+  let jump = C.jumpOr
+  const code = current(C)
+  const depth = C.scope.depth
+  while (jump !== null) {
+    if (jump.code !== code || jump.depth < depth) {
+      break
+    }
+    patchJump(C, jump.jump)
+    jump = jump.next
+  }
+  C.jumpOr = jump
+}
+
+function freeJumps(C, jump) {
+  while (jump !== null) {
+    patchJump(C, jump.jump)
+    jump = jump.next
+  }
+}
+
 function compileAnd(C, assign) {
-  const jump = emitJump(C, OP_JUMP_IF_FALSE)
-  emit(C, OP_POP)
+  C.jumpAnd = addJump(C, C.jumpAnd, OP_JUMP_IF_FALSE)
   compileWithPrecedence(C, PRECEDENCE_AND)
-  patchJump(C, jump)
 }
 
 function compileOr(C, assign) {
-  const jumpElse = emitJump(C, OP_JUMP_IF_FALSE)
-  const jump = emitJump(C, OP_JUMP)
-  patchJump(C, jumpElse)
-  emit(C, OP_POP)
+  C.jumpOr = addJump(C, C.jumpOr, OP_JUMP_IF_TRUE)
+  freeJumpAndList(C)
   compileWithPrecedence(C, PRECEDENCE_OR)
-  patchJump(C, jump)
+}
+
+function next(instruction) {
+  switch (instruction) {
+    case OP_POP_N:
+    case OP_SET_GLOBAL:
+    case OP_SET_LOCAL:
+    case OP_SET_PROPERTY:
+    case OP_INCREMENT:
+    case OP_CALL:
+    case OP_TAIL_CALL:
+    case OP_CONSTANT:
+    case OP_DEFINE_GLOBAL:
+    case OP_GET_GLOBAL:
+    case OP_GET_LOCAL:
+    case OP_GET_PROPERTY:
+      return 2
+    case OP_GET_TWO_LOCAL:
+    case OP_ADD_TWO_LOCAL:
+    case OP_JUMP:
+    case OP_JUMP_IF_FALSE:
+    case OP_JUMP_IF_TRUE:
+    case OP_JUMP_IF_EQUAL:
+    case OP_JUMP_IF_NOT_EQUAL:
+    case OP_JUMP_IF_LESS:
+    case OP_JUMP_IF_GREATER:
+    case OP_JUMP_IF_LESS_EQUAL:
+    case OP_JUMP_IF_GREATER_EQUAL:
+    case OP_LOOP:
+    case OP_INCREMENT_LOCAL_AND_SET:
+    case OP_INCREMENT_LOCAL:
+      return 3
+    case OP_FOR:
+    case OP_FOR_LOOP:
+      return 4
+    default:
+      return 1
+  }
+}
+
+function adjustable(instructions, count, target) {
+  // TODO: THIS NEEDS TO BE WAY MORE EFFICIENT
+  let i = 0
+  while (i < target) {
+    const instruction = instructions[i]
+    switch (instruction) {
+      case OP_JUMP:
+      case OP_JUMP_IF_FALSE:
+      case OP_JUMP_IF_TRUE:
+      case OP_JUMP_IF_EQUAL:
+      case OP_JUMP_IF_NOT_EQUAL:
+      case OP_JUMP_IF_LESS:
+      case OP_JUMP_IF_GREATER:
+      case OP_JUMP_IF_LESS_EQUAL:
+      case OP_JUMP_IF_GREATER_EQUAL: {
+        const jump = (instructions[i + 1] << 8) | instructions[i + 2]
+        if (i + 3 + jump === target) {
+          return false
+        }
+        break
+      }
+      case OP_FOR: {
+        const jump = (instructions[i + 2] << 8) | instructions[i + 3]
+        if (i + 3 + jump === target) {
+          return false
+        }
+        break
+      }
+    }
+    i += next(instruction)
+  }
+  while (i < count) {
+    const instruction = instructions[i]
+    switch (instruction) {
+      case OP_LOOP: {
+        const jump = (instructions[i + 1] << 8) | instructions[i + 2]
+        if (i + 3 - jump === target) {
+          return false
+        }
+        break
+      }
+      case OP_FOR_LOOP: {
+        const jump = (instructions[i + 2] << 8) | instructions[i + 3]
+        if (i + 3 - jump === target) {
+          return false
+        }
+        break
+      }
+    }
+    i += next(instruction)
+  }
+  return true
+}
+
+function rewrite(instructions, lines, count, start, shift) {
+  let i = 0
+  while (i < start) {
+    const instruction = instructions[i]
+    switch (instruction) {
+      case OP_JUMP:
+      case OP_JUMP_IF_FALSE:
+      case OP_JUMP_IF_TRUE:
+      case OP_JUMP_IF_EQUAL:
+      case OP_JUMP_IF_NOT_EQUAL:
+      case OP_JUMP_IF_LESS:
+      case OP_JUMP_IF_GREATER:
+      case OP_JUMP_IF_LESS_EQUAL:
+      case OP_JUMP_IF_GREATER_EQUAL: {
+        let jump = (instructions[i + 1] << 8) | instructions[i + 2]
+        if (i + 3 + jump > start) {
+          jump -= shift
+          instructions[i + 1] = (jump >> 8) & UINT8_MAX
+          instructions[i + 2] = jump & UINT8_MAX
+        }
+        break
+      }
+      case OP_FOR: {
+        let jump = (instructions[i + 2] << 8) | instructions[i + 3]
+        if (i + 3 + jump > start) {
+          jump -= shift
+          instructions[i + 2] = (jump >> 8) & UINT8_MAX
+          instructions[i + 3] = jump & UINT8_MAX
+        }
+        break
+      }
+    }
+    i += next(instruction)
+  }
+  while (i < count) {
+    const instruction = instructions[i]
+    switch (instruction) {
+      case OP_LOOP: {
+        let jump = (instructions[i + 1] << 8) | instructions[i + 2]
+        if (i + 3 - jump < start) {
+          jump -= shift
+          instructions[i + 1] = (jump >> 8) & UINT8_MAX
+          instructions[i + 2] = jump & UINT8_MAX
+        }
+        break
+      }
+      case OP_FOR_LOOP: {
+        let jump = (instructions[i + 2] << 8) | instructions[i + 3]
+        if (i + 3 - jump < start) {
+          jump -= shift
+          instructions[i + 2] = (jump >> 8) & UINT8_MAX
+          instructions[i + 3] = jump & UINT8_MAX
+        }
+        break
+      }
+    }
+    i += next(instruction)
+  }
+  count -= shift
+  for (let c = start; c < count; c++) {
+    const n = c + shift
+    instructions[c] = instructions[n]
+    lines[c] = lines[n]
+  }
+  return shift
+}
+
+function optimize(C) {
+  const code = current(C)
+  const instructions = code.instructions
+  const lines = code.lines
+  let count = code.count
+  let one = 0
+  while (one < count) {
+    const first = instructions[one]
+    const two = one + next(first)
+    if (two >= count) break
+    const second = instructions[two]
+
+    if (!adjustable(instructions, count, one) || !adjustable(instructions, count, two)) {
+      one = two
+      continue
+    }
+
+    switch (first) {
+      case OP_CALL: {
+        if (second === OP_RETURN) {
+          instructions[one] = OP_TAIL_CALL
+          continue
+        }
+        break
+      }
+      case OP_POP: {
+        if (second === OP_POP) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_POP_TWO
+          continue
+        }
+        break
+      }
+      case OP_POP_TWO: {
+        if (second === OP_POP) {
+          instructions[one] = OP_POP_N
+          instructions[one + 1] = 3
+          continue
+        }
+        break
+      }
+      case OP_POP_N: {
+        if (second === OP_POP) {
+          const pop = instructions[one + 1]
+          if (pop < UINT8_MAX - 1) {
+            count -= rewrite(instructions, lines, count, one + 1, 1)
+            instructions[one + 1] = pop + 1
+            continue
+          }
+        }
+        break
+      }
+      case OP_GET_LOCAL: {
+        if (second === OP_GET_LOCAL) {
+          instructions[one] = OP_GET_TWO_LOCAL
+          count -= rewrite(instructions, lines, count, one + 2, 1)
+          continue
+        } else if (second === OP_CONSTANT) {
+          const three = two + next(second)
+          const third = three < count ? instructions[three] : UINT8_MAX
+          if (third === OP_ADD) {
+            const value = code.constants[code.instructions[two + 1]]
+            if (isInt(value)) {
+              const add = value.value
+              if (add >= 0 && add <= UINT8_MAX) {
+                const local = code.instructions[one + 1]
+                count -= rewrite(instructions, lines, count, one, 2)
+                instructions[one] = OP_INCREMENT_LOCAL
+                instructions[one + 1] = local
+                instructions[one + 2] = add
+                continue
+              }
+            }
+          }
+        }
+        break
+      }
+      case OP_GET_TWO_LOCAL: {
+        if (second === OP_ADD) {
+          instructions[one] = OP_ADD_TWO_LOCAL
+          count -= rewrite(instructions, lines, count, one + 3, 1)
+          continue
+        }
+        break
+      }
+      case OP_INCREMENT_LOCAL: {
+        if (second === OP_SET_LOCAL) {
+          if (instructions[one + 1] === instructions[one + 4]) {
+            instructions[one] = OP_INCREMENT_LOCAL_AND_SET
+            count -= rewrite(instructions, lines, count, one + 3, 2)
+            continue
+          }
+        }
+        break
+      }
+      case OP_INCREMENT_LOCAL_AND_SET: {
+        if (second === OP_POP) {
+          count -= rewrite(instructions, lines, count, one + 3, 1)
+          continue
+        }
+        break
+      }
+      case OP_CONSTANT: {
+        if (second === OP_NEGATE) {
+          const value = code.constants[instructions[one + 1]]
+          if (isInt(value) || isFloat(value)) {
+            value.value = -value.value
+          }
+          const constant = byteCodeNewConstant(C, value)
+          instructions[one + 1] = constant
+          count -= rewrite(instructions, lines, count, one + 2, 1)
+          continue
+        } else if (second === OP_ADD) {
+          const value = code.constants[code.instructions[one + 1]]
+          if (isInt(value)) {
+            const add = value.value
+            if (add >= 0 && add <= UINT8_MAX) {
+              instructions[one] = OP_INCREMENT
+              instructions[one + 1] = add
+              count -= rewrite(instructions, lines, count, one + 2, 1)
+              continue
+            }
+          }
+        }
+        break
+      }
+      case OP_EQUAL: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_EQUAL
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_NOT_EQUAL
+          continue
+        }
+        break
+      }
+      case OP_NOT_EQUAL: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_NOT_EQUAL
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_EQUAL
+          continue
+        }
+        break
+      }
+      case OP_LESS: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_LESS
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_GREATER_EQUAL
+          continue
+        }
+        break
+      }
+      case OP_GREATER: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_GREATER
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_LESS_EQUAL
+          continue
+        }
+        break
+      }
+      case OP_LESS_EQUAL: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_LESS_EQUAL
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_GREATER
+          continue
+        }
+        break
+      }
+      case OP_GREATER_EQUAL: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_GREATER_EQUAL
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_LESS
+          continue
+        }
+        break
+      }
+      case OP_TRUE: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 4)
+          continue
+        }
+        break
+      }
+      case OP_FALSE: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 4)
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP
+          continue
+        }
+        break
+      }
+      case OP_NOT: {
+        if (second === OP_JUMP_IF_TRUE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_FALSE
+          continue
+        } else if (second === OP_JUMP_IF_FALSE) {
+          count -= rewrite(instructions, lines, count, one, 1)
+          instructions[one] = OP_JUMP_IF_TRUE
+          continue
+        }
+        break
+      }
+    }
+
+    one = two
+  }
+
+  code.count = count
 }
 
 function endFunction(C) {
-  emitTwo(C, OP_NONE, OP_RETURN)
+  emitShort(C, OP_NONE, OP_RETURN)
+  optimize(C)
   const func = C.scope.func
   C.scope = C.scope.enclosing
   return func
@@ -1551,7 +2123,7 @@ function compileFunction(C, type) {
   consume(C, TOKEN_END, "Expected 'end' after function body.")
 
   const func = endFunction(C)
-  writeConstant(C, newFuncValue(func), C.previous.row)
+  emitConstant(C, newFuncValue(func))
 }
 
 function declareFunction(C) {
@@ -1583,50 +2155,53 @@ function ifStatement(C) {
   expression(C)
   let jump = emitJump(C, OP_JUMP_IF_FALSE)
 
-  emit(C, OP_POP)
+  freeJumpOrList(C)
+
   beginScope(C)
   while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
-  const jumpEnd = new JumpList()
-  jumpEnd.jump = emitJump(C, OP_JUMP)
-  let tail = jumpEnd
-
-  while (match(C, TOKEN_ELIF)) {
+  if (check(C, TOKEN_END)) {
     patchJump(C, jump)
-    emit(C, OP_POP)
+    freeJumpAndList(C)
+  } else {
+    const jumpEnd = new JumpList()
+    jumpEnd.jump = emitJump(C, OP_JUMP)
+    let tail = jumpEnd
 
-    expression(C)
-    jump = emitJump(C, OP_JUMP_IF_FALSE)
+    while (match(C, TOKEN_ELIF)) {
+      patchJump(C, jump)
+      freeJumpAndList(C)
 
-    emit(C, OP_POP)
-    beginScope(C)
-    while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
-      declaration(C)
+      expression(C)
+      jump = emitJump(C, OP_JUMP_IF_FALSE)
+
+      freeJumpOrList(C)
+
+      beginScope(C)
+      while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+        declaration(C)
+      }
+      endScope(C)
+
+      const next = new JumpList()
+      next.jump = emitJump(C, OP_JUMP)
+
+      tail.next = next
+      tail = next
     }
-    endScope(C)
 
-    const next = new JumpList()
-    next.jump = emitJump(C, OP_JUMP)
+    patchJump(C, jump)
+    freeJumpAndList(C)
 
-    tail.next = next
-    tail = next
-  }
+    if (match(C, TOKEN_ELSE)) {
+      block(C)
+    }
 
-  patchJump(C, jump)
-  emit(C, OP_POP)
-
-  if (match(C, TOKEN_ELSE)) {
-    block(C)
-  }
-
-  patchJump(C, jumpEnd.jump)
-  let current = jumpEnd.next
-  while (current !== null) {
-    patchJump(C, current.jump)
-    current = current.next
+    patchJump(C, jumpEnd.jump)
+    freeJumps(C, jumpEnd.next)
   }
 
   consume(C, TOKEN_END, "Expected 'end' after if statement.")
@@ -1664,7 +2239,7 @@ function emitLoop(C, start) {
   if (offset > UINT16_MAX) {
     compileError(C, C.previous, 'Loop is too large.')
   }
-  emitTwo(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
+  emitShort(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
 }
 
 function patchJumpList(C) {
@@ -1681,18 +2256,78 @@ function patchJumpList(C) {
   }
 }
 
-function patchIteratorJumpList(C) {
-  while (C.iteratorJump !== null) {
+function patchJumpForList(C) {
+  while (C.jumpFor !== null) {
     let depth = 1
     if (C.loop !== null) {
-      depth = C.loop.depth + 1
+      depth = C.loop.depth
     }
-    if (C.iteratorJump.depth < depth) {
+    if (C.jumpFor.depth < depth) {
       break
     }
-    patchJump(C, C.iteratorJump.jump)
-    C.iteratorJump = C.iteratorJump.next
+    patchJump(C, C.jumpFor.jump)
+    C.jumpFor = C.jumpFor.next
   }
+}
+
+function iteratorStatement(C, pair) {
+  localInitialize(C)
+
+  const index = C.scope.localCount
+  const value = index + 1
+  const object = index - 1
+
+  pushHiddenLocal(C)
+
+  if (pair) {
+    variable(C, 'Missing variable name in for loop')
+    localInitialize(C)
+    consume(C, TOKEN_IN, "Missing 'in' in for loop")
+    C.scope.locals[index].name = C.scope.locals[object].name
+  } else {
+    pushHiddenLocal(C)
+    C.scope.locals[value].name = C.scope.locals[object].name
+  }
+
+  C.scope.locals[object].name = null
+
+  // IN
+
+  expression(C)
+
+  emitShort(C, OP_FOR, object)
+  emitShort(C, UINT8_MAX, UINT8_MAX)
+
+  const start = current(C).count
+  const jump = start - 2
+
+  const loop = new LoopList(start, C.scope.depth + 1, C.loop, true)
+  C.loop = loop
+
+  // BODY
+
+  block(C)
+
+  // LOOP
+
+  patchJumpForList(C)
+  emitShort(C, OP_FOR_LOOP, object)
+  const offset = current(C).count - start + 2
+  if (offset > UINT16_MAX) {
+    compileError(C, C.previous, 'Loop is too large')
+  }
+  emitShort(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
+
+  // END
+
+  C.loop = loop.next
+
+  patchJump(C, jump)
+  patchJumpList(C)
+
+  endScope(C)
+
+  consume(C, TOKEN_END, "Expected 'end' after for loop.")
 }
 
 function forStatement(C) {
@@ -1700,13 +2335,24 @@ function forStatement(C) {
 
   // ASSIGN
 
-  if (match(C, TOKEN_LET)) {
-    defineNewVariable(C)
-  } else if (!check(C, TOKEN_SEMICOLON)) {
-    expressionStatement(C)
-  }
+  const index = C.scope.localCount
 
-  consume(C, TOKEN_SEMICOLON, "Expected ';' in for.")
+  variable(C, 'Missing variable name in for loop')
+
+  if (match(C, TOKEN_ASSIGN)) {
+    expression(C)
+    localInitialize(C)
+    consume(C, TOKEN_COMMA, "Missing ',' in for loop")
+  } else if (match(C, TOKEN_COMMA)) {
+    iteratorStatement(C, true)
+    return
+  } else if (match(C, TOKEN_IN)) {
+    iteratorStatement(C, false)
+    return
+  } else {
+    compileError(C, C.previous, 'Missing either `=`, `in`, or `,` in for loop')
+    return
+  }
 
   // COMPARE
 
@@ -1715,41 +2361,55 @@ function forStatement(C) {
   expression(C)
 
   const jump = emitJump(C, OP_JUMP_IF_FALSE)
-  emit(C, OP_POP)
-
-  consume(C, TOKEN_SEMICOLON, "Expected ';' in for.")
 
   // INCREMENT
 
-  const body = emitJump(C, OP_JUMP)
   const increment = current(C).count
 
-  const loop = new LoopList()
-  loop.start = increment
-  loop.depth = C.scope.depth + 1
-  loop.next = C.loop
+  const loop = new LoopList(increment, C.scope.depth + 1, C.loop, true)
   C.loop = loop
 
-  expression(C)
+  if (match(C, TOKEN_COMMA)) {
+    expression(C)
+  } else {
+    emitWord(C, OP_INCREMENT_LOCAL_AND_SET, index, 1)
+  }
 
-  emit(C, OP_POP)
-  emitLoop(C, compare)
+  const code = current(C)
+
+  const count = code.count - increment
+  const instructions = new Array(count)
+  const lines = new Array(count)
+  for (let x = 0; x < count; x++) {
+    instructions[x] = code.instructions[increment + x]
+    lines[x] = code.lines[increment + x]
+  }
+  code.count = increment
 
   // BODY
 
-  patchJump(C, body)
-
   block(C)
-  emitLoop(C, increment)
+
+  // INCREMENT
+
+  patchJumpForList(C)
+
+  const position = code.count
+  for (let x = 0; x < count; x++) {
+    code.instructions[position + x] = instructions[x]
+    code.lines[position + x] = lines[x]
+  }
+  code.count += count
+
+  emitLoop(C, compare)
 
   // END
 
   C.loop = loop.next
 
   patchJump(C, jump)
-  emit(C, OP_POP)
-
   patchJumpList(C)
+
   endScope(C)
 
   consume(C, TOKEN_END, "Expected 'end' after for loop.")
@@ -1758,24 +2418,19 @@ function forStatement(C) {
 function whileStatement(C) {
   const start = current(C).count
 
-  const loop = new LoopList()
-  loop.start = start
-  loop.depth = C.scope.depth + 1
-  loop.next = C.loop
+  const loop = new LoopList(start, C.scope.depth + 1, C.loop, false)
   C.loop = loop
 
   expression(C)
+
   const jump = emitJump(C, OP_JUMP_IF_FALSE)
 
-  emit(C, OP_POP)
   block(C)
   emitLoop(C, start)
 
   C.loop = loop.next
 
   patchJump(C, jump)
-  emit(C, OP_POP)
-
   patchJumpList(C)
 
   consume(C, TOKEN_END, "Expected 'end' after while loop.")
@@ -2222,7 +2877,7 @@ function hymnStacktrace(H) {
     const frame = H.frames[i]
     const func = frame.func
     const ip = frame.ip - 1
-    const row = func.code.rows[ip]
+    const row = func.code.lines[ip]
 
     trace += 'at'
 
@@ -2551,152 +3206,208 @@ async function hymnImport(H, file) {
   return currentFrame(H)
 }
 
-function debugConstantInstruction(name, code, index) {
+function debugConstantInstruction(debug, name, code, index) {
   const constant = code.instructions[index + 1]
-  return name + ': [' + debugValueToString(code.constants[constant]) + ']'
+  debug[0] += `${name}: [${debugValueToString(code.constants[constant])}]`
+  return index + 2
 }
 
-function debugByteInstruction(name, code, index) {
-  const b = code.instructions[index + 1]
-  return name + ': [' + b + ']'
+function debugByteInstruction(debug, name, code, index) {
+  const byte = code.instructions[index + 1]
+  debug[0] += `${name}: [${byte}]`
+  return index + 2
 }
 
-function debugJumpInstruction(name, sign, code, index) {
+function debugJumpInstruction(debug, name, sign, code, index) {
   const jump = (code.instructions[index + 1] << 8) | code.instructions[index + 2]
-  return name + ': [' + index + '] -> [' + (index + 3 + sign * jump) + ']'
+  debug[0] += `${name}: [${index}] -> [${index + 3 + sign * jump}]`
+  return index + 3
 }
 
-function debugInstruction(name) {
-  return name
+function debugThreeByteInstruction(debug, name, code, index) {
+  const byte = code.instructions[index + 1]
+  const next = code.instructions[index + 2]
+  debug[0] += `${name}: [${byte}] [${next}]`
+  return index + 3
 }
 
-function disassembleInstruction(code, index) {
-  let debug = null
-  if (index > 0 && code.rows[index] === code.rows[index - 1]) {
-    debug = '   | '
+function debugForLoopInstruction(debug, name, sign, code, index) {
+  const slot = code.instructions[index + 1]
+  const jump = (code.instructions[index + 2] << 8) | code.instructions[index + 3]
+  debug[0] += `${name}: [${slot}] [${index}] -> [${index + 4 + sign * jump}]`
+  return index + 4
+}
+
+function debugInstruction(debug, name, index) {
+  debug[0] += name
+  return index + 1
+}
+
+function disassembleInstruction(debug, code, index) {
+  if (index > 0 && code.lines[index] === code.lines[index - 1]) {
+    debug[0] += '   | '
   } else {
-    debug = String(code.rows[index]).padStart(4, ' ') + ' '
+    debug[0] += String(code.lines[index]).padStart(4, ' ') + ' '
   }
-  const op = code.instructions[index]
-  switch (op) {
+  const instruction = code.instructions[index]
+  switch (instruction) {
     case OP_ADD:
-      return debug + debugInstruction('OP_ADD', index)
+      return debugInstruction(debug, 'OP_ADD', index)
+    case OP_ADD_TWO_LOCAL:
+      return debugThreeByteInstruction(debug, 'OP_ADD_TWO_LOCAL', code, index)
     case OP_ARRAY_INSERT:
-      return debug + debugInstruction('OP_ARRAY_INSERT', index)
+      return debugInstruction(debug, 'OP_ARRAY_INSERT', index)
     case OP_ARRAY_POP:
-      return debug + debugInstruction('OP_ARRAY_POP', index)
+      return debugInstruction(debug, 'OP_ARRAY_POP', index)
     case OP_ARRAY_PUSH:
-      return debug + debugInstruction('OP_ARRAY_PUSH', index)
+      return debugInstruction(debug, 'OP_ARRAY_PUSH', index)
     case OP_BIT_AND:
-      return debug + debugInstruction('OP_BIT_AND', index)
+      return debugInstruction(debug, 'OP_BIT_AND', index)
     case OP_BIT_LEFT_SHIFT:
-      return debug + debugInstruction('OP_BIT_LEFT_SHIFT', index)
+      return debugInstruction(debug, 'OP_BIT_LEFT_SHIFT', index)
     case OP_BIT_NOT:
-      return debug + debugInstruction('OP_BIT_NOT', index)
+      return debugInstruction(debug, 'OP_BIT_NOT', index)
     case OP_BIT_OR:
-      return debug + debugInstruction('OP_BIT_OR', index)
+      return debugInstruction(debug, 'OP_BIT_OR', index)
     case OP_BIT_RIGHT_SHIFT:
-      return debug + debugInstruction('OP_BIT_RIGHT_SHIFT', index)
+      return debugInstruction(debug, 'OP_BIT_RIGHT_SHIFT', index)
     case OP_BIT_XOR:
-      return debug + debugInstruction('OP_BIT_XOR', index)
+      return debugInstruction(debug, 'OP_BIT_XOR', index)
     case OP_CALL:
-      return debug + debugByteInstruction('OP_CALL', code, index)
+      return debugByteInstruction(debug, 'OP_CALL', code, index)
     case OP_CLEAR:
-      return debug + debugInstruction('OP_CLEAR', index)
+      return debugInstruction(debug, 'OP_CLEAR', index)
     case OP_CONSTANT:
-      return debug + debugConstantInstruction('OP_CONSTANT', code, index)
+      return debugConstantInstruction(debug, 'OP_CONSTANT', code, index)
     case OP_COPY:
-      return debug + debugInstruction('OP_COPY', index)
-    case OP_DO:
-      return debug + debugInstruction('OP_DO', index)
-    case OP_DUPLICATE:
-      return debug + debugInstruction('OP_DUPLICATE', index)
+      return debugInstruction(debug, 'OP_COPY', index)
     case OP_DEFINE_GLOBAL:
-      return debug + debugConstantInstruction('OP_DEFINE_GLOBAL', code, index)
+      return debugConstantInstruction(debug, 'OP_DEFINE_GLOBAL', code, index)
     case OP_DELETE:
-      return debug + debugInstruction('OP_DELETE', index)
+      return debugInstruction(debug, 'OP_DELETE', index)
     case OP_DIVIDE:
-      return debug + debugInstruction('OP_DIVIDE', index)
+      return debugInstruction(debug, 'OP_DIVIDE', index)
+    case OP_DUPLICATE:
+      return debugInstruction(debug, 'OP_DUPLICATE', index)
     case OP_EQUAL:
-      return debug + debugInstruction('OP_EQUAL', index)
+      return debugInstruction(debug, 'OP_EQUAL', index)
     case OP_FALSE:
-      return debug + debugInstruction('OP_FALSE', index)
+      return debugInstruction(debug, 'OP_FALSE', index)
+    case OP_FOR:
+      return debugForLoopInstruction(debug, 'OP_FOR', 1, code, index)
+    case OP_FOR_LOOP:
+      return debugForLoopInstruction(debug, 'OP_FOR_LOOP', -1, code, index)
     case OP_GET_DYNAMIC:
-      return debug + debugInstruction('OP_GET_DYNAMIC', index)
+      return debugInstruction(debug, 'OP_GET_DYNAMIC', index)
     case OP_GET_GLOBAL:
-      return debug + debugConstantInstruction('OP_GET_GLOBAL', code, index)
+      return debugConstantInstruction(debug, 'OP_GET_GLOBAL', code, index)
     case OP_GET_LOCAL:
-      return debug + debugByteInstruction('OP_GET_LOCAL', code, index)
+      return debugByteInstruction(debug, 'OP_GET_LOCAL', code, index)
     case OP_GET_PROPERTY:
-      return debug + debugConstantInstruction('OP_GET_PROPERTY', code, index)
+      return debugConstantInstruction(debug, 'OP_GET_PROPERTY', code, index)
     case OP_GREATER:
-      return debug + debugInstruction('OP_GREATER', index)
+      return debugInstruction(debug, 'OP_GREATER', index)
     case OP_GREATER_EQUAL:
-      return debug + debugInstruction('OP_GREATER_EQUAL', index)
+      return debugInstruction(debug, 'OP_GREATER_EQUAL', index)
+    case OP_INCREMENT:
+      return debugByteInstruction(debug, 'OP_INCREMENT', code, index)
+    case OP_INCREMENT_LOCAL:
+      return debugThreeByteInstruction(debug, 'OP_INCREMENT_LOCAL', code, index)
+    case OP_INCREMENT_LOCAL_AND_SET:
+      return debugThreeByteInstruction(debug, 'OP_INCREMENT_LOCAL_AND_SET', code, index)
     case OP_INDEX:
-      return debug + debugInstruction('OP_INDEX', index)
+      return debugInstruction(debug, 'OP_INDEX', index)
     case OP_JUMP:
-      return debug + debugJumpInstruction('OP_JUMP', 1, code, index)
+      return debugJumpInstruction(debug, 'OP_JUMP', 1, code, index)
+    case OP_JUMP_IF_EQUAL:
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_EQUAL', 1, code, index)
     case OP_JUMP_IF_FALSE:
-      return debug + debugJumpInstruction('OP_JUMP_IF_FALSE', 1, code, index)
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_FALSE', 1, code, index)
+    case OP_JUMP_IF_GREATER:
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_GREATER', 1, code, index)
+    case OP_JUMP_IF_GREATER_EQUAL:
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_GREATER_EQUAL', 1, code, index)
+    case OP_JUMP_IF_LESS:
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_LESS', 1, code, index)
+    case OP_JUMP_IF_LESS_EQUAL:
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_LESS_EQUAL', 1, code, index)
+    case OP_JUMP_IF_NOT_EQUAL:
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_NOT_EQUAL', 1, code, index)
     case OP_JUMP_IF_TRUE:
-      return debug + debugJumpInstruction('OP_JUMP_IF_TRUE', 1, code, index)
+      return debugJumpInstruction(debug, 'OP_JUMP_IF_TRUE', 1, code, index)
     case OP_KEYS:
-      return debug + debugInstruction('OP_KEYS', index)
+      return debugInstruction(debug, 'OP_KEYS', index)
     case OP_LEN:
-      return debug + debugInstruction('OP_LEN', index)
+      return debugInstruction(debug, 'OP_LEN', index)
     case OP_LESS:
-      return debug + debugInstruction('OP_LESS', index)
+      return debugInstruction(debug, 'OP_LESS', index)
     case OP_LESS_EQUAL:
-      return debug + debugInstruction('OP_LESS_EQUAL', index)
+      return debugInstruction(debug, 'OP_LESS_EQUAL', index)
     case OP_LOOP:
-      return debug + debugJumpInstruction('OP_LOOP', -1, code, index)
+      return debugJumpInstruction(debug, 'OP_LOOP', -1, code, index)
     case OP_MODULO:
-      return debug + debugInstruction('OP_MODULO', index)
+      return debugInstruction(debug, 'OP_MODULO', index)
     case OP_MULTIPLY:
-      return debug + debugInstruction('OP_MULTIPLY', index)
+      return debugInstruction(debug, 'OP_MULTIPLY', index)
     case OP_NEGATE:
-      return debug + debugInstruction('OP_NEGATE', index)
+      return debugInstruction(debug, 'OP_NEGATE', index)
     case OP_NONE:
-      return debug + debugInstruction('OP_NONE', index)
+      return debugInstruction(debug, 'OP_NONE', index)
     case OP_NOT:
-      return debug + debugInstruction('OP_NOT', index)
+      return debugInstruction(debug, 'OP_NOT', index)
     case OP_NOT_EQUAL:
-      return debug + debugInstruction('OP_NOT_EQUAL', index)
+      return debugInstruction(debug, 'OP_NOT_EQUAL', index)
     case OP_POP:
-      return debug + debugInstruction('OP_POP', index)
+      return debugInstruction(debug, 'OP_POP', index)
+    case OP_POP_N:
+      return debugByteInstruction(debug, 'OP_POP_N', code, index)
+    case OP_POP_TWO:
+      return debugInstruction(debug, 'OP_POP_TWO', index)
     case OP_PRINT:
-      return debug + debugInstruction('OP_PRINT', index)
-    case OP_THROW:
-      return debug + debugInstruction('OP_THROW', index)
-    case OP_SET_DYNAMIC:
-      return debug + debugInstruction('OP_SET_DYNAMIC', index)
-    case OP_SET_GLOBAL:
-      return debug + debugConstantInstruction('OP_SET_GLOBAL', code, index)
-    case OP_SET_LOCAL:
-      return debug + debugByteInstruction('OP_SET_LOCAL', code, index)
-    case OP_SET_PROPERTY:
-      return debug + debugConstantInstruction('OP_SET_PROPERTY', code, index)
-    case OP_SLICE:
-      return debug + debugInstruction('OP_SLICE', index)
-    case OP_SUBTRACT:
-      return debug + debugInstruction('OP_SUBTRACT', index)
-    case OP_TO_FLOAT:
-      return debug + debugInstruction('OP_TO_FLOAT', index)
-    case OP_TO_INTEGER:
-      return debug + debugInstruction('OP_TO_INTEGER', index)
-    case OP_TO_STRING:
-      return debug + debugInstruction('OP_TO_STRING', index)
-    case OP_TRUE:
-      return debug + debugInstruction('OP_TRUE', index)
-    case OP_TYPE:
-      return debug + debugInstruction('OP_TYPE', index)
-    case OP_USE:
-      return debug + debugInstruction('OP_USE', index)
+      return debugInstruction(debug, 'OP_PRINT', index)
     case OP_RETURN:
-      return debug + debugInstruction('OP_RETURN', index)
+      return debugInstruction(debug, 'OP_RETURN', index)
+    case OP_SET_DYNAMIC:
+      return debugInstruction(debug, 'OP_SET_DYNAMIC', index)
+    case OP_SET_GLOBAL:
+      return debugConstantInstruction(debug, 'OP_SET_GLOBAL', code, index)
+    case OP_SET_LOCAL:
+      return debugByteInstruction(debug, 'OP_SET_LOCAL', code, index)
+    case OP_SET_PROPERTY:
+      return debugConstantInstruction(debug, 'OP_SET_PROPERTY', code, index)
+    case OP_SLICE:
+      return debugInstruction(debug, 'OP_SLICE', index)
+    case OP_SUBTRACT:
+      return debugInstruction(debug, 'OP_SUBTRACT', index)
+    case OP_TAIL_CALL:
+      return debugByteInstruction(debug, 'OP_TAIL_CALL', code, index)
+    case OP_THROW:
+      return debugInstruction(debug, 'OP_THROW', index)
+    case OP_TO_FLOAT:
+      return debugInstruction(debug, 'OP_TO_FLOAT', index)
+    case OP_TO_INTEGER:
+      return debugInstruction(debug, 'OP_TO_INTEGER', index)
+    case OP_TO_STRING:
+      return debugInstruction(debug, 'OP_TO_STRING', index)
+    case OP_TRUE:
+      return debugInstruction(debug, 'OP_TRUE', index)
+    case OP_TYPE:
+      return debugInstruction(debug, 'OP_TYPE', index)
+    case OP_USE:
+      return debugInstruction(debug, 'OP_USE', index)
     default:
-      return debug + 'UNKNOWN OPCODE ' + op
+      return (debug[0] += 'UNKNOWN OPCODE ' + instruction)
+  }
+}
+
+function disassembleByteCode(code, name) {
+  console.debug('\n-- ' + name + ' --')
+  let debug = ['']
+  let index = 0
+  while (index < code.count) {
+    index = disassembleInstruction(debug, code, index)
+    console.debug(debug[0])
+    debug[0] = ''
   }
 }
 
@@ -2704,26 +3415,25 @@ function debugStack(H) {
   if (H.stackTop === 0) {
     return
   }
-  let debug = 'STACK: '
+  let debug = 'STACK   | '
   for (let i = 0; i < H.stackTop; i++) {
     debug += '[' + debugValueToString(H.stack[i]) + '] '
   }
-  return debug
+  console.debug(debug)
 }
 
-function debugTrace(H, code, ip) {
-  let debug = disassembleInstruction(code, ip)
-  if (HYMN_DEBUG_STACK) debug += ' ' + debugStack(H)
-  return debug
+function debugTrace(code, index) {
+  let debug = ['']
+  disassembleInstruction(debug, code, index)
+  console.debug(debug[0])
 }
 
 async function hymnRun(H) {
   let frame = currentFrame(H)
   while (true) {
-    if (HYMN_DEBUG_TRACE) console.debug(debugTrace(H, frame.func.code, frame.ip))
-    else if (HYMN_DEBUG_STACK) console.debug(debugStack(H))
-    const op = readByte(frame)
-    switch (op) {
+    if (HYMN_DEBUG_STACK) debugStack(H)
+    if (HYMN_DEBUG_TRACE) debugTrace(frame.func.code, frame.ip)
+    switch (readByte(frame)) {
       case OP_RETURN: {
         const result = hymnPop(H)
         H.frameCount--
@@ -2738,6 +3448,16 @@ async function hymnRun(H) {
       }
       case OP_POP:
         hymnPop(H)
+        break
+      case OP_POP_TWO:
+        hymnPop(H)
+        hymnPop(H)
+        break
+      case OP_POP_N:
+        let count = readByte(frame)
+        while (count--) {
+          hymnPop(H)
+        }
         break
       case OP_TRUE:
         hymnPush(H, newBool(true))
@@ -2755,21 +3475,117 @@ async function hymnRun(H) {
         if (frame === null) return
         break
       }
+      case OP_TAIL_CALL: {
+        // TODO
+        const count = readByte(frame)
+        const call = hymnPeek(H, count + 1)
+        frame = hymnCallValue(H, call, count)
+        if (frame === null) return
+        break
+      }
       case OP_JUMP: {
         const jump = readShort(frame)
         frame.ip += jump
         break
       }
       case OP_JUMP_IF_FALSE: {
+        const value = hymnPop(H)
         const jump = readShort(frame)
-        if (hymnFalse(hymnPeek(H, 1))) {
+        if (hymnFalse(value)) {
           frame.ip += jump
         }
         break
       }
       case OP_JUMP_IF_TRUE: {
+        const value = hymnPop(H)
         const jump = readShort(frame)
-        if (!hymnFalse(hymnPeek(H, 1))) {
+        if (!hymnFalse(value)) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_EQUAL: {
+        const b = hymnPop(H)
+        const a = hymnPop(H)
+        const jump = readShort(frame)
+        if (hymnEqual(a, b)) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_NOT_EQUAL: {
+        const b = hymnPop(H)
+        const a = hymnPop(H)
+        const jump = readShort(frame)
+        if (!hymnEqual(a, b)) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_LESS: {
+        const b = hymnPop(H)
+        const a = hymnPop(H)
+        let answer = false
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          answer = a.value < b.value
+        } else {
+          frame = hymnThrowError(H, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        const jump = readShort(frame)
+        if (answer) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_LESS_EQUAL: {
+        const b = hymnPop(H)
+        const a = hymnPop(H)
+        let answer = false
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          answer = a.value <= b.value
+        } else {
+          frame = hymnThrowError(H, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        const jump = readShort(frame)
+        if (answer) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_GREATER: {
+        const b = hymnPop(H)
+        const a = hymnPop(H)
+        let answer = false
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          answer = a.value > b.value
+        } else {
+          frame = hymnThrowError(H, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        const jump = readShort(frame)
+        if (answer) {
+          frame.ip += jump
+        }
+        break
+      }
+      case OP_JUMP_IF_GREATER_EQUAL: {
+        const b = hymnPop(H)
+        const a = hymnPop(H)
+        let answer = false
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          answer = a.value >= b.value
+        } else {
+          frame = hymnThrowError(H, 'Operands must be numbers.')
+          if (frame === null) return
+          else break
+        }
+        const jump = readShort(frame)
+        if (answer) {
           frame.ip += jump
         }
         break
@@ -2777,6 +3593,77 @@ async function hymnRun(H) {
       case OP_LOOP: {
         const jump = readShort(frame)
         frame.ip -= jump
+        break
+      }
+      case OP_FOR: {
+        const slot = readByte(frame)
+        const object = H.stack[frame.stack + slot]
+        H.stackTop += 2
+        if (isTable(object)) {
+          const table = object.value
+          const next = tableNext(table, null)
+          if (next === null) {
+            H.stack[frame.stack + slot + 1] = newNone()
+            H.stack[frame.stack + slot + 2] = newNone()
+            const jump = readShort(frame)
+            frame.ip += jump
+          } else {
+            H.stack[frame.stack + slot + 1] = newString(next.key)
+            H.stack[frame.stack + slot + 2] = next.value
+            frame.ip += 2
+          }
+        } else if (isArray(object)) {
+          const array = object.value
+          if (array.length === 0) {
+            H.stack[frame.stack + slot + 1] = newNone()
+            H.stack[frame.stack + slot + 2] = newNone()
+            const jump = readShort(frame)
+            frame.ip += jump
+          } else {
+            const item = array[0]
+            H.stack[frame.stack + slot + 1] = newInt(0)
+            H.stack[frame.stack + slot + 2] = item
+            frame.ip += 2
+          }
+        } else {
+          H.stack[frame.stack + slot + 1] = newNone()
+          H.stack[frame.stack + slot + 2] = newNone()
+          frame = hymnThrowError(H, 'Loop: Expected table or array')
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_FOR_LOOP: {
+        const slot = readByte(frame)
+        const object = H.stack[frame.stack + slot]
+        const index = slot + 1
+        const value = slot + 2
+        if (isTable(object)) {
+          const table = object.value
+          const key = H.stack[frame.stack + index].value
+          const next = tableNext(table, key)
+          if (next === null) {
+            frame.ip += 2
+          } else {
+            H.stack[frame.stack + index] = newString(next.key)
+            H.stack[frame.stack + value] = next.value
+            const jump = readShort(frame)
+            frame.ip -= jump
+          }
+        } else {
+          const array = object.value
+          const key = H.stack[frame.stack + index].value + 1
+          if (key >= array.length) {
+            frame.ip += 2
+          } else {
+            const item = array[key]
+            H.stack[frame.stack + index].value++
+            H.stack[frame.stack + value] = item
+            const jump = readShort(frame)
+            frame.ip -= jump
+          }
+        }
         break
       }
       case OP_EQUAL: {
@@ -2794,26 +3681,8 @@ async function hymnRun(H) {
       case OP_LESS: {
         const b = hymnPop(H)
         const a = hymnPop(H)
-        if (isInt(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value < b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value < b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
-        } else if (isFloat(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value < b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value < b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          hymnPush(H, newBool(a.value < b.value))
         } else {
           frame = hymnThrowError(H, 'Operands must be numbers.')
           if (frame === null) return
@@ -2824,26 +3693,8 @@ async function hymnRun(H) {
       case OP_LESS_EQUAL: {
         const b = hymnPop(H)
         const a = hymnPop(H)
-        if (isInt(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value <= b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value <= b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
-        } else if (isFloat(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value <= b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value <= b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          hymnPush(H, newBool(a.value <= b.value))
         } else {
           frame = hymnThrowError(H, 'Operands must be numbers.')
           if (frame === null) return
@@ -2854,26 +3705,8 @@ async function hymnRun(H) {
       case OP_GREATER: {
         const b = hymnPop(H)
         const a = hymnPop(H)
-        if (isInt(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value > b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value > b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
-        } else if (isFloat(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value > b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value > b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          hymnPush(H, newBool(a.value > b.value))
         } else {
           frame = hymnThrowError(H, 'Operands must be numbers.')
           if (frame === null) return
@@ -2884,26 +3717,8 @@ async function hymnRun(H) {
       case OP_GREATER_EQUAL: {
         const b = hymnPop(H)
         const a = hymnPop(H)
-        if (isInt(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value >= b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value >= b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
-        } else if (isFloat(a)) {
-          if (isInt(b)) {
-            hymnPush(H, newBool(a.value >= b.value))
-          } else if (isFloat(b)) {
-            hymnPush(H, newBool(a.value >= b.value))
-          } else {
-            frame = hymnThrowError(H, 'Operands must be numbers.')
-            if (frame === null) return
-            else break
-          }
+        if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
+          hymnPush(H, newBool(a.value >= b.value))
         } else {
           frame = hymnThrowError(H, 'Operands must be numbers.')
           if (frame === null) return
@@ -3279,6 +4094,43 @@ async function hymnRun(H) {
         hymnPush(H, value)
         break
       }
+      case OP_GET_TWO_LOCAL: {
+        const slotA = readByte(frame)
+        const slotB = readByte(frame)
+        const valueA = H.stack[frame.stack + slotA]
+        const valueB = H.stack[frame.stack + slotB]
+        hymnPush(H, valueA)
+        hymnPush(H, valueB)
+        break
+      }
+      case OP_INCREMENT_LOCAL: {
+        const slot = readByte(frame)
+        const increment = readByte(frame)
+        const value = H.stack[frame.stack + slot]
+        if (isInt(value) || isFloat(value)) {
+          value.value += increment
+        } else {
+          frame = hymnThrowError(H, 'Increment Local: Expected `Number` but was `' + valueName(value.is) + '`')
+          if (frame === null) return
+          else break
+        }
+        hymnPush(H, value)
+        break
+      }
+      case OP_INCREMENT_LOCAL_AND_SET: {
+        const slot = readByte(frame)
+        const increment = readByte(frame)
+        const value = H.stack[frame.stack + slot]
+        if (isInt(value) || isFloat(value)) {
+          value.value += increment
+        } else {
+          frame = hymnThrowError(H, 'Get and Set Local: Expected `Number` but was `' + valueName(value.is) + '`')
+          if (frame === null) return
+          else break
+        }
+        H.stack[frame.stack + slot] = value
+        break
+      }
       case OP_SET_PROPERTY: {
         const p = hymnPop(H)
         const v = hymnPop(H)
@@ -3323,19 +4175,19 @@ async function hymnRun(H) {
           const size = array.length
           const index = i.value
           if (index > size) {
-            frame = hymnThrowError(H, 'Array index out of bounds %d > %d.', index, size)
+            frame = hymnThrowError(H, 'Array index out of bounds ' + index + ' > ' + size + '.')
             if (frame === null) return
             else break
           }
           if (index < 0) {
             index = size + index
             if (index < 0) {
-              frame = hymnThrowError(H, 'Array index out of bounds %d.', index)
+              frame = hymnThrowError(H, 'Array index out of bounds ' + index + '.')
               if (frame === null) return
               else break
             }
           }
-          if (index == size) {
+          if (index === size) {
             array.push(s)
           } else {
             array[index] = s
@@ -3350,8 +4202,7 @@ async function hymnRun(H) {
           const name = i.value
           table.set(name, s)
         } else {
-          const is = valueName(v.is)
-          frame = hymnThrowError(H, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.', is)
+          frame = hymnThrowError(H, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `' + valueName(v.is) + '`.', is)
           if (frame === null) return
           else break
         }
@@ -3520,7 +4371,7 @@ async function hymnRun(H) {
               else break
             }
           }
-          if (index == size) {
+          if (index === size) {
             array.push(p)
           } else {
             array.splice(index, 0, p)
@@ -3872,18 +4723,6 @@ async function hymnRun(H) {
         hymnPush(H, top)
         break
       }
-      case OP_DO: {
-        const code = hymnPop(H)
-        if (isString(code)) {
-          frame = await hymnDo(H, code.value)
-          if (frame === null) return
-        } else {
-          frame = hymnThrowError(H, "Expected string for 'do' command.")
-          if (frame === null) return
-          else break
-        }
-        break
-      }
       case OP_USE: {
         const file = hymnPop(H)
         if (isString(file)) {
@@ -3897,7 +4736,7 @@ async function hymnRun(H) {
         break
       }
       default:
-        console.error('Unknown instruction:', op)
+        console.error('Unknown instruction')
         return
     }
   }
@@ -3910,6 +4749,28 @@ function hymnAddFunction(H, name, func) {
 
 function hymnAddPointer(H, name, pointer) {
   H.globals.set(name, newPointerValue(pointer))
+}
+
+async function hymnDebug(H, script, source) {
+  const result = compile(H, script, source)
+
+  const func = result.func
+  if (result.error !== null) {
+    return result.error
+  }
+
+  disassembleByteCode(func.code, script)
+
+  const constants = func.code.constants
+  for (let i = 0; i < constants.length; i++) {
+    const constant = constants[i]
+    if (isFunc(constant)) {
+      const value = constant.value
+      disassembleByteCode(value.code, value.name)
+    }
+  }
+
+  return null
 }
 
 async function hymnScriptInterpret(H, script, source) {
@@ -3943,14 +4804,14 @@ function newHymn() {
   if (node) {
     H.paths.push(newString('<parent>/<path>.hm'))
     H.paths.push(newString('./<path>.hm'))
-    H.paths.push(newString('./modules/<path>.hm'))
+    H.paths.push(newString('./libs/<path>.hm'))
   } else {
     const address = window.location.href
     const url = address.substring(0, address.lastIndexOf('/') + 1)
     H.paths.push(newString(url + '<path>.hm'))
-    H.paths.push(newString(url + 'modules/<path>.hm'))
+    H.paths.push(newString(url + 'libs/<path>.hm'))
     H.paths.push(newString('/<path>.hm'))
-    H.paths.push(newString('/modules/<path>.hm'))
+    H.paths.push(newString('/libs/<path>.hm'))
   }
 
   H.globals.set('__paths', newArrayValue(H.paths))
@@ -3964,5 +4825,6 @@ if (node) {
     init: newHymn,
     interpret: hymnInterpret,
     scriptInterpret: hymnScriptInterpret,
+    debug: hymnDebug,
   }
 }

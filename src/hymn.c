@@ -570,9 +570,15 @@ enum TokenType {
     TOKEN_AND,
     TOKEN_ASSIGN,
     TOKEN_ASSIGN_ADD,
-    TOKEN_ASSIGN_SUBTRACT,
-    TOKEN_ASSIGN_MULTIPLY,
+    TOKEN_ASSIGN_BIT_AND,
+    TOKEN_ASSIGN_BIT_LEFT_SHIFT,
+    TOKEN_ASSIGN_BIT_OR,
+    TOKEN_ASSIGN_BIT_RIGHT_SHIFT,
+    TOKEN_ASSIGN_BIT_XOR,
     TOKEN_ASSIGN_DIVIDE,
+    TOKEN_ASSIGN_MODULO,
+    TOKEN_ASSIGN_MULTIPLY,
+    TOKEN_ASSIGN_SUBTRACT,
     TOKEN_BEGIN,
     TOKEN_BIT_AND,
     TOKEN_BIT_LEFT_SHIFT,
@@ -984,9 +990,15 @@ Rule rules[] = {
     [TOKEN_AND] = {NULL, compile_and, PRECEDENCE_AND},
     [TOKEN_ASSIGN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ASSIGN_ADD] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_SUBTRACT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_MULTIPLY] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_BIT_AND] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_BIT_LEFT_SHIFT] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_BIT_OR] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_BIT_RIGHT_SHIFT] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_BIT_XOR] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ASSIGN_DIVIDE] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_MODULO] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_MULTIPLY] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ASSIGN_SUBTRACT] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_BEGIN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_BIT_AND] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BIT_LEFT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
@@ -995,8 +1007,8 @@ Rule rules[] = {
     [TOKEN_BIT_RIGHT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BIT_XOR] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BREAK] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CLEAR] = {clear_expression, NULL, PRECEDENCE_NONE},
+    [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE},
@@ -1044,20 +1056,20 @@ Rule rules[] = {
     [TOKEN_RIGHT_CURLY] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_RIGHT_SQUARE] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_SEMICOLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_STRING] = {compile_string, NULL, PRECEDENCE_NONE},
     [TOKEN_SUBTRACT] = {compile_unary, compile_binary, PRECEDENCE_TERM},
+    [TOKEN_THROW] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_TO_FLOAT] = {cast_float_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_TO_INTEGER] = {cast_integer_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_TO_STRING] = {cast_string_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_TRUE] = {compile_true, NULL, PRECEDENCE_NONE},
     [TOKEN_TRY] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_THROW] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_TYPE_FUNC] = {type_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_UNDEFINED] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_USE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_VALUE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_SEMICOLON] = {NULL, NULL, PRECEDENCE_NONE},
 };
 
 static const char *value_name(enum HymnValueType type) {
@@ -1715,6 +1727,22 @@ static void advance(Compiler *C) {
                 c = peek_char(C);
             }
             continue;
+        case '!':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_NOT_EQUAL, 2, 2);
+            } else {
+                token(C, TOKEN_NOT);
+            }
+            return;
+        case '=':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_EQUAL, 2, 2);
+            } else {
+                token(C, TOKEN_ASSIGN);
+            }
+            return;
         case '-': {
             if (peek_char(C) == '-') {
                 next_char(C);
@@ -1733,22 +1761,6 @@ static void advance(Compiler *C) {
                 return;
             }
         }
-        case '!':
-            if (peek_char(C) == '=') {
-                next_char(C);
-                token_special(C, TOKEN_NOT_EQUAL, 2, 2);
-            } else {
-                token(C, TOKEN_NOT);
-            }
-            return;
-        case '=':
-            if (peek_char(C) == '=') {
-                next_char(C);
-                token_special(C, TOKEN_EQUAL, 2, 2);
-            } else {
-                token(C, TOKEN_ASSIGN);
-            }
-            return;
         case '+':
             if (peek_char(C) == '=') {
                 next_char(C);
@@ -1773,13 +1785,50 @@ static void advance(Compiler *C) {
                 token(C, TOKEN_DIVIDE);
             }
             return;
+        case '%':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_MODULO, 2, 2);
+            } else {
+                token(C, TOKEN_MODULO);
+            }
+            return;
+        case '&':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_BIT_AND, 2, 2);
+            } else {
+                token(C, TOKEN_BIT_AND);
+            }
+            return;
+        case '|':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_BIT_OR, 2, 2);
+            } else {
+                token(C, TOKEN_BIT_OR);
+            }
+            return;
+        case '^':
+            if (peek_char(C) == '=') {
+                next_char(C);
+                token_special(C, TOKEN_ASSIGN_BIT_XOR, 2, 2);
+            } else {
+                token(C, TOKEN_BIT_XOR);
+            }
+            return;
         case '>':
             if (peek_char(C) == '=') {
                 next_char(C);
                 token_special(C, TOKEN_GREATER_EQUAL, 2, 2);
             } else if (peek_char(C) == '>') {
                 next_char(C);
-                token_special(C, TOKEN_BIT_RIGHT_SHIFT, 2, 2);
+                if (peek_char(C) == '=') {
+                    next_char(C);
+                    token_special(C, TOKEN_ASSIGN_BIT_RIGHT_SHIFT, 2, 2);
+                } else {
+                    token_special(C, TOKEN_BIT_RIGHT_SHIFT, 2, 2);
+                }
             } else {
                 token(C, TOKEN_GREATER);
             }
@@ -1790,16 +1839,17 @@ static void advance(Compiler *C) {
                 token_special(C, TOKEN_LESS_EQUAL, 2, 2);
             } else if (peek_char(C) == '<') {
                 next_char(C);
-                token_special(C, TOKEN_BIT_LEFT_SHIFT, 2, 2);
+                if (peek_char(C) == '=') {
+                    next_char(C);
+                    token_special(C, TOKEN_ASSIGN_BIT_LEFT_SHIFT, 2, 2);
+                } else {
+                    token_special(C, TOKEN_BIT_LEFT_SHIFT, 2, 2);
+                }
             } else {
                 token(C, TOKEN_LESS);
             }
             return;
-        case '&': token(C, TOKEN_BIT_AND); return;
-        case '|': token(C, TOKEN_BIT_OR); return;
-        case '^': token(C, TOKEN_BIT_XOR); return;
         case '~': token(C, TOKEN_BIT_NOT); return;
-        case '%': token(C, TOKEN_MODULO); return;
         case ',': token(C, TOKEN_COMMA); return;
         case '.': token(C, TOKEN_DOT); return;
         case '(': token(C, TOKEN_LEFT_PAREN); return;
@@ -2213,35 +2263,28 @@ static void write_byte(HymnByteCode *code, uint8_t b, int row) {
     code->count = count + 1;
 }
 
-static void write_instruction(Compiler *C, uint8_t i, int row) {
-    write_byte(current(C), i, row);
+static void emit(Compiler *C, uint8_t i) {
+    write_byte(current(C), i, C->previous.row);
 }
 
-static void write_short_instruction(Compiler *C, uint8_t i, uint8_t b) {
+static void emit_short(Compiler *C, uint8_t i, uint8_t b) {
     int row = C->previous.row;
-    write_instruction(C, i, row);
-    write_byte(current(C), b, row);
-}
-
-static void write_word_instruction(Compiler *C, uint8_t i, uint8_t b, uint8_t n) {
-    int row = C->previous.row;
-    write_instruction(C, i, row);
     HymnByteCode *code = current(C);
+    write_byte(code, i, row);
+    write_byte(code, b, row);
+}
+
+static void emit_word(Compiler *C, uint8_t i, uint8_t b, uint8_t n) {
+    int row = C->previous.row;
+    HymnByteCode *code = current(C);
+    write_byte(code, i, row);
     write_byte(code, b, row);
     write_byte(code, n, row);
 }
 
-static void emit(Compiler *C, uint8_t i) {
-    write_instruction(C, i, C->previous.row);
-}
-
-static void emit_byte(Compiler *C, uint8_t i) {
-    write_byte(current(C), i, C->previous.row);
-}
-
-static uint8_t write_constant(Compiler *C, HymnValue value) {
+static uint8_t emit_constant(Compiler *C, HymnValue value) {
     uint8_t constant = byte_code_new_constant(C, value);
-    write_short_instruction(C, OP_CONSTANT, constant);
+    emit_short(C, OP_CONSTANT, constant);
     return constant;
 }
 
@@ -2271,9 +2314,15 @@ static bool check_assign(Compiler *C) {
     switch (C->current.type) {
     case TOKEN_ASSIGN:
     case TOKEN_ASSIGN_ADD:
-    case TOKEN_ASSIGN_SUBTRACT:
-    case TOKEN_ASSIGN_MULTIPLY:
+    case TOKEN_ASSIGN_BIT_AND:
+    case TOKEN_ASSIGN_BIT_LEFT_SHIFT:
+    case TOKEN_ASSIGN_BIT_OR:
+    case TOKEN_ASSIGN_BIT_RIGHT_SHIFT:
+    case TOKEN_ASSIGN_BIT_XOR:
     case TOKEN_ASSIGN_DIVIDE:
+    case TOKEN_ASSIGN_MODULO:
+    case TOKEN_ASSIGN_MULTIPLY:
+    case TOKEN_ASSIGN_SUBTRACT:
         return true;
     default:
         return false;
@@ -2357,7 +2406,7 @@ static uint8_t arguments(Compiler *C) {
 static void compile_call(Compiler *C, bool assign) {
     (void)assign;
     uint8_t count = arguments(C);
-    write_short_instruction(C, OP_CALL, count);
+    emit_short(C, OP_CALL, count);
 }
 
 static void compile_group(Compiler *C, bool assign) {
@@ -2385,14 +2434,14 @@ static void compile_integer(Compiler *C, bool assign) {
     (void)assign;
     Token *previous = &C->previous;
     int64_t number = (int64_t)strtoll(&C->source[previous->start], NULL, 10);
-    write_constant(C, hymn_new_int(number));
+    emit_constant(C, hymn_new_int(number));
 }
 
 static void compile_float(Compiler *C, bool assign) {
     (void)assign;
     Token *previous = &C->previous;
     double number = strtod(&C->source[previous->start], NULL);
-    write_constant(C, hymn_new_float(number));
+    emit_constant(C, hymn_new_float(number));
 }
 
 char escape_sequence(const char c) {
@@ -2446,7 +2495,7 @@ static void compile_string(Compiler *C, bool assign) {
     (void)assign;
     Token *previous = &C->previous;
     HymnString *s = parse_string_literal(C->source, previous->start, previous->length);
-    write_constant(C, compile_intern_string(C->H, s));
+    emit_constant(C, compile_intern_string(C->H, s));
 }
 
 static uint8_t ident_constant(Compiler *C, Token *token) {
@@ -2469,15 +2518,14 @@ static void end_scope(Compiler *C) {
 
 static void compile_array(Compiler *C, bool assign) {
     (void)assign;
-    write_constant(C, hymn_new_array_value(NULL));
+    emit_constant(C, hymn_new_array_value(NULL));
     if (match(C, TOKEN_RIGHT_SQUARE)) {
         return;
     }
     while (!check(C, TOKEN_RIGHT_SQUARE) && !check(C, TOKEN_EOF)) {
         emit(C, OP_DUPLICATE);
         expression(C);
-        emit(C, OP_ARRAY_PUSH);
-        emit(C, OP_POP);
+        emit_short(C, OP_ARRAY_PUSH, OP_POP);
         if (!check(C, TOKEN_RIGHT_SQUARE)) {
             consume(C, TOKEN_COMMA, "Expected `,`");
         }
@@ -2487,7 +2535,7 @@ static void compile_array(Compiler *C, bool assign) {
 
 static void compile_table(Compiler *C, bool assign) {
     (void)assign;
-    write_constant(C, hymn_new_table_value(NULL));
+    emit_constant(C, hymn_new_table_value(NULL));
     if (match(C, TOKEN_RIGHT_CURLY)) {
         return;
     }
@@ -2497,7 +2545,7 @@ static void compile_table(Compiler *C, bool assign) {
         uint8_t name = ident_constant(C, &C->previous);
         consume(C, TOKEN_COLON, "Expected `:`");
         expression(C);
-        write_short_instruction(C, OP_SET_PROPERTY, name);
+        emit_short(C, OP_SET_PROPERTY, name);
         emit(C, OP_POP);
         if (!check(C, TOKEN_RIGHT_CURLY)) {
             consume(C, TOKEN_COMMA, "Expected `,`");
@@ -2574,7 +2622,7 @@ static void finalize_variable(Compiler *C, uint8_t global) {
         local_initialize(C);
         return;
     }
-    write_short_instruction(C, OP_DEFINE_GLOBAL, global);
+    emit_short(C, OP_DEFINE_GLOBAL, global);
 }
 
 static void define_new_variable(Compiler *C) {
@@ -2614,19 +2662,25 @@ static void named_variable(Compiler *C, Token token, bool assign) {
         enum TokenType type = C->current.type;
         advance(C);
         if (type != TOKEN_ASSIGN) {
-            write_short_instruction(C, get, (uint8_t)var);
+            emit_short(C, get, (uint8_t)var);
         }
         expression(C);
         switch (type) {
         case TOKEN_ASSIGN_ADD: emit(C, OP_ADD); break;
-        case TOKEN_ASSIGN_SUBTRACT: emit(C, OP_SUBTRACT); break;
-        case TOKEN_ASSIGN_MULTIPLY: emit(C, OP_MULTIPLY); break;
+        case TOKEN_ASSIGN_BIT_AND: emit(C, OP_BIT_AND); break;
+        case TOKEN_ASSIGN_BIT_LEFT_SHIFT: emit(C, OP_BIT_LEFT_SHIFT); break;
+        case TOKEN_ASSIGN_BIT_OR: emit(C, OP_BIT_OR); break;
+        case TOKEN_ASSIGN_BIT_RIGHT_SHIFT: emit(C, OP_BIT_RIGHT_SHIFT); break;
+        case TOKEN_ASSIGN_BIT_XOR: emit(C, OP_BIT_XOR); break;
         case TOKEN_ASSIGN_DIVIDE: emit(C, OP_DIVIDE); break;
+        case TOKEN_ASSIGN_MODULO: emit(C, OP_MODULO); break;
+        case TOKEN_ASSIGN_MULTIPLY: emit(C, OP_MULTIPLY); break;
+        case TOKEN_ASSIGN_SUBTRACT: emit(C, OP_SUBTRACT); break;
         default: break;
         }
-        write_short_instruction(C, set, (uint8_t)var);
+        emit_short(C, set, (uint8_t)var);
     } else {
-        write_short_instruction(C, get, (uint8_t)var);
+        emit_short(C, get, (uint8_t)var);
     }
 }
 
@@ -2677,17 +2731,17 @@ static void compile_dot(Compiler *C, bool assign) {
     uint8_t name = ident_constant(C, &C->previous);
     if (assign && match(C, TOKEN_ASSIGN)) {
         expression(C);
-        write_short_instruction(C, OP_SET_PROPERTY, name);
+        emit_short(C, OP_SET_PROPERTY, name);
     } else {
-        write_short_instruction(C, OP_GET_PROPERTY, name);
+        emit_short(C, OP_GET_PROPERTY, name);
     }
 }
 
 static void compile_square(Compiler *C, bool assign) {
     if (match(C, TOKEN_COLON)) {
-        write_constant(C, hymn_new_int(0));
+        emit_constant(C, hymn_new_int(0));
         if (match(C, TOKEN_RIGHT_SQUARE)) {
-            write_constant(C, hymn_new_none());
+            emit_constant(C, hymn_new_none());
         } else {
             expression(C);
             consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
@@ -2697,7 +2751,7 @@ static void compile_square(Compiler *C, bool assign) {
         expression(C);
         if (match(C, TOKEN_COLON)) {
             if (match(C, TOKEN_RIGHT_SQUARE)) {
-                write_constant(C, hymn_new_none());
+                emit_constant(C, hymn_new_none());
             } else {
                 expression(C);
                 consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
@@ -2717,8 +2771,7 @@ static void compile_square(Compiler *C, bool assign) {
 
 static int emit_jump(Compiler *C, uint8_t instruction) {
     emit(C, instruction);
-    emit_byte(C, UINT8_MAX);
-    emit_byte(C, UINT8_MAX);
+    emit_short(C, UINT8_MAX, UINT8_MAX);
     return current(C)->count - 2;
 }
 
@@ -2737,9 +2790,9 @@ static void patch_jump(Compiler *C, int jump) {
     code->instructions[jump + 1] = offset & UINT8_MAX;
 }
 
-static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode code) {
+static struct JumpList *add_jump(Compiler *C, struct JumpList *list, enum OpCode instruction) {
     struct JumpList *jump = hymn_calloc(1, sizeof(struct JumpList));
-    jump->jump = emit_jump(C, code);
+    jump->jump = emit_jump(C, instruction);
     jump->depth = C->scope->depth;
     jump->code = current(C);
     jump->next = list;
@@ -3165,6 +3218,7 @@ static void optimize(Compiler *C) {
 
         one = two;
     }
+
     code->count = count;
 }
 
@@ -3206,7 +3260,7 @@ static void compile_function(Compiler *C, enum FunctionType type) {
     consume(C, TOKEN_END, "Expected `end` after function body");
 
     HymnFunction *func = end_function(C);
-    write_constant(C, hymn_new_func_value(func));
+    emit_constant(C, hymn_new_func_value(func));
 }
 
 static void declare_function(Compiler *C) {
@@ -3249,10 +3303,8 @@ static void if_statement(Compiler *C) {
     if (check(C, TOKEN_END)) {
         patch_jump(C, jump);
         free_jump_and_list(C);
-
     } else {
         struct JumpList jump_end = {0};
-
         jump_end.jump = emit_jump(C, OP_JUMP);
         struct JumpList *tail = &jump_end;
 
@@ -3324,8 +3376,8 @@ static void emit_loop(Compiler *C, int start) {
     if (offset > UINT16_MAX) {
         compile_error(C, &C->previous, "Loop is too large");
     }
-    emit_byte(C, (offset >> 8) & UINT8_MAX);
-    emit_byte(C, offset & UINT8_MAX);
+    emit(C, (offset >> 8) & UINT8_MAX);
+    emit(C, offset & UINT8_MAX);
 }
 
 static void patch_jump_list(Compiler *C) {
@@ -3365,7 +3417,6 @@ static void patch_jump_for_list(Compiler *C) {
 }
 
 static void iterator_statement(Compiler *C, bool pair) {
-
     local_initialize(C);
 
     uint8_t index = (uint8_t)C->scope->local_count;
@@ -3378,13 +3429,10 @@ static void iterator_statement(Compiler *C, bool pair) {
     if (pair) {
         variable(C, "Missing variable name in for loop");
         local_initialize(C);
-
         consume(C, TOKEN_IN, "Missing `in` in for loop");
-
         C->scope->locals[index].name = C->scope->locals[object].name;
     } else {
         push_hidden_local(C);
-
         C->scope->locals[value].name = C->scope->locals[object].name;
     }
 
@@ -3394,9 +3442,8 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     expression(C);
 
-    write_short_instruction(C, OP_FOR, object);
-    emit_byte(C, UINT8_MAX);
-    emit_byte(C, UINT8_MAX);
+    emit_short(C, OP_FOR, object);
+    emit_short(C, UINT8_MAX, UINT8_MAX);
 
     int start = current(C)->count;
     int jump = start - 2;
@@ -3412,13 +3459,12 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     patch_jump_for_list(C);
 
-    write_short_instruction(C, OP_FOR_LOOP, object);
+    emit_short(C, OP_FOR_LOOP, object);
     int offset = current(C)->count - start + 2;
     if (offset > UINT16_MAX) {
         compile_error(C, &C->previous, "Loop is too large");
     }
-    emit_byte(C, (offset >> 8) & UINT8_MAX);
-    emit_byte(C, offset & UINT8_MAX);
+    emit_short(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
 
     // END
 
@@ -3445,15 +3491,12 @@ static void for_statement(Compiler *C) {
         expression(C);
         local_initialize(C);
         consume(C, TOKEN_COMMA, "Missing `,` in for loop");
-
     } else if (match(C, TOKEN_COMMA)) {
         iterator_statement(C, true);
         return;
-
     } else if (match(C, TOKEN_IN)) {
         iterator_statement(C, false);
         return;
-
     } else {
         compile_error(C, &C->previous, "Missing either `=`, `in`, or `,` in for loop");
         return;
@@ -3477,7 +3520,7 @@ static void for_statement(Compiler *C) {
     if (match(C, TOKEN_COMMA)) {
         expression(C);
     } else {
-        write_word_instruction(C, OP_INCREMENT_LOCAL_AND_SET, index, 1);
+        emit_word(C, OP_INCREMENT_LOCAL_AND_SET, index, 1);
     }
 
     HymnByteCode *code = current(C);
@@ -4466,39 +4509,39 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
     return current_frame(H);
 }
 
-static size_t debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
-    uint8_t constant = this->instructions[index + 1];
+static size_t debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+    uint8_t constant = code->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [", name);
-    HymnString *value = debug_value_to_string(this->constants.values[constant]);
+    HymnString *value = debug_value_to_string(code->constants.values[constant]);
     *debug = hymn_string_append(*debug, value);
     hymn_string_delete(value);
     *debug = hymn_string_append(*debug, "]");
     return index + 2;
 }
 
-static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
-    uint8_t b = this->instructions[index + 1];
-    *debug = string_append_format(*debug, "%s: [%d]", name, b);
+static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+    uint8_t byte = code->instructions[index + 1];
+    *debug = string_append_format(*debug, "%s: [%d]", name, byte);
     return index + 2;
 }
 
-static size_t debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *this, size_t index) {
-    uint16_t jump = (uint16_t)(this->instructions[index + 1] << 8) | (uint16_t)this->instructions[index + 2];
+static size_t debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
+    uint16_t jump = (uint16_t)(code->instructions[index + 1] << 8) | (uint16_t)code->instructions[index + 2];
     *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, index + 3 + sign * jump);
     return index + 3;
 }
 
-static size_t debug_three_byte_instruction(HymnString **debug, const char *name, HymnByteCode *this, size_t index) {
-    uint8_t b = this->instructions[index + 1];
-    uint8_t n = this->instructions[index + 2];
-    *debug = string_append_format(*debug, "%s: [%d] [%d]", name, b, n);
+static size_t debug_three_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+    uint8_t byte = code->instructions[index + 1];
+    uint8_t next = code->instructions[index + 2];
+    *debug = string_append_format(*debug, "%s: [%d] [%d]", name, byte, next);
     return index + 3;
 }
 
-static size_t debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *this, size_t index) {
-    uint8_t o = this->instructions[index + 1];
-    uint16_t jump = (uint16_t)(this->instructions[index + 2] << 8) | (uint16_t)this->instructions[index + 3];
-    *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, o, index, index + 4 + sign * jump);
+static size_t debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
+    uint8_t slot = code->instructions[index + 1];
+    uint16_t jump = (uint16_t)(code->instructions[index + 2] << 8) | (uint16_t)code->instructions[index + 3];
+    *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, slot, index, index + 4 + sign * jump);
     return index + 4;
 }
 
@@ -4507,18 +4550,17 @@ static size_t debug_instruction(HymnString **debug, const char *name, size_t ind
     return index + 1;
 }
 
-static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, size_t index) {
+static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, size_t index) {
     *debug = string_append_format(*debug, "%04zu ", index);
-    if (index > 0 && this->lines[index] == this->lines[index - 1]) {
+    if (index > 0 && code->lines[index] == code->lines[index - 1]) {
         *debug = hymn_string_append(*debug, "   | ");
     } else {
-        *debug = string_append_format(*debug, "%4d ", this->lines[index]);
+        *debug = string_append_format(*debug, "%4d ", code->lines[index]);
     }
-    uint8_t instruction = this->instructions[index];
+    uint8_t instruction = code->instructions[index];
     switch (instruction) {
     case OP_ADD: return debug_instruction(debug, "OP_ADD", index);
-    case OP_ADD_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_ADD_TWO_LOCAL", this, index);
-    case OP_INCREMENT: return debug_byte_instruction(debug, "OP_INCREMENT", this, index);
+    case OP_ADD_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_ADD_TWO_LOCAL", code, index);
     case OP_ARRAY_INSERT: return debug_instruction(debug, "OP_ARRAY_INSERT", index);
     case OP_ARRAY_POP: return debug_instruction(debug, "OP_ARRAY_POP", index);
     case OP_ARRAY_PUSH: return debug_instruction(debug, "OP_ARRAY_PUSH", index);
@@ -4528,39 +4570,43 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_BIT_OR: return debug_instruction(debug, "OP_BIT_OR", index);
     case OP_BIT_RIGHT_SHIFT: return debug_instruction(debug, "OP_BIT_RIGHT_SHIFT", index);
     case OP_BIT_XOR: return debug_instruction(debug, "OP_BIT_XOR", index);
-    case OP_CALL: return debug_byte_instruction(debug, "OP_CALL", this, index);
-    case OP_TAIL_CALL: return debug_byte_instruction(debug, "OP_TAIL_CALL", this, index);
+    case OP_CALL: return debug_byte_instruction(debug, "OP_CALL", code, index);
     case OP_CLEAR: return debug_instruction(debug, "OP_CLEAR", index);
-    case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", this, index);
+    case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", code, index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
-    case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
-    case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", this, index);
+    case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
+    case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
     case OP_EQUAL: return debug_instruction(debug, "OP_EQUAL", index);
     case OP_FALSE: return debug_instruction(debug, "OP_FALSE", index);
+    case OP_FOR: return debug_for_loop_instruction(debug, "OP_FOR", 1, code, index);
+    case OP_FOR_LOOP: return debug_for_loop_instruction(debug, "OP_FOR_LOOP", -1, code, index);
     case OP_GET_DYNAMIC: return debug_instruction(debug, "OP_GET_DYNAMIC", index);
-    case OP_GET_GLOBAL: return debug_constant_instruction(debug, "OP_GET_GLOBAL", this, index);
-    case OP_GET_LOCAL: return debug_byte_instruction(debug, "OP_GET_LOCAL", this, index);
-    case OP_GET_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_GET_TWO_LOCAL", this, index);
-    case OP_GET_PROPERTY: return debug_constant_instruction(debug, "OP_GET_PROPERTY", this, index);
+    case OP_GET_GLOBAL: return debug_constant_instruction(debug, "OP_GET_GLOBAL", code, index);
+    case OP_GET_LOCAL: return debug_byte_instruction(debug, "OP_GET_LOCAL", code, index);
+    case OP_GET_PROPERTY: return debug_constant_instruction(debug, "OP_GET_PROPERTY", code, index);
+    case OP_GET_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_GET_TWO_LOCAL", code, index);
     case OP_GREATER: return debug_instruction(debug, "OP_GREATER", index);
     case OP_GREATER_EQUAL: return debug_instruction(debug, "OP_GREATER_EQUAL", index);
+    case OP_INCREMENT: return debug_byte_instruction(debug, "OP_INCREMENT", code, index);
+    case OP_INCREMENT_LOCAL: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL", code, index);
+    case OP_INCREMENT_LOCAL_AND_SET: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL_AND_SET", code, index);
     case OP_INDEX: return debug_instruction(debug, "OP_INDEX", index);
-    case OP_JUMP: return debug_jump_instruction(debug, "OP_JUMP", 1, this, index);
-    case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, this, index);
-    case OP_JUMP_IF_TRUE: return debug_jump_instruction(debug, "OP_JUMP_IF_TRUE", 1, this, index);
-    case OP_JUMP_IF_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_EQUAL", 1, this, index);
-    case OP_JUMP_IF_NOT_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_NOT_EQUAL", 1, this, index);
-    case OP_JUMP_IF_LESS: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS", 1, this, index);
-    case OP_JUMP_IF_GREATER: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER", 1, this, index);
-    case OP_JUMP_IF_LESS_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS_EQUAL", 1, this, index);
-    case OP_JUMP_IF_GREATER_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER_EQUAL", 1, this, index);
+    case OP_JUMP: return debug_jump_instruction(debug, "OP_JUMP", 1, code, index);
+    case OP_JUMP_IF_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_EQUAL", 1, code, index);
+    case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, code, index);
+    case OP_JUMP_IF_GREATER: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER", 1, code, index);
+    case OP_JUMP_IF_GREATER_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER_EQUAL", 1, code, index);
+    case OP_JUMP_IF_LESS: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS", 1, code, index);
+    case OP_JUMP_IF_LESS_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS_EQUAL", 1, code, index);
+    case OP_JUMP_IF_NOT_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_NOT_EQUAL", 1, code, index);
+    case OP_JUMP_IF_TRUE: return debug_jump_instruction(debug, "OP_JUMP_IF_TRUE", 1, code, index);
     case OP_KEYS: return debug_instruction(debug, "OP_KEYS", index);
     case OP_LEN: return debug_instruction(debug, "OP_LEN", index);
     case OP_LESS: return debug_instruction(debug, "OP_LESS", index);
     case OP_LESS_EQUAL: return debug_instruction(debug, "OP_LESS_EQUAL", index);
-    case OP_LOOP: return debug_jump_instruction(debug, "OP_LOOP", -1, this, index);
+    case OP_LOOP: return debug_jump_instruction(debug, "OP_LOOP", -1, code, index);
     case OP_MODULO: return debug_instruction(debug, "OP_MODULO", index);
     case OP_MULTIPLY: return debug_instruction(debug, "OP_MULTIPLY", index);
     case OP_NEGATE: return debug_instruction(debug, "OP_NEGATE", index);
@@ -4568,37 +4614,34 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *this, si
     case OP_NOT: return debug_instruction(debug, "OP_NOT", index);
     case OP_NOT_EQUAL: return debug_instruction(debug, "OP_NOT_EQUAL", index);
     case OP_POP: return debug_instruction(debug, "OP_POP", index);
+    case OP_POP_N: return debug_byte_instruction(debug, "OP_POP_N", code, index);
     case OP_POP_TWO: return debug_instruction(debug, "OP_POP_TWO", index);
-    case OP_POP_N: return debug_byte_instruction(debug, "OP_POP_N", this, index);
     case OP_PRINT: return debug_instruction(debug, "OP_PRINT", index);
-    case OP_THROW: return debug_instruction(debug, "OP_THROW", index);
+    case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
     case OP_SET_DYNAMIC: return debug_instruction(debug, "OP_SET_DYNAMIC", index);
-    case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", this, index);
-    case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", this, index);
-    case OP_SET_PROPERTY: return debug_constant_instruction(debug, "OP_SET_PROPERTY", this, index);
-    case OP_INCREMENT_LOCAL_AND_SET: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL_AND_SET", this, index);
-    case OP_INCREMENT_LOCAL: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL", this, index);
+    case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", code, index);
+    case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", code, index);
+    case OP_SET_PROPERTY: return debug_constant_instruction(debug, "OP_SET_PROPERTY", code, index);
     case OP_SLICE: return debug_instruction(debug, "OP_SLICE", index);
     case OP_SUBTRACT: return debug_instruction(debug, "OP_SUBTRACT", index);
+    case OP_TAIL_CALL: return debug_byte_instruction(debug, "OP_TAIL_CALL", code, index);
+    case OP_THROW: return debug_instruction(debug, "OP_THROW", index);
     case OP_TO_FLOAT: return debug_instruction(debug, "OP_TO_FLOAT", index);
     case OP_TO_INTEGER: return debug_instruction(debug, "OP_TO_INTEGER", index);
     case OP_TO_STRING: return debug_instruction(debug, "OP_TO_STRING", index);
     case OP_TRUE: return debug_instruction(debug, "OP_TRUE", index);
     case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
     case OP_USE: return debug_instruction(debug, "OP_USE", index);
-    case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
-    case OP_FOR: return debug_for_loop_instruction(debug, "OP_FOR", 1, this, index);
-    case OP_FOR_LOOP: return debug_for_loop_instruction(debug, "OP_FOR_LOOP", -1, this, index);
     default: *debug = string_append_format(*debug, "UNKNOWN OPCODE %d\n", instruction); return index + 1;
     }
 }
 
-void disassemble_byte_code(HymnByteCode *this, const char *name) {
+void disassemble_byte_code(HymnByteCode *code, const char *name) {
     printf("\n-- %s --\n", name);
     HymnString *debug = hymn_new_string("");
     size_t offset = 0;
-    while (offset < (size_t)this->count) {
-        offset = disassemble_instruction(&debug, this, offset);
+    while (offset < (size_t)code->count) {
+        offset = disassemble_instruction(&debug, code, offset);
         printf("%s\n", debug);
         hymn_string_zero(debug);
     }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-/* Any copyright is dedicated to the Public Domain.
- * https://creativecommons.org/publicdomain/zero/1.0/ */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 const fs = require('fs')
 const path = require('path')
@@ -80,8 +81,8 @@ function parseExpected(source) {
   return expected.trim()
 }
 
-async function testSource(file) {
-  const source = fs.readFileSync(file, { encoding: 'utf-8' })
+async function testSource(script) {
+  const source = fs.readFileSync(script, { encoding: 'utf-8' })
   const expected = parseExpected(source)
   if (expected === '') {
     return null
@@ -92,7 +93,7 @@ async function testSource(file) {
     out += text + '\n'
   }
   let result = null
-  const error = await hymn.scriptInterpret(vm, file, source).catch((exception) => {
+  const error = await hymn.scriptInterpret(vm, script, source).catch((exception) => {
     if (exception.stack) {
       return indent(4, exception.stack)
     }
