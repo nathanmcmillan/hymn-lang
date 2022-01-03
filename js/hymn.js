@@ -45,12 +45,12 @@ function cloneValue(original) {
   return value
 }
 
-// class HymnNativeFunction {
-//   constructor(name, call) {
-//     this.name = name
-//     this.call = call
-//   }
-// }
+class HymnNativeFunction {
+  constructor(name, call) {
+    this.name = name
+    this.call = call
+  }
+}
 
 class HymnByteCode {
   constructor() {
@@ -523,13 +523,13 @@ function newFuncValue(func) {
   return new HymnValue(HYMN_VALUE_FUNC, func)
 }
 
-// function newFuncNativeValue(func) {
-//   return new HymnValue(HYMN_VALUE_FUNC_NATIVE, func)
-// }
+function newFuncNativeValue(func) {
+  return new HymnValue(HYMN_VALUE_FUNC_NATIVE, func)
+}
 
-// function newPointerValue(pointer) {
-//   return new HymnValue(HYMN_VALUE_POINTER, pointer)
-// }
+function newPointerValue(pointer) {
+  return new HymnValue(HYMN_VALUE_POINTER, pointer)
+}
 
 function newFunction(script) {
   const func = new HymnFunction()
@@ -538,9 +538,9 @@ function newFunction(script) {
   return func
 }
 
-// function newNativeFunction(name, func) {
-//   return new HymnNativeFunction(name, func)
-// }
+function newNativeFunction(name, func) {
+  return new HymnNativeFunction(name, func)
+}
 
 function isUndefined(value) {
   return value.is === HYMN_VALUE_UNDEFINED
@@ -578,13 +578,13 @@ function isFunc(value) {
   return value.is === HYMN_VALUE_FUNC
 }
 
-// function isFuncNative(value) {
-//   return value.is === HYMN_VALUE_FUNC_NATIVE
-// }
+function isFuncNative(value) {
+  return value.is === HYMN_VALUE_FUNC_NATIVE
+}
 
-// function isPointer(value) {
-//   return value.is === HYMN_VALUE_POINTER
-// }
+function isPointer(value) {
+  return value.is === HYMN_VALUE_POINTER
+}
 
 function tableNext(table, key) {
   // TODO: NEED TO USE A CUSTOM TABLE IMPLEMENTATION
@@ -4787,16 +4787,16 @@ async function hymnRun(H) {
   }
 }
 
-// function hymnAddFunction(H, name, func) {
-//   const value = newNativeFunction(name, func)
-//   H.globals.set(name, newFuncNativeValue(value))
-// }
+function addFunction(H, name, func) {
+  const value = newNativeFunction(name, func)
+  H.globals.set(name, newFuncNativeValue(value))
+}
 
-// function hymnAddPointer(H, name, pointer) {
-//   H.globals.set(name, newPointerValue(pointer))
-// }
+function addPointer(H, name, pointer) {
+  H.globals.set(name, newPointerValue(pointer))
+}
 
-async function hymnDebug(H, script, source) {
+async function debugScript(H, script, source) {
   const result = compile(H, script, source)
 
   const func = result.func
@@ -4818,7 +4818,7 @@ async function hymnDebug(H, script, source) {
   return null
 }
 
-async function hymnScriptInterpret(H, script, source) {
+async function interpretScript(H, script, source) {
   const result = compile(H, script, source)
 
   const func = result.func
@@ -4839,11 +4839,11 @@ async function hymnScriptInterpret(H, script, source) {
   return null
 }
 
-async function hymnInterpret(H, source) {
-  return hymnScriptInterpret(H, null, source)
+async function interpret(H, source) {
+  return interpretScript(H, null, source)
 }
 
-function newHymn() {
+function newVM() {
   const H = new Hymn()
 
   if (node) {
@@ -4867,9 +4867,17 @@ function newHymn() {
 
 if (node) {
   module.exports = {
-    init: newHymn,
-    interpret: hymnInterpret,
-    scriptInterpret: hymnScriptInterpret,
-    debug: hymnDebug,
+    isFuncNative: isFuncNative,
+    isPointer: isPointer,
+    newFuncNativeValue: newFuncNativeValue,
+    newPointerValue: newPointerValue,
+    newFunction: newFunction,
+    newNativeFunction: newNativeFunction,
+    addFunction: addFunction,
+    addPointer: addPointer,
+    newVM: newVM,
+    interpret: interpret,
+    interpretScript: interpretScript,
+    debug: debugScript,
   }
 }

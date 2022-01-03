@@ -19,13 +19,13 @@ async function main() {
     if (process.argv.length >= 4) {
       const script = process.argv[3]
       const source = fs.readFileSync(script, { encoding: 'utf-8' })
-      const vm = hymn.init()
+      const vm = hymn.newVM()
       error = await hymn.debug(vm, script, source)
     } else {
       const script = process.argv[2]
       const source = fs.readFileSync(script, { encoding: 'utf-8' })
-      const vm = hymn.init()
-      error = await hymn.scriptInterpret(vm, script, source)
+      const vm = hymn.newVM()
+      error = await hymn.interpretScript(vm, script, source)
     }
     if (error !== null) {
       console.error(error)

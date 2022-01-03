@@ -88,12 +88,12 @@ async function testSource(script) {
     return null
   }
   let out = ''
-  const vm = hymn.init()
+  const vm = hymn.newVM()
   vm.print = (text) => {
     out += text + '\n'
   }
   let result = null
-  const error = await hymn.scriptInterpret(vm, script, source).catch((exception) => {
+  const error = await hymn.interpretScript(vm, script, source).catch((exception) => {
     if (exception.stack) {
       return indent(4, exception.stack)
     }
