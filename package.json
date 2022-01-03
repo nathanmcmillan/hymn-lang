@@ -1,0 +1,25 @@
+{
+  "name": "hymn-lang",
+  "version": "0.1.0",
+  "description": "A small byte-code interpreted language with a focus on simplicity.",
+  "main": "js/cli.js",
+  "devDependencies": {
+    "eslint": "^7.9.0",
+    "npm": "^7.5.2"
+  },
+  "scripts": {
+    "test": "node js/test.js",
+    "start": "node js/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nathanmcmillan/hymn-lang.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nathanmcmillan/hymn-lang/issues"
+  },
+  "homepage": "https://github.com/nathanmcmillan/hymn-lang#readme"
+}

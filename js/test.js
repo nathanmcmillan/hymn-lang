@@ -133,12 +133,10 @@ async function testHymn() {
   const tests = hymnFiles()
   for (const test of tests) {
     const file = path.basename(test)
+    console.info(file)
     const result = await testFile(testSource, test)
     if (result) {
-      console.error('⨯ ' + file)
       console.error(result)
-    } else {
-      console.log('✓ ' + file)
     }
   }
 }

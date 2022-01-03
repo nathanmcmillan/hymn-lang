@@ -9,7 +9,6 @@ const UINT8_MAX = 255
 const UINT16_MAX = 65535
 const HYMN_UINT8_COUNT = UINT8_MAX + 1
 const HYMN_FRAMES_MAX = 64
-const HYMN_STACK_MAX = HYMN_FRAMES_MAX * HYMN_UINT8_COUNT
 
 const HYMN_VALUE_UNDEFINED = 0
 const HYMN_VALUE_NONE = 1
@@ -46,12 +45,12 @@ function clone(value) {
   return same
 }
 
-class HymnNativeFunction {
-  constructor(name, call) {
-    this.name = name
-    this.call = call
-  }
-}
+// class HymnNativeFunction {
+//   constructor(name, call) {
+//     this.name = name
+//     this.call = call
+//   }
+// }
 
 class HymnByteCode {
   constructor() {
@@ -218,7 +217,6 @@ const PRECEDENCE_TERM = 7
 const PRECEDENCE_FACTOR = 8
 const PRECEDENCE_UNARY = 9
 const PRECEDENCE_CALL = 10
-const PRECEDENCE_PRIMARY = 11
 
 const OP_ADD = 0
 const OP_ADD_TWO_LOCAL = 1
@@ -525,13 +523,13 @@ function newFuncValue(func) {
   return new HymnValue(HYMN_VALUE_FUNC, func)
 }
 
-function newFuncNativeValue(func) {
-  return new HymnValue(HYMN_VALUE_FUNC_NATIVE, func)
-}
+// function newFuncNativeValue(func) {
+//   return new HymnValue(HYMN_VALUE_FUNC_NATIVE, func)
+// }
 
-function newPointerValue(pointer) {
-  return new HymnValue(HYMN_VALUE_POINTER, pointer)
-}
+// function newPointerValue(pointer) {
+//   return new HymnValue(HYMN_VALUE_POINTER, pointer)
+// }
 
 function newFunction(script) {
   const func = new HymnFunction()
@@ -540,9 +538,9 @@ function newFunction(script) {
   return func
 }
 
-function newNativeFunction(name, func) {
-  return new HymnNativeFunction(name, func)
-}
+// function newNativeFunction(name, func) {
+//   return new HymnNativeFunction(name, func)
+// }
 
 function isUndefined(value) {
   return value.is === HYMN_VALUE_UNDEFINED
@@ -580,12 +578,29 @@ function isFunc(value) {
   return value.is === HYMN_VALUE_FUNC
 }
 
-function isFuncNative(value) {
-  return value.is === HYMN_VALUE_FUNC_NATIVE
-}
+// function isFuncNative(value) {
+//   return value.is === HYMN_VALUE_FUNC_NATIVE
+// }
 
-function isPointer(value) {
-  return value.is === HYMN_VALUE_POINTER
+// function isPointer(value) {
+//   return value.is === HYMN_VALUE_POINTER
+// }
+
+function tableNext(table, key) {
+  // TODO: This is too slow. Need to use a custom table implementation
+  const iterator = table.entries()
+  if (key === null) {
+    return iterator.next()
+  } else {
+    while (true) {
+      const current = iterator.next()
+      if (current === null) {
+        return null
+      } else if (iterator.key === key) {
+        return iterator.next()
+      }
+    }
+  }
 }
 
 function currentFunc(C) {
@@ -599,7 +614,7 @@ function current(C) {
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  let error = format
+  const error = format
 
   C.error = error
 
@@ -608,9 +623,9 @@ function compileError(C, token, format) {
 }
 
 function nextChar(C) {
-  let pos = C.pos
+  const pos = C.pos
   if (pos === C.source.length) return '\0'
-  let c = C.source[pos]
+  const c = C.source[pos]
   C.pos = pos + 1
   if (c === '\n') {
     C.row++
@@ -627,7 +642,7 @@ function peekChar(C) {
 }
 
 function token(C, type) {
-  let token = C.current
+  const token = C.current
   token.type = type
   token.row = C.row
   token.column = C.column
@@ -636,7 +651,7 @@ function token(C, type) {
 }
 
 function tokenSpecial(C, type, offset, len) {
-  let token = C.current
+  const token = C.current
   token.type = type
   token.row = C.row
   token.column = C.column
@@ -645,7 +660,7 @@ function tokenSpecial(C, type, offset, len) {
 }
 
 function valueToken(C, type, start, end) {
-  let token = C.current
+  const token = C.current
   token.type = type
   token.row = C.row
   token.column = C.column
@@ -766,11 +781,11 @@ function pushIdentToken(C, start, end) {
 }
 
 function isDigit(c) {
-  return '0' <= c && c <= '9'
+  return c >= '0' && c <= '9'
 }
 
 function isIdent(c) {
-  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c === '_'
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_'
 }
 
 function advance(C) {
@@ -1224,35 +1239,35 @@ function args(C) {
   return count
 }
 
-function compileCall(C, assign) {
+function compileCall(C) {
   const count = args(C)
   emitShort(C, OP_CALL, count)
 }
 
-function compileGroup(C, assign) {
+function compileGroup(C) {
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, 'Expected right parenthesis.')
 }
 
-function compileNone(C, assign) {
+function compileNone(C) {
   emit(C, OP_NONE)
 }
 
-function compileTrue(C, assign) {
+function compileTrue(C) {
   emit(C, OP_TRUE)
 }
 
-function compileFalse(C, assign) {
+function compileFalse(C) {
   emit(C, OP_FALSE)
 }
 
-function compileInteger(C, assign) {
+function compileInteger(C) {
   const previous = C.previous
   const number = parseInt(sourceSubstring(C, previous.len, previous.start))
   emitConstant(C, newInt(number))
 }
 
-function compileFloat(C, assign) {
+function compileFloat(C) {
   const previous = C.previous
   const number = parseFloat(sourceSubstring(C, previous.len, previous.start))
   emitConstant(C, newFloat(number))
@@ -1301,7 +1316,7 @@ function parseStringLiteral(string, start, len) {
   return literal
 }
 
-function compileString(C, assign) {
+function compileString(C) {
   const previous = C.previous
   const string = parseStringLiteral(C.source, previous.start, previous.len)
   emitConstant(C, newString(string))
@@ -1325,7 +1340,7 @@ function endScope(C) {
   }
 }
 
-function compileArray(C, assign) {
+function compileArray(C) {
   emitConstant(C, newArrayValue(null))
   if (match(C, TOKEN_RIGHT_SQUARE)) {
     return
@@ -1341,7 +1356,7 @@ function compileArray(C, assign) {
   consume(C, TOKEN_RIGHT_SQUARE, "Expected ']' declaring array.")
 }
 
-function compileTable(C, assign) {
+function compileTable(C) {
   emitConstant(C, newTableValue(null))
   if (match(C, TOKEN_RIGHT_CURLY)) {
     return
@@ -1493,7 +1508,7 @@ function compileVariable(C, assign) {
   namedVariable(C, C.previous, assign)
 }
 
-function compileUnary(C, assign) {
+function compileUnary(C) {
   const type = C.previous.type
   compileWithPrecedence(C, PRECEDENCE_UNARY)
   switch (type) {
@@ -1511,7 +1526,7 @@ function compileUnary(C, assign) {
   }
 }
 
-function compileBinary(C, assign) {
+function compileBinary(C) {
   const type = C.previous.type
   const rule = rules[type]
   compileWithPrecedence(C, rule.precedence + 1)
@@ -1676,12 +1691,12 @@ function freeJumps(C, jump) {
   }
 }
 
-function compileAnd(C, assign) {
+function compileAnd(C) {
   C.jumpAnd = addJump(C, C.jumpAnd, OP_JUMP_IF_FALSE)
   compileWithPrecedence(C, PRECEDENCE_AND)
 }
 
-function compileOr(C, assign) {
+function compileOr(C) {
   C.jumpOr = addJump(C, C.jumpOr, OP_JUMP_IF_TRUE)
   freeJumpAndList(C)
   compileWithPrecedence(C, PRECEDENCE_OR)
@@ -2207,32 +2222,6 @@ function ifStatement(C) {
   consume(C, TOKEN_END, "Expected 'end' after if statement.")
 }
 
-function compileLiteral(C) {
-  advance(C)
-  switch (C.previous.type) {
-    case TOKEN_NONE:
-      compileNone(C, false)
-      return true
-    case TOKEN_TRUE:
-      compileTrue(C, false)
-      return true
-    case TOKEN_FALSE:
-      compileFalse(C, false)
-      return true
-    case TOKEN_INTEGER:
-      compileInteger(C, false)
-      return true
-    case TOKEN_FLOAT:
-      compileFloat(C, false)
-      return true
-    case TOKEN_STRING:
-      compileString(C, false)
-      return true
-    default:
-      return false
-  }
-}
-
 function emitLoop(C, start) {
   emit(C, OP_LOOP)
   const offset = current(C).count - start + 2
@@ -2567,7 +2556,7 @@ function statement(C) {
   }
 }
 
-function arrayPushExpression(C, assign) {
+function arrayPushExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after push.")
   expression(C)
   consume(C, TOKEN_COMMA, "Expected ',' between push arguments.")
@@ -2576,7 +2565,7 @@ function arrayPushExpression(C, assign) {
   emit(C, OP_ARRAY_PUSH)
 }
 
-function arrayInsertExpression(C, assign) {
+function arrayInsertExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after insert.")
   expression(C)
   consume(C, TOKEN_COMMA, "Expected ',' between insert arguments.")
@@ -2587,14 +2576,14 @@ function arrayInsertExpression(C, assign) {
   emit(C, OP_ARRAY_INSERT)
 }
 
-function arrayPopExpression(C, assign) {
+function arrayPopExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after pop.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after pop expression.")
   emit(C, OP_ARRAY_POP)
 }
 
-function deleteExpression(C, assign) {
+function deleteExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after delete.")
   expression(C)
   consume(C, TOKEN_COMMA, "Expected ',' between delete arguments.")
@@ -2603,63 +2592,63 @@ function deleteExpression(C, assign) {
   emit(C, OP_DELETE)
 }
 
-function lenExpression(C, assign) {
+function lenExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after len.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after len expression.")
   emit(C, OP_LEN)
 }
 
-function castIntegerExpression(C, assign) {
+function castIntegerExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after integer.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after integer expression.")
   emit(C, OP_TO_INTEGER)
 }
 
-function castFloatExpression(C, assign) {
+function castFloatExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after float.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after float expression.")
   emit(C, OP_TO_FLOAT)
 }
 
-function castStringExpression(C, assign) {
+function castStringExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after string.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after string expression.")
   emit(C, OP_TO_STRING)
 }
 
-function typeExpression(C, assign) {
+function typeExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after type.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after type expression.")
   emit(C, OP_TYPE)
 }
 
-function clearExpression(C, assign) {
+function clearExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after clear.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after clear expression.")
   emit(C, OP_CLEAR)
 }
 
-function copyExpression(C, assign) {
+function copyExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after copy.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after copy expression.")
   emit(C, OP_COPY)
 }
 
-function keysExpression(C, assign) {
+function keysExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after keys.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after keys expression.")
   emit(C, OP_KEYS)
 }
 
-function indexExpression(C, assign) {
+function indexExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `index` function.")
   expression(C)
   consume(C, TOKEN_COMMA, 'Expected 2 arguments for `index` function.')
@@ -2797,18 +2786,6 @@ function debugValueToString(value) {
 function hymnResetStack(H) {
   H.stackTop = 0
   H.frameCount = 0
-}
-
-function isObject(value) {
-  switch (value.is) {
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC:
-      return true
-    default:
-      return false
-  }
 }
 
 function hymnStackGet(H, index) {
@@ -3004,7 +2981,7 @@ function hymnCallValue(H, value, count) {
       const top = H.stackTop - (count + 1)
       H.stackTop = top
       hymnPush(H, result)
-      return currentFrame(frame)
+      return currentFrame(H)
     }
     default: {
       const is = valueName(value.is)
@@ -3024,29 +3001,6 @@ function readShort(frame) {
 
 function readConstant(frame) {
   return frame.func.code.constants[readByte(frame)]
-}
-
-async function hymnDo(H, source) {
-  const result = compile(H, null, source)
-
-  const func = result.func
-  let error = result.error
-
-  if (error) {
-    return hymnThrowExistingError(H, error)
-  }
-
-  const funcValue = newFuncValue(func)
-
-  hymnPush(H, funcValue)
-  hymnCall(H, func, 0)
-
-  error = await hymnRun(H)
-  if (error) {
-    return hymnThrowExistingError(H, error)
-  }
-
-  return currentFrame(H)
 }
 
 function httpPathParent(path) {
@@ -3150,12 +3104,12 @@ async function hymnImport(H, file) {
       }
 
       const response = await fetch(use).catch((exception) => {
-        return { ok: false, status: 404 }
+        return { ok: false, status: 404, exception: exception }
       })
 
       if (response.ok) {
         source = await response.text().catch((exception) => {
-          return ''
+          return exception
         })
         module = use
         break
@@ -3404,7 +3358,7 @@ function disassembleInstruction(debug, code, index) {
 
 function disassembleByteCode(code, name) {
   console.debug('\n-- ' + name + ' --')
-  let debug = ['']
+  const debug = ['']
   let index = 0
   while (index < code.count) {
     index = disassembleInstruction(debug, code, index)
@@ -3425,7 +3379,7 @@ function debugStack(H) {
 }
 
 function debugTrace(code, index) {
-  let debug = ['']
+  const debug = ['']
   disassembleInstruction(debug, code, index)
   console.debug(debug[0])
 }
@@ -3455,12 +3409,13 @@ async function hymnRun(H) {
         hymnPop(H)
         hymnPop(H)
         break
-      case OP_POP_N:
+      case OP_POP_N: {
         let count = readByte(frame)
         while (count--) {
           hymnPop(H)
         }
         break
+      }
       case OP_TRUE:
         hymnPush(H, newBool(true))
         break
@@ -3604,6 +3559,7 @@ async function hymnRun(H) {
         if (isTable(object)) {
           const table = object.value
           const next = tableNext(table, null)
+          console.log('...', next)
           if (next === null) {
             H.stack[frame.stack + slot + 1] = newNone()
             H.stack[frame.stack + slot + 2] = newNone()
@@ -3779,6 +3735,85 @@ async function hymnRun(H) {
           hymnPush(H, hymnConcat(a, b))
         } else {
           frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_ADD_TWO_LOCAL: {
+        const a = H.stack[frame.stack + readByte(frame)]
+        const b = H.stack[frame.stack + readByte(frame)]
+        if (isNone(a)) {
+          if (isString(b)) {
+            hymnPush(H, hymnConcat(a, b))
+          } else {
+            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isBool(a)) {
+          if (isString(b)) {
+            hymnPush(H, hymnConcat(a, b))
+          } else {
+            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isInt(a)) {
+          if (isInt(b)) {
+            a.value += b.value
+            hymnPush(H, a)
+          } else if (isFloat(b)) {
+            b.value += a.value
+            hymnPush(H, a)
+          } else if (isString(b)) {
+            hymnPush(H, hymnConcat(a, b))
+          } else {
+            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isFloat(a)) {
+          if (isInt(b)) {
+            a.value += b.value
+            hymnPush(H, a)
+          } else if (isFloat(b)) {
+            a.value += b.value
+            hymnPush(H, a)
+          } else if (isString(b)) {
+            hymnPush(H, hymnConcat(a, b))
+          } else {
+            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
+            if (frame === null) return
+            else break
+          }
+        } else if (isString(a)) {
+          hymnPush(H, hymnConcat(a, b))
+        } else {
+          frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
+          if (frame === null) return
+          else break
+        }
+        break
+      }
+      case OP_INCREMENT: {
+        const a = hymnPop(H)
+        const increment = readByte(frame)
+        if (isNone(a)) {
+          frame = hymnThrowError(H, "Increment: 1st and 2nd values can't be added")
+          if (frame === null) return
+          else break
+        } else if (isBool(a)) {
+          frame = hymnThrowError(H, "Increment: 1st and 2nd values can't be added")
+          if (frame === null) return
+          else break
+        } else if (isInt(a) || isFloat(a)) {
+          a.value += increment
+          hymnPush(H, a)
+        } else if (isString(a)) {
+          hymnPush(H, hymnConcat(a, newInt(increment)))
+        } else {
+          frame = hymnThrowError(H, "Increment: 1st and 2nd values can't be added")
           if (frame === null) return
           else break
         }
@@ -4175,7 +4210,7 @@ async function hymnRun(H) {
           }
           const array = v.value
           const size = array.length
-          const index = i.value
+          let index = i.value
           if (index > size) {
             frame = hymnThrowError(H, 'Array index out of bounds ' + index + ' > ' + size + '.')
             if (frame === null) return
@@ -4204,7 +4239,7 @@ async function hymnRun(H) {
           const name = i.value
           table.set(name, s)
         } else {
-          frame = hymnThrowError(H, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `' + valueName(v.is) + '`.', is)
+          frame = hymnThrowError(H, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `' + valueName(v.is) + '`.')
           if (frame === null) return
           else break
         }
@@ -4223,7 +4258,7 @@ async function hymnRun(H) {
             }
             const string = v.value
             const size = string.length
-            const index = i.value
+            let index = i.value
             if (index >= size) {
               frame = hymnThrowError(H, 'String index out of bounds %d >= %d.', index, size)
               if (frame === null) return
@@ -4279,7 +4314,6 @@ async function hymnRun(H) {
             const g = table.get(name)
             if (isUndefined(g)) {
               g.is = HYMN_VALUE_NONE
-            } else {
             }
             hymnPush(H, g)
             break
@@ -4359,7 +4393,7 @@ async function hymnRun(H) {
           }
           const array = v.value
           const size = array.length
-          const index = i.value
+          let index = i.value
           if (index > size) {
             frame = hymnThrowError(H, `Insert Function: Array index out of bounds: ${index} > ${size}`)
             if (frame === null) return
@@ -4398,7 +4432,7 @@ async function hymnRun(H) {
           }
           const array = v.value
           const size = array.length
-          const index = i.value
+          let index = i.value
           if (index >= size) {
             frame = hymnThrowError(H, `Delete Function: Array index out of bounds ${index} > ${size}.`)
             if (frame === null) return
@@ -4672,7 +4706,7 @@ async function hymnRun(H) {
         } else if (isFloat(value)) {
           hymnPush(H, newInt(parseInt(value.value)))
         } else if (isString(value)) {
-          let number = Number(value.value)
+          const number = Number(value.value)
           if (isNaN(number)) {
             hymnPush(H, newNone())
           } else {
@@ -4692,7 +4726,7 @@ async function hymnRun(H) {
         } else if (isFloat(value)) {
           hymnPush(H, value)
         } else if (isString(value)) {
-          let number = Number(value.value)
+          const number = Number(value.value)
           if (isNaN(number)) {
             hymnPush(H, newNone())
           } else {
@@ -4744,14 +4778,14 @@ async function hymnRun(H) {
   }
 }
 
-function hymnAddFunction(H, name, func) {
-  const value = newNativeFunction(name, func)
-  H.globals.set(name, newFuncNativeValue(value))
-}
+// function hymnAddFunction(H, name, func) {
+//   const value = newNativeFunction(name, func)
+//   H.globals.set(name, newFuncNativeValue(value))
+// }
 
-function hymnAddPointer(H, name, pointer) {
-  H.globals.set(name, newPointerValue(pointer))
-}
+// function hymnAddPointer(H, name, pointer) {
+//   H.globals.set(name, newPointerValue(pointer))
+// }
 
 async function hymnDebug(H, script, source) {
   const result = compile(H, script, source)

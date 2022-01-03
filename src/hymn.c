@@ -664,7 +664,6 @@ enum Precedence {
     PRECEDENCE_FACTOR,
     PRECEDENCE_UNARY,
     PRECEDENCE_CALL,
-    PRECEDENCE_PRIMARY,
 };
 
 enum OpCode {
@@ -3342,32 +3341,6 @@ static void if_statement(Compiler *C) {
     }
 
     consume(C, TOKEN_END, "If statement is missing \"end\"");
-}
-
-static bool compile_literal(Compiler *C) {
-    advance(C);
-    switch (C->previous.type) {
-    case TOKEN_NONE:
-        compile_none(C, false);
-        return true;
-    case TOKEN_TRUE:
-        compile_true(C, false);
-        return true;
-    case TOKEN_FALSE:
-        compile_false(C, false);
-        return true;
-    case TOKEN_INTEGER:
-        compile_integer(C, false);
-        return true;
-    case TOKEN_FLOAT:
-        compile_float(C, false);
-        return true;
-    case TOKEN_STRING:
-        compile_string(C, false);
-        return true;
-    default:
-        return false;
-    }
 }
 
 static void emit_loop(Compiler *C, int start) {

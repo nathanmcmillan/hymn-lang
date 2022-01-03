@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 const fs = require('fs')
-const path = require('path')
 const process = require('process')
 
 const hymn = require('./hymn')
