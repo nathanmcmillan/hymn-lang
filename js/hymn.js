@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const HYMN_DEBUG_TRACE = true
-const HYMN_DEBUG_STACK = true
+const HYMN_DEBUG_TRACE = false
+const HYMN_DEBUG_STACK = false
 
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
@@ -588,19 +588,23 @@ function isFunc(value) {
 
 function tableNext(table, key) {
   // TODO: NEED TO USE A CUSTOM TABLE IMPLEMENTATION
-  const iterator = table.entries()
-  if (key === null) {
-    return iterator.next()
-  } else {
-    while (true) {
-      const current = iterator.next()
-      if (current === null) {
+  const keys = Array.from(table.keys())
+  keys.sort()
+  if (keys.length === 0) {
+    return null
+  } else if (key === null) {
+    return { key: keys[0], value: table.get(keys[0]) }
+  }
+  for (let i = 0; i < keys.length; i++) {
+    const current = keys[i]
+    if (current === key) {
+      if (i + 1 === keys.length) {
         return null
-      } else if (iterator.key === key) {
-        return iterator.next()
       }
+      return { key: keys[i + 1], value: table.get(keys[i + 1]) }
     }
   }
+  return null
 }
 
 function currentFunc(C) {
@@ -4093,6 +4097,11 @@ async function hymnRun(H) {
       case OP_DEFINE_GLOBAL: {
         const name = readConstant(frame).value
         const value = hymnPop(H)
+        if (H.globals.has(name)) {
+          frame = hymnThrowError(H, `Global '${name}' was previously defined.`)
+          if (frame === null) return
+          else break
+        }
         H.globals.set(name, value)
         break
       }
@@ -4656,7 +4665,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, 'Expected string, array, or table for `index` function.')
+            frame = hymnThrowError(H, 'Index function expects `String`, `Array`, or `Table`')
             if (frame === null) return
             else break
         }

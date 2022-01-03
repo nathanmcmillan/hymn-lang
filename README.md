@@ -70,12 +70,12 @@ print list
 
 ## Progress
 
-| Implementation | Status      | Description         |
-| -------------- | ----------- | ------------------- |
-| C              | Version 0.2 | New for loop syntax |
-| JavaScript     | Version 0.1 | Working towards 0.2 |
-| Go             | Not Started |                     |
-| Java           | Not Started |                     |
+| Implementation | Status        | Description           |
+| -------------- | ------------- | --------------------- |
+| C              | Version 0.2.1 | New for loop syntax   |
+| JavaScript     | Version 0.2.0 | Feature parity with C |
+| Go             | Not Started   |                       |
+| Java           | Not Started   |                       |
 
 ## Performance
 
