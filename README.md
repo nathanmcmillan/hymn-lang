@@ -70,12 +70,12 @@ print list
 
 ## Progress
 
-| Implementation | Status        | Description           |
-| -------------- | ------------- | --------------------- |
-| C              | Version 0.2.1 | New for loop syntax   |
-| JavaScript     | Version 0.2.0 | Feature parity with C |
-| Go             | Not Started   |                       |
-| Java           | Not Started   |                       |
+| Implementation | Status        | Description         |
+| -------------- | ------------- | ------------------- |
+| C              | Version 0.2.1 | New for loop syntax |
+| JavaScript     | Version 0.2.0 | New for loop syntax |
+| Go             | Not Started   |                     |
+| Java           | Not Started   |                     |
 
 ## Performance
 
@@ -91,7 +91,7 @@ print list
 
 1. Using a macro READ_BYTE instead of an inline functions improves performance
 1. Using an instruction pointer rather than index improves performance
-1. Using computed goto instead of a switch **_does not_** always impprove performance
+1. Using computed goto instead of a switch **_does not_** always improve performance
 
 # Compiling
 
