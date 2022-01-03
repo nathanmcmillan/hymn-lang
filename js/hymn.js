@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const HYMN_DEBUG_TRACE = false
-const HYMN_DEBUG_STACK = false
+const HYMN_DEBUG_TRACE = true
+const HYMN_DEBUG_STACK = true
 
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
@@ -34,15 +34,15 @@ class HymnValue {
   }
 }
 
-function copy(dest, src) {
-  dest.is = src.is
-  dest.value = src.value
+function copyValueToFrom(to, from) {
+  to.is = from.is
+  to.value = from.value
 }
 
-function clone(value) {
-  const same = new HymnValue()
-  copy(same, value)
-  return same
+function cloneValue(original) {
+  const value = new HymnValue()
+  copyValueToFrom(value, original)
+  return value
 }
 
 // class HymnNativeFunction {
@@ -587,7 +587,7 @@ function isFunc(value) {
 // }
 
 function tableNext(table, key) {
-  // TODO: This is too slow. Need to use a custom table implementation
+  // TODO: NEED TO USE A CUSTOM TABLE IMPLEMENTATION
   const iterator = table.entries()
   if (key === null) {
     return iterator.next()
@@ -2466,13 +2466,13 @@ function continueStatement(C) {
     compileError(C, C.previous, "Can't use 'continue' outside of a loop.")
   }
   popStackLoop(C)
-  if (C.loop.start === -1) {
-    const jumpNext = C.iteratorJump
+  if (C.loop.isFor) {
+    const jumpNext = C.jumpFor
     const jump = new JumpList()
     jump.jump = emitJump(C, OP_JUMP)
     jump.depth = C.loop.depth
     jump.next = jumpNext
-    C.iteratorJump = jump
+    C.jumpFor = jump
   } else {
     emitLoop(C, C.loop.start)
   }
@@ -2798,7 +2798,7 @@ function hymnStackGet(H, index) {
 }
 
 function hymnPush(H, value) {
-  copy(hymnStackGet(H, H.stackTop++), value)
+  copyValueToFrom(hymnStackGet(H, H.stackTop++), value)
 }
 
 function hymnPeek(H, dist) {
@@ -2806,7 +2806,7 @@ function hymnPeek(H, dist) {
     console.error('Nothing on stack to peek')
     return newNone()
   }
-  return clone(H.stack[H.stackTop - dist])
+  return cloneValue(H.stack[H.stackTop - dist])
 }
 
 function hymnPop(H) {
@@ -2814,7 +2814,7 @@ function hymnPop(H) {
     console.error('Nothing on stack to pop')
     return newNone()
   }
-  return clone(H.stack[--H.stackTop])
+  return cloneValue(H.stack[--H.stackTop])
 }
 
 function hymnException(H) {
@@ -3198,6 +3198,7 @@ function debugInstruction(debug, name, index) {
 }
 
 function disassembleInstruction(debug, code, index) {
+  debug[0] += String(index).padStart(4, '0') + ' '
   if (index > 0 && code.lines[index] === code.lines[index - 1]) {
     debug[0] += '   | '
   } else {
@@ -3559,7 +3560,6 @@ async function hymnRun(H) {
         if (isTable(object)) {
           const table = object.value
           const next = tableNext(table, null)
-          console.log('...', next)
           if (next === null) {
             H.stack[frame.stack + slot + 1] = newNone()
             H.stack[frame.stack + slot + 2] = newNone()
@@ -3567,7 +3567,7 @@ async function hymnRun(H) {
             frame.ip += jump
           } else {
             H.stack[frame.stack + slot + 1] = newString(next.key)
-            H.stack[frame.stack + slot + 2] = next.value
+            H.stack[frame.stack + slot + 2] = cloneValue(next.value)
             frame.ip += 2
           }
         } else if (isArray(object)) {
@@ -3580,7 +3580,7 @@ async function hymnRun(H) {
           } else {
             const item = array[0]
             H.stack[frame.stack + slot + 1] = newInt(0)
-            H.stack[frame.stack + slot + 2] = item
+            H.stack[frame.stack + slot + 2] = cloneValue(item)
             frame.ip += 2
           }
         } else {
@@ -3605,7 +3605,7 @@ async function hymnRun(H) {
             frame.ip += 2
           } else {
             H.stack[frame.stack + index] = newString(next.key)
-            H.stack[frame.stack + value] = next.value
+            H.stack[frame.stack + value] = cloneValue(next.value)
             const jump = readShort(frame)
             frame.ip -= jump
           }
@@ -3617,7 +3617,7 @@ async function hymnRun(H) {
           } else {
             const item = array[key]
             H.stack[frame.stack + index].value++
-            H.stack[frame.stack + value] = item
+            H.stack[frame.stack + value] = cloneValue(item)
             const jump = readShort(frame)
             frame.ip -= jump
           }
@@ -3741,8 +3741,8 @@ async function hymnRun(H) {
         break
       }
       case OP_ADD_TWO_LOCAL: {
-        const a = H.stack[frame.stack + readByte(frame)]
-        const b = H.stack[frame.stack + readByte(frame)]
+        const a = cloneValue(H.stack[frame.stack + readByte(frame)])
+        const b = cloneValue(H.stack[frame.stack + readByte(frame)])
         if (isNone(a)) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
@@ -4143,7 +4143,7 @@ async function hymnRun(H) {
       case OP_INCREMENT_LOCAL: {
         const slot = readByte(frame)
         const increment = readByte(frame)
-        const value = H.stack[frame.stack + slot]
+        const value = cloneValue(H.stack[frame.stack + slot])
         if (isInt(value) || isFloat(value)) {
           value.value += increment
         } else {
@@ -4157,7 +4157,7 @@ async function hymnRun(H) {
       case OP_INCREMENT_LOCAL_AND_SET: {
         const slot = readByte(frame)
         const increment = readByte(frame)
-        const value = H.stack[frame.stack + slot]
+        const value = cloneValue(H.stack[frame.stack + slot])
         if (isInt(value) || isFloat(value)) {
           value.value += increment
         } else {

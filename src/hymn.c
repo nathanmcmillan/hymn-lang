@@ -3349,8 +3349,7 @@ static void emit_loop(Compiler *C, int start) {
     if (offset > UINT16_MAX) {
         compile_error(C, &C->previous, "Loop is too large");
     }
-    emit(C, (offset >> 8) & UINT8_MAX);
-    emit(C, offset & UINT8_MAX);
+    emit_short(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
 }
 
 static void patch_jump_list(Compiler *C) {
