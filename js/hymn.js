@@ -10,7 +10,6 @@ const UINT16_MAX = 65535
 const HYMN_UINT8_COUNT = UINT8_MAX + 1
 const HYMN_FRAMES_MAX = 64
 
-const HYMN_VALUE_UNDEFINED = 0
 const HYMN_VALUE_NONE = 1
 const HYMN_VALUE_BOOL = 2
 const HYMN_VALUE_INTEGER = 3
@@ -23,9 +22,12 @@ const HYMN_VALUE_FUNC_NATIVE = 9
 const HYMN_VALUE_POINTER = 10
 
 const node = typeof window === 'undefined'
-
 const node_fs = node ? require('fs') : null
 const node_path = node ? require('path') : null
+
+const LOAD_FACTOR = 0.8
+const INITIAL_BINS = 1 << 3
+const MAXIMUM_BINS = 1 << 30
 
 class HymnValue {
   constructor(is, value) {
@@ -43,6 +45,23 @@ function cloneValue(original) {
   const value = new HymnValue()
   copyValueToFrom(value, original)
   return value
+}
+
+class HymnTableItem {
+  constructor(hash, key, value) {
+    this.hash = hash
+    this.key = key
+    this.value = value
+    this.next = null
+  }
+}
+
+class HymnTable {
+  constructor() {
+    this.size = 0
+    this.bins = INITIAL_BINS
+    this.items = new Array(this.bins).fill(null)
+  }
 }
 
 class HymnNativeFunction {
@@ -99,15 +118,14 @@ class Hymn {
     this.stackTop = 0
     this.frames = []
     this.frameCount = 0
-    this.globals = new Map()
+    this.globals = new HymnTable()
     this.paths = []
-    this.imports = new Map()
+    this.imports = new HymnTable()
     this.error = null
     this.print = printOut
   }
 }
 
-const STRING_UNDEFINED = 'Undefined'
 const STRING_NONE = 'None'
 const STRING_BOOL = 'Bool'
 const STRING_TRUE = 'True'
@@ -464,8 +482,6 @@ rules[TOKEN_SEMICOLON] = new Rule(null, null, PRECEDENCE_NONE)
 
 function valueName(type) {
   switch (type) {
-    case HYMN_VALUE_UNDEFINED:
-      return STRING_UNDEFINED
     case HYMN_VALUE_NONE:
       return STRING_NONE
     case HYMN_VALUE_BOOL:
@@ -484,6 +500,240 @@ function valueName(type) {
       return STRING_NATIVE
     default:
       return '?'
+  }
+}
+
+function stringMixHashCode(key) {
+  const length = key.length
+  let hash = 0
+  for (let i = 0; i < length; i++) {
+    hash = 31 * hash + key.charCodeAt(i)
+    hash |= 0
+  }
+  return hash ^ (hash >> 16)
+}
+
+function tableGetBin(table, hash) {
+  return (table.bins - 1) & hash
+}
+
+function tableResize(table) {
+  const binsOld = table.bins
+  const bins = binsOld << 1
+
+  if (bins > MAXIMUM_BINS) return
+
+  const itemsOld = table.items
+  const items = new Array(bins).fill(null)
+
+  for (let i = 0; i < binsOld; i++) {
+    let item = itemsOld[i]
+    if (item === null) continue
+    if (item.next === null) {
+      items[(bins - 1) & item.hash] = item
+    } else {
+      let lowHead = null
+      let lowTail = null
+      let highHead = null
+      let highTail = null
+      do {
+        if ((binsOld & item.hash) === 0) {
+          if (lowTail === null) lowHead = item
+          else lowTail.next = item
+          lowTail = item
+        } else {
+          if (highTail === null) highHead = item
+          else highTail.next = item
+          highTail = item
+        }
+        item = item.next
+      } while (item !== null)
+
+      if (lowTail !== null) {
+        lowTail.next = null
+        items[i] = lowHead
+      }
+
+      if (highTail !== null) {
+        highTail.next = null
+        items[i + binsOld] = highHead
+      }
+    }
+  }
+
+  table.bins = bins
+  table.items = items
+}
+
+function tablePut(table, key, value) {
+  const hash = stringMixHashCode(key)
+  const bin = tableGetBin(table, hash)
+  let item = table.items[bin]
+  let previous = null
+  while (item !== null) {
+    if (key === item.key) {
+      const old = item.value
+      item.value = value
+      return old
+    }
+    previous = item
+    item = item.next
+  }
+  item = new HymnTableItem(hash, key, value)
+  if (previous === null) table.items[bin] = item
+  else previous.next = item
+  table.size++
+  if (table.size > table.bins * LOAD_FACTOR) tableResize(table)
+  return null
+}
+
+function tableGet(table, key) {
+  const hash = stringMixHashCode(key)
+  const bin = tableGetBin(table, hash)
+  let item = table.items[bin]
+  while (item !== null) {
+    if (key === item.key) return item.value
+    item = item.next
+  }
+  return null
+}
+
+function tableNext(table, key) {
+  const bins = table.bins
+  if (key === null) {
+    for (let i = 0; i < bins; i++) {
+      const item = table.items[i]
+      if (item !== null) return item
+    }
+    return null
+  }
+  const hash = stringMixHashCode(key)
+  const bin = tableGetBin(table, hash)
+  {
+    let item = table.items[bin]
+    while (item !== null) {
+      const next = item.next
+      if (key === item.key) {
+        if (next !== null) return next
+      }
+      item = next
+    }
+  }
+  for (let i = bin + 1; i < bins; i++) {
+    const item = table.items[i]
+    if (item !== null) return item
+  }
+  return null
+}
+
+function tableRemove(table, key) {
+  const hash = stringMixHashCode(key)
+  const bin = tableGetBin(table, hash)
+  let item = table.items[bin]
+  let previous = null
+  while (item !== null) {
+    if (key === item.key) {
+      if (previous === null) table.items[bin] = item.next
+      else previous.next = item.next
+      const value = item.value
+      table.size--
+      return value
+    }
+    previous = item
+    item = item.next
+  }
+  return null
+}
+
+function tableClear(table) {
+  table.size = 0
+  const bins = table.bins
+  for (let i = 0; i < bins; i++) {
+    let item = table.items[i]
+    while (item !== null) {
+      const next = item.next
+      item.next = null
+      item = next
+    }
+    table.items[i] = null
+  }
+}
+
+function newTableCopy(from) {
+  const copy = new HymnTable()
+  const bins = from.bins
+  for (let i = 0; i < bins; i++) {
+    let item = from.items[i]
+    while (item !== null) {
+      tablePut(copy, item.key, cloneValue(item.value))
+      item = item.next
+    }
+  }
+  return copy
+}
+
+function stringCompare(a, b) {
+  return a === b ? 0 : a > b ? 1 : -1
+}
+
+function tableKeys(table) {
+  const size = table.size
+  const keys = new Array(size)
+  if (size === 0) return keys
+  let total = 0
+  const bins = table.bins
+  for (let i = 0; i < bins; i++) {
+    let item = table.items[i]
+    while (item !== null) {
+      const key = item.key
+      let insert = 0
+      while (insert !== total) {
+        if (stringCompare(key, keys[insert].value) < 0) {
+          for (let swap = total; swap > insert; swap--) {
+            keys[swap] = keys[swap - 1]
+          }
+          break
+        }
+        insert++
+      }
+      keys[insert] = newString(item.key)
+      total++
+      item = item.next
+    }
+  }
+  return keys
+}
+
+function tableKeyOf(table, input) {
+  let bin = 0
+  let item = null
+
+  const bins = table.bins
+  for (let i = 0; i < bins; i++) {
+    const start = table.items[i]
+    if (start) {
+      bin = i
+      item = start
+      break
+    }
+  }
+
+  if (item === null) return null
+  if (matchValues(input, item.value)) return item.key
+
+  while (true) {
+    item = item.next
+    if (item === null) {
+      for (bin = bin + 1; bin < bins; bin++) {
+        const start = table.items[bin]
+        if (start) {
+          item = start
+          break
+        }
+      }
+      if (item === null) return null
+    }
+    if (matchValues(input, item.value)) return item.key
   }
 }
 
@@ -542,10 +792,6 @@ function newNativeFunction(name, func) {
   return new HymnNativeFunction(name, func)
 }
 
-function isUndefined(value) {
-  return value.is === HYMN_VALUE_UNDEFINED
-}
-
 function isNone(value) {
   return value.is === HYMN_VALUE_NONE
 }
@@ -584,27 +830,6 @@ function isFuncNative(value) {
 
 function isPointer(value) {
   return value.is === HYMN_VALUE_POINTER
-}
-
-function tableNext(table, key) {
-  // TODO: NEED TO USE A CUSTOM TABLE IMPLEMENTATION
-  const keys = Array.from(table.keys())
-  keys.sort()
-  if (keys.length === 0) {
-    return null
-  } else if (key === null) {
-    return { key: keys[0], value: table.get(keys[0]) }
-  }
-  for (let i = 0; i < keys.length; i++) {
-    const current = keys[i]
-    if (current === key) {
-      if (i + 1 === keys.length) {
-        return null
-      }
-      return { key: keys[i + 1], value: table.get(keys[i + 1]) }
-    }
-  }
-  return null
 }
 
 function currentFunc(C) {
@@ -1040,7 +1265,6 @@ function matchValues(a, b) {
     return false
   }
   switch (a.is) {
-    case HYMN_VALUE_UNDEFINED:
     case HYMN_VALUE_NONE:
       return true
     default:
@@ -1099,15 +1323,6 @@ function arrayIndexOf(array, input) {
     }
   }
   return -1
-}
-
-function tableKeyOf(table, input) {
-  for (const [key, value] of table) {
-    if (matchValues(input, value)) {
-      return newString(key)
-    }
-  }
-  return newNone()
 }
 
 function writeByte(code, byte, row) {
@@ -1706,7 +1921,7 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
-function next(instruction) {
+function nextInstruction(instruction) {
   switch (instruction) {
     case OP_POP_N:
     case OP_SET_GLOBAL:
@@ -1773,7 +1988,7 @@ function adjustable(instructions, count, target) {
         break
       }
     }
-    i += next(instruction)
+    i += nextInstruction(instruction)
   }
   while (i < count) {
     const instruction = instructions[i]
@@ -1793,7 +2008,7 @@ function adjustable(instructions, count, target) {
         break
       }
     }
-    i += next(instruction)
+    i += nextInstruction(instruction)
   }
   return true
 }
@@ -1830,7 +2045,7 @@ function rewrite(instructions, lines, count, start, shift) {
         break
       }
     }
-    i += next(instruction)
+    i += nextInstruction(instruction)
   }
   while (i < count) {
     const instruction = instructions[i]
@@ -1854,7 +2069,7 @@ function rewrite(instructions, lines, count, start, shift) {
         break
       }
     }
-    i += next(instruction)
+    i += nextInstruction(instruction)
   }
   count -= shift
   for (let c = start; c < count; c++) {
@@ -1873,7 +2088,7 @@ function optimize(C) {
   let one = 0
   while (one < count) {
     const first = instructions[one]
-    const two = one + next(first)
+    const two = one + nextInstruction(first)
     if (two >= count) break
     const second = instructions[two]
 
@@ -1923,7 +2138,7 @@ function optimize(C) {
           count -= rewrite(instructions, lines, count, one + 2, 1)
           continue
         } else if (second === OP_CONSTANT) {
-          const three = two + next(second)
+          const three = two + nextInstruction(second)
           const third = three < count ? instructions[three] : UINT8_MAX
           if (third === OP_ADD) {
             const value = code.constants[code.instructions[two + 1]]
@@ -2697,8 +2912,6 @@ function compile(H, script, source) {
 
 function valueToStringRecursive(value, set, quote) {
   switch (value.is) {
-    case HYMN_VALUE_UNDEFINED:
-      return STRING_UNDEFINED
     case HYMN_VALUE_NONE:
       return STRING_NONE
     case HYMN_VALUE_BOOL:
@@ -2744,15 +2957,36 @@ function valueToStringRecursive(value, set, quote) {
         return '{ .. }'
       }
       set.add(table)
-      const keys = Array.from(table.keys())
-      keys.sort()
+      const size = table.size
+      const keys = new Array(size)
+      let total = 0
+      const bins = table.bins
+      for (let i = 0; i < bins; i++) {
+        let item = table.items[i]
+        while (item !== null) {
+          const key = item.key
+          let insert = 0
+          while (insert !== total) {
+            if (stringCompare(key, keys[insert]) < 0) {
+              for (let swap = total; swap > insert; swap--) {
+                keys[swap] = keys[swap - 1]
+              }
+              break
+            }
+            insert++
+          }
+          keys[insert] = item.key
+          total++
+          item = item.next
+        }
+      }
       let print = '{ '
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i]
-        const item = table.get(key)
+      for (let i = 0; i < size; i++) {
         if (i !== 0) {
           print += ', '
         }
+        const key = keys[i]
+        const item = tableGet(table, key)
         print += key + ': ' + valueToStringRecursive(item, set, true)
       }
       print += ' }'
@@ -2796,7 +3030,7 @@ function hymnStackGet(H, index) {
   if (index < H.stack.length) {
     return H.stack[index]
   }
-  const value = new HymnValue(HYMN_VALUE_UNDEFINED, null)
+  const value = new HymnValue(HYMN_VALUE_NONE, null)
   H.stack.push(value)
   return value
 }
@@ -3057,7 +3291,7 @@ async function hymnImport(H, file) {
       const path = parent ? replace.replace(/<parent>/g, parent) : replace
       const use = node_path.resolve(path)
 
-      if (imports.has(use)) {
+      if (tableGet(imports, use) !== null) {
         return currentFrame(H)
       }
 
@@ -3087,7 +3321,7 @@ async function hymnImport(H, file) {
       return hymnPushError(H, missing)
     }
 
-    imports.set(module, true)
+    tablePut(imports, module, newBool(true))
 
     source = node_fs.readFileSync(module, { encoding: 'utf-8' })
   } else {
@@ -3103,7 +3337,7 @@ async function hymnImport(H, file) {
       const replace = question.replace(/<path>/g, file)
       const use = parent ? replace.replace(/<parent>/g, parent) : replace
 
-      if (imports.has(use)) {
+      if (tableGet(imports, use) !== null) {
         return currentFrame(H)
       }
 
@@ -3139,7 +3373,7 @@ async function hymnImport(H, file) {
       return hymnPushError(H, missing)
     }
 
-    imports.set(module, true)
+    tablePut(imports, module, newBool(true))
   }
 
   const result = compile(H, module, source)
@@ -4085,7 +4319,7 @@ async function hymnRun(H) {
             break
           }
           case HYMN_VALUE_TABLE: {
-            value = newTableValue(new Map())
+            value = newTableValue(new HymnTable())
             break
           }
           default:
@@ -4097,30 +4331,29 @@ async function hymnRun(H) {
       case OP_DEFINE_GLOBAL: {
         const name = readConstant(frame).value
         const value = hymnPop(H)
-        if (H.globals.has(name)) {
+        const previous = tablePut(H.globals, name, value)
+        if (previous !== null) {
           frame = hymnThrowError(H, `Global '${name}' was previously defined.`)
           if (frame === null) return
           else break
         }
-        H.globals.set(name, value)
         break
       }
       case OP_SET_GLOBAL: {
         const name = readConstant(frame).value
         const value = hymnPeek(H, 1)
-        const exists = H.globals.get(name)
-        if (exists === undefined) {
+        const previous = tablePut(H.globals, name, value)
+        if (previous === null) {
           frame = hymnThrowError(H, 'Undefined variable `' + name + '`.')
           if (frame === null) return
           else break
         }
-        H.globals.set(name, value)
         break
       }
       case OP_GET_GLOBAL: {
         const name = readConstant(frame).value
-        const get = H.globals.get(name)
-        if (get === undefined) {
+        const get = tableGet(H.globals, name)
+        if (get === null) {
           frame = hymnThrowError(H, 'Undefined variable `' + name + '`.')
           if (frame === null) return
           else break
@@ -4178,17 +4411,17 @@ async function hymnRun(H) {
         break
       }
       case OP_SET_PROPERTY: {
-        const p = hymnPop(H)
-        const v = hymnPop(H)
-        if (!isTable(v)) {
+        const value = hymnPop(H)
+        const tableValue = hymnPop(H)
+        if (!isTable(tableValue)) {
           frame = hymnThrowError(H, 'Set Property: Only tables can set properties.')
           if (frame === null) return
           else break
         }
-        const table = v.value
+        const table = tableValue.value
         const name = readConstant(frame).value
-        table.set(name, p)
-        hymnPush(H, p)
+        tablePut(table, name, value)
+        hymnPush(H, value)
         break
       }
       case OP_GET_PROPERTY: {
@@ -4200,11 +4433,9 @@ async function hymnRun(H) {
         }
         const table = v.value
         const name = readConstant(frame).value
-        let g = table.get(name)
-        if (g === undefined) {
-          g = newNone()
-        }
-        hymnPush(H, g)
+        const g = tableGet(table, name)
+        if (g === null) hymnPush(H, newNone())
+        else hymnPush(H, g)
         break
       }
       case OP_SET_DYNAMIC: {
@@ -4246,7 +4477,7 @@ async function hymnRun(H) {
           }
           const table = v.value
           const name = i.value
-          table.set(name, s)
+          tablePut(table, name, s)
         } else {
           frame = hymnThrowError(H, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `' + valueName(v.is) + '`.')
           if (frame === null) return
@@ -4320,11 +4551,9 @@ async function hymnRun(H) {
             }
             const table = v.value
             const name = i.value
-            const g = table.get(name)
-            if (isUndefined(g)) {
-              g.is = HYMN_VALUE_NONE
-            }
-            hymnPush(H, g)
+            const g = tableGet(table, name)
+            if (g === null) hymnPush(H, newNone())
+            else hymnPush(H, g)
             break
           }
           default: {
@@ -4465,9 +4694,9 @@ async function hymnRun(H) {
           }
           const table = v.value
           const name = i.value
-          const value = table.get(name)
-          if (value) {
-            table.delete(name)
+          const value = tableGet(table, name)
+          if (value !== null) {
+            tableRemove(table, name)
             hymnPush(H, value)
           } else {
             hymnPush(H, newNone())
@@ -4497,7 +4726,7 @@ async function hymnRun(H) {
             break
           }
           case HYMN_VALUE_TABLE: {
-            const copy = new Map(value.value)
+            const copy = newTableCopy(value.value)
             hymnPush(H, newTableValue(copy))
             break
           }
@@ -4612,11 +4841,10 @@ async function hymnRun(H) {
           }
           case HYMN_VALUE_TABLE: {
             const table = value.value
-            table.clear()
+            tableClear(table)
             hymnPush(H, value)
             break
           }
-          case HYMN_VALUE_UNDEFINED:
           case HYMN_VALUE_NONE:
           case HYMN_VALUE_FUNC:
           case HYMN_VALUE_FUNC_NATIVE:
@@ -4634,11 +4862,7 @@ async function hymnRun(H) {
           else break
         } else {
           const table = value.value
-          const keys = Array.from(table.keys())
-          keys.sort()
-          for (let i = 0; i < keys.length; i++) {
-            keys[i] = newString(keys[i])
-          }
+          const keys = tableKeys(table)
           hymnPush(H, newArrayValue(keys))
         }
         break
@@ -4661,7 +4885,9 @@ async function hymnRun(H) {
             hymnPush(H, newInt(arrayIndexOf(a.value, b)))
             break
           case HYMN_VALUE_TABLE: {
-            hymnPush(H, tableKeyOf(a.value, b))
+            const key = tableKeyOf(a.value, b)
+            if (key === null) hymnPush(H, newNone())
+            else hymnPush(H, newString(key))
             break
           }
           default:
@@ -4674,7 +4900,6 @@ async function hymnRun(H) {
       case OP_TYPE: {
         const value = hymnPop(H)
         switch (value.is) {
-          case HYMN_VALUE_UNDEFINED:
           case HYMN_VALUE_NONE:
             hymnPush(H, newString(STRING_NONE))
             break
@@ -4789,11 +5014,11 @@ async function hymnRun(H) {
 
 function addFunction(H, name, func) {
   const value = newNativeFunction(name, func)
-  H.globals.set(name, newFuncNativeValue(value))
+  tablePut(H.globals, name, newFuncNativeValue(value))
 }
 
 function addPointer(H, name, pointer) {
-  H.globals.set(name, newPointerValue(pointer))
+  tablePut(H.globals, name, newPointerValue(pointer))
 }
 
 async function debugScript(H, script, source) {
@@ -4859,8 +5084,8 @@ function newVM() {
     H.paths.push(newString('/libs/<path>.hm'))
   }
 
-  H.globals.set('__paths', newArrayValue(H.paths))
-  H.globals.set('__imports', newTableValue(H.imports))
+  tablePut(H.globals, '__paths', newArrayValue(H.paths))
+  tablePut(H.globals, '__imports', newTableValue(H.imports))
 
   return H
 }

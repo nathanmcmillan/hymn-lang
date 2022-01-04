@@ -560,9 +560,7 @@ typedef struct Scope Scope;
 typedef struct Compiler Compiler;
 
 static const float LOAD_FACTOR = 0.80f;
-
 static const unsigned int INITIAL_BINS = 1 << 3;
-
 static const unsigned int MAXIMUM_BINS = 1 << 30;
 
 enum TokenType {
@@ -1087,16 +1085,12 @@ static const char *value_name(enum HymnValueType type) {
     }
 }
 
-static size_t string_hashcode(HymnString *key) {
+static size_t string_mix_hashcode(HymnString *key) {
     size_t length = hymn_string_len(key);
     size_t hash = 0;
     for (size_t i = 0; i < length; i++) {
         hash = 31 * hash + (size_t)key[i];
     }
-    return hash;
-}
-
-static size_t mix_hash(size_t hash) {
     return hash ^ (hash >> 16);
 }
 
@@ -1108,7 +1102,7 @@ static HymnObjectString *new_hymn_string_with_hash(HymnString *string, size_t ha
 }
 
 HymnObjectString *hymn_new_string_object(HymnString *string) {
-    return new_hymn_string_with_hash(string, mix_hash(string_hashcode(string)));
+    return new_hymn_string_with_hash(string, string_mix_hashcode(string));
 }
 
 static void table_init(HymnTable *this) {
@@ -1187,9 +1181,9 @@ static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue val
     HymnTableItem *previous = NULL;
     while (item != NULL) {
         if (key == item->key) {
-            HymnValue get = item->value;
+            HymnValue old = item->value;
             item->value = value;
-            return get;
+            return old;
         }
         previous = item;
         item = item->next;
@@ -1268,7 +1262,7 @@ static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
             }
             HymnValue value = item->value;
             free(item);
-            this->size -= 1;
+            this->size--;
             return value;
         }
         previous = item;
@@ -1374,7 +1368,7 @@ static void set_resize(HymnSet *this) {
 }
 
 static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
-    size_t hash = mix_hash(string_hashcode(add));
+    size_t hash = string_mix_hashcode(add);
     unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
@@ -1402,7 +1396,7 @@ static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
 }
 
 static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
-    size_t hash = mix_hash(string_hashcode(remove));
+    size_t hash = string_mix_hashcode(remove);
     unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
@@ -1415,7 +1409,7 @@ static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
             }
             HymnObjectString *string = item->string;
             free(item);
-            this->size -= 1;
+            this->size--;
             return string;
         }
         previous = item;
@@ -3931,7 +3925,8 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         } else {
             pointer_set_add(set, table);
         }
-        HymnObjectString **keys = hymn_malloc(table->size * sizeof(HymnObjectString *));
+        unsigned int size = table->size;
+        HymnObjectString **keys = hymn_malloc(size * sizeof(HymnObjectString *));
         unsigned int total = 0;
         unsigned int bins = table->bins;
         for (unsigned int i = 0; i < bins; i++) {
@@ -3954,13 +3949,14 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             }
         }
         HymnString *string = hymn_new_string("{ ");
-        for (unsigned int i = 0; i < table->size; i++) {
+        for (unsigned int i = 0; i < size; i++) {
             if (i != 0) {
                 string = hymn_string_append(string, ", ");
             }
-            HymnValue item = table_get(table, keys[i]);
+            HymnObjectString *key = keys[i];
+            HymnValue item = table_get(table, key);
             HymnString *add = value_to_string_recusive(item, set, true);
-            string = string_append_format(string, "%s: %s", keys[i]->string, add);
+            string = string_append_format(string, "%s: %s", key->string, add);
             hymn_string_delete(add);
         }
         string = hymn_string_append(string, " }");
@@ -6170,7 +6166,7 @@ void hymn_delete(Hymn *H) {
                     }
                     native_function_delete(hymn_as_native(item->value));
                     free(item);
-                    globals->size -= 1;
+                    globals->size--;
                 } else {
                     previous = item;
                 }
