@@ -243,7 +243,7 @@ bool hymn_is_func(HymnValue v);
 
 Hymn *new_hymn();
 
-char *hymn_debug(Hymn *H, const char *script);
+char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_call(Hymn *H, const char *name, int arguments);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);

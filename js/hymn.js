@@ -65,9 +65,9 @@ class HymnTable {
 }
 
 class HymnNativeFunction {
-  constructor(name, call) {
+  constructor(name, func) {
     this.name = name
-    this.call = call
+    this.func = func
   }
 }
 
@@ -3596,7 +3596,7 @@ function disassembleInstruction(debug, code, index) {
 }
 
 function disassembleByteCode(code, name) {
-  console.debug('\n-- ' + name + ' --')
+  console.debug(`\n-- ${name !== null ? name : 'NULL'} --`)
   const debug = ['']
   let index = 0
   while (index < code.count) {
@@ -5092,8 +5092,11 @@ function newVM() {
 
 if (node) {
   module.exports = {
+    isFloat: isFloat,
     isFuncNative: isFuncNative,
     isPointer: isPointer,
+    newNone: newNone,
+    newFloat: newFloat,
     newFuncNativeValue: newFuncNativeValue,
     newPointerValue: newPointerValue,
     newFunction: newFunction,

@@ -4605,7 +4605,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
 }
 
 void disassemble_byte_code(HymnByteCode *code, const char *name) {
-    printf("\n-- %s --\n", name);
+    printf("\n-- %s --\n", name != NULL ? name : "NULL");
     HymnString *debug = hymn_new_string("");
     size_t offset = 0;
     while (offset < (size_t)code->count) {
@@ -6231,10 +6231,15 @@ void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
     }
 }
 
-char *hymn_debug(Hymn *H, const char *script) {
-    HymnString *source = hymn_read_file(script);
+char *hymn_debug(Hymn *H, const char *script, const char *source) {
+    HymnString *code = NULL;
+    if (source == NULL) {
+        code = hymn_read_file(script);
+    } else {
+        code = hymn_new_string(source);
+    }
 
-    struct CompileReturn result = compile(H, script, source);
+    struct CompileReturn result = compile(H, script, code);
 
     HymnFunction *main = result.func;
 
