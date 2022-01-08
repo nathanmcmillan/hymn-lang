@@ -2102,7 +2102,7 @@ function update(important, instructions, i, instruction) {
       return
     }
   }
-  throw 'Did not find instruction to update'
+  throw 'Optimization failed to find instruction to update.'
 }
 
 function deleter(important, i) {
@@ -2113,12 +2113,10 @@ function deleter(important, i) {
       return
     }
   }
-  throw 'Did not find instruction to delete'
+  throw 'Optimization failed to find instruction to delete.'
 }
 
-function interest(code) {
-  const instructions = code.instructions
-  const count = code.count
+function interest(instructions,count) {
   const important = []
   let i = 0
   while (i < count) {
@@ -2147,10 +2145,10 @@ function interest(code) {
 
 function optimize(C) {
   const code = current(C)
-  const important = interest(code)
   const instructions = code.instructions
   const lines = code.lines
   let count = code.count
+  const important = interest(code)
   let one = 0
   while (one < count) {
     const first = instructions[one]

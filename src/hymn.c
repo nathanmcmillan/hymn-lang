@@ -558,6 +558,7 @@ typedef struct Local Local;
 typedef struct Rule Rule;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
+typedef struct Instruction Instruction;
 
 static const float LOAD_FACTOR = 0.80f;
 static const unsigned int INITIAL_BINS = 1 << 3;
@@ -848,6 +849,12 @@ struct Compiler {
     struct JumpList *jump_and;
     struct JumpList *jump_for;
     HymnString *error;
+};
+
+struct Instruction {
+    int index;
+    uint8_t instruction;
+    Instruction *next;
 };
 
 HymnValue hymn_new_undefined() {
@@ -2884,11 +2891,11 @@ static int next(uint8_t instruction) {
     }
 }
 
-static bool adjustable(uint8_t *instructions, int count, int target) {
-    // TODO: THIS NEEDS TO BE WAY MORE EFFICIENT
-    int i = 0;
-    while (i < target) {
-        uint8_t instruction = instructions[i];
+static bool adjustable(Instruction *important, uint8_t *instructions, int target) {
+    Instruction *view = important;
+    while (view != NULL) {
+        int i = view->index;
+        uint8_t instruction = view->instruction;
         switch (instruction) {
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
@@ -2899,49 +2906,52 @@ static bool adjustable(uint8_t *instructions, int count, int target) {
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            if (i + 3 + jump == target) {
-                return false;
+            if (i < target) {
+                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                if (i + 3 + jump == target) {
+                    return false;
+                }
             }
             break;
         }
         case OP_FOR: {
-            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            if (i + 3 + jump == target) {
-                return false;
+            if (i < target) {
+                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+                if (i + 3 + jump == target) {
+                    return false;
+                }
             }
             break;
         }
-        }
-        i += next(instruction);
-    }
-    while (i < count) {
-        uint8_t instruction = instructions[i];
-        switch (instruction) {
         case OP_LOOP: {
-            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            if (i + 3 - jump == target) {
-                return false;
+            if (i >= target) {
+                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                if (i + 3 - jump == target) {
+                    return false;
+                }
             }
             break;
         }
         case OP_FOR_LOOP: {
-            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            if (i + 3 - jump == target) {
-                return false;
+            if (i >= target) {
+                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+                if (i + 3 - jump == target) {
+                    return false;
+                }
             }
             break;
         }
         }
-        i += next(instruction);
+        view = important->next;
     }
     return true;
 }
 
-static int rewrite(uint8_t *instructions, int *lines, int count, int start, int shift) {
-    int i = 0;
-    while (i < start) {
-        uint8_t instruction = instructions[i];
+static int rewrite(Instruction *important, uint8_t *instructions, int *lines, int count, int start, int shift) {
+    Instruction *view = important;
+    while (view != NULL) {
+        int i = view->index;
+        uint8_t instruction = view->instruction;
         switch (instruction) {
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
@@ -2952,49 +2962,54 @@ static int rewrite(uint8_t *instructions, int *lines, int count, int start, int 
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            if (i + 3 + jump > start) {
-                jump -= (uint16_t)shift;
-                instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                instructions[i + 2] = jump & UINT8_MAX;
+            if (i < start) {
+                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                if (i + 3 + jump > start) {
+                    jump -= (uint16_t)shift;
+                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 2] = jump & UINT8_MAX;
+                }
             }
             break;
         }
         case OP_FOR: {
-            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            if (i + 3 + jump > start) {
-                jump -= (uint16_t)shift;
-                instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                instructions[i + 3] = jump & UINT8_MAX;
+            if (i < start) {
+                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+                if (i + 3 + jump > start) {
+                    jump -= (uint16_t)shift;
+                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 3] = jump & UINT8_MAX;
+                }
             }
             break;
         }
-        }
-        i += next(instruction);
-    }
-    while (i < count) {
-        uint8_t instruction = instructions[i];
-        switch (instruction) {
         case OP_LOOP: {
-            uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-            if (i + 3 - jump < start) {
-                jump -= (uint16_t)shift;
-                instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                instructions[i + 2] = jump & UINT8_MAX;
+            if (i >= start) {
+                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                if (i + 3 - jump < start) {
+                    jump -= (uint16_t)shift;
+                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 2] = jump & UINT8_MAX;
+                }
             }
             break;
         }
         case OP_FOR_LOOP: {
-            uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-            if (i + 3 - jump < start) {
-                jump -= (uint16_t)shift;
-                instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                instructions[i + 3] = jump & UINT8_MAX;
+            if (i >= start) {
+                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+                if (i + 3 - jump < start) {
+                    jump -= (uint16_t)shift;
+                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 3] = jump & UINT8_MAX;
+                }
             }
             break;
         }
         }
-        i += next(instruction);
+        if (i >= start) {
+            view->index = i - shift;
+        }
+        view = important->next;
     }
     count -= shift;
     for (int c = start; c < count; c++) {
@@ -3005,26 +3020,98 @@ static int rewrite(uint8_t *instructions, int *lines, int count, int start, int 
     return shift;
 }
 
+static void update(Instruction *important, uint8_t *instructions, int i, uint8_t instruction) {
+    instructions[i] = instruction;
+    Instruction *view = important;
+    while (view != NULL) {
+        if (i == view->index) {
+            view->instruction = instruction;
+            return;
+        }
+        view = important->next;
+    }
+    fprintf(stderr, "Optimization failed to find instruction to update.\n");
+    exit(1);
+}
+
+static Instruction *deleter(Instruction *important, int i) {
+    Instruction *view = important;
+    Instruction *previous = NULL;
+    while (view != NULL) {
+        if (i == view->index) {
+            Instruction *next = view->next;
+            free(view);
+            if (previous == NULL) {
+                return next;
+            }
+            previous->next = next;
+            return important;
+        }
+        view = important->next;
+    }
+    fprintf(stderr, "Optimization failed to find instruction to delete.\n");
+    exit(1);
+    return NULL;
+}
+
+static Instruction *interest(uint8_t *instructions, int count) {
+    Instruction *head = NULL;
+    Instruction *tail = NULL;
+    int i = 0;
+    while (i < count) {
+        uint8_t instruction = instructions[i];
+        switch (instruction) {
+        case OP_JUMP:
+        case OP_JUMP_IF_FALSE:
+        case OP_JUMP_IF_TRUE:
+        case OP_JUMP_IF_EQUAL:
+        case OP_JUMP_IF_NOT_EQUAL:
+        case OP_JUMP_IF_LESS:
+        case OP_JUMP_IF_GREATER:
+        case OP_JUMP_IF_LESS_EQUAL:
+        case OP_JUMP_IF_GREATER_EQUAL:
+        case OP_FOR:
+        case OP_LOOP:
+        case OP_FOR_LOOP: {
+            Instruction *important = hymn_calloc(1, sizeof(Instruction));
+            important->index = i;
+            important->instruction = instruction;
+            if (tail == NULL) {
+                head = important;
+            } else {
+                tail->next = important;
+            }
+            tail = important;
+            break;
+        }
+        }
+        i += next(instruction);
+    }
+    return head;
+}
+
 static void optimize(Compiler *C) {
     HymnByteCode *code = current(C);
     uint8_t *instructions = code->instructions;
     int *lines = code->lines;
     int count = code->count;
+    Instruction *important = interest(instructions, count);
     int one = 0;
     while (one < count) {
 
 #define SET(I, O) instructions[I] = O
-#define REWRITE(S, X) count -= rewrite(instructions, lines, count, one + S, X)
+#define UPDATE(I, O) update(important, instructions, I, O)
+#define REWRITE(S, X) count -= rewrite(important, instructions, lines, count, one + S, X)
 #define REPEAT continue
 #define NEXT goto next
 #define JUMP_IF(T, F)                        \
     if (second == OP_JUMP_IF_TRUE) {         \
         REWRITE(0, 1);                       \
-        SET(one, T);                         \
+        UPDATE(one, T);                      \
         REPEAT;                              \
     } else if (second == OP_JUMP_IF_FALSE) { \
         REWRITE(0, 1);                       \
-        SET(one, F);                         \
+        UPDATE(one, F);                      \
         REPEAT;                              \
     }
 
@@ -3033,7 +3120,7 @@ static void optimize(Compiler *C) {
         if (two >= count) break;
         uint8_t second = instructions[two];
 
-        if (!adjustable(instructions, count, one) || !adjustable(instructions, count, two)) {
+        if (!adjustable(important, instructions, one) || !adjustable(important, instructions, two)) {
             one = two;
             continue;
         }
@@ -3176,9 +3263,10 @@ static void optimize(Compiler *C) {
         case OP_TRUE: {
             if (second == OP_JUMP_IF_TRUE) {
                 REWRITE(0, 1);
-                SET(one, OP_JUMP);
+                UPDATE(one, OP_JUMP);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
+                deleter(important, two);
                 REWRITE(0, 4);
                 REPEAT;
             }
@@ -3186,11 +3274,12 @@ static void optimize(Compiler *C) {
         }
         case OP_FALSE: {
             if (second == OP_JUMP_IF_TRUE) {
+                deleter(important, two);
                 REWRITE(0, 4);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
                 REWRITE(0, 1);
-                SET(one, OP_JUMP);
+                UPDATE(one, OP_JUMP);
                 REPEAT;
             }
             break;
@@ -3198,11 +3287,11 @@ static void optimize(Compiler *C) {
         case OP_NOT: {
             if (second == OP_JUMP_IF_TRUE) {
                 REWRITE(0, 1);
-                SET(one, OP_JUMP_IF_FALSE);
+                UPDATE(one, OP_JUMP_IF_FALSE);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
                 REWRITE(0, 1);
-                SET(one, OP_JUMP_IF_TRUE);
+                UPDATE(one, OP_JUMP_IF_TRUE);
                 REPEAT;
             }
             break;
