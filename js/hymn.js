@@ -108,6 +108,13 @@ class HymnFrame {
   }
 }
 
+class Instruction {
+  constructor(index, instruction) {
+    this.index = index
+    this.instruction = instruction
+  }
+}
+
 function printOut(text) {
   console.log(text)
 }
@@ -1921,13 +1928,6 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
-class Instruction {
-  constructor(index, instruction) {
-    this.index = index
-    this.instruction = instruction
-  }
-}
-
 function next(instruction) {
   switch (instruction) {
     case OP_POP_N:
@@ -1967,9 +1967,9 @@ function next(instruction) {
 }
 
 function adjustable(important, instructions, count, target) {
-  for (let i = 0; i < important.length; i++) {
-    const view = important[i]
-    const index = view.index
+  for (let t = 0; t < important.length; t++) {
+    const view = important[t]
+    const i = view.index
     const instruction = view.instruction
     switch (instruction) {
       case OP_JUMP:
@@ -1981,20 +1981,36 @@ function adjustable(important, instructions, count, target) {
       case OP_JUMP_IF_GREATER:
       case OP_JUMP_IF_LESS_EQUAL:
       case OP_JUMP_IF_GREATER_EQUAL: {
-        if (index < target) {
-          const jump = (instructions[index + 1] << 8) | instructions[index + 2]
-          if (index + 3 + jump === target) {
+        if (i < target) {
+          const jump = (instructions[i + 1] << 8) | instructions[i + 2]
+          if (i + 3 + jump === target) {
             return false
           }
         }
         break
       }
-      case OP_FOR:
-      case OP_LOOP:
+      case OP_FOR: {
+        if (i < target) {
+          const jump = (instructions[i + 2] << 8) | instructions[i + 3]
+          if (i + 3 + jump === target) {
+            return false
+          }
+        }
+        break
+      }
+      case OP_LOOP: {
+        if (i >= target) {
+          const jump = (instructions[i + 1] << 8) | instructions[i + 2]
+          if (i + 3 - jump === target) {
+            return false
+          }
+        }
+        break
+      }
       case OP_FOR_LOOP: {
-        if (index >= target) {
-          const jump = (instructions[index + 1] << 8) | instructions[index + 2]
-          if (index + 3 - jump === target) {
+        if (i >= target) {
+          const jump = (instructions[i + 2] << 8) | instructions[i + 3]
+          if (i + 3 - jump === target) {
             return false
           }
         }
@@ -2006,9 +2022,9 @@ function adjustable(important, instructions, count, target) {
 }
 
 function rewrite(important, instructions, lines, count, start, shift) {
-  for (let i = 0; i < important.length; i++) {
-    const view = important[i]
-    const index = view.index
+  for (let t = 0; t < important.length; t++) {
+    const view = important[t]
+    const i = view.index
     const instruction = view.instruction
     switch (instruction) {
       case OP_JUMP:
@@ -2020,52 +2036,52 @@ function rewrite(important, instructions, lines, count, start, shift) {
       case OP_JUMP_IF_GREATER:
       case OP_JUMP_IF_LESS_EQUAL:
       case OP_JUMP_IF_GREATER_EQUAL: {
-        if (index < start) {
-          let jump = (instructions[index + 1] << 8) | instructions[index + 2]
-          if (index + 3 + jump > start) {
+        if (i < start) {
+          let jump = (instructions[i + 1] << 8) | instructions[i + 2]
+          if (i + 3 + jump > start) {
             jump -= shift
-            instructions[index + 1] = (jump >> 8) & UINT8_MAX
-            instructions[index + 2] = jump & UINT8_MAX
+            instructions[i + 1] = (jump >> 8) & UINT8_MAX
+            instructions[i + 2] = jump & UINT8_MAX
           }
         }
         break
       }
       case OP_FOR: {
-        if (index < start) {
-          let jump = (instructions[index + 2] << 8) | instructions[index + 3]
-          if (index + 3 + jump > start) {
+        if (i < start) {
+          let jump = (instructions[i + 2] << 8) | instructions[i + 3]
+          if (i + 3 + jump > start) {
             jump -= shift
-            instructions[index + 2] = (jump >> 8) & UINT8_MAX
-            instructions[index + 3] = jump & UINT8_MAX
+            instructions[i + 2] = (jump >> 8) & UINT8_MAX
+            instructions[i + 3] = jump & UINT8_MAX
           }
         }
         break
       }
       case OP_LOOP: {
-        if (index >= start) {
-          let jump = (instructions[index + 1] << 8) | instructions[index + 2]
-          if (index + 3 - jump < start) {
+        if (i >= start) {
+          let jump = (instructions[i + 1] << 8) | instructions[i + 2]
+          if (i + 3 - jump < start) {
             jump -= shift
-            instructions[index + 1] = (jump >> 8) & UINT8_MAX
-            instructions[index + 2] = jump & UINT8_MAX
+            instructions[i + 1] = (jump >> 8) & UINT8_MAX
+            instructions[i + 2] = jump & UINT8_MAX
           }
         }
         break
       }
       case OP_FOR_LOOP: {
-        if (index >= start) {
-          let jump = (instructions[index + 2] << 8) | instructions[index + 3]
-          if (index + 3 - jump < start) {
+        if (i >= start) {
+          let jump = (instructions[i + 2] << 8) | instructions[i + 3]
+          if (i + 3 - jump < start) {
             jump -= shift
-            instructions[index + 2] = (jump >> 8) & UINT8_MAX
-            instructions[index + 3] = jump & UINT8_MAX
+            instructions[i + 2] = (jump >> 8) & UINT8_MAX
+            instructions[i + 3] = jump & UINT8_MAX
           }
         }
         break
       }
     }
-    if (index >= start) {
-      view.index = index - shift
+    if (i >= start) {
+      view.index = i - shift
     }
   }
   count -= shift
@@ -2077,11 +2093,11 @@ function rewrite(important, instructions, lines, count, start, shift) {
   return shift
 }
 
-function update(important, instructions, where, instruction) {
-  instructions[where] = instruction
-  for (let i = 0; i < important.length; i++) {
-    const view = important[i]
-    if (where === view.index) {
+function update(important, instructions, i, instruction) {
+  instructions[i] = instruction
+  for (let t = 0; t < important.length; t++) {
+    const view = important[t]
+    if (i === view.index) {
       view.instruction = instruction
       return
     }
@@ -2089,11 +2105,11 @@ function update(important, instructions, where, instruction) {
   throw 'Did not find instruction to update'
 }
 
-function deleter(important, where) {
-  for (let i = 0; i < important.length; i++) {
-    const view = important[i]
-    if (where === view.index) {
-      important.splice(i, 1)
+function deleter(important, i) {
+  for (let t = 0; t < important.length; t++) {
+    const view = important[t]
+    if (i === view.index) {
+      important.splice(t, 1)
       return
     }
   }
