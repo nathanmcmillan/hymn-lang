@@ -1921,7 +1921,14 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
-function nextInstruction(instruction) {
+class Instruction {
+  constructor(index, instruction) {
+    this.index = index
+    this.instruction = instruction
+  }
+}
+
+function next(instruction) {
   switch (instruction) {
     case OP_POP_N:
     case OP_SET_GLOBAL:
@@ -1959,11 +1966,11 @@ function nextInstruction(instruction) {
   }
 }
 
-function adjustable(instructions, count, target) {
-  // TODO: THIS NEEDS TO BE WAY MORE EFFICIENT
-  let i = 0
-  while (i < target) {
-    const instruction = instructions[i]
+function adjustable(important, instructions, count, target) {
+  for (let i = 0; i < important.length; i++) {
+    const view = important[i]
+    const index = view.index
+    const instruction = view.instruction
     switch (instruction) {
       case OP_JUMP:
       case OP_JUMP_IF_FALSE:
@@ -1974,49 +1981,35 @@ function adjustable(instructions, count, target) {
       case OP_JUMP_IF_GREATER:
       case OP_JUMP_IF_LESS_EQUAL:
       case OP_JUMP_IF_GREATER_EQUAL: {
-        const jump = (instructions[i + 1] << 8) | instructions[i + 2]
-        if (i + 3 + jump === target) {
-          return false
+        if (index < target) {
+          const jump = (instructions[index + 1] << 8) | instructions[index + 2]
+          if (index + 3 + jump === target) {
+            return false
+          }
         }
         break
       }
-      case OP_FOR: {
-        const jump = (instructions[i + 2] << 8) | instructions[i + 3]
-        if (i + 3 + jump === target) {
-          return false
-        }
-        break
-      }
-    }
-    i += nextInstruction(instruction)
-  }
-  while (i < count) {
-    const instruction = instructions[i]
-    switch (instruction) {
-      case OP_LOOP: {
-        const jump = (instructions[i + 1] << 8) | instructions[i + 2]
-        if (i + 3 - jump === target) {
-          return false
-        }
-        break
-      }
+      case OP_FOR:
+      case OP_LOOP:
       case OP_FOR_LOOP: {
-        const jump = (instructions[i + 2] << 8) | instructions[i + 3]
-        if (i + 3 - jump === target) {
-          return false
+        if (index >= target) {
+          const jump = (instructions[index + 1] << 8) | instructions[index + 2]
+          if (index + 3 - jump === target) {
+            return false
+          }
         }
         break
       }
     }
-    i += nextInstruction(instruction)
   }
   return true
 }
 
-function rewrite(instructions, lines, count, start, shift) {
-  let i = 0
-  while (i < start) {
-    const instruction = instructions[i]
+function rewrite(important, instructions, lines, count, start, shift) {
+  for (let i = 0; i < important.length; i++) {
+    const view = important[i]
+    const index = view.index
+    const instruction = view.instruction
     switch (instruction) {
       case OP_JUMP:
       case OP_JUMP_IF_FALSE:
@@ -2027,49 +2020,53 @@ function rewrite(instructions, lines, count, start, shift) {
       case OP_JUMP_IF_GREATER:
       case OP_JUMP_IF_LESS_EQUAL:
       case OP_JUMP_IF_GREATER_EQUAL: {
-        let jump = (instructions[i + 1] << 8) | instructions[i + 2]
-        if (i + 3 + jump > start) {
-          jump -= shift
-          instructions[i + 1] = (jump >> 8) & UINT8_MAX
-          instructions[i + 2] = jump & UINT8_MAX
+        if (index < start) {
+          let jump = (instructions[index + 1] << 8) | instructions[index + 2]
+          if (index + 3 + jump > start) {
+            jump -= shift
+            instructions[index + 1] = (jump >> 8) & UINT8_MAX
+            instructions[index + 2] = jump & UINT8_MAX
+          }
         }
         break
       }
       case OP_FOR: {
-        let jump = (instructions[i + 2] << 8) | instructions[i + 3]
-        if (i + 3 + jump > start) {
-          jump -= shift
-          instructions[i + 2] = (jump >> 8) & UINT8_MAX
-          instructions[i + 3] = jump & UINT8_MAX
+        if (index < start) {
+          let jump = (instructions[index + 2] << 8) | instructions[index + 3]
+          if (index + 3 + jump > start) {
+            jump -= shift
+            instructions[index + 2] = (jump >> 8) & UINT8_MAX
+            instructions[index + 3] = jump & UINT8_MAX
+          }
         }
         break
       }
-    }
-    i += nextInstruction(instruction)
-  }
-  while (i < count) {
-    const instruction = instructions[i]
-    switch (instruction) {
       case OP_LOOP: {
-        let jump = (instructions[i + 1] << 8) | instructions[i + 2]
-        if (i + 3 - jump < start) {
-          jump -= shift
-          instructions[i + 1] = (jump >> 8) & UINT8_MAX
-          instructions[i + 2] = jump & UINT8_MAX
+        if (index >= start) {
+          let jump = (instructions[index + 1] << 8) | instructions[index + 2]
+          if (index + 3 - jump < start) {
+            jump -= shift
+            instructions[index + 1] = (jump >> 8) & UINT8_MAX
+            instructions[index + 2] = jump & UINT8_MAX
+          }
         }
         break
       }
       case OP_FOR_LOOP: {
-        let jump = (instructions[i + 2] << 8) | instructions[i + 3]
-        if (i + 3 - jump < start) {
-          jump -= shift
-          instructions[i + 2] = (jump >> 8) & UINT8_MAX
-          instructions[i + 3] = jump & UINT8_MAX
+        if (index >= start) {
+          let jump = (instructions[index + 2] << 8) | instructions[index + 3]
+          if (index + 3 - jump < start) {
+            jump -= shift
+            instructions[index + 2] = (jump >> 8) & UINT8_MAX
+            instructions[index + 3] = jump & UINT8_MAX
+          }
         }
         break
       }
     }
-    i += nextInstruction(instruction)
+    if (index >= start) {
+      view.index = index - shift
+    }
   }
   count -= shift
   for (let c = start; c < count; c++) {
@@ -2080,19 +2077,72 @@ function rewrite(instructions, lines, count, start, shift) {
   return shift
 }
 
+function update(important, instructions, where, instruction) {
+  instructions[where] = instruction
+  for (let i = 0; i < important.length; i++) {
+    const view = important[i]
+    if (where === view.index) {
+      view.instruction = instruction
+      return
+    }
+  }
+  throw 'Did not find instruction to update'
+}
+
+function deleter(important, where) {
+  for (let i = 0; i < important.length; i++) {
+    const view = important[i]
+    if (where === view.index) {
+      important.splice(i, 1)
+      return
+    }
+  }
+  throw 'Did not find instruction to delete'
+}
+
+function interest(code) {
+  const instructions = code.instructions
+  const count = code.count
+  const important = []
+  let i = 0
+  while (i < count) {
+    const instruction = instructions[i]
+    switch (instruction) {
+      case OP_JUMP:
+      case OP_JUMP_IF_FALSE:
+      case OP_JUMP_IF_TRUE:
+      case OP_JUMP_IF_EQUAL:
+      case OP_JUMP_IF_NOT_EQUAL:
+      case OP_JUMP_IF_LESS:
+      case OP_JUMP_IF_GREATER:
+      case OP_JUMP_IF_LESS_EQUAL:
+      case OP_JUMP_IF_GREATER_EQUAL:
+      case OP_FOR:
+      case OP_LOOP:
+      case OP_FOR_LOOP: {
+        important.push(new Instruction(i, instruction))
+        break
+      }
+    }
+    i += next(instruction)
+  }
+  return important
+}
+
 function optimize(C) {
   const code = current(C)
+  const important = interest(code)
   const instructions = code.instructions
   const lines = code.lines
   let count = code.count
   let one = 0
   while (one < count) {
     const first = instructions[one]
-    const two = one + nextInstruction(first)
+    const two = one + next(first)
     if (two >= count) break
     const second = instructions[two]
 
-    if (!adjustable(instructions, count, one) || !adjustable(instructions, count, two)) {
+    if (!adjustable(important, instructions, count, one) || !adjustable(important, instructions, count, two)) {
       one = two
       continue
     }
@@ -2107,7 +2157,7 @@ function optimize(C) {
       }
       case OP_POP: {
         if (second === OP_POP) {
-          count -= rewrite(instructions, lines, count, one, 1)
+          count -= rewrite(important, instructions, lines, count, one, 1)
           instructions[one] = OP_POP_TWO
           continue
         }
@@ -2125,7 +2175,7 @@ function optimize(C) {
         if (second === OP_POP) {
           const pop = instructions[one + 1]
           if (pop < UINT8_MAX - 1) {
-            count -= rewrite(instructions, lines, count, one + 1, 1)
+            count -= rewrite(important, instructions, lines, count, one + 1, 1)
             instructions[one + 1] = pop + 1
             continue
           }
@@ -2135,10 +2185,10 @@ function optimize(C) {
       case OP_GET_LOCAL: {
         if (second === OP_GET_LOCAL) {
           instructions[one] = OP_GET_TWO_LOCAL
-          count -= rewrite(instructions, lines, count, one + 2, 1)
+          count -= rewrite(important, instructions, lines, count, one + 2, 1)
           continue
         } else if (second === OP_CONSTANT) {
-          const three = two + nextInstruction(second)
+          const three = two + next(second)
           const third = three < count ? instructions[three] : UINT8_MAX
           if (third === OP_ADD) {
             const value = code.constants[code.instructions[two + 1]]
@@ -2146,7 +2196,7 @@ function optimize(C) {
               const add = value.value
               if (add >= 0 && add <= UINT8_MAX) {
                 const local = code.instructions[one + 1]
-                count -= rewrite(instructions, lines, count, one, 2)
+                count -= rewrite(important, instructions, lines, count, one, 2)
                 instructions[one] = OP_INCREMENT_LOCAL
                 instructions[one + 1] = local
                 instructions[one + 2] = add
@@ -2160,7 +2210,7 @@ function optimize(C) {
       case OP_GET_TWO_LOCAL: {
         if (second === OP_ADD) {
           instructions[one] = OP_ADD_TWO_LOCAL
-          count -= rewrite(instructions, lines, count, one + 3, 1)
+          count -= rewrite(important, instructions, lines, count, one + 3, 1)
           continue
         }
         break
@@ -2169,7 +2219,7 @@ function optimize(C) {
         if (second === OP_SET_LOCAL) {
           if (instructions[one + 1] === instructions[one + 4]) {
             instructions[one] = OP_INCREMENT_LOCAL_AND_SET
-            count -= rewrite(instructions, lines, count, one + 3, 2)
+            count -= rewrite(important, instructions, lines, count, one + 3, 2)
             continue
           }
         }
@@ -2177,7 +2227,7 @@ function optimize(C) {
       }
       case OP_INCREMENT_LOCAL_AND_SET: {
         if (second === OP_POP) {
-          count -= rewrite(instructions, lines, count, one + 3, 1)
+          count -= rewrite(important, instructions, lines, count, one + 3, 1)
           continue
         }
         break
@@ -2190,7 +2240,7 @@ function optimize(C) {
           }
           const constant = byteCodeNewConstant(C, value)
           instructions[one + 1] = constant
-          count -= rewrite(instructions, lines, count, one + 2, 1)
+          count -= rewrite(important, instructions, lines, count, one + 2, 1)
           continue
         } else if (second === OP_ADD) {
           const value = code.constants[code.instructions[one + 1]]
@@ -2199,7 +2249,7 @@ function optimize(C) {
             if (add >= 0 && add <= UINT8_MAX) {
               instructions[one] = OP_INCREMENT
               instructions[one + 1] = add
-              count -= rewrite(instructions, lines, count, one + 2, 1)
+              count -= rewrite(important, instructions, lines, count, one + 2, 1)
               continue
             }
           }
@@ -2208,106 +2258,108 @@ function optimize(C) {
       }
       case OP_EQUAL: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_EQUAL)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_NOT_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_NOT_EQUAL)
           continue
         }
         break
       }
       case OP_NOT_EQUAL: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_NOT_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_NOT_EQUAL)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_EQUAL)
           continue
         }
         break
       }
       case OP_LESS: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_LESS
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_LESS)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_GREATER_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_GREATER_EQUAL)
           continue
         }
         break
       }
       case OP_GREATER: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_GREATER
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_GREATER)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_LESS_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_LESS_EQUAL)
           continue
         }
         break
       }
       case OP_LESS_EQUAL: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_LESS_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_LESS_EQUAL)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_GREATER
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_GREATER)
           continue
         }
         break
       }
       case OP_GREATER_EQUAL: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_GREATER_EQUAL
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_GREATER_EQUAL)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_LESS
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_LESS)
           continue
         }
         break
       }
       case OP_TRUE: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 4)
+          deleter(important, two)
+          count -= rewrite(important, instructions, lines, count, one, 4)
           continue
         }
         break
       }
       case OP_FALSE: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 4)
+          deleter(important, two)
+          count -= rewrite(important, instructions, lines, count, one, 4)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP)
           continue
         }
         break
       }
       case OP_NOT: {
         if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_FALSE
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_FALSE)
           continue
         } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(instructions, lines, count, one, 1)
-          instructions[one] = OP_JUMP_IF_TRUE
+          count -= rewrite(important, instructions, lines, count, one, 1)
+          update(important, instructions, one, OP_JUMP_IF_TRUE)
           continue
         }
         break
