@@ -2942,7 +2942,7 @@ static bool adjustable(Instruction *important, uint8_t *instructions, int target
             break;
         }
         }
-        view = important->next;
+        view = view->next;
     }
     return true;
 }
@@ -3009,7 +3009,7 @@ static int rewrite(Instruction *important, uint8_t *instructions, int *lines, in
         if (i >= start) {
             view->index = i - shift;
         }
-        view = important->next;
+        view = view->next;
     }
     count -= shift;
     for (int c = start; c < count; c++) {
@@ -3028,7 +3028,7 @@ static void update(Instruction *important, uint8_t *instructions, int i, uint8_t
             view->instruction = instruction;
             return;
         }
-        view = important->next;
+        view = view->next;
     }
     fprintf(stderr, "Optimization failed to find instruction to update.\n");
     exit(1);
@@ -3047,7 +3047,7 @@ static Instruction *deleter(Instruction *important, int i) {
             previous->next = next;
             return important;
         }
-        view = important->next;
+        view = view->next;
     }
     fprintf(stderr, "Optimization failed to find instruction to delete.\n");
     exit(1);
