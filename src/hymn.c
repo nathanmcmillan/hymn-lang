@@ -17,6 +17,8 @@
 #include <unistd.h>
 #define PATH_SEP '/'
 #define PATH_SEP_STRING "/"
+#define PATH_SEP_OTHER '\\'
+#define PATH_SEP_OTHER_STRING "\\"
 #define UNREACHABLE() __builtin_unreachable()
 #elif _MSC_VER
 #include <direct.h>
@@ -25,6 +27,8 @@
 #define PATH_MAX FILENAME_MAX
 #define PATH_SEP '\\'
 #define PATH_SEP_STRING "\\"
+#define PATH_SEP_OTHER '/'
+#define PATH_SEP_OTHER_STRING "/"
 #define UNREACHABLE() __assume(0)
 #endif
 
@@ -414,6 +418,17 @@ static HymnString *working_directory() {
         return hymn_new_string(path);
     }
     return NULL;
+}
+
+static HymnString *path_convert(HymnString *path) {
+    size_t size = hymn_string_len(path);
+    HymnString *convert = string_copy(path);
+    for (size_t i = 0; i < size; i++) {
+        if (convert[i] == PATH_SEP_OTHER) {
+            convert[i] = PATH_SEP;
+        }
+    }
+    return convert;
 }
 
 static HymnString *path_normalize(HymnString *path) {
@@ -3034,24 +3049,25 @@ static void update(Instruction *important, uint8_t *instructions, int i, uint8_t
     exit(1);
 }
 
-static Instruction *deleter(Instruction *important, int i) {
-    Instruction *view = important;
+static void deleter(Instruction **important, int i) {
+    Instruction *view = *important;
     Instruction *previous = NULL;
     while (view != NULL) {
         if (i == view->index) {
             Instruction *next = view->next;
             free(view);
             if (previous == NULL) {
-                return next;
+                *important = next;
+            } else {
+                previous->next = next;
             }
-            previous->next = next;
-            return important;
+            return;
         }
+        previous = view;
         view = view->next;
     }
     fprintf(stderr, "Optimization failed to find instruction to delete.\n");
     exit(1);
-    return NULL;
 }
 
 static Instruction *interest(uint8_t *instructions, int count) {
@@ -3266,7 +3282,7 @@ static void optimize(Compiler *C) {
                 UPDATE(one, OP_JUMP);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
-                deleter(important, two);
+                deleter(&important, two);
                 REWRITE(0, 4);
                 REPEAT;
             }
@@ -3274,7 +3290,7 @@ static void optimize(Compiler *C) {
         }
         case OP_FALSE: {
             if (second == OP_JUMP_IF_TRUE) {
-                deleter(important, two);
+                deleter(&important, two);
                 REWRITE(0, 4);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
@@ -3299,6 +3315,12 @@ static void optimize(Compiler *C) {
         }
 
         one = two;
+    }
+
+    while (important != NULL) {
+        Instruction *next = important->next;
+        free(important);
+        important = next;
     }
 
     code->count = count;
@@ -4468,6 +4490,8 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
         if (script) break;
         p++;
     }
+
+    HymnString *look = path_convert(file->string);
     HymnString *parent = script ? path_parent(script) : NULL;
 
     HymnObjectString *module = NULL;
@@ -4481,7 +4505,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
         }
         HymnString *question = hymn_as_string(value);
 
-        HymnString *replace = string_replace(question, "<path>", file->string);
+        HymnString *replace = string_replace(question, "<path>", look);
         HymnString *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
 
         HymnObjectString *use = machine_intern_string(H, path_absolute(path));
@@ -4492,6 +4516,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
 
         if (!hymn_is_undefined(table_get(imports, use))) {
             dereference_string(H, use);
+            hymn_string_delete(look);
             if (parent) hymn_string_delete(parent);
             return current_frame(H);
         }
@@ -4505,7 +4530,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
     }
 
     if (module == NULL) {
-        HymnString *missing = hymn_string_format("Import `%s` not found.\n", file->string);
+        HymnString *missing = hymn_string_format("import not found: %s\n", look);
 
         for (int64_t i = 0; i < size; i++) {
             HymnValue value = paths->items[i];
@@ -4514,7 +4539,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
             }
             HymnString *question = hymn_as_string(value);
 
-            HymnString *replace = string_replace(question, "<path>", file->string);
+            HymnString *replace = string_replace(question, "<path>", look);
             HymnString *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
             HymnString *use = path_absolute(path);
 
@@ -4525,16 +4550,14 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
             hymn_string_delete(use);
         }
 
-        if (parent) {
-            hymn_string_delete(parent);
-        }
+        hymn_string_delete(look);
+        if (parent) hymn_string_delete(parent);
 
         return machine_throw_error_string(H, missing);
     }
 
-    if (parent) {
-        hymn_string_delete(parent);
-    }
+    hymn_string_delete(look);
+    if (parent) hymn_string_delete(parent);
 
     table_put(imports, module, hymn_new_bool(true));
 
@@ -5392,6 +5415,7 @@ dispatch:
         HymnValue value = pop(H);
         HymnValue previous = table_put(&H->globals, name, value);
         if (!hymn_is_undefined(previous)) {
+            dereference(H, previous);
             THROW("Global `%s` was previously defined.", name->string)
         }
         HYMN_DISPATCH;

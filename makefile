@@ -1,5 +1,5 @@
 NAME = hymn
-TEST_NAME = tests
+TEST_NAME = hymntest
 
 SOURCE = $(wildcard src/*.c)
 HEADERS = $(wildcard src/*.h)

@@ -175,3 +175,9 @@ $ gprof profile gmon.out | less
 $ valgrind --tool=callgrind ./hymn [FILE].hm
 $ callgrind_annotate --auto=yes callgrind.out.* | less
 ```
+
+# Memory Leaks on Linux
+
+```
+$ valgrind --leak-check=full --show-leak-kinds=all -s ./hymn [FILE].hm
+```

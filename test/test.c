@@ -254,7 +254,7 @@ static void test_hymn(const char *filter) {
     hymn_delete_filter_list(&scripts);
     hymn_string_delete(end);
 
-    if (filter == NULL) {
+    if (filter == NULL || strcmp(filter, "api") == 0) {
         test_api();
     }
 

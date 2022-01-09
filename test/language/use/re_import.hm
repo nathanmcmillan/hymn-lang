@@ -1,0 +1,9 @@
+-- imported
+-- imported
+
+use "../import_me"
+use "../import_me"
+
+delete(__imports, keys(__imports)[0])
+
+use "../import_me"
