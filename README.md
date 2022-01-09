@@ -80,7 +80,6 @@ print(list)
 ## Performance
 
 1. Use virtual registers with an infinite stack, with 32 bit instructions, rather than using a stack
-1. Use value pooling to reduce allocations and freeing
 1. Delay dereferencing to the end of subroutines and analyze where reference counting can be ignored
 1. Tagged pointers or NaN boxing
 1. Tail call optimizations. Any time a function ends with another function call, the stack can be re-used

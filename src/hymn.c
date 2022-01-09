@@ -1943,32 +1943,51 @@ static void advance(Compiler *C) {
     }
 }
 
-static void value_pool_init(HymnValuePool *this) {
-    this->count = 0;
-    this->capacity = 8;
-    this->values = hymn_malloc(8 * sizeof(HymnValue));
-}
-
-static int value_pool_add(HymnValuePool *this, HymnValue value) {
-    int count = this->count;
-    if (count + 1 > this->capacity) {
-        this->capacity *= 2;
-        this->values = hymn_realloc(this->values, this->capacity * sizeof(HymnValue));
+bool hymn_value_false(HymnValue value) {
+    switch (value.is) {
+    case HYMN_VALUE_NONE: return true;
+    case HYMN_VALUE_BOOL: return !hymn_as_bool(value);
+    case HYMN_VALUE_INTEGER: return hymn_as_int(value) == 0;
+    case HYMN_VALUE_FLOAT: return hymn_as_float(value) == 0.0;
+    case HYMN_VALUE_STRING: return hymn_string_len(hymn_as_string(value)) == 0;
+    case HYMN_VALUE_ARRAY: return hymn_as_array(value)->length == 0;
+    case HYMN_VALUE_TABLE: return hymn_as_table(value)->size == 0;
+    case HYMN_VALUE_FUNC: return hymn_as_func(value) == NULL;
+    case HYMN_VALUE_FUNC_NATIVE: return hymn_as_native(value) == NULL;
+    default: return false;
     }
-    this->values[count] = value;
-    this->count = count + 1;
-    return count;
 }
 
-static void byte_code_init(HymnByteCode *this) {
-    this->count = 0;
-    this->capacity = 8;
-    this->instructions = hymn_malloc(8 * sizeof(uint8_t));
-    this->lines = hymn_malloc(8 * sizeof(int));
-    value_pool_init(&this->constants);
+bool hymn_values_equal(HymnValue a, HymnValue b) {
+    switch (a.is) {
+    case HYMN_VALUE_NONE: return hymn_is_none(b);
+    case HYMN_VALUE_BOOL: return hymn_is_bool(b) && hymn_as_bool(a) == hymn_as_bool(b);
+    case HYMN_VALUE_INTEGER:
+        switch (b.is) {
+        case HYMN_VALUE_INTEGER: return hymn_as_int(a) == hymn_as_int(b);
+        case HYMN_VALUE_FLOAT: return (double)hymn_as_int(a) == hymn_as_float(b);
+        default: return false;
+        }
+    case HYMN_VALUE_FLOAT:
+        switch (b.is) {
+        case HYMN_VALUE_INTEGER: return hymn_as_float(a) == (double)hymn_as_int(b);
+        case HYMN_VALUE_FLOAT: return hymn_as_float(a) == hymn_as_float(b);
+        default: return false;
+        }
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
+        return b.is == a.is && hymn_as_object(a) == hymn_as_object(b);
+    case HYMN_VALUE_FUNC_NATIVE:
+        return hymn_is_native(b) && hymn_as_native(a) == hymn_as_native(b);
+    case HYMN_VALUE_POINTER:
+        return hymn_is_pointer(b) && hymn_as_pointer(a) == hymn_as_pointer(b);
+    default: return false;
+    }
 }
 
-static bool match_values(HymnValue a, HymnValue b) {
+bool hymn_match_values(HymnValue a, HymnValue b) {
     if (a.is != b.is) {
         return false;
     }
@@ -1987,6 +2006,36 @@ static bool match_values(HymnValue a, HymnValue b) {
     case HYMN_VALUE_POINTER: return hymn_as_pointer(a) == hymn_as_pointer(b);
     }
     return false;
+}
+
+static void value_pool_init(HymnValuePool *this) {
+    this->count = 0;
+    this->capacity = 8;
+    this->values = hymn_malloc(8 * sizeof(HymnValue));
+}
+
+static int value_pool_add(HymnValuePool *this, HymnValue value) {
+    int count = this->count;
+    for (int c = 0; c < count; c++) {
+        if (hymn_match_values(this->values[c], value)) {
+            return c;
+        }
+    }
+    if (count + 1 > this->capacity) {
+        this->capacity *= 2;
+        this->values = hymn_realloc(this->values, this->capacity * sizeof(HymnValue));
+    }
+    this->values[count] = value;
+    this->count = count + 1;
+    return count;
+}
+
+static void byte_code_init(HymnByteCode *this) {
+    this->count = 0;
+    this->capacity = 8;
+    this->instructions = hymn_malloc(8 * sizeof(uint8_t));
+    this->lines = hymn_malloc(8 * sizeof(int));
+    value_pool_init(&this->constants);
 }
 
 static HymnFunction *new_function(const char *script) {
@@ -2087,7 +2136,7 @@ static int64_t array_index_of(HymnArray *this, HymnValue match) {
     int64_t len = this->length;
     HymnValue *items = this->items;
     for (int64_t i = 0; i < len; i++) {
-        if (match_values(match, items[i])) {
+        if (hymn_match_values(match, items[i])) {
             return i;
         }
     }
@@ -2195,7 +2244,7 @@ static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
     }
 
     if (item == NULL) return NULL;
-    if (match_values(match, item->value)) return item->key;
+    if (hymn_match_values(match, item->value)) return item->key;
 
     while (true) {
         item = item->next;
@@ -2209,7 +2258,7 @@ static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
             }
             if (item == NULL) return NULL;
         }
-        if (match_values(match, item->value)) return item->key;
+        if (hymn_match_values(match, item->value)) return item->key;
     }
 }
 
@@ -4399,48 +4448,6 @@ static HymnFrame *machine_throw_error_string(Hymn *H, HymnString *string) {
     return frame;
 }
 
-static bool machine_equal(HymnValue a, HymnValue b) {
-    switch (a.is) {
-    case HYMN_VALUE_NONE: return hymn_is_none(b);
-    case HYMN_VALUE_BOOL: return hymn_is_bool(b) && hymn_as_bool(a) == hymn_as_bool(b);
-    case HYMN_VALUE_INTEGER:
-        switch (b.is) {
-        case HYMN_VALUE_INTEGER: return hymn_as_int(a) == hymn_as_int(b);
-        case HYMN_VALUE_FLOAT: return (double)hymn_as_int(a) == hymn_as_float(b);
-        default: return false;
-        }
-    case HYMN_VALUE_FLOAT:
-        switch (b.is) {
-        case HYMN_VALUE_INTEGER: return hymn_as_float(a) == (double)hymn_as_int(b);
-        case HYMN_VALUE_FLOAT: return hymn_as_float(a) == hymn_as_float(b);
-        default: return false;
-        }
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC:
-        return b.is == a.is && hymn_as_object(a) == hymn_as_object(b);
-    case HYMN_VALUE_FUNC_NATIVE:
-        return hymn_is_native(b) && hymn_as_native(a) == hymn_as_native(b);
-    default: return false;
-    }
-}
-
-static bool machine_false(HymnValue value) {
-    switch (value.is) {
-    case HYMN_VALUE_NONE: return true;
-    case HYMN_VALUE_BOOL: return !hymn_as_bool(value);
-    case HYMN_VALUE_INTEGER: return hymn_as_int(value) == 0;
-    case HYMN_VALUE_FLOAT: return hymn_as_float(value) == 0.0;
-    case HYMN_VALUE_STRING: return hymn_string_len(hymn_as_string(value)) == 0;
-    case HYMN_VALUE_ARRAY: return hymn_as_array(value)->length == 0;
-    case HYMN_VALUE_TABLE: return hymn_as_table(value)->size == 0;
-    case HYMN_VALUE_FUNC: return hymn_as_func(value) == NULL;
-    case HYMN_VALUE_FUNC_NATIVE: return hymn_as_native(value) == NULL;
-    default: return false;
-    }
-}
-
 static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     if (count != func->arity) {
         return machine_throw_error(H, "Expected %d function arguments but found %d.", func->arity, count);
@@ -4591,7 +4598,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
 
 static size_t debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
     uint8_t constant = code->instructions[index + 1];
-    *debug = string_append_format(*debug, "%s: [", name);
+    *debug = string_append_format(*debug, "%s: [%d] [", name, constant);
     HymnString *value = debug_value_to_string(code->constants.values[constant]);
     *debug = hymn_string_append(*debug, value);
     hymn_string_delete(value);
@@ -4930,7 +4937,7 @@ dispatch:
     case OP_JUMP_IF_FALSE: {
         HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
-        if (machine_false(a)) {
+        if (hymn_value_false(a)) {
             frame->ip += jump;
         }
         dereference(H, a);
@@ -4939,7 +4946,7 @@ dispatch:
     case OP_JUMP_IF_TRUE: {
         HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
-        if (!machine_false(a)) {
+        if (!hymn_value_false(a)) {
             frame->ip += jump;
         }
         dereference(H, a);
@@ -4949,7 +4956,7 @@ dispatch:
         HymnValue b = pop(H);
         HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
-        if (machine_equal(a, b)) {
+        if (hymn_values_equal(a, b)) {
             frame->ip += jump;
         }
         dereference(H, a);
@@ -4960,7 +4967,7 @@ dispatch:
         HymnValue b = pop(H);
         HymnValue a = pop(H);
         uint16_t jump = READ_SHORT(frame);
-        if (!machine_equal(a, b)) {
+        if (!hymn_values_equal(a, b)) {
             frame->ip += jump;
         }
         dereference(H, a);
@@ -5069,7 +5076,7 @@ dispatch:
     case OP_EQUAL: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        push(H, hymn_new_bool(machine_equal(a, b)));
+        push(H, hymn_new_bool(hymn_values_equal(a, b)));
         dereference(H, a);
         dereference(H, b);
         HYMN_DISPATCH;
@@ -5077,7 +5084,7 @@ dispatch:
     case OP_NOT_EQUAL: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        push(H, hymn_new_bool(!machine_equal(a, b)));
+        push(H, hymn_new_bool(!hymn_values_equal(a, b)));
         dereference(H, a);
         dereference(H, b);
         HYMN_DISPATCH;

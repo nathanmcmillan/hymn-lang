@@ -241,6 +241,10 @@ bool hymn_is_array(HymnValue v);
 bool hymn_is_table(HymnValue v);
 bool hymn_is_func(HymnValue v);
 
+bool hymn_value_false(HymnValue value);
+bool hymn_values_equal(HymnValue a, HymnValue b);
+bool hymn_match_values(HymnValue a, HymnValue b);
+
 Hymn *new_hymn();
 
 char *hymn_debug(Hymn *H, const char *script, const char *source);

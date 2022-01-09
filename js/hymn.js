@@ -1267,6 +1267,64 @@ function advance(C) {
   }
 }
 
+function hymnFalse(value) {
+  switch (value.is) {
+    case HYMN_VALUE_NONE:
+      return true
+    case HYMN_VALUE_BOOL:
+      return !value.value
+    case HYMN_VALUE_INTEGER:
+      return value.value === 0
+    case HYMN_VALUE_FLOAT:
+      return value.value === 0.0
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+      return value.value.length === 0
+    case HYMN_VALUE_TABLE:
+      return value.value.size === 0
+    default:
+      return false
+  }
+}
+
+function hymnEqual(a, b) {
+  switch (a.is) {
+    case HYMN_VALUE_NONE:
+      return isNone(b)
+    case HYMN_VALUE_BOOL:
+      return isBool(b) && a.value === b.value
+    case HYMN_VALUE_INTEGER:
+      switch (b.is) {
+        case HYMN_VALUE_INTEGER:
+          return a.value === b.value
+        case HYMN_VALUE_FLOAT:
+          return a.value === b.value
+        default:
+          return false
+      }
+    case HYMN_VALUE_FLOAT:
+      switch (b.is) {
+        case HYMN_VALUE_INTEGER:
+          return a.value === b.value
+        case HYMN_VALUE_FLOAT:
+          return a.value === b.value
+        default:
+          return false
+      }
+    case HYMN_VALUE_STRING:
+    case HYMN_VALUE_ARRAY:
+    case HYMN_VALUE_TABLE:
+    case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
+      if (b.is === a.is) {
+        return a.value === b.value
+      }
+      return false
+    default:
+      return false
+  }
+}
+
 function matchValues(a, b) {
   if (a.is !== b.is) {
     return false
@@ -1314,13 +1372,19 @@ function newCompiler(script, source, H, scope) {
 
 function byteCodeNewConstant(C, value) {
   const code = current(C)
-  code.constants.push(value)
-  let constant = code.constants.length - 1
-  if (constant > UINT8_MAX) {
-    compileError(C, C.previous, 'Too many constants.')
-    constant = 0
+  const constants = code.constants
+  const count = constants.length
+  for (let c = 0; c < count; c++) {
+    if (matchValues(constants[c], value)) {
+      return c
+    }
   }
-  return constant
+  constants.push(value)
+  if (count > UINT8_MAX) {
+    compileError(C, C.previous, 'Too many constants.')
+    return 0
+  }
+  return count
 }
 
 function arrayIndexOf(array, input) {
@@ -3193,64 +3257,6 @@ function hymnThrowError(H, error) {
   return hymnPushError(H, error)
 }
 
-function hymnEqual(a, b) {
-  switch (a.is) {
-    case HYMN_VALUE_NONE:
-      return isNone(b)
-    case HYMN_VALUE_BOOL:
-      return isBool(b) && a.value === b.value
-    case HYMN_VALUE_INTEGER:
-      switch (b.is) {
-        case HYMN_VALUE_INTEGER:
-          return a.value === b.value
-        case HYMN_VALUE_FLOAT:
-          return a.value === b.value
-        default:
-          return false
-      }
-    case HYMN_VALUE_FLOAT:
-      switch (b.is) {
-        case HYMN_VALUE_INTEGER:
-          return a.value === b.value
-        case HYMN_VALUE_FLOAT:
-          return a.value === b.value
-        default:
-          return false
-      }
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC:
-    case HYMN_VALUE_FUNC_NATIVE:
-      if (b.is === a.is) {
-        return a.value === b.value
-      }
-      return false
-    default:
-      return false
-  }
-}
-
-function hymnFalse(value) {
-  switch (value.is) {
-    case HYMN_VALUE_NONE:
-      return true
-    case HYMN_VALUE_BOOL:
-      return !value.value
-    case HYMN_VALUE_INTEGER:
-      return value.value === 0
-    case HYMN_VALUE_FLOAT:
-      return value.value === 0.0
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-      return value.value.length === 0
-    case HYMN_VALUE_TABLE:
-      return value.value.size === 0
-    default:
-      return false
-  }
-}
-
 function hymnFrameGet(H, index) {
   if (index < H.frames.length) {
     return H.frames[index]
@@ -3466,7 +3472,7 @@ async function hymnImport(H, file) {
 
 function debugConstantInstruction(debug, name, code, index) {
   const constant = code.instructions[index + 1]
-  debug[0] += `${name}: [${debugValueToString(code.constants[constant])}]`
+  debug[0] += `${name}: [${constant}] [${debugValueToString(code.constants[constant])}]`
   return index + 2
 }
 
