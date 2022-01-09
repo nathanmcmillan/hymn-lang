@@ -2558,8 +2558,15 @@ HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
 static void compile_string(Compiler *C, bool assign) {
     (void)assign;
     Token *previous = &C->previous;
-    HymnString *s = parse_string_literal(C->source, previous->start, previous->length);
-    emit_constant(C, compile_intern_string(C->H, s));
+    HymnString *string = parse_string_literal(C->source, previous->start, previous->length);
+    while (check(C, TOKEN_STRING)) {
+        Token *current = &C->current;
+        HymnString *and = parse_string_literal(C->source, current->start, current->length);
+        string = hymn_string_append(string, and);
+        hymn_string_delete(and);
+        advance(C);
+    }
+    emit_constant(C, compile_intern_string(C->H, string));
 }
 
 static uint8_t ident_constant(Compiler *C, Token *token) {
@@ -3802,9 +3809,9 @@ static void try_statement(Compiler *C) {
 }
 
 static void print_statement(Compiler *C) {
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` around print statement");
+    consume(C, TOKEN_LEFT_PAREN, "missing '(' around print statement");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` around print statement");
+    consume(C, TOKEN_RIGHT_PAREN, "missing ')' around print statement");
     emit(C, OP_PRINT);
 }
 

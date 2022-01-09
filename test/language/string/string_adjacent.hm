@@ -1,0 +1,14 @@
+-- Hello World
+-- Good Bye
+-- This Is Text
+-- I Am One Line
+
+print("Hello " "World")
+print("Good" " Bye")
+print("This " "Is" " Text")
+
+let line = "I"
+  " Am "
+  "One "
+  "Line"
+print(line)

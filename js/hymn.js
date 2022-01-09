@@ -1608,7 +1608,13 @@ function parseStringLiteral(string, start, len) {
 
 function compileString(C) {
   const previous = C.previous
-  const string = parseStringLiteral(C.source, previous.start, previous.len)
+  let string = parseStringLiteral(C.source, previous.start, previous.len)
+  while (check(C, TOKEN_STRING)) {
+    const current = C.current
+    const and = parseStringLiteral(C.source, current.start, current.len)
+    string += and
+    advance(C)
+  }
   emitConstant(C, newString(string))
 }
 
@@ -2862,7 +2868,9 @@ function tryStatement(C) {
 }
 
 function printStatement(C) {
+  consume(C, TOKEN_LEFT_PAREN, "missing '(' around print statement")
   expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, "missing ')' around print statement")
   emit(C, OP_PRINT)
 }
 
