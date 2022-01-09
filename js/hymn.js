@@ -2116,7 +2116,7 @@ function deleter(important, i) {
   throw 'Optimization failed to find instruction to delete.'
 }
 
-function interest(instructions,count) {
+function interest(instructions, count) {
   const important = []
   let i = 0
   while (i < count) {
@@ -2148,7 +2148,7 @@ function optimize(C) {
   const instructions = code.instructions
   const lines = code.lines
   let count = code.count
-  const important = interest(code)
+  const important = interest(instructions, count)
   let one = 0
   while (one < count) {
     const first = instructions[one]
