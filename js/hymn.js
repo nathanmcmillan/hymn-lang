@@ -1685,8 +1685,6 @@ function escapeSequence(c) {
       return "'"
     case '"':
       return '"'
-    case '{':
-      return '{'
     default:
       return null
   }
@@ -1785,7 +1783,7 @@ function compileTable(C) {
 function pushLocal(C, name) {
   const scope = C.scope
   if (scope.localCount === HYMN_UINT8_COUNT) {
-    compileError(C, name, 'Too many local variables in scope')
+    compileError(C, C.previous, 'Too many local variables in scope')
     return
   }
   const local = scopeGetLocal(scope, scope.localCount++)
@@ -1806,7 +1804,7 @@ function variable(C, error) {
     if (local.depth !== -1 && local.depth < scope.depth) {
       break
     } else if (name === local.name) {
-      compileError(C, name, "variable '" + name + "' already exists in scope")
+      compileError(C, C.previous, "variable '" + name + "' already exists in scope")
     }
   }
   pushLocal(C, name)
@@ -1843,7 +1841,7 @@ function resolveLocal(C, token) {
     const local = scope.locals[i]
     if (name === local.name) {
       if (local.depth === -1) {
-        compileError(C, name, "local variable '" + name + "' referenced before assignment")
+        compileError(C, token, "local variable '" + name + "' referenced before assignment")
       }
       return i
     }
