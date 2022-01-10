@@ -41,7 +41,7 @@ function copyValueToFrom(to, from) {
   to.value = from.value
 }
 
-function cloneValue(original) {
+function copyValue(original) {
   const value = new HymnValue()
   copyValueToFrom(value, original)
   return value
@@ -243,6 +243,12 @@ const PRECEDENCE_FACTOR = 8
 const PRECEDENCE_UNARY = 9
 const PRECEDENCE_CALL = 10
 
+const STRING_STATUS_NONE = 0
+const STRING_STATUS_BEGIN = 1
+const STRING_STATUS_ADD = 2
+const STRING_STATUS_CLOSE = 3
+const STRING_STATUS_CONTINUE = 4
+
 const OP_ADD = 0
 const OP_ADD_TWO_LOCAL = 1
 const OP_INCREMENT = 2
@@ -326,7 +332,7 @@ class Token {
     this.row = 0
     this.column = 0
     this.start = 0
-    this.len = 0
+    this.length = 0
   }
 }
 
@@ -335,7 +341,7 @@ function copyToken(dest, src) {
   dest.row = src.row
   dest.column = src.column
   dest.start = src.start
-  dest.len = src.len
+  dest.length = src.length
 }
 
 class Local {
@@ -373,6 +379,8 @@ class Compiler {
     this.source = source
     this.previous = new Token()
     this.current = new Token()
+    this.stringFormat = 0
+    this.stringStatus = STRING_STATUS_NONE
     this.H = H
     this.scope = null
     this.loop = null
@@ -672,7 +680,7 @@ function newTableCopy(from) {
   for (let i = 0; i < bins; i++) {
     let item = from.items[i]
     while (item !== null) {
-      tablePut(copy, item.key, cloneValue(item.value))
+      tablePut(copy, item.key, copyValue(item.value))
       item = item.next
     }
   }
@@ -847,10 +855,65 @@ function current(C) {
   return C.scope.func.code
 }
 
+function beginningOfLine(source, i) {
+  while (true) {
+    if (i <= 0) return 0
+    if (source[i] === '\n') return i + 1
+    i--
+  }
+}
+
+function endOfLine(source, i) {
+  while (true) {
+    if (i + 1 >= source.length) return i + 1
+    if (source[i] === '\n') return i
+    i++
+  }
+}
+
+function appendPreviousLine(source, i) {
+  if (i < 2) {
+    return ''
+  }
+  i--
+  const begin = beginningOfLine(source, i - 1)
+  if (i - begin < 2) {
+    return ''
+  }
+  return source.substring(begin, i) + '\n'
+}
+
+function appendSecondPreviousLine(source, i) {
+  if (i < 2) {
+    return ''
+  }
+  i--
+  const begin = beginningOfLine(source, i - 1)
+  return appendPreviousLine(source, begin)
+}
+
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  const error = format
+  let error = format
+  error += '\n\n'
+
+  const begin = beginningOfLine(C.source, token.start)
+  const end = endOfLine(C.source, token.start)
+
+  error += appendSecondPreviousLine(C.source, begin)
+  error += appendPreviousLine(C.source, begin)
+  error += C.source.substring(begin, end) + '\n'
+
+  for (let i = 0; i < token.start - begin; i++) {
+    error += ' '
+  }
+
+  for (let i = 0; i < token.length; i++) {
+    error += '^'
+  }
+
+  error += '\nat ' + C.script + ':' + token.row
 
   C.error = error
 
@@ -883,7 +946,7 @@ function token(C, type) {
   token.row = C.row
   token.column = C.column
   token.start = C.pos - 1
-  token.len = 1
+  token.length = 1
 }
 
 function tokenSpecial(C, type, offset, len) {
@@ -892,7 +955,7 @@ function tokenSpecial(C, type, offset, len) {
   token.row = C.row
   token.column = C.column
   token.start = C.pos - offset
-  token.len = len
+  token.length = len
 }
 
 function valueToken(C, type, start, end) {
@@ -901,7 +964,7 @@ function valueToken(C, type, start, end) {
   token.row = C.row
   token.column = C.column
   token.start = start
-  token.len = end - start
+  token.length = end - start
 }
 
 function identTrie(ident, offset, rest, type) {
@@ -1024,10 +1087,56 @@ function isIdent(c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_'
 }
 
+function parseString(C, start) {
+  while (true) {
+    const c = nextChar(C)
+    if (c === '\\') {
+      nextChar(C)
+    } else if (c === '{') {
+      if (peekChar(C) === '{') {
+        nextChar(C)
+      } else {
+        C.stringFormat = 1
+        C.stringStatus = STRING_STATUS_BEGIN
+        const end = C.pos - 1
+        valueToken(C, TOKEN_STRING, start, end)
+        return
+      }
+    } else if (c === '"' || c === '\0') {
+      break
+    }
+  }
+  const end = C.pos - 1
+  valueToken(C, TOKEN_STRING, start, end)
+  return
+}
+
 function advance(C) {
   copyToken(C.previous, C.current)
   if (C.previous.type === TOKEN_EOF) {
     return
+  }
+  switch (C.stringStatus) {
+    case STRING_STATUS_BEGIN:
+      C.stringStatus = STRING_STATUS_ADD
+      token(C, TOKEN_ADD)
+      return
+    case STRING_STATUS_ADD:
+      C.stringStatus = STRING_STATUS_NONE
+      token(C, TOKEN_LEFT_PAREN)
+      return
+    case STRING_STATUS_CLOSE:
+      C.stringStatus = STRING_STATUS_CONTINUE
+      token(C, TOKEN_ADD)
+      return
+    case STRING_STATUS_CONTINUE: {
+      C.stringStatus = STRING_STATUS_NONE
+      const start = C.pos
+      parseString(C, start)
+      return
+    }
+    default:
+      break
   }
   while (true) {
     let c = nextChar(C)
@@ -1186,9 +1295,20 @@ function advance(C) {
         token(C, TOKEN_RIGHT_SQUARE)
         return
       case '{':
+        if (C.stringFormat >= 1) {
+          C.stringFormat++
+        }
         token(C, TOKEN_LEFT_CURLY)
         return
       case '}':
+        if (C.stringFormat === 1) {
+          C.stringFormat = 0
+          C.stringStatus = STRING_STATUS_CLOSE
+          token(C, TOKEN_RIGHT_PAREN)
+          return
+        } else if (C.stringFormat > 1) {
+          C.stringFormat--
+        }
         token(C, TOKEN_RIGHT_CURLY)
         return
       case ':':
@@ -1202,17 +1322,7 @@ function advance(C) {
         return
       case '"': {
         const start = C.pos
-        while (true) {
-          c = nextChar(C)
-          if (c === '\\') {
-            nextChar(C)
-            continue
-          } else if (c === '"' || c === '\0') {
-            break
-          }
-        }
-        const end = C.pos - 1
-        valueToken(C, TOKEN_STRING, start, end)
+        parseString(C, start)
         return
       }
       case "'": {
@@ -1316,9 +1426,7 @@ function hymnEqual(a, b) {
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
     case HYMN_VALUE_FUNC_NATIVE:
-      if (b.is === a.is) {
-        return a.value === b.value
-      }
+      if (b.is === a.is) return a.value === b.value
       return false
     default:
       return false
@@ -1326,15 +1434,9 @@ function hymnEqual(a, b) {
 }
 
 function matchValues(a, b) {
-  if (a.is !== b.is) {
-    return false
-  }
-  switch (a.is) {
-    case HYMN_VALUE_NONE:
-      return true
-    default:
-      return a.value === b.value
-  }
+  if (a.is !== b.is) return false
+  if (a.is === HYMN_VALUE_NONE) return true
+  return a.value === b.value
 }
 
 function scopeGetLocal(scope, index) {
@@ -1356,7 +1458,7 @@ function scopeInit(C, scope, type) {
   scope.type = type
 
   if (type !== TYPE_SCRIPT) {
-    scope.func.name = sourceSubstring(C, C.previous.len, C.previous.start)
+    scope.func.name = sourceSubstring(C, C.previous.length, C.previous.start)
   }
 
   const local = scopeGetLocal(scope, scope.localCount++)
@@ -1473,7 +1575,7 @@ function compileWithPrecedence(C, precedence) {
   const rule = rules[C.previous.type]
   const prefix = rule.prefix
   if (prefix === null) {
-    compileError(C, C.previous, 'Syntax Error: Expected expression following `' + sourceSubstring(C, C.previous.len, C.previous.start) + '`.')
+    compileError(C, C.previous, 'Syntax Error: Expected expression following `' + sourceSubstring(C, C.previous.length, C.previous.start) + '`.')
     return
   }
   const assign = precedence <= PRECEDENCE_ASSIGN
@@ -1553,13 +1655,13 @@ function compileFalse(C) {
 
 function compileInteger(C) {
   const previous = C.previous
-  const number = parseInt(sourceSubstring(C, previous.len, previous.start))
+  const number = parseInt(sourceSubstring(C, previous.length, previous.start))
   emitConstant(C, newInt(number))
 }
 
 function compileFloat(C) {
   const previous = C.previous
-  const number = parseFloat(sourceSubstring(C, previous.len, previous.start))
+  const number = parseFloat(sourceSubstring(C, previous.length, previous.start))
   emitConstant(C, newFloat(number))
 }
 
@@ -1583,6 +1685,8 @@ function escapeSequence(c) {
       return "'"
     case '"':
       return '"'
+    case '{':
+      return '{'
     default:
       return null
   }
@@ -1593,10 +1697,16 @@ function parseStringLiteral(string, start, len) {
   let literal = ''
   for (let i = start; i < end; i++) {
     const c = string[i]
-    if (c === '\\' && i + 1 < end) {
-      const e = escapeSequence(string[i + 1])
-      if (e !== null) {
-        literal += e
+    if (i + 1 < end) {
+      if (c === '\\') {
+        const e = escapeSequence(string[i + 1])
+        if (e !== null) {
+          literal += e
+          i++
+          continue
+        }
+      } else if (c === '{' && string[i + 1] === '{') {
+        literal += '{'
         i++
         continue
       }
@@ -1608,10 +1718,10 @@ function parseStringLiteral(string, start, len) {
 
 function compileString(C) {
   const previous = C.previous
-  let string = parseStringLiteral(C.source, previous.start, previous.len)
+  let string = parseStringLiteral(C.source, previous.start, previous.length)
   while (check(C, TOKEN_STRING)) {
     const current = C.current
-    const and = parseStringLiteral(C.source, current.start, current.len)
+    const and = parseStringLiteral(C.source, current.start, current.length)
     string += and
     advance(C)
   }
@@ -1619,7 +1729,7 @@ function compileString(C) {
 }
 
 function identConstant(C, token) {
-  const string = sourceSubstring(C, token.len, token.start)
+  const string = sourceSubstring(C, token.length, token.start)
   return byteCodeNewConstant(C, newString(string))
 }
 
@@ -1690,13 +1800,13 @@ function variable(C, error) {
     return identConstant(C, C.previous)
   }
   const token = C.previous
-  const name = sourceSubstring(C, token.len, token.start)
+  const name = sourceSubstring(C, token.length, token.start)
   for (let i = scope.localCount - 1; i >= 0; i--) {
     const local = scope.locals[i]
     if (local.depth !== -1 && local.depth < scope.depth) {
       break
     } else if (name === local.name) {
-      compileError(C, name, 'Scope Error: Variable `' + sourceSubstring(C, name.len, name.start) + '` already exists in C scope.')
+      compileError(C, name, "variable '" + name + "' already exists in scope")
     }
   }
   pushLocal(C, name)
@@ -1727,13 +1837,13 @@ function defineNewVariable(C) {
 }
 
 function resolveLocal(C, token) {
-  const name = sourceSubstring(C, token.len, token.start)
+  const name = sourceSubstring(C, token.length, token.start)
   const scope = C.scope
   for (let i = scope.localCount - 1; i >= 0; i--) {
     const local = scope.locals[i]
     if (name === local.name) {
       if (local.depth === -1) {
-        compileError(C, name, 'Reference Error: Local variable `' + sourceSubstring(name.len, name.start) + '` referenced before assignment.')
+        compileError(C, name, "local variable '" + name + "' referenced before assignment")
       }
       return i
     }
@@ -2318,7 +2428,7 @@ function optimize(C) {
       }
       case OP_CONSTANT: {
         if (second === OP_NEGATE) {
-          const value = code.constants[instructions[one + 1]]
+          const value = copyValue(code.constants[instructions[one + 1]])
           if (isInt(value) || isFloat(value)) {
             value.value = -value.value
           }
@@ -3182,7 +3292,7 @@ function hymnPeek(H, dist) {
     console.error('Nothing on stack to peek')
     return newNone()
   }
-  return cloneValue(H.stack[H.stackTop - dist])
+  return copyValue(H.stack[H.stackTop - dist])
 }
 
 function hymnPop(H) {
@@ -3190,7 +3300,7 @@ function hymnPop(H) {
     console.error('Nothing on stack to pop')
     return newNone()
   }
-  return cloneValue(H.stack[--H.stackTop])
+  return copyValue(H.stack[--H.stackTop])
 }
 
 function hymnException(H) {
@@ -3885,7 +3995,7 @@ async function hymnRun(H) {
             frame.ip += jump
           } else {
             H.stack[frame.stack + slot + 1] = newString(next.key)
-            H.stack[frame.stack + slot + 2] = cloneValue(next.value)
+            H.stack[frame.stack + slot + 2] = copyValue(next.value)
             frame.ip += 2
           }
         } else if (isArray(object)) {
@@ -3898,7 +4008,7 @@ async function hymnRun(H) {
           } else {
             const item = array[0]
             H.stack[frame.stack + slot + 1] = newInt(0)
-            H.stack[frame.stack + slot + 2] = cloneValue(item)
+            H.stack[frame.stack + slot + 2] = copyValue(item)
             frame.ip += 2
           }
         } else {
@@ -3923,7 +4033,7 @@ async function hymnRun(H) {
             frame.ip += 2
           } else {
             H.stack[frame.stack + index] = newString(next.key)
-            H.stack[frame.stack + value] = cloneValue(next.value)
+            H.stack[frame.stack + value] = copyValue(next.value)
             const jump = readShort(frame)
             frame.ip -= jump
           }
@@ -3935,7 +4045,7 @@ async function hymnRun(H) {
           } else {
             const item = array[key]
             H.stack[frame.stack + index].value++
-            H.stack[frame.stack + value] = cloneValue(item)
+            H.stack[frame.stack + value] = copyValue(item)
             const jump = readShort(frame)
             frame.ip -= jump
           }
@@ -4059,8 +4169,8 @@ async function hymnRun(H) {
         break
       }
       case OP_ADD_TWO_LOCAL: {
-        const a = cloneValue(H.stack[frame.stack + readByte(frame)])
-        const b = cloneValue(H.stack[frame.stack + readByte(frame)])
+        const a = copyValue(H.stack[frame.stack + readByte(frame)])
+        const b = copyValue(H.stack[frame.stack + readByte(frame)])
         if (isNone(a)) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
@@ -4465,7 +4575,7 @@ async function hymnRun(H) {
       case OP_INCREMENT_LOCAL: {
         const slot = readByte(frame)
         const increment = readByte(frame)
-        const value = cloneValue(H.stack[frame.stack + slot])
+        const value = copyValue(H.stack[frame.stack + slot])
         if (isInt(value) || isFloat(value)) {
           value.value += increment
         } else {
@@ -4479,7 +4589,7 @@ async function hymnRun(H) {
       case OP_INCREMENT_LOCAL_AND_SET: {
         const slot = readByte(frame)
         const increment = readByte(frame)
-        const value = cloneValue(H.stack[frame.stack + slot])
+        const value = copyValue(H.stack[frame.stack + slot])
         if (isInt(value) || isFloat(value)) {
           value.value += increment
         } else {

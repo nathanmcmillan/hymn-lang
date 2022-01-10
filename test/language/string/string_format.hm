@@ -1,0 +1,27 @@
+-- number 42
+-- number format 42
+-- simply {foo}
+-- multiplied 84
+-- add two 5 numbers
+-- table { a: 1 } value
+-- escape {foo}
+-- foo32bar
+
+let foo = 42
+
+print("number " + foo)
+print("number format {foo}")
+print('simply {foo}')
+
+print("multiplied {foo * 2}")
+
+let x = 2
+let y = 3
+
+print("add two {x + y} numbers")
+
+print("table { { a: 1 } } value")
+
+print("escape {{foo}")
+
+print("foo{64/2}bar")

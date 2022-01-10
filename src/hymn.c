@@ -680,6 +680,14 @@ enum Precedence {
     PRECEDENCE_CALL,
 };
 
+enum StringStatus {
+    STRING_STATUS_NONE,
+    STRING_STATUS_BEGIN,
+    STRING_STATUS_ADD,
+    STRING_STATUS_CLOSE,
+    STRING_STATUS_CONTINUE,
+};
+
 enum OpCode {
     OP_ADD,
     OP_ADD_TWO_LOCAL,
@@ -856,6 +864,8 @@ struct Compiler {
     size_t size;
     Token previous;
     Token current;
+    int string_format;
+    enum StringStatus string_status;
     Hymn *H;
     Scope *scope;
     struct LoopList *loop;
@@ -1470,7 +1480,7 @@ static HymnByteCode *current(Compiler *C) {
 
 static size_t beginning_of_line(const char *source, size_t i) {
     while (true) {
-        if (i == 0) return 0;
+        if (i <= 0) return 0;
         if (source[i] == '\n') return i + 1;
         i--;
     }
@@ -1724,10 +1734,56 @@ static bool is_ident(char c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
+static void parse_string(Compiler *C, size_t start) {
+    while (true) {
+        char c = next_char(C);
+        if (c == '\\') {
+            next_char(C);
+            continue;
+        } else if (c == '{') {
+            if (peek_char(C) == '{') {
+                next_char(C);
+            } else {
+                C->string_format = 1;
+                C->string_status = STRING_STATUS_BEGIN;
+                size_t end = C->pos - 1;
+                value_token(C, TOKEN_STRING, start, end);
+                return;
+            }
+        } else if (c == '"' || c == '\0') {
+            break;
+        }
+    }
+    size_t end = C->pos - 1;
+    value_token(C, TOKEN_STRING, start, end);
+}
+
 static void advance(Compiler *C) {
     C->previous = C->current;
     if (C->previous.type == TOKEN_EOF) {
         return;
+    }
+    switch (C->string_status) {
+    case STRING_STATUS_BEGIN:
+        C->string_status = STRING_STATUS_ADD;
+        token(C, TOKEN_ADD);
+        return;
+    case STRING_STATUS_ADD:
+        C->string_status = STRING_STATUS_NONE;
+        token(C, TOKEN_LEFT_PAREN);
+        return;
+    case STRING_STATUS_CLOSE:
+        C->string_status = STRING_STATUS_CONTINUE;
+        token(C, TOKEN_ADD);
+        return;
+    case STRING_STATUS_CONTINUE: {
+        C->string_status = STRING_STATUS_NONE;
+        size_t start = C->pos;
+        parse_string(C, start);
+        return;
+    }
+    default:
+        break;
     }
     while (true) {
         char c = next_char(C);
@@ -1871,24 +1927,29 @@ static void advance(Compiler *C) {
         case ')': token(C, TOKEN_RIGHT_PAREN); return;
         case '[': token(C, TOKEN_LEFT_SQUARE); return;
         case ']': token(C, TOKEN_RIGHT_SQUARE); return;
-        case '{': token(C, TOKEN_LEFT_CURLY); return;
-        case '}': token(C, TOKEN_RIGHT_CURLY); return;
+        case '{':
+            if (C->string_format >= 1) {
+                C->string_format++;
+            }
+            token(C, TOKEN_LEFT_CURLY);
+            return;
+        case '}':
+            if (C->string_format == 1) {
+                C->string_format = 0;
+                C->string_status = STRING_STATUS_CLOSE;
+                token(C, TOKEN_RIGHT_PAREN);
+                return;
+            } else if (C->string_format > 1) {
+                C->string_format--;
+            }
+            token(C, TOKEN_RIGHT_CURLY);
+            return;
         case ':': token(C, TOKEN_COLON); return;
         case ';': token(C, TOKEN_SEMICOLON); return;
         case '\0': token(C, TOKEN_EOF); return;
         case '"': {
             size_t start = C->pos;
-            while (true) {
-                c = next_char(C);
-                if (c == '\\') {
-                    next_char(C);
-                    continue;
-                } else if (c == '"' || c == '\0') {
-                    break;
-                }
-            }
-            size_t end = C->pos - 1;
-            value_token(C, TOKEN_STRING, start, end);
+            parse_string(C, start);
             return;
         }
         case '\'': {
@@ -2294,6 +2355,7 @@ static inline Compiler new_compiler(const char *script, const char *source, Hymn
     C.size = strlen(source);
     C.previous.type = TOKEN_UNDEFINED;
     C.current.type = TOKEN_UNDEFINED;
+    C.string_status = STRING_STATUS_NONE;
     C.H = H;
     scope_init(&C, scope, TYPE_SCRIPT);
     return C;
@@ -2542,10 +2604,16 @@ HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     HymnString *literal = new_string_with_capacity(len);
     for (size_t i = start; i < end; i++) {
         const char c = string[i];
-        if (c == '\\' && i + 1 < end) {
-            const char e = escape_sequence(string[i + 1]);
-            if (e != '\0') {
-                literal = hymn_string_append_char(literal, e);
+        if (i + 1 < end) {
+            if (c == '\\') {
+                const char e = escape_sequence(string[i + 1]);
+                if (e != '\0') {
+                    literal = hymn_string_append_char(literal, e);
+                    i++;
+                    continue;
+                }
+            } else if (c == '{' && string[i + 1] == '{') {
+                literal = hymn_string_append_char(literal, '{');
                 i++;
                 continue;
             }
