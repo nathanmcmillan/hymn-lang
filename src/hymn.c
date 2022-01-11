@@ -1117,8 +1117,17 @@ static const char *value_name(enum HymnValueType type) {
     }
 }
 
-static size_t string_mix_hashcode(HymnString *key) {
+static size_t string_mix_code(HymnString *key) {
     size_t length = hymn_string_len(key);
+    size_t hash = 0;
+    for (size_t i = 0; i < length; i++) {
+        hash = 31 * hash + (size_t)key[i];
+    }
+    return hash ^ (hash >> 16);
+}
+
+static size_t string_mix_code_const(const char *key) {
+    size_t length = strlen(key);
     size_t hash = 0;
     for (size_t i = 0; i < length; i++) {
         hash = 31 * hash + (size_t)key[i];
@@ -1134,7 +1143,7 @@ static HymnObjectString *new_hymn_string_with_hash(HymnString *string, size_t ha
 }
 
 HymnObjectString *hymn_new_string_object(HymnString *string) {
-    return new_hymn_string_with_hash(string, string_mix_hashcode(string));
+    return new_hymn_string_with_hash(string, string_mix_code(string));
 }
 
 static void table_init(HymnTable *this) {
@@ -1248,6 +1257,19 @@ static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
     return hymn_new_undefined();
 }
 
+static HymnValue table_get_const(HymnTable *this, const char *key) {
+    size_t hash = string_mix_code_const(key);
+    unsigned int bin = table_get_bin(this, hash);
+    HymnTableItem *item = this->items[bin];
+    while (item != NULL) {
+        if (strcmp(key, item->key->string) == 0) {
+            return item->value;
+        }
+        item = item->next;
+    }
+    return hymn_new_undefined();
+}
+
 static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
     unsigned int bins = this->bins;
     if (key == NULL) {
@@ -1329,6 +1351,15 @@ static void table_delete(Hymn *H, HymnTable *this) {
     free(this);
 }
 
+void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value) {
+    HymnValue previous = table_put(table, name, value);
+    if (hymn_is_undefined(previous)) {
+        reference_string(name);
+    } else {
+        dereference(H, previous);
+    }
+}
+
 static void set_init(HymnSet *this) {
     this->size = 0;
     this->bins = INITIAL_BINS;
@@ -1400,7 +1431,7 @@ static void set_resize(HymnSet *this) {
 }
 
 static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
-    size_t hash = string_mix_hashcode(add);
+    size_t hash = string_mix_code(add);
     unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
@@ -1428,7 +1459,7 @@ static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
 }
 
 static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
-    size_t hash = string_mix_hashcode(remove);
+    size_t hash = string_mix_code(remove);
     unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
@@ -5591,12 +5622,7 @@ dispatch:
         }
         HymnTable *table = hymn_as_table(table_value);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue previous = table_put(table, name, value);
-        if (hymn_is_undefined(previous)) {
-            reference_string(name);
-        } else {
-            dereference(H, previous);
-        }
+        hymn_set_property(H, table, name, value);
         push(H, value);
         reference(value);
         dereference(H, table_value);
@@ -6459,14 +6485,8 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
 }
 
 char *hymn_call(Hymn *H, const char *name, int arguments) {
-
-    // TODO: NEED A NON-INTERN STRING LOOKUP FOR GLOBALS
-
-    HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
-
-    HymnValue function = table_get(&H->globals, string);
+    HymnValue function = table_get_const(&H->globals, name);
     if (hymn_is_undefined(function)) {
-        dereference_string(H, string);
         return NULL;
     }
     reference(function);

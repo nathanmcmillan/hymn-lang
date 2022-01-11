@@ -245,6 +245,8 @@ bool hymn_value_false(HymnValue value);
 bool hymn_values_equal(HymnValue a, HymnValue b);
 bool hymn_match_values(HymnValue a, HymnValue b);
 
+void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
+
 Hymn *new_hymn();
 
 char *hymn_debug(Hymn *H, const char *script, const char *source);
