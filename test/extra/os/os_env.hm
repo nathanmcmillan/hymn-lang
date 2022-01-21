@@ -1,0 +1,2 @@
+echo os_clock()
+echo os_env("PWD")

@@ -52,17 +52,12 @@ print(list)
 ## Ideas
 
 1. Tail call optimizations. Any time a function ends with another function call, the stack can be re-used
-1. Keywords `#if` `#else` `#elif` `#define` `#end` for macros
 1. Consistent, descriptive error messages. Use the form `[Expression Name]: Expected/Missing [X], but was [Y]`
 1. Add `finally` keyword for after try blocks
-1. Add `open` keyword that automatically tries to call a `close` function at the end of a block
 1. Refactor string related handling to reduce copying
 1. Insert into table collision linked lists using sorted order, so subsequent operations can be quicker
 1. A failed malloc, calloc, realloc should return a compile or runtime error if possible
 1. Standard library written in Hymn
-1. Keywords `yield` `resume` `start` for coroutines
-1. Keywords `async` `await` for asynchronous calls
-1. Type hints `function foo(x: float, y: table, z: ?)`
 1. Delay dereferencing to the end of subroutines and analyze where reference counting can be ignored
 
 ## Progress

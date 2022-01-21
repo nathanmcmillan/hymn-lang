@@ -174,10 +174,11 @@ struct Hymn {
     int frame_count;
     HymnSet strings;
     HymnTable globals;
-    HymnArray *paths;
-    HymnTable *imports;
+    HymnArray paths;
+    HymnTable imports;
     HymnString *error;
     void (*print)(const char *format, ...);
+    void (*print_error)(const char *format, ...);
 };
 
 bool hymn_file_exists(const char *path);

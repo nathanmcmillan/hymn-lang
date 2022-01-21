@@ -1,0 +1,32 @@
+-- Cool
+-- Ok
+-- Groovy
+-- Nice
+
+let foo = 1
+
+if __globals.foo
+  echo "Cool"
+else
+  echo "No"
+end
+
+if __globals.bar
+  echo "No"
+else
+  echo "Ok"
+end
+
+let hello = none
+
+if exists(__globals, "hello")
+  echo "Groovy"
+else
+  echo "No"
+end
+
+if exists(__globals, "world")
+  echo "No"
+else
+  echo "Nice"
+end

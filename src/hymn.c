@@ -609,6 +609,7 @@ enum TokenType {
     TOKEN_DELETE,
     TOKEN_DIVIDE,
     TOKEN_DOT,
+    TOKEN_ECHO,
     TOKEN_ELIF,
     TOKEN_ELSE,
     TOKEN_END,
@@ -616,6 +617,7 @@ enum TokenType {
     TOKEN_EQUAL,
     TOKEN_ERROR,
     TOKEN_EXCEPT,
+    TOKEN_EXISTS,
     TOKEN_FALSE,
     TOKEN_FLOAT,
     TOKEN_FOR,
@@ -710,7 +712,9 @@ enum OpCode {
     OP_DELETE,
     OP_DIVIDE,
     OP_DUPLICATE,
+    OP_ECHO,
     OP_EQUAL,
+    OP_EXISTS,
     OP_FALSE,
     OP_GET_DYNAMIC,
     OP_GET_GLOBAL,
@@ -800,6 +804,7 @@ static void copy_expression(Compiler *C, bool assign);
 static void index_expression(Compiler *C, bool assign);
 static void keys_expression(Compiler *C, bool assign);
 static void type_expression(Compiler *C, bool assign);
+static void exists_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
 static void expression_statement(Compiler *C);
@@ -1044,6 +1049,7 @@ Rule rules[] = {
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL},
+    [TOKEN_ECHO] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ELIF] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_END] = {NULL, NULL, PRECEDENCE_NONE},
@@ -1051,6 +1057,7 @@ Rule rules[] = {
     [TOKEN_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY},
     [TOKEN_ERROR] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_EXCEPT] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_EXISTS] = {exists_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_FALSE] = {compile_false, NULL, PRECEDENCE_NONE},
     [TOKEN_FLOAT] = {compile_float, NULL, PRECEDENCE_NONE},
     [TOKEN_FOR] = {NULL, NULL, PRECEDENCE_NONE},
@@ -1723,14 +1730,22 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         break;
     case 'e':
         if (size == 3) return ident_trie(ident, 1, "nd", TOKEN_END);
-        if (size == 6) return ident_trie(ident, 1, "xcept", TOKEN_EXCEPT);
-        if (size == 4 && ident[1] == 'l') {
-            if (ident[2] == 's') {
-                if (ident[3] == 'e') {
-                    return TOKEN_ELSE;
+        if (size == 6) {
+            if (ident[1] == 'x') {
+                if (ident[2] == 'c') return ident_trie(ident, 3, "ept", TOKEN_EXCEPT);
+                if (ident[2] == 'i') return ident_trie(ident, 3, "sts", TOKEN_EXISTS);
+            }
+        } else if (size == 4) {
+            if (ident[1] == 'l') {
+                if (ident[2] == 's') {
+                    if (ident[3] == 'e') {
+                        return TOKEN_ELSE;
+                    }
+                } else if (ident[2] == 'i' && ident[3] == 'f') {
+                    return TOKEN_ELIF;
                 }
-            } else if (ident[2] == 'i' && ident[3] == 'f') {
-                return TOKEN_ELIF;
+            } else if (ident[1] == 'c') {
+                return ident_trie(ident, 2, "ho", TOKEN_ECHO);
             }
         }
         break;
@@ -3037,6 +3052,7 @@ static int next(uint8_t instruction) {
     case OP_GET_GLOBAL:
     case OP_GET_LOCAL:
     case OP_GET_PROPERTY:
+    case OP_EXISTS:
         return 2;
     case OP_GET_TWO_LOCAL:
     case OP_ADD_TWO_LOCAL:
@@ -3524,6 +3540,7 @@ static void compile_function(Compiler *C, enum FunctionType type) {
 
 static void declare_function(Compiler *C) {
     uint8_t global = variable(C, "Expected function name");
+    // TODO. Prevent overwriting global function
     local_initialize(C);
     compile_function(C, TYPE_FUNCTION);
     finalize_variable(C, global);
@@ -3907,6 +3924,11 @@ static void try_statement(Compiler *C) {
     patch_jump(C, jump);
 }
 
+static void echo_statement(Compiler *C) {
+    expression(C);
+    emit(C, OP_ECHO);
+}
+
 static void print_statement(Compiler *C) {
     consume(C, TOKEN_LEFT_PAREN, "missing '(' around print statement");
     expression(C);
@@ -3925,7 +3947,9 @@ static void throw_statement(Compiler *C) {
 }
 
 static void statement(Compiler *C) {
-    if (match(C, TOKEN_PRINT)) {
+    if (match(C, TOKEN_ECHO)) {
+        echo_statement(C);
+    } else if (match(C, TOKEN_PRINT)) {
         print_statement(C);
     } else if (match(C, TOKEN_USE)) {
         use_statement(C);
@@ -4065,6 +4089,16 @@ static void index_expression(Compiler *C, bool assign) {
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function");
     emit(C, OP_INDEX);
+}
+
+static void exists_expression(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after exists");
+    expression(C);
+    consume(C, TOKEN_COMMA, "Expected 2 arguments for `exists` function");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after exists expression");
+    emit(C, OP_EXISTS);
 }
 
 static void expression_statement(Compiler *C) {
@@ -4592,7 +4626,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
 }
 
 static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
-    HymnTable *imports = H->imports;
+    HymnTable *imports = &H->imports;
 
     HymnString *script = NULL;
     int p = 1;
@@ -4609,7 +4643,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
 
     HymnObjectString *module = NULL;
 
-    HymnArray *paths = H->paths;
+    HymnArray *paths = &H->paths;
     int64_t size = paths->length;
     for (int64_t i = 0; i < size; i++) {
         HymnValue value = paths->items[i];
@@ -4772,6 +4806,8 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
     case OP_EQUAL: return debug_instruction(debug, "OP_EQUAL", index);
+    case OP_ECHO: return debug_instruction(debug, "OP_ECHO", index);
+    case OP_EXISTS: return debug_constant_instruction(debug, "OP_EXISTS", code, index);
     case OP_FALSE: return debug_instruction(debug, "OP_FALSE", index);
     case OP_FOR: return debug_for_loop_instruction(debug, "OP_FOR", 1, code, index);
     case OP_FOR_LOOP: return debug_for_loop_instruction(debug, "OP_FOR_LOOP", -1, code, index);
@@ -5529,7 +5565,7 @@ dispatch:
         HymnValue previous = table_put(&H->globals, name, value);
         if (!hymn_is_undefined(previous)) {
             dereference(H, previous);
-            THROW("Global `%s` was previously defined.", name->string)
+            THROW("Global variable '%s' was previously defined.", name->string)
         }
         HYMN_DISPATCH;
     }
@@ -5645,6 +5681,33 @@ dispatch:
         }
         dereference(H, v);
         push(H, g);
+        HYMN_DISPATCH;
+    }
+    case OP_EXISTS: {
+        HymnValue value = pop(H);
+        HymnValue object = pop(H);
+        if (!hymn_is_table(object)) {
+            const char *is = value_name(object.is);
+            dereference(H, value);
+            dereference(H, object);
+            THROW("Exists: Requires `Table` but was `%s`", is)
+        }
+        if (!hymn_is_string(value)) {
+            const char *is = value_name(value.is);
+            dereference(H, value);
+            dereference(H, object);
+            THROW("Exists: Requires `String` for second argument but was `%s`", is)
+        }
+        HymnTable *table = hymn_as_table(object);
+        HymnObjectString *name = hymn_as_hymn_string(value);
+        HymnValue g = table_get(table, name);
+        if (hymn_is_undefined(g)) {
+            push(H, hymn_new_bool(false));
+        } else {
+            push(H, hymn_new_bool(true));
+        }
+        dereference(H, value);
+        dereference(H, object);
         HYMN_DISPATCH;
     }
     case OP_SET_DYNAMIC: {
@@ -6270,10 +6333,18 @@ dispatch:
         dereference(H, value);
         HYMN_DISPATCH;
     }
-    case OP_PRINT: {
+    case OP_ECHO: {
         HymnValue value = pop(H);
         HymnString *string = value_to_string(value);
         H->print("%s\n", string);
+        hymn_string_delete(string);
+        dereference(H, value);
+        HYMN_DISPATCH;
+    }
+    case OP_PRINT: {
+        HymnValue value = pop(H);
+        HymnString *string = value_to_string(value);
+        H->print("%s", string);
         hymn_string_delete(string);
         dereference(H, value);
         HYMN_DISPATCH;
@@ -6327,12 +6398,21 @@ static void print_stdout(const char *format, ...) {
     va_end(args);
 }
 
+static void print_stderr(const char *format, ...) {
+    va_list args;
+
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+}
+
 Hymn *new_hymn() {
     Hymn *H = hymn_calloc(1, sizeof(Hymn));
     reset_stack(H);
 
+    // STRINGS
+
     set_init(&H->strings);
-    table_init(&H->globals);
 
     HymnObjectString *search_this = machine_intern_string(H, hymn_new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
     reference_string(search_this);
@@ -6343,29 +6423,48 @@ Hymn *new_hymn() {
     HymnObjectString *search_libs = machine_intern_string(H, hymn_new_string("." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>.hm"));
     reference_string(search_libs);
 
+    // GLOBALS
+
+    table_init(&H->globals);
+
+    HymnObjectString *globals = machine_intern_string(H, hymn_new_string("__globals"));
+    reference_string(globals);
+
+    HymnValue globals_value = hymn_new_table_value(&H->globals);
+    table_put(&H->globals, globals, globals_value);
+    reference_string(globals);
+    reference(globals_value);
+
+    // PATHS
+
+    array_init_with_capacity(&H->paths, 3, 3);
+
     HymnObjectString *paths = machine_intern_string(H, hymn_new_string("__paths"));
     reference_string(paths);
 
-    H->paths = hymn_new_array(3);
-    H->paths->items[0] = hymn_new_string_value(search_this);
-    H->paths->items[1] = hymn_new_string_value(search_relative);
-    H->paths->items[2] = hymn_new_string_value(search_libs);
+    H->paths.items[0] = hymn_new_string_value(search_this);
+    H->paths.items[1] = hymn_new_string_value(search_relative);
+    H->paths.items[2] = hymn_new_string_value(search_libs);
 
-    HymnValue paths_value = hymn_new_array_value(H->paths);
+    HymnValue paths_value = hymn_new_array_value(&H->paths);
     table_put(&H->globals, paths, paths_value);
     reference_string(paths);
     reference(paths_value);
 
+    // IMPORTS
+
+    table_init(&H->imports);
+
     HymnObjectString *imports = machine_intern_string(H, hymn_new_string("__imports"));
     reference_string(imports);
 
-    H->imports = hymn_new_table();
-    HymnValue imports_value = hymn_new_table_value(H->imports);
+    HymnValue imports_value = hymn_new_table_value(&H->imports);
     table_put(&H->globals, imports, imports_value);
     reference_string(imports);
     reference(imports_value);
 
     H->print = print_stdout;
+    H->print_error = print_stderr;
 
     return H;
 }

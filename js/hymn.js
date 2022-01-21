@@ -4521,7 +4521,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const previous = tablePut(H.globals, name, value)
         if (previous !== null) {
-          frame = hymnThrowError(H, `Global '${name}' was previously defined.`)
+          frame = hymnThrowError(H, `Global variable '${name}' was previously defined.`)
           if (frame === null) return
           else break
         }

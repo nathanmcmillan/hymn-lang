@@ -1,0 +1,12 @@
+-- 8
+-- Oh no! Undefined
+
+let foo = 8
+
+try
+  print(foo)
+  delete(__globals, "foo")
+  print(foo)
+except error
+  print("Oh no! " + error[0:9])
+end

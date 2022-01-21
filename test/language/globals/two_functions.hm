@@ -1,0 +1,9 @@
+-- @Exception
+
+function foo()
+  return 1
+end
+
+function foo()
+  return 2
+end

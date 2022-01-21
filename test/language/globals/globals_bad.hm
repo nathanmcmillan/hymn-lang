@@ -1,0 +1,34 @@
+-- Cool
+-- Ok
+-- Nice
+-- Groovy
+
+let foo = 1
+
+if __globals.foo
+  print("Cool")
+else
+  print("No")
+end
+
+if __globals.bar
+  print("No")
+else
+  print("Ok")
+end
+
+let hello = none
+
+print(__globals)
+
+if exists(__globals, "hello")
+  print("Nice")
+else
+  print("No")
+end
+
+if exists(__globals, "nope")
+  print("No")
+else
+  print("Groovy")
+end

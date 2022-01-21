@@ -1,0 +1,29 @@
+-- 8
+-- Undefined
+-- 4
+-- 12
+
+begin
+  function foo()
+    return 8
+  end
+  echo foo()
+end
+
+try
+  foo()
+except e
+  echo e[0:9]
+end
+
+function foo()
+  return 4
+end
+echo foo()
+
+begin
+  function foo()
+    return 12
+  end
+  echo foo()
+end
