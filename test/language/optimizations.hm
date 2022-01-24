@@ -17,13 +17,13 @@ function tail(i)
   if i < 0 return 100 end
   return tail(i - 1)
 end
-print(tail(10))
+echo tail(10)
 
 -- pop two
 begin
   let x = 1
   let y = 2
-  print(x + y)
+  echo x + y
 end
 
 -- pop n
@@ -33,54 +33,54 @@ begin
   let z = 4
   let w = 5
   let v = 6
-  print(x + y + z + w + v)
+  echo x + y + z + w + v
 end
 
 -- negate constant
 let a = [2, 4, 6]
-print(a[-1])
+echo a[-1]
 
 -- double negate constant
 let b = [2, 4, 6]
-print(b[- - 1])
+echo b[- - 1]
 
 -- add two local
 begin
   let x = 2
   let y = 4
   let z = x + y
-  print(z)
+  echo z
 end
 
 -- if less
-if 0 < 1 print("X") else print("no") end
+if 0 < 1 echo "X" else echo "no" end
 
 -- if true
-if true print("Y") else print("no") end
+if true echo "Y" else echo "no" end
 
 -- if false
-if false print("no") else print("Z") end
+if false echo "no" else echo "Z" end
 
 -- if not
-if !false print("W") else print("no") end
+if !false echo "W" else echo "no" end
 
 -- increment
 let x = 1
 begin
   let z = x + 255
-  print(z)
+  echo z
 end
 
 -- increment local
 begin
   let x = 1
   let z = x + 255
-  print(z)
+  echo z
 end
 
 -- increment and set local
 begin
   let x = 1
   x = x + 255
-  print(x)
+  echo x
 end

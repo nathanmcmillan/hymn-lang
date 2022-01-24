@@ -13,61 +13,61 @@
 begin
   let x = 4
   x += 2
-  print(x)
+  echo x
 end
 
 begin
   let x = 12
   x -= 2
-  print(x)
+  echo x
 end
 
 begin
   let x = 4
   x *= 2
-  print(x)
+  echo x
 end
 
 begin
   let x = 4
   x /= 2
-  print(x)
+  echo x
 end
 
 begin
   let x = 3
   x %= 2
-  print(x)
+  echo x
 end
 
-print("")
+echo ""
 
 begin
   let x = 0
   x &= 1
-  print(x)
+  echo x
 end
 
 begin
   let x = 0
   x |= 1
-  print(x)
+  echo x
 end
 
 begin
   let x = 1
   x <<= 2
-  print(x)
+  echo x
 end
 
 begin
   let x = 8
   x >>= 2
-  print(x)
+  echo x
 end
 
 begin
   let x = 0
   x ^= 1
-  print(x)
+  echo x
 end

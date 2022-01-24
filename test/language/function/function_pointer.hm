@@ -5,7 +5,7 @@ function foo(number)
 end
 
 function bar(value)
-  print(value)
+  echo value
 end
 
 let multiply = foo

@@ -5,12 +5,12 @@
 -- [True, False]
 
 let array = [true, true, false, false]
-print(array)
+echo array
 
 let one = delete(array, 0)
-print(one)
-print(array)
+echo one
+echo array
 
 let two = delete(array, 1)
-print(two)
-print(array)
+echo two
+echo array

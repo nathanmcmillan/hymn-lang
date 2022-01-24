@@ -5,14 +5,14 @@
 -- [0.1, 2.1, 4.2, 6.8, 8.1]
 
 let array = [2.1, 6.8]
-print(array)
+echo array
 
 let top = insert(array, 1, 4.2)
-print(top)
-print(array)
+echo top
+echo array
 
 insert(array, 0, 0.1)
-print(array)
+echo array
 
 insert(array, 4, 8.1)
-print(array)
+echo array

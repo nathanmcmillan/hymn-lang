@@ -5,25 +5,25 @@
 let x = 3
 
 if x == 3
-  print("if")
+  echo "if"
 elif x == 4
-  print("bad")
+  echo "bad"
 else
-  print("bad")
+  echo "bad"
 end
 
 if x == 2
-  print("bad")
+  echo "bad"
 elif x == 3
-  print("elif")
+  echo "elif"
 else
-  print("bad")
+  echo "bad"
 end
 
 if x == 1
-  print("bad")
+  echo "bad"
 elif x == 2
-  print("bad")
+  echo "bad"
 else
-  print("else")
+  echo "else"
 end

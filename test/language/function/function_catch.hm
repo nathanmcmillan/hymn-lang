@@ -4,9 +4,9 @@
 
 function foo()
   try
-    print([2, 4, 8][3])
+    echo [2, 4, 8][3]
   except _
-    print("foo")
+    echo "foo"
   end
 end
 
@@ -15,9 +15,9 @@ function bar()
     throw "bad"
   except _
   end
-  print("bar")
+  echo "bar"
 end
 
 foo()
 bar()
-print("end")
+echo "end"

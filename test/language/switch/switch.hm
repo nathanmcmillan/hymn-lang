@@ -6,35 +6,35 @@
 let x = 3
 
 if x == 3
-  print("first")
+  echo "first"
 elif x == 5
-  print("bad")
+  echo "bad"
 else
-  print("bad")
+  echo "bad"
 end
 
 if x == 5
-  print("bad")
+  echo "bad"
 elif x == 3
-  print("second")
+  echo "second"
 else
-  print("bad")
+  echo "bad"
 end
 
 if x == none
-  print("bad")
+  echo "bad"
 elif x == true
-  print("bad")
+  echo "bad"
 elif x == 2 or x == 3 or x == 4
-  print("or")
+  echo "or"
 else
-  print("bad")
+  echo "bad"
 end
 
 if x == 4
-  print("bad")
+  echo "bad"
 elif x == 5
-  print("bad")
+  echo "bad"
 else
-  print("else")
+  echo "else"
 end

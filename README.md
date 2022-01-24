@@ -25,7 +25,7 @@ let list = new_node("hello")
 node_add(list, "world")
 
 -- print statements will show all nested values in an object
-print(list)
+echo list
 ```
 
 # Why use Hymn

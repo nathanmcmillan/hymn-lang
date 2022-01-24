@@ -12,8 +12,8 @@ let b = ["bar"]
 push(a, b)
 push(b, a)
 
-print(a)
-print(b)
+echo a
+echo b
 
 clear(a)
 clear(b)
@@ -24,8 +24,8 @@ let d = { name: "bar" }
 c.point = d
 d.point = c
 
-print(c)
-print(d)
+echo c
+echo d
 
 clear(c)
 clear(d)
@@ -38,9 +38,9 @@ push(e, f)
 push(f, g)
 push(g, e)
 
-print(e)
-print(f)
-print(g)
+echo e
+echo f
+echo g
 
 clear(e)
 clear(f)

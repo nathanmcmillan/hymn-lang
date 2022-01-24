@@ -10,12 +10,12 @@
 -- i = 3
 -- end
 
-print("begin")
+echo "begin"
 for i = 1, i < 4
   for x = 1, x < 10
     if x == 3 break end
-    print("x = " + x)
+    echo "x = " + x
   end
-  print("i = " + i)
+  echo "i = " + i
 end
-print("end")
+echo "end"

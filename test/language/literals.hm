@@ -13,22 +13,22 @@
 -- False
 -- None
 
-print(0)
-print(1)
-print(2)
-print(9007199254740991)
+echo 0
+echo 1
+echo 2
+echo 9007199254740991
 
-print(-1)
-print(-2)
-print(-9007199254740991)
+echo -1
+echo -2
+echo -9007199254740991
 
-print(0.001)
-print(123.456)
-print(-123.456)
+echo 0.001
+echo 123.456
+echo -123.456
 
-print("foobar")
+echo "foobar"
 
-print(true)
-print(false)
+echo true
+echo false
 
-print(none)
+echo none

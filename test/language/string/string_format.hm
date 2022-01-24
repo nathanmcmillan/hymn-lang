@@ -9,19 +9,19 @@
 
 let foo = 42
 
-print("number " + foo)
-print("number format {foo}")
-print('simply {foo}')
+echo "number " + foo
+echo "number format {foo}"
+echo 'simply {foo}'
 
-print("multiplied {foo * 2}")
+echo "multiplied {foo * 2}"
 
 let x = 2
 let y = 3
 
-print("add two {x + y} numbers")
+echo "add two {x + y} numbers"
 
-print("table { { a: 1 } } value")
+echo "table { { a: 1 } } value"
 
-print("escape {{foo}")
+echo "escape {{foo}"
 
-print("foo{64/2}bar")
+echo "foo{64/2}bar"

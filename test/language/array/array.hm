@@ -3,10 +3,10 @@
 
 begin
   let array = []
-  print(array)
+  echo array
 end
 
 begin
   let array = [2, 4, 6]
-  print(array)
+  echo array
 end

@@ -2,7 +2,7 @@
 -- {}
 
 let table = { foo: "bar", hello: "world" }
-print(table)
+echo table
 
 clear(table)
-print(table)
+echo table

@@ -3,9 +3,9 @@
 -- end
 
 if false
-  print("bad")
+  echo "bad"
 else
-  print("else")
-  print("block")
-  print("end")
+  echo "else"
+  echo "block"
+  echo "end"
 end

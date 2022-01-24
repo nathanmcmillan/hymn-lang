@@ -12,17 +12,17 @@
 -- x = 2
 -- end
 
-print("begin")
+echo "begin"
 let i = 1
 while i < 8
   let x = 1
   while x < 16
-    print("x = " + x)
+    echo "x = " + x
     x = x + 1
     if x == 3 break end
   end
   if i == 4 break end
-  print("i = " + i)
+  echo "i = " + i
   i = i + 1
 end
-print("end")
+echo "end"

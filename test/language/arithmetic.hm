@@ -8,13 +8,13 @@
 -- 8.4
 -- 2
 
-print(4 + 2)
-print(4 - 2)
-print(4 * 2)
-print(4 / 2)
-print(9 % 8)
+echo 4 + 2
+echo 4 - 2
+echo 4 * 2
+echo 4 / 2
+echo 9 % 8
 
-print(2.9 + 4.2)
-print(8.2 - 2.1)
-print(4.2 * 2.0)
-print(8.2 / 4.1)
+echo 2.9 + 4.2
+echo 8.2 - 2.1
+echo 4.2 * 2.0
+echo 8.2 / 4.1

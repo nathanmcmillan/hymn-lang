@@ -10,19 +10,19 @@
 #include <sys/types.h>
 #include <time.h>
 
-#ifdef __GNUC__
-#include <dirent.h>
-#include <linux/limits.h>
-#include <unistd.h>
-#define PATH_SEP '/'
-#define PATH_SEP_STRING "/"
-#elif _MSC_VER
+#ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
 #define getcwd _getcwd
 #define PATH_MAX FILENAME_MAX
 #define PATH_SEP '\\'
 #define PATH_SEP_STRING "\\"
+#else
+#include <dirent.h>
+#include <linux/limits.h>
+#include <unistd.h>
+#define PATH_SEP '/'
+#define PATH_SEP_STRING "/"
 #endif
 
 #include "hymn.h"
@@ -52,29 +52,7 @@ static void file_list_add(struct FileList *list, HymnString *file) {
     list->count = count + 1;
 }
 
-#ifdef __GNUC__
-static bool recurse_directories(const char *path, struct FileList *list) {
-    DIR *dir = opendir(path);
-    if (dir == NULL) {
-        return true;
-    }
-    struct dirent *d;
-    char file[PATH_MAX];
-    while ((d = readdir(dir)) != NULL) {
-        if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {
-            continue;
-        }
-        strcpy(file, path);
-        strcat(file, PATH_SEP_STRING);
-        strcat(file, d->d_name);
-        if (recurse_directories(file, list)) {
-            file_list_add(list, hymn_new_string(file));
-        }
-    }
-    closedir(dir);
-    return false;
-}
-#elif _MSC_VER
+#ifdef _MSC_VER
 static bool recurse_directories(const char *path, struct FileList *list) {
     HymnString *search = hymn_string_format("%s" PATH_SEP_STRING "*", path);
     WIN32_FIND_DATA find;
@@ -99,6 +77,28 @@ static bool recurse_directories(const char *path, struct FileList *list) {
         FindClose(handle);
     }
     hymn_string_delete(search);
+    return false;
+}
+#else
+static bool recurse_directories(const char *path, struct FileList *list) {
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        return true;
+    }
+    struct dirent *d;
+    char file[PATH_MAX];
+    while ((d = readdir(dir)) != NULL) {
+        if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {
+            continue;
+        }
+        strcpy(file, path);
+        strcat(file, PATH_SEP_STRING);
+        strcat(file, d->d_name);
+        if (recurse_directories(file, list)) {
+            file_list_add(list, hymn_new_string(file));
+        }
+    }
+    closedir(dir);
     return false;
 }
 #endif
@@ -167,6 +167,7 @@ static HymnString *test_source(HymnString *script) {
     if (strcmp(expected, "") != 0) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
+        hymn->print_error = console;
         hymn_string_zero(out);
         char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
@@ -214,11 +215,11 @@ static void test_api() {
     hymn_add_function(hymn, "fun", fun_for_vm);
     void *point = hymn_calloc(1, sizeof(void *));
     hymn_add_pointer(hymn, "point", point);
-    char *error = hymn_do(hymn, "print(fun(point))");
+    char *error = hymn_do(hymn, "echo fun(point)");
     hymn_delete(hymn);
     free(point);
     if (error != NULL) {
-        printf("⨯ %s\n\n", error);
+        printf("%s\n\n", error);
         tests_fail++;
     } else {
         tests_success++;
@@ -240,14 +241,14 @@ static void test_hymn(const char *filter) {
         }
         tests_count++;
         printf("%s\n", script);
-        HymnString *result = test_source(script);
-        if (result != NULL) {
-            printf("%s\n\n", result);
+        HymnString *error = test_source(script);
+        if (error != NULL) {
+            printf("%s\n\n", error);
             tests_fail++;
         } else {
             tests_success++;
         }
-        hymn_string_delete(result);
+        hymn_string_delete(error);
     }
 
     delete_file_list(&all);

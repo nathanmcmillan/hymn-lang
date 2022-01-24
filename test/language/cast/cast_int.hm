@@ -14,20 +14,20 @@
 --
 -- None
 
-print(int(0))
-print(int(0.0))
-print(int(1))
-print(int(-1))
-print(int(1.2))
-print(int(-1.2))
-print("")
+echo int(0)
+echo int(0.0)
+echo int(1)
+echo int(-1)
+echo int(1.2)
+echo int(-1.2)
+echo ""
 
-print(int("0"))
-print(int("0.0"))
-print(int("1"))
-print(int("-1"))
-print(int("1.2"))
-print(int("-1.2"))
-print("")
+echo int("0")
+echo int("0.0")
+echo int("1")
+echo int("-1")
+echo int("1.2")
+echo int("-1.2")
+echo ""
 
-print(int("no!"))
+echo int("no!")

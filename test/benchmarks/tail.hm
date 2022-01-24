@@ -12,4 +12,4 @@ for i = 0, i < 10
 end
 
 let seconds = os_clock() - start
-print("elapsed: " + seconds + "s | " + sum)
+echo "elapsed: " + seconds + "s | " + sum

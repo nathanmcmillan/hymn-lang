@@ -24,34 +24,34 @@
 
 let array = [2, 4, 8]
 
-print("begin")
+echo "begin"
 for value in array
-  print(value)
+  echo value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for i, value in array
-  print(i + " -> " + value)
+  echo i + " -> " + value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for value in [10, 12, 14]
-  print(value)
+  echo value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for i, value in [10, 12, 14]
   if i == 2 break end
-  print(i + " -> " + value)
+  echo i + " -> " + value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for value in array
   if value == 2 continue end
-  print(value)
+  echo value
 end
-print("end")
+echo "end"

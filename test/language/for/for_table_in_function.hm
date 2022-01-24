@@ -4,10 +4,10 @@
 function process()
   for v in [1, 2, 3]
     if v == 2 return end
-    print(v)
+    echo v
   end
-  print("bad")
+  echo "bad"
 end
 
 process()
-print("done")
+echo "done"

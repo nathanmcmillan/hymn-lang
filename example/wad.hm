@@ -126,7 +126,7 @@ function load_wad(s)
     if pc != ' ' and pc != ']' and pc != '}' and pc != '\n'
         stack[0][trim(key)] = value
     end
-    print(wad)
+    echo wad
     return wad
 end
 

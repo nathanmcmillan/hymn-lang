@@ -4,5 +4,5 @@
 let foo = "bar"
 let bar = copy(foo)
 
-print(foo)
-print(bar)
+echo foo
+echo bar

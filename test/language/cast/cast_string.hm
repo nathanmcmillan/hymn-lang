@@ -9,13 +9,13 @@
 -- False
 -- foobar
 
-print(string(none))
-print(string(0))
-print(string(0.0))
-print(string(1))
-print(string(-1))
-print(string(1.2))
-print(string(-1.2))
-print(string(true))
-print(string(false))
-print(string("foobar"))
+echo string(none)
+echo string(0)
+echo string(0.0)
+echo string(1)
+echo string(-1)
+echo string(1.2)
+echo string(-1.2)
+echo string(true)
+echo string(false)
+echo string("foobar")

@@ -22,21 +22,21 @@ function h() return { hello: "world" } end
 function bar() return 2 end
 function foo() return bar end
 
-print(a())
-print(b())
-print(c())
-print(d())
-print(e())
-print(f())
-print(g())
-print(h())
+echo a()
+echo b()
+echo c()
+echo d()
+echo e()
+echo f()
+echo g()
+echo h()
 
-print(foo())
-print(foo()())
+echo foo()
+echo foo()()
 
 function min(a, b)
   if a < b return a end
   return b
 end
 
-print(min(4, 6))
+echo min(4, 6)

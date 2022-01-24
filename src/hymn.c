@@ -11,16 +11,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#ifdef __GNUC__
-#include <dirent.h>
-#include <linux/limits.h>
-#include <unistd.h>
-#define PATH_SEP '/'
-#define PATH_SEP_STRING "/"
-#define PATH_SEP_OTHER '\\'
-#define PATH_SEP_OTHER_STRING "\\"
-#define UNREACHABLE() __builtin_unreachable()
-#elif _MSC_VER
+#ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
 #define getcwd _getcwd
@@ -30,6 +21,15 @@
 #define PATH_SEP_OTHER '/'
 #define PATH_SEP_OTHER_STRING "/"
 #define UNREACHABLE() __assume(0)
+#else
+#include <dirent.h>
+#include <linux/limits.h>
+#include <unistd.h>
+#define PATH_SEP '/'
+#define PATH_SEP_STRING "/"
+#define PATH_SEP_OTHER '\\'
+#define PATH_SEP_OTHER_STRING "\\"
+#define UNREACHABLE() __builtin_unreachable()
 #endif
 
 #include "hymn.h"
@@ -3053,6 +3053,7 @@ static int next(uint8_t instruction) {
     case OP_GET_LOCAL:
     case OP_GET_PROPERTY:
     case OP_EXISTS:
+    case OP_PRINT:
         return 2;
     case OP_GET_TWO_LOCAL:
     case OP_ADD_TWO_LOCAL:
@@ -3932,6 +3933,8 @@ static void echo_statement(Compiler *C) {
 static void print_statement(Compiler *C) {
     consume(C, TOKEN_LEFT_PAREN, "missing '(' around print statement");
     expression(C);
+    consume(C, TOKEN_COMMA, "missing ',' between arguments in print statement");
+    expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "missing ')' around print statement");
     emit(C, OP_PRINT);
 }
@@ -4626,7 +4629,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
 }
 
 static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
-    HymnTable *imports = &H->imports;
+    HymnTable *imports = H->imports;
 
     HymnString *script = NULL;
     int p = 1;
@@ -4643,7 +4646,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
 
     HymnObjectString *module = NULL;
 
-    HymnArray *paths = &H->paths;
+    HymnArray *paths = H->paths;
     int64_t size = paths->length;
     for (int64_t i = 0; i < size; i++) {
         HymnValue value = paths->items[i];
@@ -4845,7 +4848,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_POP: return debug_instruction(debug, "OP_POP", index);
     case OP_POP_N: return debug_byte_instruction(debug, "OP_POP_N", code, index);
     case OP_POP_TWO: return debug_instruction(debug, "OP_POP_TWO", index);
-    case OP_PRINT: return debug_instruction(debug, "OP_PRINT", index);
+    case OP_PRINT: return debug_constant_instruction(debug, "OP_PRINT", code, index);
     case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
     case OP_SET_DYNAMIC: return debug_instruction(debug, "OP_SET_DYNAMIC", index);
     case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", code, index);
@@ -5565,7 +5568,9 @@ dispatch:
         HymnValue previous = table_put(&H->globals, name, value);
         if (!hymn_is_undefined(previous)) {
             dereference(H, previous);
-            THROW("Global variable '%s' was previously defined.", name->string)
+            THROW("Multiple global definitions of variable `%s`", name->string)
+        } else {
+            reference_string(name);
         }
         HYMN_DISPATCH;
     }
@@ -5574,7 +5579,7 @@ dispatch:
         HymnValue value = peek(H, 1);
         HymnValue previous = table_put(&H->globals, name, value);
         if (hymn_is_undefined(previous)) {
-            THROW("Undefined variable `%s`.", name->string)
+            THROW("Undefined variable '%s'", name->string)
         } else {
             dereference(H, previous);
         }
@@ -5585,7 +5590,7 @@ dispatch:
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         HymnValue get = table_get(&H->globals, name);
         if (hymn_is_undefined(get)) {
-            THROW("Undefined variable `%s`.", name->string)
+            THROW("Undefined variable '%s'", name->string)
         }
         reference(get);
         push(H, get);
@@ -6343,10 +6348,16 @@ dispatch:
     }
     case OP_PRINT: {
         HymnValue value = pop(H);
+        HymnValue route = pop(H);
         HymnString *string = value_to_string(value);
-        H->print("%s", string);
+        if (hymn_value_false(route)) {
+            H->print("%s", string);
+        } else {
+            H->print_error("%s", string);
+        }
         hymn_string_delete(string);
         dereference(H, value);
+        dereference(H, route);
         HYMN_DISPATCH;
     }
     case OP_THROW: {
@@ -6427,40 +6438,43 @@ Hymn *new_hymn() {
 
     table_init(&H->globals);
 
-    HymnObjectString *globals = machine_intern_string(H, hymn_new_string("__globals"));
-    reference_string(globals);
+    HymnObjectString *__globals = machine_intern_string(H, hymn_new_string("__globals"));
+    reference_string(__globals);
 
     HymnValue globals_value = hymn_new_table_value(&H->globals);
-    table_put(&H->globals, globals, globals_value);
-    reference_string(globals);
+    table_put(&H->globals, __globals, globals_value);
+    reference_string(__globals);
+    reference(globals_value);
     reference(globals_value);
 
     // PATHS
 
-    array_init_with_capacity(&H->paths, 3, 3);
+    H->paths = hymn_new_array(3);
 
-    HymnObjectString *paths = machine_intern_string(H, hymn_new_string("__paths"));
-    reference_string(paths);
+    HymnObjectString *__paths = machine_intern_string(H, hymn_new_string("__paths"));
+    reference_string(__paths);
 
-    H->paths.items[0] = hymn_new_string_value(search_this);
-    H->paths.items[1] = hymn_new_string_value(search_relative);
-    H->paths.items[2] = hymn_new_string_value(search_libs);
+    H->paths->items[0] = hymn_new_string_value(search_this);
+    H->paths->items[1] = hymn_new_string_value(search_relative);
+    H->paths->items[2] = hymn_new_string_value(search_libs);
 
-    HymnValue paths_value = hymn_new_array_value(&H->paths);
-    table_put(&H->globals, paths, paths_value);
-    reference_string(paths);
+    HymnValue paths_value = hymn_new_array_value(H->paths);
+    table_put(&H->globals, __paths, paths_value);
+    reference_string(__paths);
+    reference(paths_value);
     reference(paths_value);
 
     // IMPORTS
 
-    table_init(&H->imports);
+    H->imports = hymn_new_table();
 
-    HymnObjectString *imports = machine_intern_string(H, hymn_new_string("__imports"));
-    reference_string(imports);
+    HymnObjectString *__imports = machine_intern_string(H, hymn_new_string("__imports"));
+    reference_string(__imports);
 
-    HymnValue imports_value = hymn_new_table_value(&H->imports);
-    table_put(&H->globals, imports, imports_value);
-    reference_string(imports);
+    HymnValue imports_value = hymn_new_table_value(H->imports);
+    table_put(&H->globals, __imports, imports_value);
+    reference_string(__imports);
+    reference(imports_value);
     reference(imports_value);
 
     H->print = print_stdout;
@@ -6493,9 +6507,17 @@ void hymn_delete(Hymn *H) {
                 item = next;
             }
         }
-        table_release(H, &H->globals);
-        assert(H->globals.size == 0);
+
+        HymnObjectString *__globals = machine_intern_string(H, hymn_new_string("__globals"));
+        table_remove(globals, __globals);
+        dereference_string(H, __globals);
+
+        table_release(H, globals);
+        assert(globals->size == 0);
     }
+
+    array_delete(H, H->paths);
+    table_delete(H, H->imports);
 
     HymnSet *strings = &H->strings;
     {
@@ -6529,11 +6551,14 @@ void hymn_delete(Hymn *H) {
     free(H);
 }
 
-void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
+HymnObjectString *hymn_get_string(Hymn *H, const char *value) {
+    HymnObjectString *string = machine_intern_string(H, hymn_new_string(value));
+    return string;
+}
+
+void hymn_add(Hymn *H, const char *name, HymnValue value) {
     HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
-    HymnString *string_name = string_copy(string->string);
-    HymnNativeFunction *value = new_native_function(string_name, func);
-    HymnValue previous = table_put(&H->globals, string, hymn_new_native(value));
+    HymnValue previous = table_put(&H->globals, string, value);
     if (hymn_is_undefined(previous)) {
         reference_string(string);
     } else {
@@ -6542,8 +6567,14 @@ void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
 }
 
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
+    hymn_add(H, name, hymn_new_pointer(pointer));
+}
+
+void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
     HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
-    HymnValue previous = table_put(&H->globals, string, hymn_new_pointer(pointer));
+    HymnString *string_name = string_copy(string->string);
+    HymnNativeFunction *value = new_native_function(string_name, func);
+    HymnValue previous = table_put(&H->globals, string, hymn_new_native(value));
     if (hymn_is_undefined(previous)) {
         reference_string(string);
     } else {

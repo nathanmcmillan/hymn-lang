@@ -9,5 +9,5 @@ let foo = "hello
   the
 world"
 
-print(foo)
-print("good bye")
+echo foo
+echo "good bye"

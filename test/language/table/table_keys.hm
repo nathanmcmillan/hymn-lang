@@ -2,4 +2,4 @@
 
 let table = { zed: [4, 6], gamma: 2, omega: none, beta: { hello: 4 }, alpha: true }
 
-print(keys(table))
+echo keys(table)

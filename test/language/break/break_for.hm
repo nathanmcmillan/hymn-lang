@@ -3,9 +3,9 @@
 -- 2
 -- end
 
-print("begin")
+echo "begin"
 for i = 1, i < 10
   if i == 3 break end
-  print(i)
+  echo i
 end
-print("end")
+echo "end"

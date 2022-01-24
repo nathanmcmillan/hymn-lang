@@ -5,10 +5,10 @@
 -- 4
 -- 2
 
-print(len(""))
-print(len([]))
-print(len({}))
+echo len("")
+echo len([])
+echo len({})
 
-print(len("foo"))
-print(len([1, 2, 3, 4]))
-print(len({ x: "hello", y: "world"}))
+echo len("foo")
+echo len([1, 2, 3, 4])
+echo len({ x: "hello", y: "world"})

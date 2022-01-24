@@ -2,4 +2,4 @@
 
 function foo() end
 
-print(foo())
+echo foo()

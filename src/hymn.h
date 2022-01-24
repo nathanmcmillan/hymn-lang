@@ -32,10 +32,10 @@ typedef char HymnString;
 
 typedef struct HymnStringHead HymnStringHead;
 
-#ifdef __GNUC__
-#define PACK(expr) expr __attribute__((__packed__))
-#elif _MSC_VER
+#ifdef _MSC_VER
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#else
+#define PACK(expr) expr __attribute__((__packed__))
 #endif
 
 PACK(struct HymnStringHead {
@@ -174,8 +174,8 @@ struct Hymn {
     int frame_count;
     HymnSet strings;
     HymnTable globals;
-    HymnArray paths;
-    HymnTable imports;
+    HymnArray *paths;
+    HymnTable *imports;
     HymnString *error;
     void (*print)(const char *format, ...);
     void (*print_error)(const char *format, ...);
@@ -247,6 +247,7 @@ bool hymn_values_equal(HymnValue a, HymnValue b);
 bool hymn_match_values(HymnValue a, HymnValue b);
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
+HymnObjectString *hymn_get_string(Hymn *H, const char *value);
 
 Hymn *new_hymn();
 
@@ -256,6 +257,7 @@ char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
 char *hymn_read(Hymn *H, const char *script);
 
+void hymn_add(Hymn *H, const char *name, HymnValue value);
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer);
 

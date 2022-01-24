@@ -10,18 +10,18 @@
 -- a 'b'
 -- a 'b' c
 
-print("a\nb")
+echo "a\nb"
 
-print("a\\b")
+echo "a\\b"
 
-print("a\'b")
-print("a\"b")
+echo "a\'b"
+echo "a\"b"
 
-print('a\'b')
-print('a\"b')
+echo 'a\'b'
+echo 'a\"b'
 
-print("a \"b\"")
-print("a \"b\" c")
+echo "a \"b\""
+echo "a \"b\" c"
 
-print('a \'b\'')
-print('a \'b\' c')
+echo 'a \'b\''
+echo 'a \'b\' c'

@@ -8,9 +8,9 @@
 
 #include "hymn.h"
 
-// #if _POSIX_C_SOURCE >= 2
-// #define HYMN_POPEN_SUPPORTED
-// #endif
+#if _POSIX_C_SOURCE >= 2
+#define HYMN_POPEN_SUPPORTED
+#endif
 
 static HymnValue io_popen(Hymn *this, int count, HymnValue *arguments) {
     (void)this;

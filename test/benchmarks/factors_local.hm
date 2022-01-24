@@ -11,5 +11,5 @@ begin
   end
 
   let seconds = os_clock() - start
-  print("elapsed: " + seconds + "s | " + factors[-1])
+  echo "elapsed: " + seconds + "s | " + factors[-1]
 end

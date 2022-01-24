@@ -1,4 +1,4 @@
 -- src/<path>.hm
 
 push(__paths, "src/<path>.hm")
-print(__paths[-1])
+echo __paths[-1]

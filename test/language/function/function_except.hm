@@ -5,4 +5,4 @@ function foo()
 end
 
 foo()
-print("bad")
+echo "bad"

@@ -1,0 +1,20 @@
+-- paths: None, False
+-- imports: None, False
+-- globals: None
+-- imported
+
+delete(__globals, "__paths")
+
+echo "paths: " + __globals.__paths + ", " + exists(__globals, "__paths")
+
+delete(__globals, "__imports")
+
+echo "imports: " + __globals.__imports + ", " + exists(__globals, "__imports")
+
+__globals = none
+
+echo "globals: " + __globals
+
+__globals = none
+
+use "import_me"

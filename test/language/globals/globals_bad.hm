@@ -6,29 +6,27 @@
 let foo = 1
 
 if __globals.foo
-  print("Cool")
+  echo "Cool"
 else
-  print("No")
+  echo "No"
 end
 
 if __globals.bar
-  print("No")
+  echo "No"
 else
-  print("Ok")
+  echo "Ok"
 end
 
 let hello = none
 
-print(__globals)
-
 if exists(__globals, "hello")
-  print("Nice")
+  echo "Nice"
 else
-  print("No")
+  echo "No"
 end
 
 if exists(__globals, "nope")
-  print("No")
+  echo "No"
 else
-  print("Groovy")
+  echo "Groovy"
 end

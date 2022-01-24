@@ -24,34 +24,34 @@
 
 let table = { a: 2, b: 4, c: 8 }
 
-print("begin")
+echo "begin"
 for value in table
-  print(value)
+  echo value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for k, value in table
-  print(k + " -> " + value)
+  echo k + " -> " + value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for value in { d: 10, e: 12, f: 14 }
-  print(value)
+  echo value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for k, value in { d: 10, e: 12, f: 14 }
   if k == "f" break end
-  print(k + " -> " + value)
+  echo k + " -> " + value
 end
-print("end")
+echo "end"
 
-print("begin")
+echo "begin"
 for value in table
   if value == 2 continue end
-  print(value)
+  echo value
 end
-print("end")
+echo "end"

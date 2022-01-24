@@ -3,12 +3,12 @@
 -- This Is Text
 -- I Am One Line
 
-print("Hello " "World")
-print("Good" " Bye")
-print("This " "Is" " Text")
+echo "Hello " "World"
+echo "Good" " Bye"
+echo "This " "Is" " Text"
 
 let line = "I"
   " Am "
   "One "
   "Line"
-print(line)
+echo line

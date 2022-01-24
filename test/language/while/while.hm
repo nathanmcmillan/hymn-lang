@@ -9,12 +9,12 @@
 
 let i = 0
 while i < 4
-  print(i)
+  echo i
   i = i + 1
 end
-print("")
+echo ""
 
 i = 2
 while i < 8
-  print(i = i + 2)
+  echo i = i + 2
 end

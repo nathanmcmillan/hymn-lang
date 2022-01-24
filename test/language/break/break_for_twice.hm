@@ -12,13 +12,13 @@
 -- x = 2
 -- end
 
-print("begin")
+echo "begin"
 for i = 1, i < 8
   for x = 1, x < 16
     if x == 3 break end
-    print("x = " + x)
+    echo "x = " + x
   end
   if i == 4 break end
-  print("i = " + i)
+  echo "i = " + i
 end
-print("end")
+echo "end"

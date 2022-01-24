@@ -4,9 +4,9 @@
 let foo = 8
 
 try
-  print(foo)
+  echo foo
   delete(__globals, "foo")
-  print(foo)
+  echo foo
 except error
-  print("Oh no! " + error[0:9])
+  echo "Oh no! " + error[0:9]
 end

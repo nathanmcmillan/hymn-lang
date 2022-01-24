@@ -14,20 +14,20 @@
 --
 -- None
 
-print(float(0))
-print(float(0.0))
-print(float(1))
-print(float(-1))
-print(float(1.2))
-print(float(-1.2))
-print("")
+echo float(0)
+echo float(0.0)
+echo float(1)
+echo float(-1)
+echo float(1.2)
+echo float(-1.2)
+echo ""
 
-print(float("0"))
-print(float("0.0"))
-print(float("1"))
-print(float("-1"))
-print(float("1.2"))
-print(float("-1.2"))
-print("")
+echo float("0")
+echo float("0.0")
+echo float("1")
+echo float("-1")
+echo float("1.2")
+echo float("-1.2")
+echo ""
 
-print(float("no!"))
+echo float("no!")

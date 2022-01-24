@@ -5,10 +5,10 @@
 
 let foo = "foo"
 let bar = "bar"
-print(foo + bar)
+echo foo + bar
 let cat = foo + bar
-print(cat)
+echo cat
 
-print("hello " + "world")
+echo "hello " + "world"
 
-print("hello " + cat + " world")
+echo "hello " + cat + " world"

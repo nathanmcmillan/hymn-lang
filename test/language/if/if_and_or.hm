@@ -30,133 +30,133 @@
 -- end
 
 if 0 == 1 and 2 == 2
-  print("no")
+  echo "no"
 else
-  print("A")
+  echo "A"
 end
-print("end")
+echo "end"
 
 if 0 == 1 and 2 == 2 and 4 == 4
-  print("no")
+  echo "no"
 else
-  print("B")
+  echo "B"
 end
-print("end")
+echo "end"
 
 if 0 == 1 or 2 == 2
-  print("C")
+  echo "C"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 if 0 == 1 or 2 == 2 or 4 == 4
-  print("D")
+  echo "D"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 -- if A or (B and C)
 if 0 == 1 or 2 == 2 and 4 == 4
-  print("E")
+  echo "E"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 -- if (A and B) or C
 if 0 == 1 and 2 == 2 or 4 == 4
-  print("F")
+  echo "F"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 -- if (A and B) || (C and D)
 if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4
-  print("G")
+  echo "G"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 -- if ((A and B) and C) or D
 if 0 == 1 and 0 == 2 and 0 == 4 or 4 == 4
-  print("H")
+  echo "H"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 -- if (A and B) || (C and D) || (E and F)
 if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4 or 6 == 8 and 10 == 12
-  print("I")
+  echo "I"
 else
-  print("no")
+  echo "no"
 end
-print("end")
+echo "end"
 
 if 0 == 1
-  print("no")
+  echo "no"
 elif 0 == 2
-  print("no")
+  echo "no"
 elif 0 == 4
-  print("no")
+  echo "no"
 else
-  print("J")
+  echo "J"
 end
-print("end")
+echo "end"
 
 if 0 == 1 and 1 == 1
-  print("no")
+  echo "no"
 elif 0 == 2 and 2 == 2
-  print("no")
+  echo "no"
 elif 4 == 4 and 8 == 10
-  print("no")
+  echo "no"
 else
-  print("K")
+  echo "K"
 end
-print("end")
+echo "end"
 
 if 0 == 1 or 0 == 2
-  print("no")
+  echo "no"
 elif 4 == 6 or 4 == 8
-  print("no")
+  echo "no"
 elif 10 == 12 or 10 == 14
-  print("no")
+  echo "no"
 else
-  print("L")
+  echo "L"
 end
-print("end")
+echo "end"
 
 if 0 == 1 or 0 == 2 and 0 == 100
-  print("no")
+  echo "no"
 elif 4 == 6 or 4 == 8 and 4 == 104
-  print("no")
+  echo "no"
 elif 10 == 12 or 10 == 14 and 10 == 108
-  print("no")
+  echo "no"
 else
-  print("M")
+  echo "M"
 end
-print("end")
+echo "end"
 
 if 0 == 1 and 0 == 2 or 0 == 100
-  print("no")
+  echo "no"
 elif 4 == 6 and 4 == 8 or 4 == 104
-  print("no")
+  echo "no"
 elif 10 == 12 and 10 == 14 or 10 == 108
-  print("no")
+  echo "no"
 else
-  print("N")
+  echo "N"
 end
-print("end")
+echo "end"
 
 if 1 == 1 and 2 == 2 or 0 == 100
   if 0 == 1 and 0 == 2 or 3 == 3
     if 4 == 4 or 6 == 8 or 10 == 12
-      print("M")
+      echo "M"
     end
   end
 end
-print("end")
+echo "end"

@@ -4,5 +4,5 @@
  __globals.foo = 4
  __globals.bar = none
 
-print(foo)
-print(bar)
+echo foo
+echo bar
