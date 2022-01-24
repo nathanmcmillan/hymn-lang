@@ -22,8 +22,9 @@ const HYMN_VALUE_FUNC_NATIVE = 9
 const HYMN_VALUE_POINTER = 10
 
 const node = typeof window === 'undefined'
-const node_fs = node ? require('fs') : null
-const node_path = node ? require('path') : null
+const nodeFs = node ? require('fs') : null
+const nodePath = node ? require('path') : null
+const nodeProcess = node ? require('process') : null
 
 const LOAD_FACTOR = 0.8
 const INITIAL_BINS = 1 << 3
@@ -116,7 +117,13 @@ class Instruction {
 }
 
 function printOut(text) {
-  console.log(text)
+  if (node) nodeProcess.stdout.write(text)
+  else console.log(text)
+}
+
+function printError(text) {
+  if (node) nodeProcess.stderr.write(text)
+  else console.error(text)
 }
 
 class Hymn {
@@ -130,6 +137,7 @@ class Hymn {
     this.imports = new HymnTable()
     this.error = null
     this.print = printOut
+    this.printError = printError
   }
 }
 
@@ -175,61 +183,63 @@ const TOKEN_COPY = 25
 const TOKEN_DELETE = 26
 const TOKEN_DIVIDE = 27
 const TOKEN_DOT = 28
-const TOKEN_ELIF = 29
-const TOKEN_ELSE = 30
-const TOKEN_END = 31
-const TOKEN_EOF = 32
-const TOKEN_EQUAL = 33
-const TOKEN_ERROR = 34
-const TOKEN_EXCEPT = 35
-const TOKEN_FALSE = 36
-const TOKEN_FLOAT = 37
-const TOKEN_FOR = 38
-const TOKEN_FUNCTION = 39
-const TOKEN_GREATER = 40
-const TOKEN_GREATER_EQUAL = 41
-const TOKEN_IDENT = 42
-const TOKEN_IF = 43
-const TOKEN_IN = 44
-const TOKEN_INDEX = 45
-const TOKEN_INSERT = 46
-const TOKEN_INTEGER = 47
-const TOKEN_KEYS = 48
-const TOKEN_LEFT_CURLY = 49
-const TOKEN_LEFT_PAREN = 50
-const TOKEN_LEFT_SQUARE = 51
-const TOKEN_LEN = 52
-const TOKEN_LESS = 53
-const TOKEN_LESS_EQUAL = 54
-const TOKEN_LET = 55
-const TOKEN_LINE = 56
-const TOKEN_MODULO = 57
-const TOKEN_MULTIPLY = 58
-const TOKEN_NONE = 59
-const TOKEN_NOT = 60
-const TOKEN_NOT_EQUAL = 61
-const TOKEN_OR = 62
-const TOKEN_POP = 63
-const TOKEN_PRINT = 64
-const TOKEN_PUSH = 65
-const TOKEN_RETURN = 66
-const TOKEN_RIGHT_CURLY = 67
-const TOKEN_RIGHT_PAREN = 68
-const TOKEN_RIGHT_SQUARE = 69
-const TOKEN_SEMICOLON = 70
-const TOKEN_STRING = 71
-const TOKEN_SUBTRACT = 72
-const TOKEN_THROW = 73
-const TOKEN_TO_FLOAT = 74
-const TOKEN_TO_INTEGER = 75
-const TOKEN_TO_STRING = 76
-const TOKEN_TRUE = 77
-const TOKEN_TRY = 78
-const TOKEN_TYPE_FUNC = 79
-const TOKEN_UNDEFINED = 80
-const TOKEN_USE = 81
-const TOKEN_VALUE = 82
-const TOKEN_WHILE = 83
+const TOKEN_ECHO = 29
+const TOKEN_ELIF = 30
+const TOKEN_ELSE = 31
+const TOKEN_END = 32
+const TOKEN_EOF = 33
+const TOKEN_EQUAL = 34
+const TOKEN_ERROR = 35
+const TOKEN_EXCEPT = 36
+const TOKEN_EXISTS = 37
+const TOKEN_FALSE = 38
+const TOKEN_FLOAT = 39
+const TOKEN_FOR = 40
+const TOKEN_FUNCTION = 41
+const TOKEN_GREATER = 42
+const TOKEN_GREATER_EQUAL = 43
+const TOKEN_IDENT = 44
+const TOKEN_IF = 45
+const TOKEN_IN = 46
+const TOKEN_INDEX = 47
+const TOKEN_INSERT = 48
+const TOKEN_INTEGER = 49
+const TOKEN_KEYS = 50
+const TOKEN_LEFT_CURLY = 51
+const TOKEN_LEFT_PAREN = 52
+const TOKEN_LEFT_SQUARE = 53
+const TOKEN_LEN = 54
+const TOKEN_LESS = 55
+const TOKEN_LESS_EQUAL = 56
+const TOKEN_LET = 57
+const TOKEN_LINE = 58
+const TOKEN_MODULO = 58
+const TOKEN_MULTIPLY = 60
+const TOKEN_NONE = 61
+const TOKEN_NOT = 62
+const TOKEN_NOT_EQUAL = 63
+const TOKEN_OR = 64
+const TOKEN_POP = 65
+const TOKEN_PRINT = 66
+const TOKEN_PUSH = 67
+const TOKEN_RETURN = 68
+const TOKEN_RIGHT_CURLY = 69
+const TOKEN_RIGHT_PAREN = 70
+const TOKEN_RIGHT_SQUARE = 71
+const TOKEN_SEMICOLON = 72
+const TOKEN_STRING = 73
+const TOKEN_SUBTRACT = 74
+const TOKEN_THROW = 75
+const TOKEN_TO_FLOAT = 76
+const TOKEN_TO_INTEGER = 77
+const TOKEN_TO_STRING = 78
+const TOKEN_TRUE = 79
+const TOKEN_TRY = 80
+const TOKEN_TYPE_FUNC = 81
+const TOKEN_UNDEFINED = 82
+const TOKEN_USE = 83
+const TOKEN_VALUE = 84
+const TOKEN_WHILE = 85
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -270,58 +280,60 @@ const OP_DEFINE_GLOBAL = 17
 const OP_DELETE = 18
 const OP_DIVIDE = 19
 const OP_DUPLICATE = 20
-const OP_EQUAL = 21
-const OP_FALSE = 22
-const OP_GET_DYNAMIC = 23
-const OP_GET_GLOBAL = 24
-const OP_GET_LOCAL = 25
-const OP_GET_TWO_LOCAL = 26
-const OP_GET_PROPERTY = 27
-const OP_GREATER = 28
-const OP_GREATER_EQUAL = 29
-const OP_INDEX = 30
-const OP_JUMP = 31
-const OP_JUMP_IF_EQUAL = 32
-const OP_JUMP_IF_NOT_EQUAL = 33
-const OP_JUMP_IF_LESS = 34
-const OP_JUMP_IF_GREATER = 35
-const OP_JUMP_IF_LESS_EQUAL = 36
-const OP_JUMP_IF_GREATER_EQUAL = 37
-const OP_JUMP_IF_FALSE = 38
-const OP_JUMP_IF_TRUE = 39
-const OP_KEYS = 40
-const OP_LEN = 41
-const OP_LESS = 42
-const OP_LESS_EQUAL = 43
-const OP_LOOP = 44
-const OP_MODULO = 45
-const OP_MULTIPLY = 46
-const OP_NEGATE = 47
-const OP_NONE = 48
-const OP_NOT = 49
-const OP_NOT_EQUAL = 50
-const OP_POP = 51
-const OP_POP_TWO = 52
-const OP_POP_N = 53
-const OP_PRINT = 54
-const OP_RETURN = 55
-const OP_SET_DYNAMIC = 56
-const OP_SET_GLOBAL = 57
-const OP_SET_LOCAL = 58
-const OP_INCREMENT_LOCAL = 59
-const OP_INCREMENT_LOCAL_AND_SET = 60
-const OP_SET_PROPERTY = 61
-const OP_SLICE = 62
-const OP_SUBTRACT = 63
-const OP_THROW = 64
-const OP_TO_FLOAT = 65
-const OP_TO_INTEGER = 66
-const OP_TO_STRING = 67
-const OP_TRUE = 68
-const OP_TYPE = 69
-const OP_USE = 70
-const OP_FOR = 71
-const OP_FOR_LOOP = 72
+const OP_ECHO = 21
+const OP_EQUAL = 22
+const OP_EXISTS = 23
+const OP_FALSE = 24
+const OP_GET_DYNAMIC = 25
+const OP_GET_GLOBAL = 26
+const OP_GET_LOCAL = 27
+const OP_GET_TWO_LOCAL = 28
+const OP_GET_PROPERTY = 29
+const OP_GREATER = 30
+const OP_GREATER_EQUAL = 31
+const OP_INDEX = 32
+const OP_JUMP = 33
+const OP_JUMP_IF_EQUAL = 34
+const OP_JUMP_IF_NOT_EQUAL = 35
+const OP_JUMP_IF_LESS = 36
+const OP_JUMP_IF_GREATER = 37
+const OP_JUMP_IF_LESS_EQUAL = 38
+const OP_JUMP_IF_GREATER_EQUAL = 39
+const OP_JUMP_IF_FALSE = 40
+const OP_JUMP_IF_TRUE = 41
+const OP_KEYS = 42
+const OP_LEN = 43
+const OP_LESS = 44
+const OP_LESS_EQUAL = 45
+const OP_LOOP = 46
+const OP_MODULO = 47
+const OP_MULTIPLY = 48
+const OP_NEGATE = 49
+const OP_NONE = 50
+const OP_NOT = 51
+const OP_NOT_EQUAL = 52
+const OP_POP = 53
+const OP_POP_TWO = 54
+const OP_POP_N = 55
+const OP_PRINT = 56
+const OP_RETURN = 57
+const OP_SET_DYNAMIC = 58
+const OP_SET_GLOBAL = 59
+const OP_SET_LOCAL = 60
+const OP_INCREMENT_LOCAL = 61
+const OP_INCREMENT_LOCAL_AND_SET = 62
+const OP_SET_PROPERTY = 63
+const OP_SLICE = 64
+const OP_SUBTRACT = 65
+const OP_THROW = 66
+const OP_TO_FLOAT = 67
+const OP_TO_INTEGER = 68
+const OP_TO_STRING = 69
+const OP_TRUE = 70
+const OP_TYPE = 71
+const OP_USE = 72
+const OP_FOR = 73
+const OP_FOR_LOOP = 74
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -439,6 +451,7 @@ rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DIVIDE] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
+rules[TOKEN_ECHO] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ELIF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ELSE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_END] = new Rule(null, null, PRECEDENCE_NONE)
@@ -446,6 +459,7 @@ rules[TOKEN_EOF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
 rules[TOKEN_ERROR] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_EXCEPT] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_EXISTS] = new Rule(existsExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_FALSE] = new Rule(compileFalse, null, PRECEDENCE_NONE)
 rules[TOKEN_FLOAT] = new Rule(compileFloat, null, PRECEDENCE_NONE)
 rules[TOKEN_FOR] = new Rule(null, null, PRECEDENCE_NONE)
@@ -1046,14 +1060,22 @@ function identKey(ident, size) {
       break
     case 'e':
       if (size === 3) return identTrie(ident, 1, 'nd', TOKEN_END)
-      if (size === 6) return identTrie(ident, 1, 'xcept', TOKEN_EXCEPT)
-      if (size === 4 && ident[1] === 'l') {
-        if (ident[2] === 's') {
-          if (ident[3] === 'e') {
-            return TOKEN_ELSE
+      if (size === 6) {
+        if (ident[1] === 'x') {
+          if (ident[2] === 'c') return identTrie(ident, 3, 'ept', TOKEN_EXCEPT)
+          if (ident[2] === 'i') return identTrie(ident, 3, 'sts', TOKEN_EXISTS)
+        }
+      } else if (size === 4) {
+        if (ident[1] === 'l') {
+          if (ident[2] === 's') {
+            if (ident[3] === 'e') {
+              return TOKEN_ELSE
+            }
+          } else if (ident[2] === 'i' && ident[3] === 'f') {
+            return TOKEN_ELIF
           }
-        } else if (ident[2] === 'i' && ident[3] === 'f') {
-          return TOKEN_ELIF
+        } else if (ident[1] === 'c') {
+          return identTrie(ident, 2, 'ho', TOKEN_ECHO)
         }
       }
       break
@@ -2120,6 +2142,8 @@ function next(instruction) {
     case OP_GET_GLOBAL:
     case OP_GET_LOCAL:
     case OP_GET_PROPERTY:
+    case OP_EXISTS:
+    case OP_PRINT:
       return 2
     case OP_GET_TWO_LOCAL:
     case OP_ADD_TWO_LOCAL:
@@ -2975,8 +2999,15 @@ function tryStatement(C) {
   patchJump(C, jump)
 }
 
+function echoStatement(C) {
+  expression(C)
+  emit(C, OP_ECHO)
+}
+
 function printStatement(C) {
   consume(C, TOKEN_LEFT_PAREN, "missing '(' around print statement")
+  expression(C)
+  consume(C, TOKEN_COMMA, 'Print statement requires two arguments')
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "missing ')' around print statement")
   emit(C, OP_PRINT)
@@ -2993,7 +3024,9 @@ function throwStatement(C) {
 }
 
 function statement(C) {
-  if (match(C, TOKEN_PRINT)) {
+  if (match(C, TOKEN_ECHO)) {
+    echoStatement(C)
+  } else if (match(C, TOKEN_PRINT)) {
     printStatement(C)
   } else if (match(C, TOKEN_USE)) {
     useStatement(C)
@@ -3120,6 +3153,15 @@ function indexExpression(C) {
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function.")
   emit(C, OP_INDEX)
+}
+
+function existsExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `exists` function.")
+  expression(C)
+  consume(C, TOKEN_COMMA, 'Expected 2 arguments for `exists` function.')
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `exists` function.")
+  emit(C, OP_EXISTS)
 }
 
 function expressionStatement(C) {
@@ -3466,7 +3508,7 @@ async function hymnImport(H, file) {
   let source = null
 
   if (node) {
-    const parent = script ? node_path.dirname(script) : null
+    const parent = script ? nodePath.dirname(script) : null
 
     for (let i = 0; i < size; i++) {
       const value = paths[i]
@@ -3477,13 +3519,13 @@ async function hymnImport(H, file) {
 
       const replace = question.replace(/<path>/g, file)
       const path = parent ? replace.replace(/<parent>/g, parent) : replace
-      const use = node_path.resolve(path)
+      const use = nodePath.resolve(path)
 
       if (tableGet(imports, use) !== null) {
         return currentFrame(H)
       }
 
-      if (node_fs.existsSync(use)) {
+      if (nodeFs.existsSync(use)) {
         module = use
         break
       }
@@ -3501,7 +3543,7 @@ async function hymnImport(H, file) {
 
         const replace = question.replace(/<path>/g, file)
         const path = parent ? replace.replace(/<parent>/g, parent) : replace
-        const use = node_path.resolve(path)
+        const use = nodePath.resolve(path)
 
         missing += '\nno file ' + use
       }
@@ -3511,7 +3553,7 @@ async function hymnImport(H, file) {
 
     tablePut(imports, module, newBool(true))
 
-    source = node_fs.readFileSync(module, { encoding: 'utf-8' })
+    source = nodeFs.readFileSync(module, { encoding: 'utf-8' })
   } else {
     const parent = script ? httpPathParent(script) : null
 
@@ -3672,6 +3714,10 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_DUPLICATE', index)
     case OP_EQUAL:
       return debugInstruction(debug, 'OP_EQUAL', index)
+    case OP_ECHO:
+      return debugInstruction(debug, 'OP_ECHO', index)
+    case OP_EXISTS:
+      return debugConstantInstruction(debug, 'OP_EXISTS', code, index)
     case OP_FALSE:
       return debugInstruction(debug, 'OP_FALSE', index)
     case OP_FOR:
@@ -3747,7 +3793,7 @@ function disassembleInstruction(debug, code, index) {
     case OP_POP_TWO:
       return debugInstruction(debug, 'OP_POP_TWO', index)
     case OP_PRINT:
-      return debugInstruction(debug, 'OP_PRINT', index)
+      return debugConstantInstruction(debug, 'OP_PRINT', code, index)
     case OP_RETURN:
       return debugInstruction(debug, 'OP_RETURN', index)
     case OP_SET_DYNAMIC:
@@ -4521,7 +4567,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const previous = tablePut(H.globals, name, value)
         if (previous !== null) {
-          frame = hymnThrowError(H, `Global variable '${name}' was previously defined.`)
+          frame = hymnThrowError(H, `Multiple global definitions of variable '${name}'`)
           if (frame === null) return
           else break
         }
@@ -4624,6 +4670,29 @@ async function hymnRun(H) {
         const g = tableGet(table, name)
         if (g === null) hymnPush(H, newNone())
         else hymnPush(H, g)
+        break
+      }
+      case OP_EXISTS: {
+        const v = hymnPop(H)
+        const o = hymnPop(H)
+        if (!isTable(o)) {
+          frame = hymnThrowError(H, 'The function `exists` requies a table for the 1st argument')
+          if (frame === null) return
+          else break
+        }
+        if (!isString(v)) {
+          frame = hymnThrowError(H, 'The function `exists` requies a string for the 2nd argument')
+          if (frame === null) return
+          else break
+        }
+        const table = o.value
+        const name = v.value
+        const g = tableGet(table, name)
+        if (g === null) {
+          hymnPush(H, newBool(false))
+        } else {
+          hymnPush(H, newBool(true))
+        }
         break
       }
       case OP_SET_DYNAMIC: {
@@ -5166,9 +5235,19 @@ async function hymnRun(H) {
         hymnPush(H, newString(valueToString(value)))
         break
       }
+      case OP_ECHO: {
+        const value = hymnPop(H)
+        H.print(valueToString(value) + '\n')
+        break
+      }
       case OP_PRINT: {
         const value = hymnPop(H)
-        H.print(valueToString(value))
+        const route = hymnPop(H)
+        if (hymnFalse(route)) {
+          H.print(valueToString(value))
+        } else {
+          H.printError(valueToString(value))
+        }
         break
       }
       case OP_THROW: {
@@ -5274,6 +5353,7 @@ function newVM() {
 
   tablePut(H.globals, '__paths', newArrayValue(H.paths))
   tablePut(H.globals, '__imports', newTableValue(H.imports))
+  tablePut(H.globals, '__globals', newTableValue(H.globals))
 
   return H
 }

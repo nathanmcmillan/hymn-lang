@@ -3541,7 +3541,6 @@ static void compile_function(Compiler *C, enum FunctionType type) {
 
 static void declare_function(Compiler *C) {
     uint8_t global = variable(C, "Expected function name");
-    // TODO. Prevent overwriting global function
     local_initialize(C);
     compile_function(C, TYPE_FUNCTION);
     finalize_variable(C, global);

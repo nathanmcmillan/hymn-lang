@@ -1,3 +1,11 @@
+# Release 0.4.0
+
+- Added `exists` function. Returns true if a key exists in a table
+- Added `echo` statements for printing values
+- Changed `print` to take in a boolean to switch between standard out and error. New lines are no longer included
+- Added `__globals` for self referencing global variables
+- Fixed various memory leaks
+
 # Release 0.3.0
 
 - For loop syntax was updated to follow the form `for i = 0, i < X, i += 1`

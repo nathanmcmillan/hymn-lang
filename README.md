@@ -62,12 +62,12 @@ echo list
 
 ## Progress
 
-| Implementation | Status      | Description       |
-| -------------- | ----------- | ----------------- |
-| C              | Version 0.3 | String formatting |
-| JavaScript     | Version 0.3 | String formatting |
-| Go             | Not Started |                   |
-| Java           | Not Started |                   |
+| Implementation | Status      | Description     |
+| -------------- | ----------- | --------------- |
+| C              | Version 0.4 | Echo and exists |
+| JavaScript     | Version 0.4 | Echo and exists |
+| Go             | Not Started |                 |
+| Java           | Not Started |                 |
 
 ## Notes
 

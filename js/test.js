@@ -90,7 +90,10 @@ async function testSource(script) {
   let out = ''
   const vm = hymn.newVM()
   vm.print = (text) => {
-    out += text + '\n'
+    out += text
+  }
+  vm.printError = (text) => {
+    out += text
   }
   let result = null
   const error = await hymn.interpretScript(vm, script, source).catch((exception) => {
