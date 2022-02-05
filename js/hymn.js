@@ -126,6 +126,10 @@ function printError(text) {
   else console.error(text)
 }
 
+function printLine(text) {
+  console.log(text)
+}
+
 class Hymn {
   constructor() {
     this.stack = []
@@ -138,21 +142,9 @@ class Hymn {
     this.error = null
     this.print = printOut
     this.printError = printError
+    this.printLine = printLine
   }
 }
-
-const STRING_NONE = 'None'
-const STRING_BOOL = 'Bool'
-const STRING_TRUE = 'True'
-const STRING_FALSE = 'False'
-const STRING_INTEGER = 'Integer'
-const STRING_FLOAT = 'Float'
-const STRING_STRING = 'String'
-const STRING_ARRAY = 'Array'
-const STRING_TABLE = 'Table'
-const STRING_FUNC = 'Function'
-const STRING_NATIVE = 'Native'
-const STRING_POINTER = 'Pointer'
 
 const TOKEN_ADD = 0
 const TOKEN_AND = 1
@@ -326,9 +318,9 @@ const OP_SET_PROPERTY = 63
 const OP_SLICE = 64
 const OP_SUBTRACT = 65
 const OP_THROW = 66
-const OP_TO_FLOAT = 67
-const OP_TO_INTEGER = 68
-const OP_TO_STRING = 69
+const OP_FLOAT = 67
+const OP_INT = 68
+const OP_STRING = 69
 const OP_TRUE = 70
 const OP_TYPE = 71
 const OP_USE = 72
@@ -463,7 +455,7 @@ rules[TOKEN_EXISTS] = new Rule(existsExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_FALSE] = new Rule(compileFalse, null, PRECEDENCE_NONE)
 rules[TOKEN_FLOAT] = new Rule(compileFloat, null, PRECEDENCE_NONE)
 rules[TOKEN_FOR] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_FUNCTION] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_FUNCTION] = new Rule(functionExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_GREATER] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
 rules[TOKEN_GREATER_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
 rules[TOKEN_IDENT] = new Rule(compileVariable, null, PRECEDENCE_NONE)
@@ -512,21 +504,25 @@ rules[TOKEN_SEMICOLON] = new Rule(null, null, PRECEDENCE_NONE)
 function valueName(type) {
   switch (type) {
     case HYMN_VALUE_NONE:
-      return STRING_NONE
+      return 'none'
     case HYMN_VALUE_BOOL:
-      return STRING_BOOL
+      return 'boolean'
     case HYMN_VALUE_INTEGER:
-      return STRING_INTEGER
+      return 'integer'
     case HYMN_VALUE_FLOAT:
-      return STRING_FLOAT
+      return 'float'
     case HYMN_VALUE_STRING:
-      return STRING_STRING
+      return 'string'
     case HYMN_VALUE_ARRAY:
-      return STRING_ARRAY
+      return 'array'
+    case HYMN_VALUE_TABLE:
+      return 'table'
     case HYMN_VALUE_FUNC:
-      return STRING_FUNC
+      return 'function'
     case HYMN_VALUE_FUNC_NATIVE:
-      return STRING_NATIVE
+      return 'native'
+    case HYMN_VALUE_POINTER:
+      return 'pointer'
     default:
       return '?'
   }
@@ -1505,7 +1501,7 @@ function byteCodeNewConstant(C, value) {
   }
   constants.push(value)
   if (count > UINT8_MAX) {
-    compileError(C, C.previous, 'Too many constants.')
+    compileError(C, C.previous, 'too many constants')
     return 0
   }
   return count
@@ -1597,7 +1593,7 @@ function compileWithPrecedence(C, precedence) {
   const rule = rules[C.previous.type]
   const prefix = rule.prefix
   if (prefix === null) {
-    compileError(C, C.previous, 'Syntax Error: Expected expression following `' + sourceSubstring(C, C.previous.length, C.previous.start) + '`.')
+    compileError(C, C.previous, `syntax error: expected expression following '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
     return
   }
   const assign = precedence <= PRECEDENCE_ASSIGN
@@ -1627,7 +1623,7 @@ function consume(C, type, error) {
 function pushHiddenLocal(C) {
   const scope = C.scope
   if (scope.localCount === HYMN_UINT8_COUNT) {
-    compileError(C, C.previous, 'Too many local variables in scope.')
+    compileError(C, C.previous, 'too many local variables in scope')
     return 0
   }
   const index = scope.localCount++
@@ -1643,7 +1639,7 @@ function args(C) {
     do {
       expression(C)
       if (count === UINT8_MAX) {
-        compileError(C, C.previous, "Can't have more than 255 function arguments.")
+        compileError(C, C.previous, 'too many function arguments')
         break
       }
       count++
@@ -2622,14 +2618,18 @@ function compileFunction(C, type) {
   }
 
   endScope(C)
-  consume(C, TOKEN_END, "Expected 'end' after function body.")
+  consume(C, TOKEN_END, "missing 'end' after function body")
 
   const func = endFunction(C)
   emitConstant(C, newFuncValue(func))
 }
 
+function functionExpression(C) {
+  compileFunction(C, TYPE_FUNCTION)
+}
+
 function declareFunction(C) {
-  const global = variable(C, 'Expected function name.')
+  const global = variable(C, 'missing function name')
   localInitialize(C)
   compileFunction(C, TYPE_FUNCTION)
   finalizeVariable(C, global)
@@ -3101,21 +3101,21 @@ function castIntegerExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after integer.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after integer expression.")
-  emit(C, OP_TO_INTEGER)
+  emit(C, OP_INT)
 }
 
 function castFloatExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after float.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after float expression.")
-  emit(C, OP_TO_FLOAT)
+  emit(C, OP_FLOAT)
 }
 
 function castStringExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, "Expected '(' after string.")
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after string expression.")
-  emit(C, OP_TO_STRING)
+  emit(C, OP_STRING)
 }
 
 function typeExpression(C) {
@@ -3201,12 +3201,13 @@ function compile(H, script, source) {
 function valueToStringRecursive(value, set, quote) {
   switch (value.is) {
     case HYMN_VALUE_NONE:
-      return STRING_NONE
+      return 'none'
     case HYMN_VALUE_BOOL:
-      return value.value ? STRING_TRUE : STRING_FALSE
+      return value.value ? 'true' : 'false'
     case HYMN_VALUE_INTEGER:
     case HYMN_VALUE_FLOAT:
-      return value.value
+    case HYMN_VALUE_POINTER:
+      return String(value.value)
     case HYMN_VALUE_STRING:
       if (quote) {
         return '"' + value.value + '"'
@@ -3292,8 +3293,6 @@ function valueToStringRecursive(value, set, quote) {
     }
     case HYMN_VALUE_FUNC_NATIVE:
       return value.value.name
-    case HYMN_VALUE_POINTER:
-      return '' + value.value
   }
 }
 
@@ -3812,12 +3811,12 @@ function disassembleInstruction(debug, code, index) {
       return debugByteInstruction(debug, 'OP_TAIL_CALL', code, index)
     case OP_THROW:
       return debugInstruction(debug, 'OP_THROW', index)
-    case OP_TO_FLOAT:
-      return debugInstruction(debug, 'OP_TO_FLOAT', index)
-    case OP_TO_INTEGER:
-      return debugInstruction(debug, 'OP_TO_INTEGER', index)
-    case OP_TO_STRING:
-      return debugInstruction(debug, 'OP_TO_STRING', index)
+    case OP_FLOAT:
+      return debugInstruction(debug, 'OP_FLOAT', index)
+    case OP_INT:
+      return debugInstruction(debug, 'OP_INT', index)
+    case OP_STRING:
+      return debugInstruction(debug, 'OP_STRING', index)
     case OP_TRUE:
       return debugInstruction(debug, 'OP_TRUE', index)
     case OP_TYPE:
@@ -4567,7 +4566,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const previous = tablePut(H.globals, name, value)
         if (previous !== null) {
-          frame = hymnThrowError(H, `Multiple global definitions of variable '${name}'`)
+          frame = hymnThrowError(H, `multiple global definitions of '${name}'`)
           if (frame === null) return
           else break
         }
@@ -4578,7 +4577,7 @@ async function hymnRun(H) {
         const value = hymnPeek(H, 1)
         const previous = tablePut(H.globals, name, value)
         if (previous === null) {
-          frame = hymnThrowError(H, 'Undefined variable `' + name + '`.')
+          frame = hymnThrowError(H, `undefined variable '${name}'`)
           if (frame === null) return
           else break
         }
@@ -4588,7 +4587,7 @@ async function hymnRun(H) {
         const name = readConstant(frame).value
         const get = tableGet(H.globals, name)
         if (get === null) {
-          frame = hymnThrowError(H, 'Undefined variable `' + name + '`.')
+          frame = hymnThrowError(H, `undefined variable '${name}'`)
           if (frame === null) return
           else break
         }
@@ -5148,7 +5147,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, 'Index function expects `String`, `Array`, or `Table`')
+            frame = hymnThrowError(H, 'index function expects a string, array, or table')
             if (frame === null) return
             else break
         }
@@ -5158,39 +5157,39 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         switch (value.is) {
           case HYMN_VALUE_NONE:
-            hymnPush(H, newString(STRING_NONE))
+            hymnPush(H, newString('none'))
             break
           case HYMN_VALUE_BOOL:
-            hymnPush(H, newString(STRING_BOOL))
+            hymnPush(H, newString('boolean'))
             break
           case HYMN_VALUE_INTEGER:
-            hymnPush(H, newString(STRING_INTEGER))
+            hymnPush(H, newString('integer'))
             break
           case HYMN_VALUE_FLOAT:
-            hymnPush(H, newString(STRING_FLOAT))
+            hymnPush(H, newString('float'))
             break
           case HYMN_VALUE_STRING:
-            hymnPush(H, newString(STRING_STRING))
+            hymnPush(H, newString('string'))
             break
           case HYMN_VALUE_ARRAY:
-            hymnPush(H, newString(STRING_ARRAY))
+            hymnPush(H, newString('array'))
             break
           case HYMN_VALUE_TABLE:
-            hymnPush(H, newString(STRING_TABLE))
+            hymnPush(H, newString('table'))
             break
           case HYMN_VALUE_FUNC:
-            hymnPush(H, newString(STRING_FUNC))
+            hymnPush(H, newString('function'))
             break
           case HYMN_VALUE_FUNC_NATIVE:
-            hymnPush(H, newString(STRING_NATIVE))
+            hymnPush(H, newString('native'))
             break
           case HYMN_VALUE_POINTER:
-            hymnPush(H, newString(STRING_POINTER))
+            hymnPush(H, newString('pointer'))
             break
         }
         break
       }
-      case OP_TO_INTEGER: {
+      case OP_INT: {
         const value = hymnPop(H)
         if (isInt(value)) {
           hymnPush(H, value)
@@ -5210,7 +5209,7 @@ async function hymnRun(H) {
         }
         break
       }
-      case OP_TO_FLOAT: {
+      case OP_FLOAT: {
         const value = hymnPop(H)
         if (isInt(value)) {
           hymnPush(H, newFloat(parseFloat(value.value)))
@@ -5230,14 +5229,14 @@ async function hymnRun(H) {
         }
         break
       }
-      case OP_TO_STRING: {
+      case OP_STRING: {
         const value = hymnPop(H)
         hymnPush(H, newString(valueToString(value)))
         break
       }
       case OP_ECHO: {
         const value = hymnPop(H)
-        H.print(valueToString(value) + '\n')
+        H.printLine(valueToString(value))
         break
       }
       case OP_PRINT: {

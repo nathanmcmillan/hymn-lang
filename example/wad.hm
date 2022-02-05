@@ -37,7 +37,7 @@ function load_wad(s)
             end
         elif c == '\n' or c == ' '
             if !is_key and pc != '}' and pc != ']'
-                if type(stack[0]) == "Array"
+                if type(stack[0]) == "array"
                     push(stack[0], value)
                 else
                     stack[0][trim(key)] = value
@@ -54,7 +54,7 @@ function load_wad(s)
             i = _wad_skip(s, i)
         elif c == '{'
             let map = {}
-            if type(stack[0]) == "Array"
+            if type(stack[0]) == "array"
                 push(stack[0], map)
                 is_key = true
             else
@@ -66,7 +66,7 @@ function load_wad(s)
             i = _wad_skip(s, i)
         elif c == '['
             let array = []
-            if type(stack[0]) == "Array"
+            if type(stack[0]) == "array"
                 push(stack[0], array)
                 is_key = true
             else
@@ -84,7 +84,7 @@ function load_wad(s)
                 value = ""
             end
             delete(stack, 0)
-            is_key = type(stack[0]) != "Array"
+            is_key = type(stack[0]) != "array"
             pc = c
             i = _wad_skip(s, i)
         elif c == ']'
@@ -93,7 +93,7 @@ function load_wad(s)
                 value = ""
             end
             delete(stack, 0)
-            is_key = type(stack[0]) != "Array"
+            is_key = type(stack[0]) != "array"
             pc = c
             i = _wad_skip(s, i)
         elif c == '"'

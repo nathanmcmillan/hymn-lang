@@ -1,6 +1,8 @@
--- @Exception
+-- letter
+-- underscore
 
-begin
-  let x = 1
-  let x = 2
-end
+let foo = "letter"
+let _foo = "underscore"
+
+echo foo
+echo _foo

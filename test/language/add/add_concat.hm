@@ -1,0 +1,29 @@
+-- 2560
+-- 2560
+-- 1256
+-- 1256
+-- 256.10
+-- 256.10
+-- 256.10.1
+-- 256.10.1
+-- null: none
+-- boolean: true
+-- array: [1, 2]
+-- table: { foo: "bar" }
+
+echo "256" + 0
+echo string(256) + 0
+
+echo 1 + "256"
+echo 1 + string(256)
+
+echo "256.1" + 0
+echo string(256.1) + 0
+
+echo "256.1" + 0.1
+echo string(256.1) + 0.1
+
+echo "null: " + none
+echo "boolean: " + true
+echo "array: " + [1, 2]
+echo "table: " + { foo: "bar" }

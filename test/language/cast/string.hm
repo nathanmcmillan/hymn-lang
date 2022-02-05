@@ -1,12 +1,12 @@
--- None
+-- none
 -- 0
 -- 0
 -- 1
 -- -1
 -- 1.2
 -- -1.2
--- True
--- False
+-- true
+-- false
 -- foobar
 
 echo string(none)

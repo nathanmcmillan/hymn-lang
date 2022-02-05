@@ -551,20 +551,6 @@ HymnString *hymn_read_file(const char *path) {
 
 // VM
 
-#define STRING_UNDEFINED "Undefined"
-#define STRING_NONE_TYPE "None"
-#define STRING_BOOL "Bool"
-#define STRING_TRUE "True"
-#define STRING_FALSE "False"
-#define STRING_INTEGER "Integer"
-#define STRING_FLOAT "Float"
-#define STRING_STRING "String"
-#define STRING_ARRAY "Array"
-#define STRING_TABLE "Table"
-#define STRING_FUNC "Function"
-#define STRING_NATIVE "Native"
-#define STRING_POINTER "Pointer"
-
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
@@ -758,9 +744,9 @@ enum OpCode {
     OP_SLICE,
     OP_SUBTRACT,
     OP_THROW,
-    OP_TO_FLOAT,
-    OP_TO_INTEGER,
-    OP_TO_STRING,
+    OP_FLOAT,
+    OP_INT,
+    OP_STRING,
     OP_TRUE,
     OP_TYPE,
     OP_USE,
@@ -805,6 +791,7 @@ static void index_expression(Compiler *C, bool assign);
 static void keys_expression(Compiler *C, bool assign);
 static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
+static void function_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
 static void expression_statement(Compiler *C);
@@ -1061,7 +1048,7 @@ Rule rules[] = {
     [TOKEN_FALSE] = {compile_false, NULL, PRECEDENCE_NONE},
     [TOKEN_FLOAT] = {compile_float, NULL, PRECEDENCE_NONE},
     [TOKEN_FOR] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_FUNCTION] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_FUNCTION] = {function_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_GREATER] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_GREATER_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_IDENT] = {compile_variable, NULL, PRECEDENCE_NONE},
@@ -1110,16 +1097,17 @@ Rule rules[] = {
 
 static const char *value_name(enum HymnValueType type) {
     switch (type) {
-    case HYMN_VALUE_UNDEFINED: return STRING_UNDEFINED;
-    case HYMN_VALUE_NONE: return STRING_NONE_TYPE;
-    case HYMN_VALUE_BOOL: return STRING_BOOL;
-    case HYMN_VALUE_INTEGER: return STRING_INTEGER;
-    case HYMN_VALUE_FLOAT: return STRING_FLOAT;
-    case HYMN_VALUE_STRING: return STRING_STRING;
-    case HYMN_VALUE_ARRAY: return STRING_ARRAY;
-    case HYMN_VALUE_TABLE: return STRING_TABLE;
-    case HYMN_VALUE_FUNC: return STRING_FUNC;
-    case HYMN_VALUE_FUNC_NATIVE: return STRING_NATIVE;
+    case HYMN_VALUE_UNDEFINED: return "undefined";
+    case HYMN_VALUE_NONE: return "none";
+    case HYMN_VALUE_BOOL: return "boolean";
+    case HYMN_VALUE_INTEGER: return "integer";
+    case HYMN_VALUE_FLOAT: return "float";
+    case HYMN_VALUE_STRING: return "string";
+    case HYMN_VALUE_ARRAY: return "array";
+    case HYMN_VALUE_TABLE: return "table";
+    case HYMN_VALUE_FUNC: return "function";
+    case HYMN_VALUE_FUNC_NATIVE: return "native";
+    case HYMN_VALUE_POINTER: return "pointer";
     default: return "?";
     }
 }
@@ -2417,7 +2405,7 @@ static uint8_t byte_code_new_constant(Compiler *C, HymnValue value) {
     HymnByteCode *code = current(C);
     int constant = value_pool_add(&code->constants, value);
     if (constant > UINT8_MAX) {
-        compile_error(C, &C->previous, "Too many constants");
+        compile_error(C, &C->previous, "too many constants");
         constant = 0;
     }
     return (uint8_t)constant;
@@ -2518,7 +2506,7 @@ static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
     Rule *rule = token_rule(C->previous.type);
     void (*prefix)(Compiler *, bool) = rule->prefix;
     if (prefix == NULL) {
-        compile_error(C, &C->previous, "Expected expression following `%.*s`", C->previous.length, &C->source[C->previous.start]);
+        compile_error(C, &C->previous, "syntax error: expected expression following '%.*s'", C->previous.length, &C->source[C->previous.start]);
         return;
     }
     bool assign = precedence <= PRECEDENCE_ASSIGN;
@@ -2549,7 +2537,7 @@ static void consume(Compiler *C, enum TokenType type, const char *error) {
 static uint8_t push_hidden_local(Compiler *C) {
     Scope *scope = C->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
-        compile_error(C, &C->previous, "Too many local variables in scope");
+        compile_error(C, &C->previous, "too many local variables in scope");
         return 0;
     }
     uint8_t index = (uint8_t)scope->local_count++;
@@ -2565,7 +2553,7 @@ static uint8_t arguments(Compiler *C) {
         do {
             expression(C);
             if (count == UINT8_MAX) {
-                compile_error(C, &C->previous, "Can't have more than 255 function arguments");
+                compile_error(C, &C->previous, "too many function arguments");
                 break;
             }
             count++;
@@ -3533,14 +3521,19 @@ static void compile_function(Compiler *C, enum FunctionType type) {
     }
 
     end_scope(C);
-    consume(C, TOKEN_END, "Expected `end` after function body");
+    consume(C, TOKEN_END, "missing 'end' after function body");
 
     HymnFunction *func = end_function(C);
     emit_constant(C, hymn_new_func_value(func));
 }
 
+static void function_expression(Compiler *C, bool assign) {
+    (void)assign;
+    compile_function(C, TYPE_FUNCTION);
+}
+
 static void declare_function(Compiler *C) {
-    uint8_t global = variable(C, "Expected function name");
+    uint8_t global = variable(C, "missing function name");
     local_initialize(C);
     compile_function(C, TYPE_FUNCTION);
     finalize_variable(C, global);
@@ -4032,7 +4025,7 @@ static void cast_integer_expression(Compiler *C, bool assign) {
     consume(C, TOKEN_LEFT_PAREN, "Expected `(` after integer");
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after integer expression");
-    emit(C, OP_TO_INTEGER);
+    emit(C, OP_INT);
 }
 
 static void cast_float_expression(Compiler *C, bool assign) {
@@ -4040,7 +4033,7 @@ static void cast_float_expression(Compiler *C, bool assign) {
     consume(C, TOKEN_LEFT_PAREN, "Expected `(` after float");
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after float expression");
-    emit(C, OP_TO_FLOAT);
+    emit(C, OP_FLOAT);
 }
 
 static void cast_string_expression(Compiler *C, bool assign) {
@@ -4048,7 +4041,7 @@ static void cast_string_expression(Compiler *C, bool assign) {
     consume(C, TOKEN_LEFT_PAREN, "Expected `(` after string");
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after string expression");
-    emit(C, OP_TO_STRING);
+    emit(C, OP_STRING);
 }
 
 static void type_expression(Compiler *C, bool assign) {
@@ -4187,9 +4180,9 @@ void pointer_set_add(struct PointerSet *set, void *pointer) {
 
 static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *set, bool quote) {
     switch (value.is) {
-    case HYMN_VALUE_UNDEFINED: return hymn_new_string(STRING_UNDEFINED);
-    case HYMN_VALUE_NONE: return hymn_new_string(STRING_NONE_TYPE);
-    case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string(STRING_TRUE) : hymn_new_string(STRING_FALSE);
+    case HYMN_VALUE_UNDEFINED: return hymn_new_string("undefined");
+    case HYMN_VALUE_NONE: return hymn_new_string("none");
+    case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
     case HYMN_VALUE_INTEGER: return int64_to_string(hymn_as_int(value));
     case HYMN_VALUE_FLOAT: return double_to_string(hymn_as_float(value));
     case HYMN_VALUE_STRING: {
@@ -4857,9 +4850,9 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_SUBTRACT: return debug_instruction(debug, "OP_SUBTRACT", index);
     case OP_TAIL_CALL: return debug_byte_instruction(debug, "OP_TAIL_CALL", code, index);
     case OP_THROW: return debug_instruction(debug, "OP_THROW", index);
-    case OP_TO_FLOAT: return debug_instruction(debug, "OP_TO_FLOAT", index);
-    case OP_TO_INTEGER: return debug_instruction(debug, "OP_TO_INTEGER", index);
-    case OP_TO_STRING: return debug_instruction(debug, "OP_TO_STRING", index);
+    case OP_FLOAT: return debug_instruction(debug, "OP_FLOAT", index);
+    case OP_INT: return debug_instruction(debug, "OP_INT", index);
+    case OP_STRING: return debug_instruction(debug, "OP_STRING", index);
     case OP_TRUE: return debug_instruction(debug, "OP_TRUE", index);
     case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
     case OP_USE: return debug_instruction(debug, "OP_USE", index);
@@ -5567,7 +5560,7 @@ dispatch:
         HymnValue previous = table_put(&H->globals, name, value);
         if (!hymn_is_undefined(previous)) {
             dereference(H, previous);
-            THROW("Multiple global definitions of variable `%s`", name->string)
+            THROW("multiple global definitions of '%s'", name->string)
         } else {
             reference_string(name);
         }
@@ -5578,7 +5571,7 @@ dispatch:
         HymnValue value = peek(H, 1);
         HymnValue previous = table_put(&H->globals, name, value);
         if (hymn_is_undefined(previous)) {
-            THROW("Undefined variable '%s'", name->string)
+            THROW("undefined variable '%s'", name->string)
         } else {
             dereference(H, previous);
         }
@@ -5589,7 +5582,7 @@ dispatch:
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         HymnValue get = table_get(&H->globals, name);
         if (hymn_is_undefined(get)) {
-            THROW("Undefined variable '%s'", name->string)
+            THROW("undefined variable '%s'", name->string)
         }
         reference(get);
         push(H, get);
@@ -6240,7 +6233,7 @@ dispatch:
         default:
             dereference(H, a);
             dereference(H, b);
-            THROW("Index function expects `String`, `Array`, or `Table`")
+            THROW("index function expects a string, array, or table")
         }
         HYMN_DISPATCH;
     }
@@ -6249,43 +6242,43 @@ dispatch:
         switch (value.is) {
         case HYMN_VALUE_UNDEFINED:
         case HYMN_VALUE_NONE:
-            machine_push_intern_string(H, hymn_new_string(STRING_NONE_TYPE));
+            machine_push_intern_string(H, hymn_new_string("none"));
             break;
         case HYMN_VALUE_BOOL:
-            machine_push_intern_string(H, hymn_new_string(STRING_BOOL));
+            machine_push_intern_string(H, hymn_new_string("boolean"));
             break;
         case HYMN_VALUE_INTEGER:
-            machine_push_intern_string(H, hymn_new_string(STRING_INTEGER));
+            machine_push_intern_string(H, hymn_new_string("integer"));
             break;
         case HYMN_VALUE_FLOAT:
-            machine_push_intern_string(H, hymn_new_string(STRING_FLOAT));
+            machine_push_intern_string(H, hymn_new_string("float"));
             break;
         case HYMN_VALUE_STRING:
-            machine_push_intern_string(H, hymn_new_string(STRING_STRING));
+            machine_push_intern_string(H, hymn_new_string("string"));
             dereference(H, value);
             break;
         case HYMN_VALUE_ARRAY:
-            machine_push_intern_string(H, hymn_new_string(STRING_ARRAY));
+            machine_push_intern_string(H, hymn_new_string("array"));
             dereference(H, value);
             break;
         case HYMN_VALUE_TABLE:
-            machine_push_intern_string(H, hymn_new_string(STRING_TABLE));
+            machine_push_intern_string(H, hymn_new_string("table"));
             dereference(H, value);
             break;
         case HYMN_VALUE_FUNC:
-            machine_push_intern_string(H, hymn_new_string(STRING_FUNC));
+            machine_push_intern_string(H, hymn_new_string("function"));
             dereference(H, value);
             break;
         case HYMN_VALUE_FUNC_NATIVE:
-            machine_push_intern_string(H, hymn_new_string(STRING_NATIVE));
+            machine_push_intern_string(H, hymn_new_string("native"));
             break;
         case HYMN_VALUE_POINTER:
-            machine_push_intern_string(H, hymn_new_string(STRING_POINTER));
+            machine_push_intern_string(H, hymn_new_string("pointer"));
             break;
         }
         HYMN_DISPATCH;
     }
-    case OP_TO_INTEGER: {
+    case OP_INT: {
         HymnValue value = pop(H);
         if (hymn_is_int(value)) {
             push(H, value);
@@ -6308,7 +6301,7 @@ dispatch:
         }
         HYMN_DISPATCH;
     }
-    case OP_TO_FLOAT: {
+    case OP_FLOAT: {
         HymnValue value = pop(H);
         if (hymn_is_int(value)) {
             double number = (double)hymn_as_int(value);
@@ -6331,7 +6324,7 @@ dispatch:
         }
         HYMN_DISPATCH;
     }
-    case OP_TO_STRING: {
+    case OP_STRING: {
         HymnValue value = pop(H);
         machine_push_intern_string(H, value_to_string(value));
         dereference(H, value);

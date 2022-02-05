@@ -1,6 +1,6 @@
--- paths: None, False
--- imports: None, False
--- globals: None
+-- paths: none, false
+-- imports: none, false
+-- globals: none
 -- imported
 
 delete(__globals, "__paths")

@@ -1,0 +1,17 @@
+-- > be me
+-- > be global
+
+let anon = none
+begin
+  anon = function()
+    echo "> be me"
+  end
+end
+
+anon()
+
+let unnamed = function()
+  echo "> be global"
+end
+
+unnamed()

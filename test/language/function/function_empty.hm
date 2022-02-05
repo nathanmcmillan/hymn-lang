@@ -1,5 +1,5 @@
--- None
--- None
+-- none
+-- none
 
 function a() return end
 function b() end

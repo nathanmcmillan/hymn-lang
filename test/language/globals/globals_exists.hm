@@ -1,12 +1,12 @@
--- Cool
--- Ok
--- Groovy
--- Nice
+-- A
+-- B
+-- C
+-- D
 
 let foo = 1
 
 if __globals.foo
-  echo "Cool"
+  echo "A"
 else
   echo "No"
 end
@@ -14,13 +14,13 @@ end
 if __globals.bar
   echo "No"
 else
-  echo "Ok"
+  echo "B"
 end
 
 let hello = none
 
 if exists(__globals, "hello")
-  echo "Groovy"
+  echo "C"
 else
   echo "No"
 end
@@ -28,5 +28,5 @@ end
 if exists(__globals, "world")
   echo "No"
 else
-  echo "Nice"
+  echo "D"
 end

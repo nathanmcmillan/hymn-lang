@@ -1,14 +1,14 @@
--- Integer
--- Integer
--- Float
--- Float
--- None
--- Bool
--- Bool
--- String
--- Array
--- Table
--- Function
+-- integer
+-- integer
+-- float
+-- float
+-- none
+-- boolean
+-- boolean
+-- string
+-- array
+-- table
+-- function
 
 function example() pass end
 

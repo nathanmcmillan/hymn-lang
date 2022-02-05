@@ -9,9 +9,9 @@
 -- 123.456
 -- -123.456
 -- foobar
--- True
--- False
--- None
+-- true
+-- false
+-- none
 
 echo 0
 echo 1

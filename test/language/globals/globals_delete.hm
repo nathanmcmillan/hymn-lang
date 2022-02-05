@@ -1,5 +1,6 @@
 -- 8
--- Oh no! Undefined
+-- Oh no!
+-- undefined
 
 let foo = 8
 
@@ -8,5 +9,6 @@ try
   delete(__globals, "foo")
   echo foo
 except error
-  echo "Oh no! " + error[0:9]
+  echo "Oh no!"
+  echo error[0:9]
 end

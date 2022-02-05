@@ -1,5 +1,0 @@
--- None
-
-function foo() end
-
-echo foo()

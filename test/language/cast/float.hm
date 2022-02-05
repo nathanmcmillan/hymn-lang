@@ -12,7 +12,7 @@
 -- 1.2
 -- -1.2
 --
--- None
+-- none
 
 echo float(0)
 echo float(0.0)

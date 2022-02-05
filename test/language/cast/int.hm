@@ -12,7 +12,7 @@
 -- 1
 -- -1
 --
--- None
+-- none
 
 echo int(0)
 echo int(0.0)

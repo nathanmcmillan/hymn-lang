@@ -1,9 +1,9 @@
 -- a
 -- b
--- None
+-- none
 -- x
 -- y
--- None
+-- none
 
 let words = { a: "foo", b: "bar" }
 

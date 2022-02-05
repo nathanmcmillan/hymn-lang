@@ -95,6 +95,9 @@ async function testSource(script) {
   vm.printError = (text) => {
     out += text
   }
+  vm.printLine = (text) => {
+    out += text + '\n'
+  }
   let result = null
   const error = await hymn.interpretScript(vm, script, source).catch((exception) => {
     if (exception.stack) {

@@ -1,8 +1,8 @@
--- [True, True, False, False]
--- True
--- [True, False, False]
--- False
--- [True, False]
+-- [true, true, false, false]
+-- true
+-- [true, false, false]
+-- false
+-- [true, false]
 
 let array = [true, true, false, false]
 echo array
