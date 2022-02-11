@@ -81,12 +81,17 @@ static HymnString *new_string_with_capacity(size_t capacity) {
     return (HymnString *)(head + 1);
 }
 
-static HymnString *new_string_with_length(const char *init, size_t length) {
+HymnString *hymn_new_string_with_length(const char *chars, size_t length) {
     HymnStringHead *head = string_head_init(length, length);
     char *string = (char *)(head + 1);
-    memcpy(string, init, length);
+    memcpy(string, chars, length);
     string[length] = '\0';
     return (HymnString *)string;
+}
+
+HymnString *hymn_new_string(const char *chars) {
+    size_t length = strlen(chars);
+    return hymn_new_string_with_length(chars, length);
 }
 
 HymnString *hymn_substring(const char *init, size_t start, size_t end) {
@@ -98,14 +103,9 @@ HymnString *hymn_substring(const char *init, size_t start, size_t end) {
     return (HymnString *)string;
 }
 
-HymnString *hymn_new_string(const char *init) {
-    size_t len = strlen(init);
-    return new_string_with_length(init, len);
-}
-
 static HymnString *string_copy(HymnString *this) {
     HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
-    return new_string_with_length(this, head->length);
+    return hymn_new_string_with_length(this, head->length);
 }
 
 size_t hymn_string_len(HymnString *this) {
@@ -319,7 +319,7 @@ static HymnString *char_to_string(char ch) {
     char *str = hymn_malloc(2);
     str[0] = ch;
     str[1] = '\0';
-    HymnString *s = new_string_with_length(str, 1);
+    HymnString *s = hymn_new_string_with_length(str, 1);
     free(str);
     return s;
 }
@@ -328,7 +328,7 @@ static HymnString *int64_to_string(int64_t number) {
     int len = snprintf(NULL, 0, "%" PRId64, number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%" PRId64, number);
-    HymnString *s = new_string_with_length(str, len);
+    HymnString *s = hymn_new_string_with_length(str, len);
     free(str);
     return s;
 }
@@ -337,7 +337,7 @@ static HymnString *double_to_string(double number) {
     int len = snprintf(NULL, 0, "%g", number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%g", number);
-    HymnString *s = new_string_with_length(str, len);
+    HymnString *s = hymn_new_string_with_length(str, len);
     free(str);
     return s;
 }
@@ -368,7 +368,7 @@ HymnString *hymn_string_format(const char *format, ...) {
     va_start(args, format);
     len = vsnprintf(chars, len + 1, format, args);
     va_end(args);
-    HymnString *str = new_string_with_length(chars, len);
+    HymnString *str = hymn_new_string_with_length(chars, len);
     free(chars);
     return str;
 }
@@ -542,7 +542,7 @@ HymnString *hymn_read_file(const char *path) {
         content[i] = (char)fgetc(fp);
     }
     fclose(fp);
-    HymnString *s = new_string_with_length(content, size);
+    HymnString *s = hymn_new_string_with_length(content, size);
     free(content);
     return s;
 }
@@ -2452,7 +2452,7 @@ static Rule *token_rule(enum TokenType type) {
     return &rules[type];
 }
 
-static HymnObjectString *machine_intern_string(Hymn *H, HymnString *string) {
+HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string) {
     HymnObjectString *object = set_add_or_get(&H->strings, string);
     if (object->string != string) {
         hymn_string_delete(string);
@@ -4474,8 +4474,8 @@ static HymnValue pop(Hymn *H) {
     return *H->stack_top;
 }
 
-static void machine_push_intern_string(Hymn *H, HymnString *string) {
-    HymnObjectString *intern = machine_intern_string(H, string);
+static void push_string(Hymn *H, HymnString *string) {
+    HymnObjectString *intern = hymn_intern_string(H, string);
     reference_string(intern);
     push(H, hymn_new_string_value(intern));
 }
@@ -4545,7 +4545,7 @@ static HymnString *machine_stacktrace(Hymn *H) {
 }
 
 static HymnFrame *machine_push_error(Hymn *H, HymnString *error) {
-    HymnObjectString *message = machine_intern_string(H, error);
+    HymnObjectString *message = hymn_intern_string(H, error);
     reference_string(message);
     push(H, hymn_new_string_value(message));
     return machine_exception(H);
@@ -4650,7 +4650,7 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
         HymnString *replace = string_replace(question, "<path>", look);
         HymnString *path = parent ? string_replace(replace, "<parent>", parent) : string_copy(replace);
 
-        HymnObjectString *use = machine_intern_string(H, path_absolute(path));
+        HymnObjectString *use = hymn_intern_string(H, path_absolute(path));
         reference_string(use);
 
         hymn_string_delete(path);
@@ -5247,7 +5247,7 @@ dispatch:
         HymnValue a = pop(H);
         if (hymn_is_none(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
@@ -5255,7 +5255,7 @@ dispatch:
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
@@ -5269,7 +5269,7 @@ dispatch:
                 b.as.f += a.as.i;
                 push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
@@ -5283,14 +5283,14 @@ dispatch:
                 a.as.f += b.as.f;
                 push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_string(a)) {
-            machine_push_intern_string(H, value_concat(a, b));
+            push_string(H, value_concat(a, b));
         } else {
             THROW("Add: 1st and 2nd values can't be added")
         }
@@ -5303,7 +5303,7 @@ dispatch:
         HymnValue b = frame->stack[READ_BYTE(frame)];
         if (hymn_is_none(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
@@ -5311,7 +5311,7 @@ dispatch:
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
@@ -5325,7 +5325,7 @@ dispatch:
                 b.as.f += a.as.i;
                 push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
@@ -5339,14 +5339,14 @@ dispatch:
                 a.as.f += b.as.f;
                 push(H, a);
             } else if (hymn_is_string(b)) {
-                machine_push_intern_string(H, value_concat(a, b));
+                push_string(H, value_concat(a, b));
             } else {
                 dereference(H, a);
                 dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_string(a)) {
-            machine_push_intern_string(H, value_concat(a, b));
+            push_string(H, value_concat(a, b));
         } else {
             THROW("Add: 1st and 2nd values can't be added")
         }
@@ -5368,7 +5368,7 @@ dispatch:
             a.as.f += (double)increment;
             push(H, a);
         } else if (hymn_is_string(a)) {
-            machine_push_intern_string(H, value_concat(a, hymn_new_int((int64_t)increment)));
+            push_string(H, value_concat(a, hymn_new_int((int64_t)increment)));
         } else {
             THROW("Increment: 1st and 2nd values can't be added")
         }
@@ -5798,7 +5798,7 @@ dispatch:
                 }
             }
             char c = string[index];
-            machine_push_intern_string(H, char_to_string(c));
+            push_string(H, char_to_string(c));
             dereference(H, v);
             break;
         }
@@ -6092,7 +6092,7 @@ dispatch:
                 THROW("String start index %d > end index %d", start, end)
             }
             HymnString *sub = hymn_substring(original, (size_t)start, (size_t)end);
-            machine_push_intern_string(H, sub);
+            push_string(H, sub);
         } else if (hymn_is_array(v)) {
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
@@ -6154,7 +6154,7 @@ dispatch:
             push(H, hymn_new_float(0.0f));
             break;
         case HYMN_VALUE_STRING:
-            machine_push_intern_string(H, hymn_new_string(""));
+            push_string(H, hymn_new_string(""));
             break;
         case HYMN_VALUE_ARRAY: {
             HymnArray *array = hymn_as_array(value);
@@ -6242,38 +6242,38 @@ dispatch:
         switch (value.is) {
         case HYMN_VALUE_UNDEFINED:
         case HYMN_VALUE_NONE:
-            machine_push_intern_string(H, hymn_new_string("none"));
+            push_string(H, hymn_new_string("none"));
             break;
         case HYMN_VALUE_BOOL:
-            machine_push_intern_string(H, hymn_new_string("boolean"));
+            push_string(H, hymn_new_string("boolean"));
             break;
         case HYMN_VALUE_INTEGER:
-            machine_push_intern_string(H, hymn_new_string("integer"));
+            push_string(H, hymn_new_string("integer"));
             break;
         case HYMN_VALUE_FLOAT:
-            machine_push_intern_string(H, hymn_new_string("float"));
+            push_string(H, hymn_new_string("float"));
             break;
         case HYMN_VALUE_STRING:
-            machine_push_intern_string(H, hymn_new_string("string"));
+            push_string(H, hymn_new_string("string"));
             dereference(H, value);
             break;
         case HYMN_VALUE_ARRAY:
-            machine_push_intern_string(H, hymn_new_string("array"));
+            push_string(H, hymn_new_string("array"));
             dereference(H, value);
             break;
         case HYMN_VALUE_TABLE:
-            machine_push_intern_string(H, hymn_new_string("table"));
+            push_string(H, hymn_new_string("table"));
             dereference(H, value);
             break;
         case HYMN_VALUE_FUNC:
-            machine_push_intern_string(H, hymn_new_string("function"));
+            push_string(H, hymn_new_string("function"));
             dereference(H, value);
             break;
         case HYMN_VALUE_FUNC_NATIVE:
-            machine_push_intern_string(H, hymn_new_string("native"));
+            push_string(H, hymn_new_string("native"));
             break;
         case HYMN_VALUE_POINTER:
-            machine_push_intern_string(H, hymn_new_string("pointer"));
+            push_string(H, hymn_new_string("pointer"));
             break;
         }
         HYMN_DISPATCH;
@@ -6326,7 +6326,7 @@ dispatch:
     }
     case OP_STRING: {
         HymnValue value = pop(H);
-        machine_push_intern_string(H, value_to_string(value));
+        push_string(H, value_to_string(value));
         dereference(H, value);
         HYMN_DISPATCH;
     }
@@ -6417,20 +6417,20 @@ Hymn *new_hymn() {
 
     set_init(&H->strings);
 
-    HymnObjectString *search_this = machine_intern_string(H, hymn_new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_this = hymn_intern_string(H, hymn_new_string("<parent>" PATH_SEP_STRING "<path>.hm"));
     reference_string(search_this);
 
-    HymnObjectString *search_relative = machine_intern_string(H, hymn_new_string("." PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_relative = hymn_intern_string(H, hymn_new_string("." PATH_SEP_STRING "<path>.hm"));
     reference_string(search_relative);
 
-    HymnObjectString *search_libs = machine_intern_string(H, hymn_new_string("." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>.hm"));
+    HymnObjectString *search_libs = hymn_intern_string(H, hymn_new_string("." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>.hm"));
     reference_string(search_libs);
 
     // GLOBALS
 
     table_init(&H->globals);
 
-    HymnObjectString *__globals = machine_intern_string(H, hymn_new_string("__globals"));
+    HymnObjectString *__globals = hymn_intern_string(H, hymn_new_string("__globals"));
     reference_string(__globals);
 
     HymnValue globals_value = hymn_new_table_value(&H->globals);
@@ -6443,7 +6443,7 @@ Hymn *new_hymn() {
 
     H->paths = hymn_new_array(3);
 
-    HymnObjectString *__paths = machine_intern_string(H, hymn_new_string("__paths"));
+    HymnObjectString *__paths = hymn_intern_string(H, hymn_new_string("__paths"));
     reference_string(__paths);
 
     H->paths->items[0] = hymn_new_string_value(search_this);
@@ -6460,7 +6460,7 @@ Hymn *new_hymn() {
 
     H->imports = hymn_new_table();
 
-    HymnObjectString *__imports = machine_intern_string(H, hymn_new_string("__imports"));
+    HymnObjectString *__imports = hymn_intern_string(H, hymn_new_string("__imports"));
     reference_string(__imports);
 
     HymnValue imports_value = hymn_new_table_value(H->imports);
@@ -6500,7 +6500,7 @@ void hymn_delete(Hymn *H) {
             }
         }
 
-        HymnObjectString *__globals = machine_intern_string(H, hymn_new_string("__globals"));
+        HymnObjectString *__globals = hymn_intern_string(H, hymn_new_string("__globals"));
         table_remove(globals, __globals);
         dereference_string(H, __globals);
 
@@ -6544,12 +6544,15 @@ void hymn_delete(Hymn *H) {
 }
 
 HymnObjectString *hymn_get_string(Hymn *H, const char *value) {
-    HymnObjectString *string = machine_intern_string(H, hymn_new_string(value));
-    return string;
+    return hymn_intern_string(H, hymn_new_string(value));
+}
+
+HymnObjectString *hymn_get_string_with_length(Hymn *H, const char *value, size_t length) {
+    return hymn_intern_string(H, hymn_new_string_with_length(value, length));
 }
 
 void hymn_add(Hymn *H, const char *name, HymnValue value) {
-    HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
+    HymnObjectString *string = hymn_intern_string(H, hymn_new_string(name));
     HymnValue previous = table_put(&H->globals, string, value);
     if (hymn_is_undefined(previous)) {
         reference_string(string);
@@ -6563,7 +6566,7 @@ void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
 }
 
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
-    HymnObjectString *string = machine_intern_string(H, hymn_new_string(name));
+    HymnObjectString *string = hymn_intern_string(H, hymn_new_string(name));
     HymnString *string_name = string_copy(string->string);
     HymnNativeFunction *value = new_native_function(string_name, func);
     HymnValue previous = table_put(&H->globals, string, hymn_new_native(value));

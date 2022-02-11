@@ -184,7 +184,9 @@ struct Hymn {
 bool hymn_file_exists(const char *path);
 HymnString *hymn_read_file(const char *path);
 
+HymnString *hymn_new_string_with_length(const char *init, size_t length);
 HymnString *hymn_new_string(const char *init);
+HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string);
 
 size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
@@ -248,6 +250,7 @@ bool hymn_match_values(HymnValue a, HymnValue b);
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
 HymnObjectString *hymn_get_string(Hymn *H, const char *value);
+HymnObjectString *hymn_get_string_with_length(Hymn *H, const char *value, size_t length);
 
 Hymn *new_hymn();
 

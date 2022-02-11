@@ -1,2 +1,1 @@
-echo "clock: " + os_clock()
-echo "PWD: " + os_env("PWD")
+echo os_env("PWD")

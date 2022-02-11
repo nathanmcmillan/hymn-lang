@@ -8,25 +8,51 @@
 
 #include "hymn.h"
 
-#if _POSIX_C_SOURCE >= 2
-#define HYMN_POPEN_SUPPORTED
-#endif
-
-static HymnValue io_popen(Hymn *this, int count, HymnValue *arguments) {
-    (void)this;
-#ifdef HYMN_POPEN_SUPPORTED
-    if (count < 2) return hymn_new_none();
-    HymnString *file = hymn_as_string(arguments[0]);
-    HymnString *mode = hymn_as_string(arguments[1]);
-    FILE *f = popen(file, mode);
-    return f == NULL ? hymn_new_none() : hymn_new_pointer(f);
-#else
-    (void)count;
-    (void)arguments;
-    return hymn_new_none();
-#endif
+static size_t file_size(const char *path) {
+    FILE *open = fopen(path, "r");
+    if (open == NULL) {
+        return 0;
+    }
+    size_t size = 0;
+    int ch;
+    while ((ch = fgetc(open)) != EOF) {
+        size++;
+    }
+    fclose(open);
+    return size;
 }
 
-void hymn_use_io(Hymn *hymn) {
-    hymn_add_function(hymn, "io_popen", io_popen);
+static HymnValue io_size(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count < 1) {
+        return hymn_new_none();
+    }
+    HymnString *path = hymn_as_string(arguments[0]);
+    size_t size = file_size(path);
+    return hymn_new_int((int64_t)size);
+}
+
+static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
+    if (count < 1) {
+        return hymn_new_none();
+    }
+    HymnString *path = hymn_as_string(arguments[0]);
+    size_t size = file_size(path);
+    FILE *open = fopen(path, "r");
+    if (open == NULL) {
+        return hymn_new_none();
+    }
+    char *content = hymn_malloc((size + 1) * sizeof(char));
+    for (size_t i = 0; i < size; i++) {
+        content[i] = (char)fgetc(open);
+    }
+    fclose(open);
+    HymnObjectString *string = hymn_get_string_with_length(H, content, size);
+    free(content);
+    return hymn_new_string_value(string);
+}
+
+void hymn_use_io(Hymn *H) {
+    hymn_add_function(H, "io_size", io_size);
+    hymn_add_function(H, "io_read", io_read);
 }
