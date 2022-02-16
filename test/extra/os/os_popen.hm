@@ -1,1 +1,3 @@
-echo os_popen("ls", "r")
+let open = os:popen("ls", "r")
+echo open
+echo os:pclose(open)

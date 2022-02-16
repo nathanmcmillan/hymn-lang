@@ -1,1 +1,1 @@
-echo os_env("PWD")
+echo os:env("PWD")

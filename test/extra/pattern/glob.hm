@@ -1,0 +1,6 @@
+echo glob("?oo", "foo")
+echo glob("?oo", "boo")
+echo glob("?oo", "not")
+
+echo glob("foo*bar", "foobar")
+echo glob("foo*bar", "foo hello world bar")

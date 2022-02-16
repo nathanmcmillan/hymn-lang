@@ -1,0 +1,1 @@
+echo io_size(".gitattributes")

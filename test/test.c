@@ -162,6 +162,10 @@ static HymnString *parse_expected(HymnString *source) {
 
 static HymnString *test_source(HymnString *script) {
     HymnString *source = hymn_read_file(script);
+    if (source == NULL) {
+        printf("Test file not found: %s\n", script);
+        exit(1);
+    }
     HymnString *expected = parse_expected(source);
     HymnString *result = NULL;
     if (strcmp(expected, "") != 0) {

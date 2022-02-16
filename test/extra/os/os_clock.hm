@@ -1,1 +1,1 @@
-echo os_clock()
+echo os:clock()

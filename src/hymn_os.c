@@ -111,7 +111,22 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
 #endif
 }
 
-static HymnValue os_read(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count < 2) {
+        return hymn_new_none();
+    }
+    HymnString *path = hymn_as_string(arguments[0]);
+    HymnString *mode = hymn_as_string(arguments[1]);
+    FILE *open = fopen(path, mode);
+    if (open == NULL) {
+        return hymn_new_none();
+    }
+    return hymn_new_pointer(open);
+}
+
+static HymnValue os_fclose(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
     if (count < 1) {
         return hymn_new_int(0);
     }
@@ -123,6 +138,22 @@ static HymnValue os_read(Hymn *H, int count, HymnValue *arguments) {
     if (open == NULL) {
         return hymn_new_int(0);
     }
+    fclose(open);
+    return hymn_new_int(1);
+}
+
+static HymnValue os_read(Hymn *H, int count, HymnValue *arguments) {
+    if (count < 1) {
+        return hymn_new_none();
+    }
+    HymnValue value = arguments[0];
+    if (!hymn_is_pointer(value)) {
+        return hymn_new_none();
+    }
+    FILE *open = (FILE *)hymn_as_pointer(value);
+    if (open == NULL) {
+        return hymn_new_none();
+    }
     HymnString *string = hymn_new_string("");
     int ch;
     while ((ch = fgetc(open)) != EOF) {
@@ -133,12 +164,14 @@ static HymnValue os_read(Hymn *H, int count, HymnValue *arguments) {
 }
 
 void hymn_use_os(Hymn *H) {
-    hymn_add_function(H, "os_clock", os_clock);
-    hymn_add_function(H, "os_env", os_env);
+    hymn_add_function(H, "os:clock", os_clock);
+    hymn_add_function(H, "os:env", os_env);
+    hymn_add_function(H, "os:popen", os_popen);
+    hymn_add_function(H, "os:pclose", os_pclose);
+    hymn_add_function(H, "os:fopen", os_fopen);
+    hymn_add_function(H, "os:fclose", os_fclose);
+    hymn_add_function(H, "os:read", os_read);
     hymn_add_function(H, "system", os_system);
-    hymn_add_function(H, "os_popen", os_popen);
-    hymn_add_function(H, "os_pclose", os_pclose);
-    hymn_add_function(H, "os_read", os_read);
     hymn_add(H, "stdout", hymn_new_int(0));
     hymn_add(H, "stderr", hymn_new_int(1));
 }

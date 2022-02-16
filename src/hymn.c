@@ -76,7 +76,7 @@ static HymnStringHead *string_head_init(size_t length, size_t capacity) {
     return head;
 }
 
-static HymnString *new_string_with_capacity(size_t capacity) {
+HymnString *hymn_new_string_with_capacity(size_t capacity) {
     HymnStringHead *head = string_head_init(0, capacity);
     return (HymnString *)(head + 1);
 }
@@ -85,7 +85,12 @@ HymnString *hymn_new_string_with_length(const char *chars, size_t length) {
     HymnStringHead *head = string_head_init(length, length);
     char *string = (char *)(head + 1);
     memcpy(string, chars, length);
-    string[length] = '\0';
+    return (HymnString *)string;
+}
+
+HymnString *hymn_new_empty_string(size_t length) {
+    HymnStringHead *head = string_head_init(length, length);
+    char *string = (char *)(head + 1);
     return (HymnString *)string;
 }
 
@@ -103,54 +108,60 @@ HymnString *hymn_substring(const char *init, size_t start, size_t end) {
     return (HymnString *)string;
 }
 
-static HymnString *string_copy(HymnString *this) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
-    return hymn_new_string_with_length(this, head->length);
+#define STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
+
+HymnStringHead *hymn_string_head(HymnString *string) {
+    return STRING_HEAD(string);
 }
 
-size_t hymn_string_len(HymnString *this) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+static HymnString *string_copy(HymnString *string) {
+    HymnStringHead *head = STRING_HEAD(string);
+    return hymn_new_string_with_length(string, head->length);
+}
+
+size_t hymn_string_len(HymnString *string) {
+    HymnStringHead *head = STRING_HEAD(string);
     return head->length;
 }
 
-void hymn_string_delete(HymnString *this) {
-    if (this == NULL) {
+void hymn_string_delete(HymnString *string) {
+    if (string == NULL) {
         return;
     }
-    free((char *)this - sizeof(HymnStringHead));
+    free((char *)string - sizeof(HymnStringHead));
 }
 
-static HymnString *substring(HymnString *this, size_t start, size_t end) {
+static HymnString *substring(HymnString *string, size_t start, size_t end) {
     size_t len = end - start;
     HymnStringHead *head = string_head_init(len, len);
     char *s = (char *)(head + 1);
-    memcpy(s, this + start, len);
+    memcpy(s, string + start, len);
     s[len] = '\0';
     return (HymnString *)s;
 }
 
-void hymn_string_zero(HymnString *this) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+void hymn_string_zero(HymnString *string) {
+    HymnStringHead *head = STRING_HEAD(string);
     head->length = 0;
-    this[0] = '\0';
+    string[0] = '\0';
 }
 
-HymnString *hymn_string_trim(HymnString *this) {
-    size_t len = hymn_string_len(this);
+HymnString *hymn_string_trim(HymnString *string) {
+    size_t len = hymn_string_len(string);
     size_t start = 0;
     while (start < len) {
-        char c = this[start];
+        char c = string[start];
         if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
             break;
         }
         start++;
     }
     if (start == len) {
-        hymn_string_zero(this);
+        hymn_string_zero(string);
     } else {
         size_t end = len - 1;
         while (end > start) {
-            char c = this[end];
+            char c = string[end];
             if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
                 break;
             }
@@ -160,13 +171,13 @@ HymnString *hymn_string_trim(HymnString *this) {
         size_t offset = start;
         size_t size = end - start;
         for (size_t i = 0; i < size; i++) {
-            this[i] = this[offset++];
+            string[i] = string[offset++];
         }
-        HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+        HymnStringHead *head = STRING_HEAD(string);
         head->length = size;
-        this[end] = '\0';
+        string[end] = '\0';
     }
-    return this;
+    return string;
 }
 
 static HymnStringHead *string_resize(HymnStringHead *head, size_t capacity) {
@@ -176,8 +187,8 @@ static HymnStringHead *string_resize(HymnStringHead *head, size_t capacity) {
     return new;
 }
 
-HymnString *hymn_string_append(HymnString *this, const char *b) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+HymnString *hymn_string_append(HymnString *string, const char *b) {
+    HymnStringHead *head = STRING_HEAD(string);
     size_t len_a = head->length;
     size_t len_b = strlen(b);
     size_t len = len_a + len_b;
@@ -191,8 +202,8 @@ HymnString *hymn_string_append(HymnString *this, const char *b) {
     return (HymnString *)s;
 }
 
-HymnString *hymn_string_append_char(HymnString *this, const char b) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+HymnString *hymn_string_append_char(HymnString *string, const char b) {
+    HymnStringHead *head = STRING_HEAD(string);
     size_t len = head->length + 1;
     if (len > head->capacity) {
         head = string_resize(head, len * 2);
@@ -204,8 +215,8 @@ HymnString *hymn_string_append_char(HymnString *this, const char b) {
     return (HymnString *)s;
 }
 
-static HymnString *string_append_substring(HymnString *this, const char *b, size_t start, size_t end) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+static HymnString *string_append_substring(HymnString *string, const char *b, size_t start, size_t end) {
+    HymnStringHead *head = STRING_HEAD(string);
     size_t len_a = head->length;
     size_t len_b = end - start;
     size_t len = len_a + len_b;
@@ -254,8 +265,8 @@ bool hymn_string_contains(HymnString *s, const char *p) {
     return false;
 }
 
-static bool string_find(HymnString *this, HymnString *sub, size_t *out) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+static bool string_find(HymnString *string, HymnString *sub, size_t *out) {
+    HymnStringHead *head = STRING_HEAD(string);
     HymnStringHead *head_sub = (HymnStringHead *)((char *)sub - sizeof(HymnStringHead));
     size_t len = head->length;
     size_t len_sub = head_sub->length;
@@ -269,7 +280,7 @@ static bool string_find(HymnString *this, HymnString *sub, size_t *out) {
     for (size_t i = 0; i < end; i++) {
         bool match = true;
         for (size_t k = 0; k < len_sub; k++) {
-            if (sub[k] != this[i + k]) {
+            if (sub[k] != string[i + k]) {
                 match = false;
                 break;
             }
@@ -282,8 +293,8 @@ static bool string_find(HymnString *this, HymnString *sub, size_t *out) {
     return false;
 }
 
-static HymnString *string_replace(HymnString *this, const char *find, const char *replace) {
-    HymnStringHead *head = (HymnStringHead *)((char *)this - sizeof(HymnStringHead));
+static HymnString *string_replace(HymnString *string, const char *find, const char *replace) {
+    HymnStringHead *head = STRING_HEAD(string);
     size_t len = head->length;
     size_t len_sub = strlen(find);
     if (len_sub > len) {
@@ -297,20 +308,20 @@ static HymnString *string_replace(HymnString *this, const char *find, const char
     for (size_t i = 0; i < end; i++) {
         bool match = true;
         for (size_t k = 0; k < len_sub; k++) {
-            if (find[k] != this[i + k]) {
+            if (find[k] != string[i + k]) {
                 match = false;
                 break;
             }
         }
         if (match) {
-            out = string_append_substring(out, this, p, i);
+            out = string_append_substring(out, string, p, i);
             out = hymn_string_append(out, replace);
             i += len_sub;
             p = i;
         }
     }
     if (p < len) {
-        out = string_append_substring(out, this, p, len);
+        out = string_append_substring(out, string, p, len);
     }
     return out;
 }
@@ -511,40 +522,39 @@ static HymnString *path_absolute(HymnString *path) {
     return normal;
 }
 
-static size_t file_size(const char *path) {
-    FILE *fp = fopen(path, "r");
-    if (fp == NULL) {
+size_t hymn_file_size(const char *path) {
+    FILE *open = fopen(path, "r");
+    if (open == NULL) {
         return 0;
     }
-    size_t num = 0;
+    size_t size = 0;
     int ch;
-    while ((ch = fgetc(fp)) != EOF) {
-        num++;
+    while ((ch = fgetc(open)) != EOF) {
+        size++;
     }
-    fclose(fp);
-    return num;
+    fclose(open);
+    return size;
+}
+
+HymnString *hymn_read_file(const char *path) {
+    size_t size = hymn_file_size(path);
+    FILE *open = fopen(path, "r");
+    if (open == NULL) {
+        return NULL;
+    }
+    HymnString *string = hymn_new_string_with_capacity(size);
+    HymnStringHead *head = STRING_HEAD(string);
+    for (size_t i = 0; i < size; i++) {
+        string[i] = (char)fgetc(open);
+    }
+    fclose(open);
+    head->length = size;
+    return string;
 }
 
 bool hymn_file_exists(const char *path) {
     struct stat b;
     return stat(path, &b) == 0;
-}
-
-HymnString *hymn_read_file(const char *path) {
-    size_t size = file_size(path);
-    FILE *fp = fopen(path, "r");
-    if (fp == NULL) {
-        fprintf(stderr, "Could not open file: %s\n", path);
-        return hymn_new_string("");
-    }
-    char *content = hymn_malloc((size + 1) * sizeof(char));
-    for (size_t i = 0; i < size; i++) {
-        content[i] = (char)fgetc(fp);
-    }
-    fclose(fp);
-    HymnString *s = hymn_new_string_with_length(content, size);
-    free(content);
-    return s;
 }
 
 // END IO
@@ -895,7 +905,7 @@ HymnValue hymn_new_float(double v) {
 }
 
 HymnValue hymn_new_native(HymnNativeFunction *v) {
-    return (HymnValue){.is = HYMN_VALUE_FUNC_NATIVE, .as = {.n = v}};
+    return (HymnValue){.is = HYMN_VALUE_FUNC_NATIVE, .as = {.o = (HymnObject *)v}};
 }
 
 HymnValue hymn_new_pointer(void *v) {
@@ -931,7 +941,7 @@ double hymn_as_float(HymnValue v) {
 }
 
 HymnNativeFunction *hymn_as_native(HymnValue v) {
-    return (v).as.n;
+    return (HymnNativeFunction *)(v).as.o;
 }
 
 void *hymn_as_pointer(HymnValue v) {
@@ -1353,6 +1363,7 @@ void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnVa
     } else {
         dereference(H, previous);
     }
+    // reference(value); // ??? was not here but probably should be. need to write test case!
 }
 
 static void set_init(HymnSet *this) {
@@ -1600,6 +1611,13 @@ static char peek_char(Compiler *C) {
         return '\0';
     }
     return C->source[C->pos];
+}
+
+static char double_peek_char(Compiler *C) {
+    if (C->pos + 1 >= C->size) {
+        return '\0';
+    }
+    return C->source[C->pos + 1];
 }
 
 static void token(Compiler *C, enum TokenType type) {
@@ -2024,8 +2042,13 @@ static void advance(Compiler *C) {
                 return;
             } else if (is_ident(c)) {
                 size_t start = C->pos - 1;
-                while (is_ident(peek_char(C))) {
-                    next_char(C);
+                while (true) {
+                    c = peek_char(C);
+                    if (is_ident(c) || (c == ':' && is_ident(double_peek_char(C)))) {
+                        next_char(C);
+                    } else {
+                        break;
+                    }
                 }
                 size_t end = C->pos;
                 push_ident_token(C, start, end);
@@ -2073,9 +2096,8 @@ bool hymn_values_equal(HymnValue a, HymnValue b) {
     case HYMN_VALUE_ARRAY:
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
-        return b.is == a.is && hymn_as_object(a) == hymn_as_object(b);
     case HYMN_VALUE_FUNC_NATIVE:
-        return hymn_is_native(b) && hymn_as_native(a) == hymn_as_native(b);
+        return b.is == a.is && hymn_as_object(a) == hymn_as_object(b);
     case HYMN_VALUE_POINTER:
         return hymn_is_pointer(b) && hymn_as_pointer(a) == hymn_as_pointer(b);
     default: return false;
@@ -2096,8 +2118,8 @@ bool hymn_match_values(HymnValue a, HymnValue b) {
     case HYMN_VALUE_ARRAY:
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
         return hymn_as_object(a) == hymn_as_object(b);
-    case HYMN_VALUE_FUNC_NATIVE: return hymn_as_native(a) == hymn_as_native(b);
     case HYMN_VALUE_POINTER: return hymn_as_pointer(a) == hymn_as_pointer(b);
     }
     return false;
@@ -2140,10 +2162,11 @@ static HymnFunction *new_function(const char *script) {
     return func;
 }
 
-static HymnNativeFunction *new_native_function(HymnString *name, HymnNativeCall func) {
-    HymnNativeFunction *native = hymn_malloc(sizeof(HymnNativeFunction));
+static HymnNativeFunction *new_native_function(HymnObjectString *name, HymnNativeCall func) {
+    HymnNativeFunction *native = hymn_calloc(1, sizeof(HymnNativeFunction));
     native->name = name;
     native->func = func;
+    reference_string(name);
     return native;
 }
 
@@ -2635,7 +2658,7 @@ char escape_sequence(const char c) {
 
 HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     const size_t end = start + len;
-    HymnString *literal = new_string_with_capacity(len);
+    HymnString *literal = hymn_new_string_with_capacity(len);
     for (size_t i = start; i < end; i++) {
         const char c = string[i];
         if (i + 1 < end) {
@@ -2740,8 +2763,8 @@ static void function_delete(HymnFunction *this) {
     free(this);
 }
 
-static void native_function_delete(HymnNativeFunction *this) {
-    hymn_string_delete(this->name);
+static void native_function_delete(Hymn *H, HymnNativeFunction *this) {
+    dereference_string(H, this->name);
     free(this);
 }
 
@@ -4264,7 +4287,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         if (func->script) return string_copy(func->script);
         return hymn_new_string("Script");
     }
-    case HYMN_VALUE_FUNC_NATIVE: return string_copy(hymn_as_native(value)->name);
+    case HYMN_VALUE_FUNC_NATIVE: return string_copy(hymn_as_native(value)->name->string);
     case HYMN_VALUE_POINTER: return hymn_string_format("%p", hymn_as_pointer(value));
     }
     return hymn_new_string("?");
@@ -4315,6 +4338,7 @@ static bool is_object(HymnValue value) {
     case HYMN_VALUE_ARRAY:
     case HYMN_VALUE_TABLE:
     case HYMN_VALUE_FUNC:
+    case HYMN_VALUE_FUNC_NATIVE:
         return true;
     default:
         return false;
@@ -4449,6 +4473,18 @@ static void dereference(Hymn *H, HymnValue value) {
         assert(count >= 0);
         if (count == 0) {
             function_delete(func);
+        }
+        break;
+    }
+    case HYMN_VALUE_FUNC_NATIVE: {
+#ifdef HYMN_DEBUG_MEMORY
+        debug_dereference(value);
+#endif
+        HymnNativeFunction *func = hymn_as_native(value);
+        int count = --(func->object.count);
+        assert(count >= 0);
+        if (count == 0) {
+            native_function_delete(H, func);
         }
         break;
     }
@@ -4704,7 +4740,10 @@ static HymnFrame *machine_import(Hymn *H, HymnObjectString *file) {
     table_put(imports, module, hymn_new_bool(true));
 
     HymnString *source = hymn_read_file(module->string);
-
+    if (source == NULL) {
+        printf("file not found: %s\n", module->string);
+        exit(1);
+    }
     struct CompileReturn result = compile(H, module->string, source);
 
     HymnFunction *func = result.func;
@@ -6478,28 +6517,6 @@ Hymn *new_hymn() {
 void hymn_delete(Hymn *H) {
     {
         HymnTable *globals = &H->globals;
-        unsigned int bins = globals->bins;
-        for (unsigned int i = 0; i < bins; i++) {
-            HymnTableItem *item = globals->items[i];
-            HymnTableItem *previous = NULL;
-            while (item != NULL) {
-                HymnTableItem *next = item->next;
-                if (hymn_is_native(item->value)) {
-                    if (previous == NULL) {
-                        globals->items[i] = next;
-                    } else {
-                        previous->next = next;
-                    }
-                    native_function_delete(hymn_as_native(item->value));
-                    free(item);
-                    globals->size--;
-                } else {
-                    previous = item;
-                }
-                item = next;
-            }
-        }
-
         HymnObjectString *__globals = hymn_intern_string(H, hymn_new_string("__globals"));
         table_remove(globals, __globals);
         dereference_string(H, __globals);
@@ -6559,6 +6576,7 @@ void hymn_add(Hymn *H, const char *name, HymnValue value) {
     } else {
         dereference(H, previous);
     }
+    reference(value);
 }
 
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
@@ -6567,9 +6585,10 @@ void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
 
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
     HymnObjectString *string = hymn_intern_string(H, hymn_new_string(name));
-    HymnString *string_name = string_copy(string->string);
-    HymnNativeFunction *value = new_native_function(string_name, func);
-    HymnValue previous = table_put(&H->globals, string, hymn_new_native(value));
+    HymnNativeFunction *native = new_native_function(string, func);
+    HymnValue value = hymn_new_native(native);
+    reference(value);
+    HymnValue previous = table_put(&H->globals, string, value);
     if (hymn_is_undefined(previous)) {
         reference_string(string);
     } else {
@@ -6581,6 +6600,10 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
     HymnString *code = NULL;
     if (source == NULL) {
         code = hymn_read_file(script);
+        if (code == NULL) {
+            printf("file not found: %s\n", script);
+            exit(1);
+        }
     } else {
         code = hymn_new_string(source);
     }
@@ -6664,6 +6687,10 @@ char *hymn_do(Hymn *H, const char *source) {
 
 char *hymn_read(Hymn *H, const char *script) {
     HymnString *source = hymn_read_file(script);
+    if (source == NULL) {
+        printf("file not found: %s\n", script);
+        exit(1);
+    }
     char *error = hymn_run(H, script, source);
     hymn_string_delete(source);
     return error;

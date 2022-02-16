@@ -1,0 +1,1 @@
+echo glob("^foo.*bar$", "foo hello world bar")

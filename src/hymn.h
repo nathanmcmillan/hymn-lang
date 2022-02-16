@@ -80,7 +80,6 @@ struct HymnValue {
         int64_t i;
         double f;
         HymnObject *o;
-        HymnNativeFunction *n;
         void *p;
     } as;
 };
@@ -127,7 +126,8 @@ struct HymnSet {
 };
 
 struct HymnNativeFunction {
-    HymnString *name;
+    HymnObject object;
+    HymnObjectString *name;
     HymnNativeCall func;
 };
 
@@ -181,13 +181,17 @@ struct Hymn {
     void (*print_error)(const char *format, ...);
 };
 
-bool hymn_file_exists(const char *path);
+size_t hymn_file_size(const char *path);
 HymnString *hymn_read_file(const char *path);
+bool hymn_file_exists(const char *path);
 
+HymnString *hymn_new_string_with_capacity(size_t capacity);
 HymnString *hymn_new_string_with_length(const char *init, size_t length);
+HymnString *hymn_new_empty_string(size_t length);
 HymnString *hymn_new_string(const char *init);
 HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string);
 
+HymnStringHead *hymn_string_head(HymnString *string);
 size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
 bool hymn_string_equal(HymnString *a, HymnString *b);
