@@ -1,0 +1,119 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+#include "hymn.h"
+
+bool hymn_string_ends_with(HymnString *string, const char *p) {
+    size_t slen = hymn_string_len(string);
+    size_t plen = strlen(p);
+    return slen < plen ? false : memcmp(&string[slen - plen], p, plen) == 0;
+}
+
+bool hymn_string_contains(HymnString *string, const char *p) {
+    size_t slen = hymn_string_len(string);
+    size_t plen = strlen(p);
+    if (plen > slen) {
+        return false;
+    }
+    size_t diff = slen - plen;
+    for (size_t i = 0; i <= diff; i++) {
+        if (memcmp(&string[i], p, plen) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void hymn_string_trim(HymnString *string) {
+    size_t len = hymn_string_len(string);
+    size_t start = 0;
+    while (start < len) {
+        char c = string[start];
+        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            break;
+        }
+        start++;
+    }
+    if (start == len) {
+        hymn_string_zero(string);
+    } else {
+        size_t end = len - 1;
+        while (end > start) {
+            char c = string[end];
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+                break;
+            }
+            end--;
+        }
+        end++;
+        size_t offset = start;
+        size_t size = end - start;
+        for (size_t i = 0; i < size; i++) {
+            string[i] = string[offset++];
+        }
+        HymnStringHead *head = hymn_string_head(string);
+        head->length = size;
+        string[end] = '\0';
+    }
+}
+
+static HymnValue string_ends(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue starts = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(starts)) {
+            bool result = hymn_string_ends_with(hymn_as_string(value), hymn_as_string(starts));
+            return hymn_new_bool(result);
+        }
+    }
+    return hymn_new_none();
+}
+
+static HymnValue string_starts(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue starts = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(starts)) {
+            bool result = hymn_string_starts_with(hymn_as_string(value), hymn_as_string(starts));
+            return hymn_new_bool(result);
+        }
+    }
+    return hymn_new_none();
+}
+
+static HymnValue string_replace(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 3) {
+        HymnValue value = arguments[0];
+        HymnValue find = arguments[1];
+        HymnValue replace = arguments[2];
+        if (hymn_is_string(value) && hymn_is_string(find) && hymn_is_string(replace)) {
+            HymnString *result = hymn_string_replace(hymn_as_string(value), hymn_as_string(find), hymn_as_string(replace));
+            HymnObjectString *string = hymn_intern_string(H, result);
+            return hymn_new_string_value(string);
+        }
+    }
+    return hymn_new_none();
+}
+
+static HymnValue string_trim(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 1) {
+        HymnValue value = arguments[0];
+        if (hymn_is_string(value)) {
+            HymnString *copy = hymn_string_copy(hymn_as_string(value));
+            hymn_string_trim(copy);
+            HymnObjectString *trim = hymn_intern_string(H, copy);
+            return hymn_new_string_value(trim);
+        }
+    }
+    return hymn_new_none();
+}
+
+void hymn_use_string(Hymn *hymn) {
+    hymn_add_function(hymn, "string:ends", string_ends);
+    hymn_add_function(hymn, "string:starts", string_starts);
+    hymn_add_function(hymn, "string:replace", string_replace);
+    hymn_add_function(hymn, "string:trim", string_trim);
+}

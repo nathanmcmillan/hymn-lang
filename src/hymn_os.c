@@ -38,7 +38,7 @@ static HymnValue os_env(Hymn *H, int count, HymnValue *arguments) {
     if (variable == NULL) {
         return hymn_new_none();
     }
-    HymnObjectString *string = hymn_get_string(H, variable);
+    HymnObjectString *string = hymn_new_intern_string(H, variable);
     return hymn_new_string_value(string);
 }
 

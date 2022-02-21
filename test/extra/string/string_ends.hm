@@ -1,0 +1,2 @@
+echo string:ends('foobar', 'bar')
+echo string:ends('foobar', 'foo')

@@ -1,6 +1,47 @@
-echo glob("?oo", "foo")
-echo glob("?oo", "boo")
-echo glob("?oo", "not")
+echo " [true]"
 
-echo glob("foo*bar", "foobar")
-echo glob("foo*bar", "foo hello world bar")
+echo " 1. " + glob("?oo", "foo")
+echo " 2. " + glob("?oo", "boo")
+
+echo " 3. " + glob("fooba?", "foobar")
+echo " 4. " + glob("fooba?", "foobaz")
+
+echo " 5. " + glob("foo?ar", "foobar")
+echo " 6. " + glob("foo?ar", "foozar")
+
+echo " 7. " + glob("foo*bar", "foobar")
+echo " 8. " + glob("foo*bar", "foo hello world bar")
+
+echo " 9. " + glob("*foobar", "foobar")
+echo "10. " + glob("*foobar", "hello world foobar")
+
+echo "11. " + glob("foobar*", "foobar")
+echo "12. " + glob("foobar*", "foobar hello world")
+
+echo "13. " + glob("", "")
+
+echo "14. " + glob("*", "")
+echo "15. " + glob("*", "anything is ok")
+
+echo "16. " + glob("hello*world*foo*bar", "helloworldfoobar")
+echo "17. " + glob("hello*world*foo*bar", "hello_world_foo_bar")
+echo "18. " + glob("hello*world*foo*bar", "hello_world_hello_world_foo_foo_bar")
+echo "19. " + glob("hello*world*foo*bar", "hello_//_world_//_foo_//_bar")
+
+echo "20. " + glob("hello?world?foo?bar", "hello_world_foo_bar")
+
+echo ""
+echo " [false]"
+
+echo " 1. " + glob("?oo", "not")
+echo " 2. " + glob("fooba?", "fooba")
+echo " 3. " + glob("foo?ar", "fooar")
+echo " 4. " + glob("foo*bar", "foobars")
+echo " 5. " + glob("*foobar", "foobars")
+echo " 6. " + glob("foobar*", "nofoobar")
+echo " 7. " + glob("", "nothing")
+
+echo " 8. " + glob("hello*world*foo*bar", "helloworldfooba")
+echo " 9. " + glob("hello*world*foo*bar", "hello_world_foo_ba")
+echo "10. " + glob("hello*world*foo*bar", "hello_foo_bar")
+echo "11. " + glob("hello?world?foo?bar", "hello_world_foobar")

@@ -1,0 +1,1 @@
+echo string:replace('zoobie goobie', 'ie', 'er')

@@ -4,90 +4,98 @@
 
 #include "hymn.h"
 
-static bool glob_here(char *regexp, char *text);
+static bool glob_here(char *pattern, char *text);
 
-static bool glob_star(int c, char *regexp, char *text) {
-    do {
-        if (glob_here(regexp, text)) {
+static bool glob_star(char *pattern, char *text) {
+    while (true) {
+        if (glob_here(pattern, text)) {
             return true;
+        } else if (text[0] == '\0') {
+            return false;
         }
-    } while (*text != '\0' && (*text++ == c || c == '?'));
-    return false;
+        text++;
+    }
 }
 
-static bool glob_here(char *regexp, char *text) {
-    if (regexp[0] == '\0') {
-        return true;
-    }
-    if (regexp[1] == '*') {
-        return glob_star(regexp[0], regexp + 2, text);
-    }
-    if (*text != '\0' && (regexp[0] == '?' || regexp[0] == *text)) {
-        return glob_here(regexp + 1, text + 1);
+static bool glob_here(char *pattern, char *text) {
+    if (pattern[0] == '\0') {
+        return text[0] == '\0';
+    } else if (pattern[0] == '*') {
+        return glob_star(pattern + 1, text);
+    } else if (text[0] != '\0' && (pattern[0] == '?' || pattern[0] == text[0])) {
+        return glob_here(pattern + 1, text + 1);
     }
     return false;
 }
 
 static HymnValue glob(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
-    if (count < 2) {
-        return hymn_new_none();
+    if (count >= 2) {
+        HymnValue expression = arguments[0];
+        HymnValue text = arguments[1];
+        if (hymn_is_string(expression) && hymn_is_string(text)) {
+            bool result = glob_here(hymn_as_string(expression), hymn_as_string(text));
+            return hymn_new_bool(result);
+        }
     }
-    HymnString *expression = hymn_as_string(arguments[0]);
-    HymnString *text = hymn_as_string(arguments[1]);
-    // TODO, match against '*' (anything) and '?' (any single character)
-    bool result = glob_here(expression, text);
-    return hymn_new_bool(result);
+    return hymn_new_none();
 }
 
-static bool match_here(char *regexp, char *text);
+static bool match_here(char *regex, char *text);
 
-static bool match_star(int c, char *regexp, char *text) {
-    do {
-        if (match_here(regexp, text)) {
+static bool match_star(int c, char *regex, char *text) {
+    while (true) {
+        if (match_here(regex, text)) {
             return true;
         }
-    } while (*text != '\0' && (*text++ == c || c == '.'));
-    return false;
+        char n = text[0];
+        if (n == '\0' || (c != '.' && c != n)) {
+            return false;
+        }
+        text++;
+    }
 }
 
-static bool match_here(char *regexp, char *text) {
-    if (regexp[0] == '\0') {
+static bool match_here(char *regex, char *text) {
+    if (regex[0] == '\0') {
         return true;
-    }
-    if (regexp[1] == '*') {
-        return match_star(regexp[0], regexp + 2, text);
-    }
-    if (regexp[0] == '$' && regexp[1] == '\0') {
-        return *text == '\0';
-    }
-    if (*text != '\0' && (regexp[0] == '.' || regexp[0] == *text)) {
-        return match_here(regexp + 1, text + 1);
+    } else if (regex[1] == '*') {
+        return match_star(regex[0], regex + 2, text);
+    } else if (regex[0] == '$' && regex[1] == '\0') {
+        return text[0] == '\0';
+    } else if (text[0] != '\0' && (regex[0] == '.' || regex[0] == text[0])) {
+        return match_here(regex + 1, text + 1);
     }
     return false;
 }
 
-static bool match(char *regexp, char *text) {
-    if (regexp[0] == '^') {
-        return match_here(regexp + 1, text);
+static bool match(char *regex, char *text) {
+    if (regex[0] == '^') {
+        return match_here(regex + 1, text);
     }
-    do {
-        if (match_here(regexp, text)) {
+    while (true) {
+        if (match_here(regex, text)) {
             return true;
         }
-    } while (*text++ != '\0');
+        if (text[0] == '\0') {
+            break;
+        }
+        text++;
+    }
     return false;
 }
 
 static HymnValue pattern(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
-    if (count < 2) {
-        return hymn_new_none();
+    if (count >= 2) {
+        HymnValue expression = arguments[0];
+        HymnValue text = arguments[1];
+        if (hymn_is_string(expression) && hymn_is_string(text)) {
+            bool result = match(hymn_as_string(expression), hymn_as_string(text));
+            return hymn_new_bool(result);
+        }
     }
-    HymnString *expression = hymn_as_string(arguments[0]);
-    HymnString *text = hymn_as_string(arguments[1]);
-    bool result = match(expression, text);
-    return hymn_new_bool(result);
+    return hymn_new_none();
 }
 
 void hymn_use_pattern(Hymn *H) {

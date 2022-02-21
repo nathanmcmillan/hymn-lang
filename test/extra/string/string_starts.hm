@@ -1,0 +1,2 @@
+echo string:starts('foobar', 'foo')
+echo string:starts('foobar', 'bar')

@@ -1,0 +1,6 @@
+echo path:base("")
+echo path:base("/")
+echo path:base("f")
+echo path:base("foo/bar")
+echo path:base("foo/bar/")
+echo path:base("foo/bar/hello.world")

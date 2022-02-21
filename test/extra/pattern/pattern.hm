@@ -1,1 +1,1 @@
-echo glob("^foo.*bar$", "foo hello world bar")
+echo pattern("^foo.*bar$", "foo hello world bar")

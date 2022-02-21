@@ -5,9 +5,42 @@
 #ifndef HYMN_H
 #define HYMN_H
 
+#include <assert.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+
+#ifdef _MSC_VER
+#include <direct.h>
+#include <windows.h>
+#define getcwd _getcwd
+#define PATH_MAX FILENAME_MAX
+#define PATH_SEP '\\'
+#define PATH_SEP_STRING "\\"
+#define PATH_SEP_OTHER '/'
+#define PATH_SEP_OTHER_STRING "/"
+#define UNREACHABLE() __assume(0)
+#define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#else
+#include <dirent.h>
+#include <linux/limits.h>
+#include <unistd.h>
+#define PATH_SEP '/'
+#define PATH_SEP_STRING "/"
+#define PATH_SEP_OTHER '\\'
+#define PATH_SEP_OTHER_STRING "\\"
+#define UNREACHABLE() __builtin_unreachable()
+#define PACK(expr) expr __attribute__((__packed__))
+#endif
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 
@@ -32,12 +65,6 @@ typedef char HymnString;
 
 typedef struct HymnStringHead HymnStringHead;
 
-#ifdef _MSC_VER
-#define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
-#else
-#define PACK(expr) expr __attribute__((__packed__))
-#endif
-
 PACK(struct HymnStringHead {
     size_t length;
     size_t capacity;
@@ -49,11 +76,6 @@ PACK(struct HymnStringHead {
 void *hymn_malloc(size_t size);
 void *hymn_calloc(size_t members, size_t member_size);
 void *hymn_realloc(void *mem, size_t size);
-
-struct HymnFilterList {
-    int count;
-    HymnString **filtered;
-};
 
 typedef struct HymnValue HymnValue;
 typedef struct HymnObject HymnObject;
@@ -181,6 +203,12 @@ struct Hymn {
     void (*print_error)(const char *format, ...);
 };
 
+HymnString *hymn_working_directory();
+HymnString *hymn_path_convert(HymnString *path);
+HymnString *hymn_path_normalize(HymnString *path);
+HymnString *hymn_path_parent(HymnString *path);
+HymnString *hymn_path_absolute(HymnString *path);
+
 size_t hymn_file_size(const char *path);
 HymnString *hymn_read_file(const char *path);
 bool hymn_file_exists(const char *path);
@@ -190,22 +218,20 @@ HymnString *hymn_new_string_with_length(const char *init, size_t length);
 HymnString *hymn_new_empty_string(size_t length);
 HymnString *hymn_new_string(const char *init);
 HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string);
+HymnObjectString *hymn_new_intern_string(Hymn *H, const char *value);
 
 HymnStringHead *hymn_string_head(HymnString *string);
+HymnString *hymn_string_copy(HymnString *string);
 size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
 bool hymn_string_equal(HymnString *a, HymnString *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *this, const char b);
-HymnString *hymn_string_trim(HymnString *this);
-bool hymn_string_contains(HymnString *s, const char *p);
 bool hymn_string_starts_with(HymnString *s, const char *p);
+HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace);
 HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
-
-struct HymnFilterList hymn_string_filter_ends_with(HymnString **input, int count, const char *with);
-void hymn_delete_filter_list(struct HymnFilterList *list);
 
 HymnArray *hymn_new_array(int64_t length);
 HymnTable *hymn_new_table();
@@ -223,6 +249,8 @@ HymnValue hymn_new_table_value(HymnTable *v);
 HymnValue hymn_new_func_value(HymnFunction *v);
 
 HymnObjectString *hymn_new_string_object(HymnString *string);
+
+HymnString *hymn_value_to_string(HymnValue value);
 
 bool hymn_as_bool(HymnValue v);
 int64_t hymn_as_int(HymnValue v);
@@ -253,8 +281,7 @@ bool hymn_values_equal(HymnValue a, HymnValue b);
 bool hymn_match_values(HymnValue a, HymnValue b);
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
-HymnObjectString *hymn_get_string(Hymn *H, const char *value);
-HymnObjectString *hymn_get_string_with_length(Hymn *H, const char *value, size_t length);
+void hymn_set_property_const(Hymn *H, HymnTable *table, const char *name, HymnValue value);
 
 Hymn *new_hymn();
 
@@ -263,6 +290,8 @@ char *hymn_call(Hymn *H, const char *name, int arguments);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
 char *hymn_read(Hymn *H, const char *script);
+
+HymnValue hymn_get(Hymn *H, const char *name);
 
 void hymn_add(Hymn *H, const char *name, HymnValue value);
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);

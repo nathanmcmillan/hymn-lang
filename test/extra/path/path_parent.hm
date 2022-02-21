@@ -1,0 +1,1 @@
+echo path:parent('foo/bar/hello')

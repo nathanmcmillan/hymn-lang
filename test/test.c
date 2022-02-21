@@ -2,125 +2,41 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <time.h>
-
-#ifdef _MSC_VER
-#include <direct.h>
-#include <windows.h>
-#define getcwd _getcwd
-#define PATH_MAX FILENAME_MAX
-#define PATH_SEP '\\'
-#define PATH_SEP_STRING "\\"
-#else
-#include <dirent.h>
-#include <linux/limits.h>
-#include <unistd.h>
-#define PATH_SEP '/'
-#define PATH_SEP_STRING "/"
-#endif
-
 #include "hymn.h"
+#include "hymn_path.h"
+#include "hymn_string.h"
+
+struct FilterList {
+    int count;
+    HymnString **filtered;
+};
 
 int tests_success = 0;
 int tests_fail = 0;
 int tests_count = 0;
 
-struct FileList {
-    int count;
-    int capacity;
-    HymnString **files;
-};
-
-static void file_list_add(struct FileList *list, HymnString *file) {
-    int count = list->count;
-    if (count + 1 > list->capacity) {
-        if (list->capacity == 0) {
-            list->capacity = 1;
-            list->files = hymn_malloc(sizeof(HymnString *));
-        } else {
-            list->capacity *= 2;
-            list->files = hymn_realloc(list->files, list->capacity * sizeof(HymnString *));
-        }
-    }
-    list->files[count] = file;
-    list->count = count + 1;
-}
-
-#ifdef _MSC_VER
-static bool recurse_directories(const char *path, struct FileList *list) {
-    HymnString *search = hymn_string_format("%s" PATH_SEP_STRING "*", path);
-    WIN32_FIND_DATA find;
-    HANDLE handle = FindFirstFile(search, &find);
-    if (handle == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Find files failed: %lu\n", GetLastError());
-    } else {
-        char file[PATH_MAX];
-        do {
-            if (strcmp(find.cFileName, ".") == 0 || strcmp(find.cFileName, "..") == 0) {
-                continue;
-            }
-            strcpy(file, path);
-            strcat(file, PATH_SEP_STRING);
-            strcat(file, find.cFileName);
-            if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                recurse_directories(file, list);
-            } else {
-                file_list_add(list, hymn_new_string(file));
-            }
-        } while (FindNextFile(handle, &find));
-        FindClose(handle);
-    }
-    hymn_string_delete(search);
-    return false;
-}
-#else
-static bool recurse_directories(const char *path, struct FileList *list) {
-    DIR *dir = opendir(path);
-    if (dir == NULL) {
-        return true;
-    }
-    struct dirent *d;
-    char file[PATH_MAX];
-    while ((d = readdir(dir)) != NULL) {
-        if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {
-            continue;
-        }
-        strcpy(file, path);
-        strcat(file, PATH_SEP_STRING);
-        strcat(file, d->d_name);
-        if (recurse_directories(file, list)) {
-            file_list_add(list, hymn_new_string(file));
-        }
-    }
-    closedir(dir);
-    return false;
-}
-#endif
-
-static struct FileList directories(const char *path) {
-    struct FileList list = {.count = 0, .capacity = 0, .files = NULL};
-    recurse_directories(path, &list);
-    return list;
-}
-
-static void delete_file_list(struct FileList *list) {
-    for (int i = 0; i < list->count; i++) {
-        hymn_string_delete(list->files[i]);
-    }
-    free(list->files);
-}
-
 static HymnString *out;
+
+static struct FilterList string_filter(HymnString **input, int count, bool (*filter)(HymnString *a, const char *b), const char *with) {
+    int size = 0;
+    HymnString **filtered = hymn_calloc(count, sizeof(HymnString *));
+    for (int i = 0; i < count; i++) {
+        if (filter(input[i], with)) {
+            filtered[size++] = hymn_string_copy(input[i]);
+        }
+    }
+    return (struct FilterList){.count = size, .filtered = filtered};
+}
+
+static void delete_filter_list(struct FilterList *list) {
+    for (int i = 0; i < list->count; i++) {
+        hymn_string_delete(list->filtered[i]);
+    }
+    free(list->filtered);
+}
 
 static void console(const char *format, ...) {
     va_list args;
-
     va_start(args, format);
     int len = vsnprintf(NULL, 0, format, args);
     va_end(args);
@@ -157,7 +73,8 @@ static HymnString *parse_expected(HymnString *source) {
         }
         break;
     }
-    return hymn_string_trim(expected);
+    hymn_string_trim(expected);
+    return expected;
 }
 
 static HymnString *test_source(HymnString *script) {
@@ -216,27 +133,53 @@ static void test_api() {
     Hymn *hymn = new_hymn();
     hymn->print = console;
     hymn_string_zero(out);
+
     hymn_add_function(hymn, "fun", fun_for_vm);
+
     void *point = hymn_calloc(1, sizeof(void *));
     hymn_add_pointer(hymn, "point", point);
-    char *error = hymn_do(hymn, "echo fun(point)");
+
+    char *error = NULL;
+
+    error = hymn_do(hymn, "fun(point)");
+    if (error != NULL) {
+        goto fail;
+    }
+
+    hymn_do(hymn, "let table = {}");
+    HymnTable *table = hymn_as_table(hymn_get(hymn, "table"));
+    hymn_set_property_const(hymn, table, "number", hymn_new_int(8));
+    error = hymn_do(hymn, "echo table");
+    if (error != NULL) {
+        goto fail;
+    }
+
+    hymn_string_trim(out);
+    if (strcmp(out, "{ number: 8 }") != 0) {
+        printf("Incorrent output: %s\n\n", out);
+    }
+
+    tests_success++;
+    goto end;
+
+fail:
+    printf("%s\n\n", error);
+    free(error);
+    tests_fail++;
+
+end:
     hymn_delete(hymn);
     free(point);
-    if (error != NULL) {
-        printf("%s\n\n", error);
-        tests_fail++;
-    } else {
-        tests_success++;
-    }
 }
 
 static void test_hymn(const char *filter) {
     out = hymn_new_string("");
 
-    struct FileList all = directories("test" PATH_SEP_STRING "language");
+    struct HymnPathFileList all = hymn_walk("test" PATH_SEP_STRING "language");
 
     HymnString *end = hymn_new_string(".hm");
-    struct HymnFilterList scripts = hymn_string_filter_ends_with(all.files, all.count, end);
+
+    struct FilterList scripts = string_filter(all.files, all.count, hymn_string_ends_with, end);
 
     for (int i = 0; i < scripts.count; i++) {
         HymnString *script = scripts.filtered[i];
@@ -255,8 +198,8 @@ static void test_hymn(const char *filter) {
         hymn_string_delete(error);
     }
 
-    delete_file_list(&all);
-    hymn_delete_filter_list(&scripts);
+    hymn_delete_file_list(&all);
+    delete_filter_list(&scripts);
     hymn_string_delete(end);
 
     if (filter == NULL || strcmp(filter, "api") == 0) {

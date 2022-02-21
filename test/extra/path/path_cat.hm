@@ -1,1 +1,1 @@
-echo path:cat('foo', 'bar')
+echo path:cat('foo', 'bar', 100)
