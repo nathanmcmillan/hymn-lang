@@ -170,10 +170,10 @@ bool hymn_string_equal(HymnString *a, HymnString *b) {
     return 0 == strcmp(a, b);
 }
 
-bool hymn_string_starts_with(HymnString *s, const char *p) {
+bool hymn_string_starts_with(HymnString *s, const char *using) {
     size_t slen = hymn_string_len(s);
-    size_t plen = strlen(p);
-    return slen < plen ? false : memcmp(s, p, plen) == 0;
+    size_t plen = strlen(using);
+    return slen < plen ? false : memcmp(s, using, plen) == 0;
 }
 
 static bool string_find(HymnString *string, HymnString *sub, size_t *out) {
@@ -678,11 +678,6 @@ static void declaration(Compiler *C);
 static void statement(Compiler *C);
 static void expression_statement(Compiler *C);
 static void expression(Compiler *C);
-
-static void reference_string(HymnObjectString *string);
-static void reference(HymnValue value);
-static void dereference_string(Hymn *H, HymnObjectString *string);
-static void dereference(Hymn *H, HymnValue value);
 
 static char *interpret(Hymn *H);
 
@@ -1209,8 +1204,8 @@ static void table_clear(Hymn *H, HymnTable *this) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
             HymnTableItem *next = item->next;
-            dereference(H, item->value);
-            dereference_string(H, item->key);
+            hymn_dereference(H, item->value);
+            hymn_dereference_string(H, item->key);
             free(item);
             item = next;
         }
@@ -1229,12 +1224,12 @@ static void table_delete(Hymn *H, HymnTable *this) {
 }
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value) {
-    reference(value);
+    hymn_reference(value);
     HymnValue previous = table_put(table, name, value);
     if (hymn_is_undefined(previous)) {
-        reference_string(name);
+        hymn_reference_string(name);
     } else {
-        dereference(H, previous);
+        hymn_dereference(H, previous);
     }
 }
 
@@ -1370,7 +1365,7 @@ static void set_clear(Hymn *H, HymnSet *this) {
         HymnSetItem *item = this->items[i];
         while (item != NULL) {
             HymnSetItem *next = item->next;
-            dereference_string(H, item->string);
+            hymn_dereference_string(H, item->string);
             free(item);
             item = next;
         }
@@ -2045,7 +2040,7 @@ static HymnNativeFunction *new_native_function(HymnObjectString *name, HymnNativ
     HymnNativeFunction *native = hymn_calloc(1, sizeof(HymnNativeFunction));
     native->name = name;
     native->func = func;
-    reference_string(name);
+    hymn_reference_string(name);
     return native;
 }
 
@@ -2082,7 +2077,7 @@ static HymnArray *new_array_slice(HymnArray *from, int64_t start, int64_t end) {
     this->length = length;
     this->capacity = length;
     for (int64_t i = 0; i < length; i++) {
-        reference(this->items[i]);
+        hymn_reference(this->items[i]);
     }
     return this;
 }
@@ -2104,14 +2099,14 @@ static void array_update_capacity(HymnArray *this, int64_t length) {
     }
 }
 
-static void array_push(HymnArray *this, HymnValue value) {
+void hymn_array_push(HymnArray *this, HymnValue value) {
     int64_t length = this->length + 1;
     array_update_capacity(this, length);
     this->length = length;
     this->items[length - 1] = value;
 }
 
-static void array_insert(HymnArray *this, int64_t index, HymnValue value) {
+void hymn_array_insert(HymnArray *this, int64_t index, HymnValue value) {
     int64_t length = this->length + 1;
     array_update_capacity(this, length);
     this->length = length;
@@ -2122,14 +2117,14 @@ static void array_insert(HymnArray *this, int64_t index, HymnValue value) {
     items[index] = value;
 }
 
-static HymnValue array_get(HymnArray *this, int64_t index) {
+HymnValue hymn_array_get(HymnArray *this, int64_t index) {
     if (index >= this->length) {
         return hymn_new_undefined();
     }
     return this->items[index];
 }
 
-static int64_t array_index_of(HymnArray *this, HymnValue match) {
+int64_t hymn_array_index_of(HymnArray *this, HymnValue match) {
     int64_t len = this->length;
     HymnValue *items = this->items;
     for (int64_t i = 0; i < len; i++) {
@@ -2140,14 +2135,14 @@ static int64_t array_index_of(HymnArray *this, HymnValue match) {
     return -1;
 }
 
-static HymnValue array_pop(HymnArray *this) {
+HymnValue hymn_array_pop(HymnArray *this) {
     if (this->length == 0) {
         return hymn_new_none();
     }
     return this->items[--this->length];
 }
 
-static HymnValue array_remove_index(HymnArray *this, int64_t index) {
+HymnValue hymn_array_remove_index(HymnArray *this, int64_t index) {
     int64_t len = --this->length;
     HymnValue *items = this->items;
     HymnValue deleted = items[index];
@@ -2157,17 +2152,17 @@ static HymnValue array_remove_index(HymnArray *this, int64_t index) {
     return deleted;
 }
 
-static void array_clear(Hymn *H, HymnArray *this) {
+void hymn_array_clear(Hymn *H, HymnArray *this) {
     int64_t len = this->length;
     HymnValue *items = this->items;
     for (int64_t i = 0; i < len; i++) {
-        dereference(H, items[i]);
+        hymn_dereference(H, items[i]);
     }
     this->length = 0;
 }
 
-static void array_delete(Hymn *H, HymnArray *this) {
-    array_clear(H, this);
+void hymn_array_delete(Hymn *H, HymnArray *this) {
+    hymn_array_clear(H, this);
     free(this->items);
     free(this);
 }
@@ -2185,8 +2180,8 @@ static HymnTable *new_table_copy(HymnTable *from) {
         HymnTableItem *item = from->items[i];
         while (item != NULL) {
             table_put(this, item->key, item->value);
-            reference_string(item->key);
-            reference(item->value);
+            hymn_reference_string(item->key);
+            hymn_reference(item->value);
             item = item->next;
         }
     }
@@ -2217,7 +2212,7 @@ static HymnArray *table_keys(HymnTable *this) {
                 insert++;
             }
             HymnValue value = hymn_new_string_value(item->key);
-            reference(value);
+            hymn_reference(value);
             keys[insert] = value;
             total++;
             item = item->next;
@@ -2369,7 +2364,7 @@ HymnObjectString *hymn_new_intern_string(Hymn *H, const char *value) {
 static HymnValue compile_intern_string(Hymn *H, HymnString *string) {
     HymnObjectString *object = set_add_or_get(&H->strings, string);
     if (object->string == string) {
-        reference_string(object);
+        hymn_reference_string(object);
     } else {
         hymn_string_delete(string);
     }
@@ -2647,7 +2642,7 @@ static void function_delete(HymnFunction *this) {
 }
 
 static void native_function_delete(Hymn *H, HymnNativeFunction *this) {
-    dereference_string(H, this->name);
+    hymn_dereference_string(H, this->name);
     free(this);
 }
 
@@ -4263,11 +4258,11 @@ static void debug_dereference(HymnValue value) {
 #endif
 
 #ifdef HYMN_NO_MEMORY_MANAGE
-static void reference_string(HymnObjectString *string) {
+void hymn_reference_string(HymnObjectString *string) {
     (void)string;
 }
 #else
-static void reference_string(HymnObjectString *string) {
+void hymn_reference_string(HymnObjectString *string) {
     string->object.count++;
 #ifdef HYMN_DEBUG_MEMORY
     debug_reference(hymn_new_string_value(string));
@@ -4276,11 +4271,11 @@ static void reference_string(HymnObjectString *string) {
 #endif
 
 #ifdef HYMN_NO_MEMORY_MANAGE
-static void reference(HymnValue value) {
+void hymn_reference(HymnValue value) {
     (void)value;
 }
 #else
-static void reference(HymnValue value) {
+void hymn_reference(HymnValue value) {
     if (is_object(value)) {
         hymn_as_object(value)->count++;
 #ifdef HYMN_DEBUG_MEMORY
@@ -4291,12 +4286,12 @@ static void reference(HymnValue value) {
 #endif
 
 #ifdef HYMN_NO_MEMORY_MANAGE
-static void dereference_string(Hymn *H, HymnObjectString *string) {
+void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
     (void)this;
     (void)string;
 }
 #else
-static void dereference_string(Hymn *H, HymnObjectString *string) {
+void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
 #ifdef HYMN_DEBUG_MEMORY
     debug_dereference(hymn_new_string_value(string));
 #endif
@@ -4311,16 +4306,16 @@ static void dereference_string(Hymn *H, HymnObjectString *string) {
 #endif
 
 #ifdef HYMN_NO_MEMORY_MANAGE
-static void dereference(Hymn *H, HymnValue value) {
+void hymn_dereference(Hymn *H, HymnValue value) {
     (void)this;
     (void)value;
 }
 #else
-static void dereference(Hymn *H, HymnValue value) {
+void hymn_dereference(Hymn *H, HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING: {
         HymnObjectString *string = hymn_as_hymn_string(value);
-        dereference_string(H, string);
+        hymn_dereference_string(H, string);
         break;
     }
     case HYMN_VALUE_ARRAY: {
@@ -4331,7 +4326,7 @@ static void dereference(Hymn *H, HymnValue value) {
         int count = --(array->object.count);
         assert(count >= 0);
         if (count == 0) {
-            array_delete(H, array);
+            hymn_array_delete(H, array);
         }
         break;
     }
@@ -4395,7 +4390,7 @@ static HymnValue pop(Hymn *H) {
 
 static void push_string(Hymn *H, HymnString *string) {
     HymnObjectString *intern = hymn_intern_string(H, string);
-    reference_string(intern);
+    hymn_reference_string(intern);
     push(H, hymn_new_string_value(intern));
 }
 
@@ -4416,20 +4411,20 @@ static HymnFrame *machine_exception(Hymn *H) {
         HymnValue result = pop(H);
         if (except != NULL) {
             while (H->stack_top != &frame->stack[except->locals]) {
-                dereference(H, pop(H));
+                hymn_dereference(H, pop(H));
             }
             frame->ip = &instructions[except->end];
             push(H, result);
             return frame;
         }
         while (H->stack_top != frame->stack) {
-            dereference(H, pop(H));
+            hymn_dereference(H, pop(H));
         }
         H->frame_count--;
         if (H->frame_count == 0 || func->name == NULL) {
             assert(H->error == NULL);
             H->error = hymn_value_to_string(result);
-            dereference(H, result);
+            hymn_dereference(H, result);
             return NULL;
         }
         push(H, result);
@@ -4465,7 +4460,7 @@ static HymnString *machine_stacktrace(Hymn *H) {
 
 static HymnFrame *machine_push_error(Hymn *H, HymnString *error) {
     HymnObjectString *message = hymn_intern_string(H, error);
-    reference_string(message);
+    hymn_reference_string(message);
     push(H, hymn_new_string_value(message));
     return machine_exception(H);
 }
@@ -4524,10 +4519,10 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
     case HYMN_VALUE_FUNC_NATIVE: {
         HymnNativeCall func = hymn_as_native(value)->func;
         HymnValue result = func(H, count, H->stack_top - count);
-        reference(result);
+        hymn_reference(result);
         HymnValue *top = H->stack_top - (count + 1);
         while (H->stack_top != top) {
-            dereference(H, pop(H));
+            hymn_dereference(H, pop(H));
         }
         push(H, result);
         return current_frame(H);
@@ -4570,13 +4565,13 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
         HymnString *path = parent ? hymn_string_replace(replace, "<parent>", parent) : hymn_string_copy(replace);
 
         HymnObjectString *use = hymn_intern_string(H, hymn_path_absolute(path));
-        reference_string(use);
+        hymn_reference_string(use);
 
         hymn_string_delete(path);
         hymn_string_delete(replace);
 
         if (!hymn_is_undefined(table_get(imports, use))) {
-            dereference_string(H, use);
+            hymn_dereference_string(H, use);
             hymn_string_delete(look);
             if (parent) hymn_string_delete(parent);
             return current_frame(H);
@@ -4587,7 +4582,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
             break;
         }
 
-        dereference_string(H, use);
+        hymn_dereference_string(H, use);
     }
 
     if (module == NULL) {
@@ -4640,7 +4635,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     }
 
     HymnValue function = hymn_new_func_value(func);
-    reference(function);
+    hymn_reference(function);
 
     push(H, function);
     call(H, func, 0);
@@ -4817,8 +4812,8 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
             new.as.f _arithmetic_ b.as.f;                                             \
             push(H, new);                                                             \
         } else {                                                                      \
-            dereference(H, a);                                                        \
-            dereference(H, b);                                                        \
+            hymn_dereference(H, a);                                                   \
+            hymn_dereference(H, b);                                                   \
             THROW("Operation Error: 2nd value must be `Integer` or `Float`")          \
         }                                                                             \
     } else if (hymn_is_float(a)) {                                                    \
@@ -4829,13 +4824,13 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
             a.as.f _arithmetic_ b.as.f;                                               \
             push(H, a);                                                               \
         } else {                                                                      \
-            dereference(H, a);                                                        \
-            dereference(H, b);                                                        \
+            hymn_dereference(H, a);                                                   \
+            hymn_dereference(H, b);                                                   \
             THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`") \
         }                                                                             \
     } else {                                                                          \
-        dereference(H, a);                                                            \
-        dereference(H, b);                                                            \
+        hymn_dereference(H, a);                                                       \
+        hymn_dereference(H, b);                                                       \
         THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`")     \
     }
 
@@ -4848,8 +4843,8 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                               \
             push(H, hymn_new_bool((double)hymn_as_int(a) compare hymn_as_float(b))); \
         } else {                                                                     \
-            dereference(H, a);                                                       \
-            dereference(H, b);                                                       \
+            hymn_dereference(H, a);                                                  \
+            hymn_dereference(H, b);                                                  \
             THROW("Operands must be numbers")                                        \
         }                                                                            \
     } else if (hymn_is_float(a)) {                                                   \
@@ -4858,13 +4853,13 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                               \
             push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));       \
         } else {                                                                     \
-            dereference(H, a);                                                       \
-            dereference(H, b);                                                       \
+            hymn_dereference(H, a);                                                  \
+            hymn_dereference(H, b);                                                  \
             THROW("Operands must be numbers")                                        \
         }                                                                            \
     } else {                                                                         \
-        dereference(H, a);                                                           \
-        dereference(H, b);                                                           \
+        hymn_dereference(H, a);                                                      \
+        hymn_dereference(H, b);                                                      \
         THROW("Operands must be numbers")                                            \
     }
 
@@ -4878,8 +4873,8 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                \
             answer = (double)hymn_as_int(a) compare hymn_as_float(b); \
         } else {                                                      \
-            dereference(H, a);                                        \
-            dereference(H, b);                                        \
+            hymn_dereference(H, a);                                   \
+            hymn_dereference(H, b);                                   \
             THROW("Comparison: Operands must be numbers")             \
         }                                                             \
     } else if (hymn_is_float(a)) {                                    \
@@ -4888,13 +4883,13 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                \
             answer = hymn_as_float(a) compare hymn_as_float(b);       \
         } else {                                                      \
-            dereference(H, a);                                        \
-            dereference(H, b);                                        \
+            hymn_dereference(H, a);                                   \
+            hymn_dereference(H, b);                                   \
             THROW("Comparison: Operands must be numbers")             \
         }                                                             \
     } else {                                                          \
-        dereference(H, a);                                            \
-        dereference(H, b);                                            \
+        hymn_dereference(H, a);                                       \
+        hymn_dereference(H, b);                                       \
         THROW("Comparison: Operands must be numbers")                 \
     }                                                                 \
     uint16_t jump = READ_SHORT(frame);                                \
@@ -4935,29 +4930,29 @@ dispatch:
         HymnValue result = pop(H);
         H->frame_count--;
         if (H->frame_count == 0 || frame->func->name == NULL) {
-            dereference(H, pop(H));
+            hymn_dereference(H, pop(H));
             return;
         }
         while (H->stack_top != frame->stack) {
-            dereference(H, pop(H));
+            hymn_dereference(H, pop(H));
         }
         push(H, result);
         frame = current_frame(H);
         HYMN_DISPATCH;
     }
     case OP_POP: {
-        dereference(H, pop(H));
+        hymn_dereference(H, pop(H));
         HYMN_DISPATCH;
     }
     case OP_POP_TWO: {
-        dereference(H, pop(H));
-        dereference(H, pop(H));
+        hymn_dereference(H, pop(H));
+        hymn_dereference(H, pop(H));
         HYMN_DISPATCH;
     }
     case OP_POP_N: {
         int count = READ_BYTE(frame);
         while (count--) {
-            dereference(H, pop(H));
+            hymn_dereference(H, pop(H));
         }
         HYMN_DISPATCH;
     }
@@ -4999,7 +4994,7 @@ dispatch:
         if (hymn_value_false(a)) {
             frame->ip += jump;
         }
-        dereference(H, a);
+        hymn_dereference(H, a);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_TRUE: {
@@ -5008,7 +5003,7 @@ dispatch:
         if (!hymn_value_false(a)) {
             frame->ip += jump;
         }
-        dereference(H, a);
+        hymn_dereference(H, a);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_EQUAL: {
@@ -5018,8 +5013,8 @@ dispatch:
         if (hymn_values_equal(a, b)) {
             frame->ip += jump;
         }
-        dereference(H, a);
-        dereference(H, b);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_NOT_EQUAL: {
@@ -5029,8 +5024,8 @@ dispatch:
         if (!hymn_values_equal(a, b)) {
             frame->ip += jump;
         }
-        dereference(H, a);
-        dereference(H, b);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_LESS: {
@@ -5069,8 +5064,8 @@ dispatch:
             } else {
                 frame->stack[slot + 1] = hymn_new_string_value(next->key);
                 frame->stack[slot + 2] = next->value;
-                reference_string(next->key);
-                reference(next->value);
+                hymn_reference_string(next->key);
+                hymn_reference(next->value);
                 frame->ip += 2;
             }
         } else if (hymn_is_array(object)) {
@@ -5084,7 +5079,7 @@ dispatch:
                 HymnValue item = array->items[0];
                 frame->stack[slot + 1] = hymn_new_int(0);
                 frame->stack[slot + 2] = item;
-                reference(item);
+                hymn_reference(item);
                 frame->ip += 2;
             }
         } else {
@@ -5106,12 +5101,12 @@ dispatch:
             if (next == NULL) {
                 frame->ip += 2;
             } else {
-                dereference(H, frame->stack[index]);
-                dereference(H, frame->stack[value]);
+                hymn_dereference(H, frame->stack[index]);
+                hymn_dereference(H, frame->stack[value]);
                 frame->stack[index] = hymn_new_string_value(next->key);
                 frame->stack[value] = next->value;
-                reference_string(next->key);
-                reference(next->value);
+                hymn_reference_string(next->key);
+                hymn_reference(next->value);
                 uint16_t jump = READ_SHORT(frame);
                 frame->ip -= jump;
             }
@@ -5121,11 +5116,11 @@ dispatch:
             if (key >= array->length) {
                 frame->ip += 2;
             } else {
-                dereference(H, frame->stack[value]);
+                hymn_dereference(H, frame->stack[value]);
                 HymnValue item = array->items[key];
                 frame->stack[index].as.i++;
                 frame->stack[value] = item;
-                reference(item);
+                hymn_reference(item);
                 uint16_t jump = READ_SHORT(frame);
                 frame->ip -= jump;
             }
@@ -5136,16 +5131,16 @@ dispatch:
         HymnValue b = pop(H);
         HymnValue a = pop(H);
         push(H, hymn_new_bool(hymn_values_equal(a, b)));
-        dereference(H, a);
-        dereference(H, b);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_NOT_EQUAL: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
         push(H, hymn_new_bool(!hymn_values_equal(a, b)));
-        dereference(H, a);
-        dereference(H, b);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_LESS: {
@@ -5171,16 +5166,16 @@ dispatch:
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_int(a)) {
@@ -5193,8 +5188,8 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_float(a)) {
@@ -5207,8 +5202,8 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_string(a)) {
@@ -5216,8 +5211,8 @@ dispatch:
         } else {
             THROW("Add: 1st and 2nd values can't be added")
         }
-        dereference(H, a);
-        dereference(H, b);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
         HYMN_DISPATCH;
     }
     case OP_ADD_TWO_LOCAL: {
@@ -5227,16 +5222,16 @@ dispatch:
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_int(a)) {
@@ -5249,8 +5244,8 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_float(a)) {
@@ -5263,8 +5258,8 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Add: 1st and 2nd values can't be added")
             }
         } else if (hymn_is_string(a)) {
@@ -5278,10 +5273,10 @@ dispatch:
         HymnValue a = pop(H);
         uint8_t increment = READ_BYTE(frame);
         if (hymn_is_none(a)) {
-            dereference(H, a);
+            hymn_dereference(H, a);
             THROW("Increment: 1st and 2nd values can't be added")
         } else if (hymn_is_bool(a)) {
-            dereference(H, a);
+            hymn_dereference(H, a);
             THROW("Increment: 1st and 2nd values can't be added")
         } else if (hymn_is_int(a)) {
             a.as.i += (int64_t)increment;
@@ -5294,7 +5289,7 @@ dispatch:
         } else {
             THROW("Increment: 1st and 2nd values can't be added")
         }
-        dereference(H, a);
+        hymn_dereference(H, a);
         HYMN_DISPATCH;
     }
     case OP_SUBTRACT: {
@@ -5317,13 +5312,13 @@ dispatch:
                 a.as.i %= b.as.i;
                 push(H, a);
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Modulo Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("Modulo Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
@@ -5334,7 +5329,7 @@ dispatch:
             value.as.i = ~value.as.i;
             push(H, value);
         } else {
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Bitwise operand must integer")
         }
         HYMN_DISPATCH;
@@ -5347,13 +5342,13 @@ dispatch:
                 a.as.i |= b.as.i;
                 push(H, a);
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Bit Or Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("Bit Or Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
@@ -5366,13 +5361,13 @@ dispatch:
                 a.as.i &= b.as.i;
                 push(H, a);
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Bit And Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("Bit And Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
@@ -5385,13 +5380,13 @@ dispatch:
                 a.as.i ^= b.as.i;
                 push(H, a);
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Bit Xor Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("Bit Xor Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
@@ -5404,13 +5399,13 @@ dispatch:
                 a.as.i <<= b.as.i;
                 push(H, a);
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Bit Left Shift Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("Bit Left Shift Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
@@ -5423,13 +5418,13 @@ dispatch:
                 a.as.i >>= b.as.i;
                 push(H, a);
             } else {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Bit Right Shift Error: 2nd value must be `Integer`")
             }
         } else {
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("Bit Right Shift Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
@@ -5441,7 +5436,7 @@ dispatch:
         } else if (hymn_is_float(value)) {
             value.as.f = -value.as.f;
         } else {
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Negate: Must be a number")
         }
         push(H, value);
@@ -5452,7 +5447,7 @@ dispatch:
         if (hymn_is_bool(value)) {
             value.as.b = !value.as.b;
         } else {
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Not: Operand must be a boolean")
         }
         push(H, value);
@@ -5472,7 +5467,7 @@ dispatch:
         default:
             break;
         }
-        reference(constant);
+        hymn_reference(constant);
         push(H, constant);
         HYMN_DISPATCH;
     }
@@ -5481,10 +5476,10 @@ dispatch:
         HymnValue value = pop(H);
         HymnValue previous = table_put(&H->globals, name, value);
         if (!hymn_is_undefined(previous)) {
-            dereference(H, previous);
+            hymn_dereference(H, previous);
             THROW("multiple global definitions of '%s'", name->string)
         } else {
-            reference_string(name);
+            hymn_reference_string(name);
         }
         HYMN_DISPATCH;
     }
@@ -5495,9 +5490,9 @@ dispatch:
         if (hymn_is_undefined(previous)) {
             THROW("undefined variable '%s'", name->string)
         } else {
-            dereference(H, previous);
+            hymn_dereference(H, previous);
         }
-        reference(value);
+        hymn_reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_GLOBAL: {
@@ -5506,22 +5501,22 @@ dispatch:
         if (hymn_is_undefined(get)) {
             THROW("undefined variable '%s'", name->string)
         }
-        reference(get);
+        hymn_reference(get);
         push(H, get);
         HYMN_DISPATCH;
     }
     case OP_SET_LOCAL: {
         uint8_t slot = READ_BYTE(frame);
         HymnValue value = peek(H, 1);
-        dereference(H, frame->stack[slot]);
+        hymn_dereference(H, frame->stack[slot]);
         frame->stack[slot] = value;
-        reference(value);
+        hymn_reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_LOCAL: {
         uint8_t slot = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
-        reference(value);
+        hymn_reference(value);
         push(H, value);
         HYMN_DISPATCH;
     }
@@ -5530,8 +5525,8 @@ dispatch:
         uint8_t slot_b = READ_BYTE(frame);
         HymnValue value_a = frame->stack[slot_a];
         HymnValue value_b = frame->stack[slot_b];
-        reference(value_a);
-        reference(value_b);
+        hymn_reference(value_a);
+        hymn_reference(value_b);
         push(H, value_a);
         push(H, value_b);
         HYMN_DISPATCH;
@@ -5571,22 +5566,22 @@ dispatch:
         HymnValue table_value = pop(H);
         if (!hymn_is_table(table_value)) {
             const char *is = value_name(table_value.is);
-            dereference(H, value);
-            dereference(H, table_value);
+            hymn_dereference(H, value);
+            hymn_dereference(H, table_value);
             THROW("Set Property: Expected `Table` but was `%s`", is)
         }
         HymnTable *table = hymn_as_table(table_value);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         hymn_set_property(H, table, name, value);
         push(H, value);
-        dereference(H, table_value);
+        hymn_dereference(H, table_value);
         HYMN_DISPATCH;
     }
     case OP_GET_PROPERTY: {
         HymnValue v = pop(H);
         if (!hymn_is_table(v)) {
             const char *is = value_name(v.is);
-            dereference(H, v);
+            hymn_dereference(H, v);
             THROW("Get Property: Requires `Table` but was `%s`", is)
         }
         HymnTable *table = hymn_as_table(v);
@@ -5595,9 +5590,9 @@ dispatch:
         if (hymn_is_undefined(g)) {
             g.is = HYMN_VALUE_NONE;
         } else {
-            reference(g);
+            hymn_reference(g);
         }
-        dereference(H, v);
+        hymn_dereference(H, v);
         push(H, g);
         HYMN_DISPATCH;
     }
@@ -5606,14 +5601,14 @@ dispatch:
         HymnValue object = pop(H);
         if (!hymn_is_table(object)) {
             const char *is = value_name(object.is);
-            dereference(H, value);
-            dereference(H, object);
+            hymn_dereference(H, value);
+            hymn_dereference(H, object);
             THROW("Exists: Requires `Table` but was `%s`", is)
         }
         if (!hymn_is_string(value)) {
             const char *is = value_name(value.is);
-            dereference(H, value);
-            dereference(H, object);
+            hymn_dereference(H, value);
+            hymn_dereference(H, object);
             THROW("Exists: Requires `String` for second argument but was `%s`", is)
         }
         HymnTable *table = hymn_as_table(object);
@@ -5624,8 +5619,8 @@ dispatch:
         } else {
             push(H, hymn_new_bool(true));
         }
-        dereference(H, value);
-        dereference(H, object);
+        hymn_dereference(H, value);
+        hymn_dereference(H, object);
         HYMN_DISPATCH;
     }
     case OP_SET_DYNAMIC: {
@@ -5634,61 +5629,61 @@ dispatch:
         HymnValue object = pop(H);
         if (hymn_is_array(object)) {
             if (!hymn_is_int(property)) {
-                dereference(H, value);
-                dereference(H, property);
-                dereference(H, object);
+                hymn_dereference(H, value);
+                hymn_dereference(H, property);
+                hymn_dereference(H, object);
                 THROW("Dynamic Set: `Integer` required to set `Array` index")
             }
             HymnArray *array = hymn_as_array(object);
             int64_t size = array->length;
             int64_t index = hymn_as_int(property);
             if (index > size) {
-                dereference(H, value);
-                dereference(H, property);
-                dereference(H, object);
+                hymn_dereference(H, value);
+                hymn_dereference(H, property);
+                hymn_dereference(H, object);
                 THROW("Dynamic Set: Array index out of bounds %d > %d.", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(H, value);
-                    dereference(H, property);
-                    dereference(H, object);
+                    hymn_dereference(H, value);
+                    hymn_dereference(H, property);
+                    hymn_dereference(H, object);
                     THROW("Dynamic Set: Array index out of bounds %d.", index)
                 }
             }
             if (index == size) {
-                array_push(array, value);
+                hymn_array_push(array, value);
             } else {
-                dereference(H, array->items[index]);
+                hymn_dereference(H, array->items[index]);
                 array->items[index] = value;
             }
         } else if (hymn_is_table(object)) {
             if (!hymn_is_string(property)) {
                 const char *is = value_name(property.is);
-                dereference(H, value);
-                dereference(H, property);
-                dereference(H, object);
+                hymn_dereference(H, value);
+                hymn_dereference(H, property);
+                hymn_dereference(H, object);
                 THROW("Dynamic Set: Requires `String` to set `Table` property, but was `%s`.", is)
             }
             HymnTable *table = hymn_as_table(object);
             HymnObjectString *name = hymn_as_hymn_string(property);
             HymnValue previous = table_put(table, name, value);
             if (hymn_is_undefined(previous)) {
-                reference_string(name);
+                hymn_reference_string(name);
             } else {
-                dereference(H, previous);
+                hymn_dereference(H, previous);
             }
         } else {
             const char *is = value_name(object.is);
-            dereference(H, value);
-            dereference(H, property);
-            dereference(H, object);
+            hymn_dereference(H, value);
+            hymn_dereference(H, property);
+            hymn_dereference(H, object);
             THROW("Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.", is)
         }
         push(H, value);
-        dereference(H, object);
-        reference(value);
+        hymn_dereference(H, object);
+        hymn_reference(value);
         HYMN_DISPATCH;
     }
     case OP_GET_DYNAMIC: {
@@ -5698,64 +5693,64 @@ dispatch:
         case HYMN_VALUE_STRING: {
             if (!hymn_is_int(i)) {
                 const char *is = value_name(v.is);
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Get Dynamic: Requires `Integer` to get string character from index, but was `%s`", is)
             }
             HymnString *string = hymn_as_string(v);
             int64_t size = (int64_t)hymn_string_len(string);
             int64_t index = hymn_as_int(i);
             if (index >= size) {
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("String index out of bounds %d >= %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(H, i);
-                    dereference(H, v);
+                    hymn_dereference(H, i);
+                    hymn_dereference(H, v);
                     THROW("String index out of bounds %d", index)
                 }
             }
             char c = string[index];
             push_string(H, char_to_string(c));
-            dereference(H, v);
+            hymn_dereference(H, v);
             break;
         }
         case HYMN_VALUE_ARRAY: {
             if (!hymn_is_int(i)) {
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Integer required to get array index")
             }
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
             int64_t index = hymn_as_int(i);
             if (index >= size) {
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Array index out of bounds %d >= %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(H, i);
-                    dereference(H, v);
+                    hymn_dereference(H, i);
+                    hymn_dereference(H, v);
                     THROW("Array index out of bounds %d", index)
                 }
             }
-            HymnValue g = array_get(array, index);
-            reference(g);
+            HymnValue g = hymn_array_get(array, index);
+            hymn_reference(g);
             push(H, g);
-            dereference(H, v);
+            hymn_dereference(H, v);
             break;
         }
         case HYMN_VALUE_TABLE: {
             if (!hymn_is_string(i)) {
                 const char *is = value_name(i.is);
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
             }
             HymnTable *table = hymn_as_table(v);
@@ -5764,17 +5759,17 @@ dispatch:
             if (hymn_is_undefined(g)) {
                 g.is = HYMN_VALUE_NONE;
             } else {
-                reference(g);
+                hymn_reference(g);
             }
             push(H, g);
-            dereference(H, i);
-            dereference(H, v);
+            hymn_dereference(H, i);
+            hymn_dereference(H, v);
             break;
         }
         default: {
             const char *is = value_name(v.is);
-            dereference(H, i);
-            dereference(H, v);
+            hymn_dereference(H, i);
+            hymn_dereference(H, v);
             THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
         }
         }
@@ -5799,22 +5794,22 @@ dispatch:
             break;
         }
         default:
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Len: Expected `Array` or `Table`")
         }
-        dereference(H, value);
+        hymn_dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_ARRAY_POP: {
         HymnValue a = pop(H);
         if (!hymn_is_array(a)) {
             const char *is = value_name(a.is);
-            dereference(H, a);
+            hymn_dereference(H, a);
             THROW("Pop: Expected `Array` for 1st argument, but was `%s`.", is)
         } else {
-            HymnValue value = array_pop(hymn_as_array(a));
+            HymnValue value = hymn_array_pop(hymn_as_array(a));
             push(H, value);
-            dereference(H, a);
+            hymn_dereference(H, a);
         }
         HYMN_DISPATCH;
     }
@@ -5823,14 +5818,14 @@ dispatch:
         HymnValue array = pop(H);
         if (!hymn_is_array(array)) {
             const char *is = value_name(value.is);
-            dereference(H, array);
-            dereference(H, value);
+            hymn_dereference(H, array);
+            hymn_dereference(H, value);
             THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
         } else {
-            array_push(hymn_as_array(array), value);
+            hymn_array_push(hymn_as_array(array), value);
             push(H, value);
-            reference(value);
-            dereference(H, array);
+            hymn_reference(value);
+            hymn_dereference(H, array);
         }
         HYMN_DISPATCH;
     }
@@ -5841,42 +5836,42 @@ dispatch:
         if (hymn_is_array(v)) {
             if (!hymn_is_int(i)) {
                 const char *is = value_name(i.is);
-                dereference(H, p);
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, p);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
             }
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
             int64_t index = hymn_as_int(i);
             if (index > size) {
-                dereference(H, p);
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, p);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Insert Function: Array index out of bounds: %d > %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(H, p);
-                    dereference(H, i);
-                    dereference(H, v);
+                    hymn_dereference(H, p);
+                    hymn_dereference(H, i);
+                    hymn_dereference(H, v);
                     THROW("Insert Function: Array index less than zero: %d", index)
                 }
             }
             if (index == size) {
-                array_push(array, p);
+                hymn_array_push(array, p);
             } else {
-                array_insert(array, index, p);
+                hymn_array_insert(array, index, p);
             }
             push(H, p);
-            reference(p);
-            dereference(H, v);
+            hymn_reference(p);
+            hymn_dereference(H, v);
         } else {
             const char *is = value_name(v.is);
-            dereference(H, p);
-            dereference(H, i);
-            dereference(H, v);
+            hymn_dereference(H, p);
+            hymn_dereference(H, i);
+            hymn_dereference(H, v);
             THROW("Insert Function: Expected `Array` for 1st argument, but was `%s`.", is)
         }
         HYMN_DISPATCH;
@@ -5886,33 +5881,33 @@ dispatch:
         HymnValue v = pop(H);
         if (hymn_is_array(v)) {
             if (!hymn_is_int(i)) {
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Integer required to delete from array")
             }
             HymnArray *array = hymn_as_array(v);
             int64_t size = array->length;
             int64_t index = hymn_as_int(i);
             if (index >= size) {
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("Array index out of bounds %d > %d.", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
-                    dereference(H, i);
-                    dereference(H, v);
+                    hymn_dereference(H, i);
+                    hymn_dereference(H, v);
                     THROW("Array index out of bounds %d.", index)
                 }
             }
-            HymnValue value = array_remove_index(array, index);
+            HymnValue value = hymn_array_remove_index(array, index);
             push(H, value);
-            dereference(H, v);
+            hymn_dereference(H, v);
         } else if (hymn_is_table(v)) {
             if (!hymn_is_string(i)) {
-                dereference(H, i);
-                dereference(H, v);
+                hymn_dereference(H, i);
+                hymn_dereference(H, v);
                 THROW("String required to delete from table")
             }
             HymnTable *table = hymn_as_table(v);
@@ -5921,14 +5916,14 @@ dispatch:
             if (hymn_is_undefined(value)) {
                 value.is = HYMN_VALUE_NONE;
             } else {
-                dereference_string(H, name);
+                hymn_dereference_string(H, name);
             }
             push(H, value);
-            dereference(H, v);
-            dereference_string(H, name);
+            hymn_dereference(H, v);
+            hymn_dereference_string(H, name);
         } else {
-            dereference(H, i);
-            dereference(H, v);
+            hymn_dereference(H, i);
+            hymn_dereference(H, v);
             THROW("Expected array or table for `delete` function")
         }
         HYMN_DISPATCH;
@@ -5949,16 +5944,16 @@ dispatch:
             HymnArray *copy = new_array_copy(hymn_as_array(value));
             HymnValue new = hymn_new_array_value(copy);
             push(H, new);
-            reference(new);
-            dereference(H, value);
+            hymn_reference(new);
+            hymn_dereference(H, value);
             break;
         }
         case HYMN_VALUE_TABLE: {
             HymnTable *copy = new_table_copy(hymn_as_table(value));
             HymnValue new = hymn_new_table_value(copy);
             push(H, new);
-            reference(new);
-            dereference(H, value);
+            hymn_reference(new);
+            hymn_dereference(H, value);
             break;
         }
         default:
@@ -5971,9 +5966,9 @@ dispatch:
         HymnValue a = pop(H);
         HymnValue v = pop(H);
         if (!hymn_is_int(a)) {
-            dereference(H, a);
-            dereference(H, b);
-            dereference(H, v);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
+            hymn_dereference(H, v);
             THROW("Integer required for slice expression")
         }
         int64_t start = hymn_as_int(a);
@@ -5986,30 +5981,30 @@ dispatch:
             } else if (hymn_is_none(b)) {
                 end = size;
             } else {
-                dereference(H, a);
-                dereference(H, b);
-                dereference(H, v);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
+                hymn_dereference(H, v);
                 THROW("Integer required for slice expression")
             }
             if (end > size) {
-                dereference(H, a);
-                dereference(H, b);
-                dereference(H, v);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
+                hymn_dereference(H, v);
                 THROW("String index out of bounds %d > %d", end, size)
             }
             if (end < 0) {
                 end = size + end;
                 if (end < 0) {
-                    dereference(H, a);
-                    dereference(H, b);
-                    dereference(H, v);
+                    hymn_dereference(H, a);
+                    hymn_dereference(H, b);
+                    hymn_dereference(H, v);
                     THROW("String index out of bounds %d", end)
                 }
             }
             if (start >= end) {
-                dereference(H, a);
-                dereference(H, b);
-                dereference(H, v);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
+                hymn_dereference(H, v);
                 THROW("String start index %d > end index %d", start, end)
             }
             HymnString *sub = hymn_substring(original, (size_t)start, (size_t)end);
@@ -6023,43 +6018,43 @@ dispatch:
             } else if (hymn_is_none(b)) {
                 end = size;
             } else {
-                dereference(H, a);
-                dereference(H, b);
-                dereference(H, v);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
+                hymn_dereference(H, v);
                 THROW("Integer required for slice expression")
             }
             if (end > size) {
-                dereference(H, a);
-                dereference(H, b);
-                dereference(H, v);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
+                hymn_dereference(H, v);
                 THROW("Array index out of bounds %d > %d", end, size)
             }
             if (end < 0) {
                 end = size + end;
                 if (end < 0) {
-                    dereference(H, a);
-                    dereference(H, b);
-                    dereference(H, v);
+                    hymn_dereference(H, a);
+                    hymn_dereference(H, b);
+                    hymn_dereference(H, v);
                     THROW("Array index out of bounds %d", end)
                 }
             }
             if (start >= end) {
-                dereference(H, a);
-                dereference(H, b);
-                dereference(H, v);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
+                hymn_dereference(H, v);
                 THROW("Array start index %d >= end index %d", start, end)
             }
             HymnArray *copy = new_array_slice(array, start, end);
             HymnValue new = hymn_new_array_value(copy);
-            reference(new);
+            hymn_reference(new);
             push(H, new);
         } else {
-            dereference(H, a);
-            dereference(H, b);
-            dereference(H, v);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
+            hymn_dereference(H, v);
             THROW("Expected string or array for `slice` function")
         }
-        dereference(H, v);
+        hymn_dereference(H, v);
         HYMN_DISPATCH;
     }
     case OP_CLEAR: {
@@ -6079,7 +6074,7 @@ dispatch:
             break;
         case HYMN_VALUE_ARRAY: {
             HymnArray *array = hymn_as_array(value);
-            array_clear(H, array);
+            hymn_array_clear(H, array);
             push(H, value);
             break;
         }
@@ -6102,15 +6097,15 @@ dispatch:
     case OP_KEYS: {
         HymnValue value = pop(H);
         if (!hymn_is_table(value)) {
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Expected table for `keys` function")
         } else {
             HymnTable *table = hymn_as_table(value);
             HymnArray *array = table_keys(table);
             HymnValue keys = hymn_new_array_value(array);
-            reference(keys);
+            hymn_reference(keys);
             push(H, keys);
-            dereference(H, value);
+            hymn_dereference(H, value);
         }
         HYMN_DISPATCH;
     }
@@ -6120,8 +6115,8 @@ dispatch:
         switch (a.is) {
         case HYMN_VALUE_STRING: {
             if (!hymn_is_string(b)) {
-                dereference(H, a);
-                dereference(H, b);
+                hymn_dereference(H, a);
+                hymn_dereference(H, b);
                 THROW("Expected substring for 2nd argument of `index` function")
             }
             size_t index = 0;
@@ -6131,14 +6126,14 @@ dispatch:
             } else {
                 push(H, hymn_new_int(-1));
             }
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             break;
         }
         case HYMN_VALUE_ARRAY:
-            push(H, hymn_new_int(array_index_of(hymn_as_array(a), b)));
-            dereference(H, a);
-            dereference(H, b);
+            push(H, hymn_new_int(hymn_array_index_of(hymn_as_array(a), b)));
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             break;
         case HYMN_VALUE_TABLE: {
             HymnObjectString *key = table_key_of(hymn_as_table(a), b);
@@ -6147,13 +6142,13 @@ dispatch:
             } else {
                 push(H, hymn_new_string_value(key));
             }
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             break;
         }
         default:
-            dereference(H, a);
-            dereference(H, b);
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
             THROW("index function expects a string, array, or table")
         }
         HYMN_DISPATCH;
@@ -6176,19 +6171,19 @@ dispatch:
             break;
         case HYMN_VALUE_STRING:
             push_string(H, hymn_new_string("string"));
-            dereference(H, value);
+            hymn_dereference(H, value);
             break;
         case HYMN_VALUE_ARRAY:
             push_string(H, hymn_new_string("array"));
-            dereference(H, value);
+            hymn_dereference(H, value);
             break;
         case HYMN_VALUE_TABLE:
             push_string(H, hymn_new_string("table"));
-            dereference(H, value);
+            hymn_dereference(H, value);
             break;
         case HYMN_VALUE_FUNC:
             push_string(H, hymn_new_string("function"));
-            dereference(H, value);
+            hymn_dereference(H, value);
             break;
         case HYMN_VALUE_FUNC_NATIVE:
             push_string(H, hymn_new_string("native"));
@@ -6215,9 +6210,9 @@ dispatch:
             } else {
                 push(H, hymn_new_int((int64_t)number));
             }
-            dereference(H, value);
+            hymn_dereference(H, value);
         } else {
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Can't cast to an integer")
         }
         HYMN_DISPATCH;
@@ -6238,9 +6233,9 @@ dispatch:
             } else {
                 push(H, hymn_new_float(number));
             }
-            dereference(H, value);
+            hymn_dereference(H, value);
         } else {
-            dereference(H, value);
+            hymn_dereference(H, value);
             THROW("Can't cast to a float")
         }
         HYMN_DISPATCH;
@@ -6248,7 +6243,7 @@ dispatch:
     case OP_STRING: {
         HymnValue value = pop(H);
         push_string(H, hymn_value_to_string(value));
-        dereference(H, value);
+        hymn_dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_ECHO: {
@@ -6256,7 +6251,7 @@ dispatch:
         HymnString *string = hymn_value_to_string(value);
         H->print("%s\n", string);
         hymn_string_delete(string);
-        dereference(H, value);
+        hymn_dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_PRINT: {
@@ -6269,8 +6264,8 @@ dispatch:
             H->print_error("%s", string);
         }
         hymn_string_delete(string);
-        dereference(H, value);
-        dereference(H, route);
+        hymn_dereference(H, value);
+        hymn_dereference(H, route);
         HYMN_DISPATCH;
     }
     case OP_THROW: {
@@ -6281,17 +6276,17 @@ dispatch:
     case OP_DUPLICATE: {
         HymnValue top = peek(H, 1);
         push(H, top);
-        reference(top);
+        hymn_reference(top);
         HYMN_DISPATCH;
     }
     case OP_USE: {
         HymnValue file = pop(H);
         if (hymn_is_string(file)) {
             frame = import(H, hymn_as_hymn_string(file));
-            dereference(H, file);
+            hymn_dereference(H, file);
             if (frame == NULL) return;
         } else {
-            dereference(H, file);
+            hymn_dereference(H, file);
             THROW("Expected `String` for `use` command")
         }
         HYMN_DISPATCH;
@@ -6339,33 +6334,33 @@ Hymn *new_hymn() {
     set_init(&H->strings);
 
     HymnObjectString *search_this = hymn_new_intern_string(H, "<parent>" PATH_SEP_STRING "<path>.hm");
-    reference_string(search_this);
+    hymn_reference_string(search_this);
 
     HymnObjectString *search_relative = hymn_new_intern_string(H, "." PATH_SEP_STRING "<path>.hm");
-    reference_string(search_relative);
+    hymn_reference_string(search_relative);
 
     HymnObjectString *search_libs = hymn_new_intern_string(H, "." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>.hm");
-    reference_string(search_libs);
+    hymn_reference_string(search_libs);
 
     // GLOBALS
 
     table_init(&H->globals);
 
     HymnObjectString *__globals = hymn_new_intern_string(H, "__globals");
-    reference_string(__globals);
+    hymn_reference_string(__globals);
 
     HymnValue globals_value = hymn_new_table_value(&H->globals);
     table_put(&H->globals, __globals, globals_value);
-    reference_string(__globals);
-    reference(globals_value);
-    reference(globals_value);
+    hymn_reference_string(__globals);
+    hymn_reference(globals_value);
+    hymn_reference(globals_value);
 
     // PATHS
 
     H->paths = hymn_new_array(3);
 
     HymnObjectString *__paths = hymn_new_intern_string(H, "__paths");
-    reference_string(__paths);
+    hymn_reference_string(__paths);
 
     H->paths->items[0] = hymn_new_string_value(search_this);
     H->paths->items[1] = hymn_new_string_value(search_relative);
@@ -6373,22 +6368,22 @@ Hymn *new_hymn() {
 
     HymnValue paths_value = hymn_new_array_value(H->paths);
     table_put(&H->globals, __paths, paths_value);
-    reference_string(__paths);
-    reference(paths_value);
-    reference(paths_value);
+    hymn_reference_string(__paths);
+    hymn_reference(paths_value);
+    hymn_reference(paths_value);
 
     // IMPORTS
 
     H->imports = hymn_new_table();
 
     HymnObjectString *__imports = hymn_new_intern_string(H, "__imports");
-    reference_string(__imports);
+    hymn_reference_string(__imports);
 
     HymnValue imports_value = hymn_new_table_value(H->imports);
     table_put(&H->globals, __imports, imports_value);
-    reference_string(__imports);
-    reference(imports_value);
-    reference(imports_value);
+    hymn_reference_string(__imports);
+    hymn_reference(imports_value);
+    hymn_reference(imports_value);
 
     H->print = print_stdout;
     H->print_error = print_stderr;
@@ -6401,13 +6396,13 @@ void hymn_delete(Hymn *H) {
         HymnTable *globals = &H->globals;
         HymnObjectString *__globals = hymn_new_intern_string(H, "__globals");
         table_remove(globals, __globals);
-        dereference_string(H, __globals);
+        hymn_dereference_string(H, __globals);
 
         table_release(H, globals);
         assert(globals->size == 0);
     }
 
-    array_delete(H, H->paths);
+    hymn_array_delete(H, H->paths);
     table_delete(H, H->imports);
 
     HymnSet *strings = &H->strings;
@@ -6417,7 +6412,7 @@ void hymn_delete(Hymn *H) {
             HymnSetItem *item = strings->items[i];
             while (item != NULL) {
                 HymnSetItem *next = item->next;
-                dereference_string(H, item->string);
+                hymn_dereference_string(H, item->string);
                 item = next;
             }
         }
@@ -6450,11 +6445,11 @@ void hymn_add(Hymn *H, const char *name, HymnValue value) {
     HymnObjectString *string = hymn_new_intern_string(H, name);
     HymnValue previous = table_put(&H->globals, string, value);
     if (hymn_is_undefined(previous)) {
-        reference_string(string);
+        hymn_reference_string(string);
     } else {
-        dereference(H, previous);
+        hymn_dereference(H, previous);
     }
-    reference(value);
+    hymn_reference(value);
 }
 
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
@@ -6465,12 +6460,12 @@ void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
     HymnObjectString *string = hymn_new_intern_string(H, name);
     HymnNativeFunction *native = new_native_function(string, func);
     HymnValue value = hymn_new_native(native);
-    reference(value);
+    hymn_reference(value);
     HymnValue previous = table_put(&H->globals, string, value);
     if (hymn_is_undefined(previous)) {
-        reference_string(string);
+        hymn_reference_string(string);
     } else {
-        dereference(H, previous);
+        hymn_dereference(H, previous);
     }
 }
 
@@ -6515,7 +6510,7 @@ char *hymn_call(Hymn *H, const char *name, int arguments) {
     if (hymn_is_undefined(function)) {
         return NULL;
     }
-    reference(function);
+    hymn_reference(function);
 
     push(H, function);
     call_value(H, function, arguments);
@@ -6543,7 +6538,7 @@ char *hymn_run(Hymn *H, const char *script, const char *source) {
     }
 
     HymnValue function = hymn_new_func_value(main);
-    reference(function);
+    hymn_reference(function);
 
     push(H, function);
     call(H, main, 0);

@@ -1,1 +1,7 @@
-echo path:walk("src")
+for file in path:walk("test")
+  echo file
+end
+echo "<---"
+echo path:walk("does-not-exist")
+echo path:walk(none)
+echo path:walk(".gitattributes")

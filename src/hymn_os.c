@@ -33,7 +33,11 @@ static HymnValue os_env(Hymn *H, int count, HymnValue *arguments) {
     if (count < 1) {
         return hymn_new_none();
     }
-    HymnString *name = hymn_as_string(arguments[0]);
+    HymnValue value = arguments[0];
+    if (!hymn_is_string(value)) {
+        return hymn_new_none();
+    }
+    HymnString *name = hymn_as_string(value);
     char *variable = getenv(name);
     if (variable == NULL) {
         return hymn_new_none();
@@ -47,7 +51,11 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
     if (count < 1) {
         return hymn_new_none();
     }
-    HymnString *file = hymn_as_string(arguments[0]);
+    HymnValue value = arguments[0];
+    if (!hymn_is_string(value)) {
+        return hymn_new_none();
+    }
+    HymnString *file = hymn_as_string(value);
     FILE *open = POPEN(file, "r");
     if (open == NULL) {
         return hymn_new_none();
@@ -71,11 +79,16 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
 static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
 #ifdef HYMN_POPEN_SUPPORTED
-    if (count < 2) {
+    if (count < 1) {
         return hymn_new_none();
     }
-    HymnString *file = hymn_as_string(arguments[0]);
-    HymnString *mode = hymn_as_string(arguments[1]);
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_none();
+    }
+    HymnString *file = hymn_as_string(a);
+    HymnString *mode = hymn_as_string(b);
     FILE *open = POPEN(file, mode);
     if (open == NULL) {
         return hymn_new_none();
@@ -113,11 +126,16 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
-    if (count < 2) {
+    if (count < 1) {
         return hymn_new_none();
     }
-    HymnString *path = hymn_as_string(arguments[0]);
-    HymnString *mode = hymn_as_string(arguments[1]);
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_none();
+    }
+    HymnString *path = hymn_as_string(a);
+    HymnString *mode = hymn_as_string(b);
     FILE *open = fopen(path, mode);
     if (open == NULL) {
         return hymn_new_none();

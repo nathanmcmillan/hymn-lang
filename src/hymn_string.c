@@ -4,25 +4,29 @@
 
 #include "hymn.h"
 
-bool hymn_string_ends_with(HymnString *string, const char *p) {
+bool hymn_string_ends_with(HymnString *string, const char *using) {
     size_t slen = hymn_string_len(string);
-    size_t plen = strlen(p);
-    return slen < plen ? false : memcmp(&string[slen - plen], p, plen) == 0;
+    size_t plen = strlen(using);
+    return slen < plen ? false : memcmp(&string[slen - plen], using, plen) == 0;
 }
 
-bool hymn_string_contains(HymnString *string, const char *p) {
+bool hymn_string_contains(HymnString *string, const char *using) {
     size_t slen = hymn_string_len(string);
-    size_t plen = strlen(p);
+    size_t plen = strlen(using);
     if (plen > slen) {
         return false;
     }
     size_t diff = slen - plen;
     for (size_t i = 0; i <= diff; i++) {
-        if (memcmp(&string[i], p, plen) == 0) {
+        if (memcmp(&string[i], using, plen) == 0) {
             return true;
         }
     }
     return false;
+}
+
+static bool space(char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
 void hymn_string_trim(HymnString *string) {
@@ -30,7 +34,7 @@ void hymn_string_trim(HymnString *string) {
     size_t start = 0;
     while (start < len) {
         char c = string[start];
-        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+        if (!space(c)) {
             break;
         }
         start++;
@@ -41,7 +45,7 @@ void hymn_string_trim(HymnString *string) {
         size_t end = len - 1;
         while (end > start) {
             char c = string[end];
-            if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            if (!space(c)) {
                 break;
             }
             end--;

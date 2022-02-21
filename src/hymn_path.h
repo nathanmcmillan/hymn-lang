@@ -13,8 +13,8 @@ struct HymnPathFileList {
     HymnString **files;
 };
 
-struct HymnPathFileList hymn_walk(const char *path);
+struct HymnPathFileList hymn_walk(const char *path, bool recursive);
 
-void hymn_delete_file_list(struct HymnPathFileList *list);
+void hymn_delete_file_list(struct HymnPathFileList *files);
 
 #endif

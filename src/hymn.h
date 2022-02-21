@@ -227,13 +227,23 @@ void hymn_string_delete(HymnString *this);
 bool hymn_string_equal(HymnString *a, HymnString *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *this, const char b);
-bool hymn_string_starts_with(HymnString *s, const char *p);
+bool hymn_string_starts_with(HymnString *s, const char *using);
 HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace);
 HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
 
 HymnArray *hymn_new_array(int64_t length);
+
+void hymn_array_push(HymnArray *this, HymnValue value);
+void hymn_array_insert(HymnArray *this, int64_t index, HymnValue value);
+HymnValue hymn_array_get(HymnArray *this, int64_t index);
+int64_t hymn_array_index_of(HymnArray *this, HymnValue match);
+HymnValue hymn_array_pop(HymnArray *this);
+HymnValue hymn_array_remove_index(HymnArray *this, int64_t index);
+void hymn_array_clear(Hymn *H, HymnArray *this);
+void hymn_array_delete(Hymn *H, HymnArray *this);
+
 HymnTable *hymn_new_table();
 
 HymnValue hymn_new_undefined();
@@ -279,6 +289,11 @@ bool hymn_is_func(HymnValue v);
 bool hymn_value_false(HymnValue value);
 bool hymn_values_equal(HymnValue a, HymnValue b);
 bool hymn_match_values(HymnValue a, HymnValue b);
+
+void hymn_reference_string(HymnObjectString *string);
+void hymn_reference(HymnValue value);
+void hymn_dereference_string(Hymn *H, HymnObjectString *string);
+void hymn_dereference(Hymn *H, HymnValue value);
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
 void hymn_set_property_const(Hymn *H, HymnTable *table, const char *name, HymnValue value);

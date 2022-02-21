@@ -7,8 +7,8 @@
 
 #include "hymn.h"
 
-bool hymn_string_ends_with(HymnString *string, const char *p);
-bool hymn_string_contains(HymnString *string, const char *p);
+bool hymn_string_ends_with(HymnString *string, const char *using);
+bool hymn_string_contains(HymnString *string, const char *using);
 void hymn_string_trim(HymnString *string);
 
 #endif

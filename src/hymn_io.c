@@ -8,21 +8,31 @@
 
 #include "hymn.h"
 
+#ifdef _MSC_VER
+#define IS_DIRECTORY(F) (((F)&S_IFMT) == S_IFDIR)
+#else
+#define IS_DIRECTORY(F) S_ISDIR(F)
+#endif
+
+#define PATH_STRING                 \
+    (void)H;                        \
+    if (count < 1) {                \
+        return hymn_new_none();     \
+    }                               \
+    HymnValue value = arguments[0]; \
+    if (!hymn_is_string(value)) {   \
+        return hymn_new_none();     \
+    }                               \
+    HymnString *path = hymn_as_string(value);
+
 static HymnValue io_size(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-    if (count < 1) {
-        return hymn_new_none();
-    }
-    HymnString *path = hymn_as_string(arguments[0]);
+    PATH_STRING
     size_t size = hymn_file_size(path);
     return hymn_new_int((int64_t)size);
 }
 
 static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
-    if (count < 1) {
-        return hymn_new_none();
-    }
-    HymnString *path = hymn_as_string(arguments[0]);
+    PATH_STRING
     HymnString *string = hymn_read_file(path);
     if (string == NULL) {
         return hymn_new_none();
@@ -32,26 +42,41 @@ static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue io_exists(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-    if (count < 1) {
-        return hymn_new_none();
-    }
-    HymnString *path = hymn_as_string(arguments[0]);
+    PATH_STRING
     bool exists = hymn_file_exists(path);
     return hymn_new_bool(exists);
 }
 
+static HymnValue io_stats(Hymn *H, int count, HymnValue *arguments) {
+    PATH_STRING
+    struct stat b;
+    bool exists = stat(path, &b) == 0;
+    if (!exists) {
+        return hymn_new_none();
+    }
+    HymnTable *table = hymn_new_table();
+    hymn_set_property_const(H, table, "directory", hymn_new_bool(IS_DIRECTORY(b.st_mode)));
+    hymn_set_property_const(H, table, "mode", hymn_new_int(b.st_mode));
+    hymn_set_property_const(H, table, "nlink", hymn_new_int(b.st_nlink));
+    hymn_set_property_const(H, table, "uid", hymn_new_int(b.st_uid));
+    hymn_set_property_const(H, table, "gid", hymn_new_int(b.st_gid));
+    hymn_set_property_const(H, table, "size", hymn_new_int(b.st_size));
+    hymn_set_property_const(H, table, "atime", hymn_new_int(b.st_atime));
+    hymn_set_property_const(H, table, "mtime", hymn_new_int(b.st_mtime));
+    hymn_set_property_const(H, table, "ctime", hymn_new_int(b.st_ctime));
+    return hymn_new_table_value(table);
+}
+
 static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     (void)count;
     (void)arguments;
     HymnString *string = hymn_new_string("");
     while (true) {
-        char c = getchar();
+        int c = getchar();
         if (c == '\n' || c == EOF) {
             break;
         }
-        string = hymn_string_append_char(string, c);
+        string = hymn_string_append_char(string, (char)c);
     }
     return hymn_new_string_value(hymn_intern_string(H, string));
 }
@@ -60,5 +85,6 @@ void hymn_use_io(Hymn *H) {
     hymn_add_function(H, "io:size", io_size);
     hymn_add_function(H, "io:read", io_read);
     hymn_add_function(H, "io:exists", io_exists);
+    hymn_add_function(H, "io:stats", io_stats);
     hymn_add_function(H, "io:input", io_input);
 }

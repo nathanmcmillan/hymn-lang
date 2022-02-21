@@ -20,13 +20,11 @@ static void file_list_add(struct HymnPathFileList *list, HymnString *file) {
 }
 
 #ifdef _MSC_VER
-static bool recurse_directories(const char *path, struct HymnPathFileList *list) {
+static bool directories(const char *path, int recursive, struct HymnPathFileList *list) {
     HymnString *search = hymn_string_format("%s" PATH_SEP_STRING "*", path);
     WIN32_FIND_DATA find;
     HANDLE handle = FindFirstFile(search, &find);
-    if (handle == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Find files failed: %lu\n", GetLastError());
-    } else {
+    if (handle != INVALID_HANDLE_VALUE) {
         char file[PATH_MAX];
         do {
             if (strcmp(find.cFileName, ".") == 0 || strcmp(find.cFileName, "..") == 0) {
@@ -35,10 +33,9 @@ static bool recurse_directories(const char *path, struct HymnPathFileList *list)
             strcpy(file, path);
             strcat(file, PATH_SEP_STRING);
             strcat(file, find.cFileName);
-            if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                recurse_directories(file, list);
-            } else {
-                file_list_add(list, hymn_new_string(file));
+            file_list_add(list, hymn_new_string(file));
+            if (recursive > 0 && (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                directories(file, recursive + 1, list);
             }
         } while (FindNextFile(handle, &find));
         FindClose(handle);
@@ -47,7 +44,7 @@ static bool recurse_directories(const char *path, struct HymnPathFileList *list)
     return false;
 }
 #else
-static bool recurse_directories(const char *path, struct HymnPathFileList *list) {
+static bool directories(const char *path, int recursive, struct HymnPathFileList *list) {
     DIR *dir = opendir(path);
     if (dir == NULL) {
         return true;
@@ -61,8 +58,9 @@ static bool recurse_directories(const char *path, struct HymnPathFileList *list)
         strcpy(file, path);
         strcat(file, PATH_SEP_STRING);
         strcat(file, d->d_name);
-        if (recurse_directories(file, list)) {
-            file_list_add(list, hymn_new_string(file));
+        file_list_add(list, hymn_new_string(file));
+        if (recursive > 0) {
+            directories(file, recursive + 1, list);
         }
     }
     closedir(dir);
@@ -70,9 +68,9 @@ static bool recurse_directories(const char *path, struct HymnPathFileList *list)
 }
 #endif
 
-struct HymnPathFileList hymn_walk(const char *path) {
+struct HymnPathFileList hymn_walk(const char *path, bool recursive) {
     struct HymnPathFileList list = {.count = 0, .capacity = 0, .files = NULL};
-    recurse_directories(path, &list);
+    directories(path, recursive ? 1 : -1, &list);
     return list;
 }
 
@@ -135,11 +133,38 @@ static HymnValue path_absolute(Hymn *H, int count, HymnValue *arguments) {
     PATH_FUNCTION(hymn_path_absolute)
 }
 
+static HymnValue walk(Hymn *H, int count, HymnValue *arguments, bool recursive) {
+    HymnString *path;
+    if (count == 0) {
+        path = hymn_new_string(".");
+    } else {
+        HymnValue value = arguments[0];
+        if (!hymn_is_string(value)) {
+            return hymn_new_none();
+        }
+        path = hymn_as_string(value);
+    }
+    struct HymnPathFileList list = hymn_walk(path, recursive);
+    HymnArray *array = hymn_new_array(list.count);
+    for (int i = 0; i < list.count; i++) {
+        HymnString *file = list.files[i];
+        HymnObjectString *item = hymn_intern_string(H, file);
+        hymn_reference_string(item);
+        array->items[i] = hymn_new_string_value(item);
+    }
+    free(list.files);
+    if (count == 0) {
+        hymn_string_delete(path);
+    }
+    return hymn_new_array_value(array);
+}
+
+static HymnValue path_list(Hymn *H, int count, HymnValue *arguments) {
+    return walk(H, count, arguments, false);
+}
+
 static HymnValue path_walk(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-    (void)count;
-    (void)arguments;
-    return hymn_new_none();
+    return walk(H, count, arguments, true);
 }
 
 static HymnValue path_base(Hymn *H, int count, HymnValue *arguments) {
@@ -199,6 +224,7 @@ void hymn_use_path(Hymn *H) {
     hymn_add_function(H, "path:parent", path_parent);
     hymn_add_function(H, "path:cat", path_cat);
     hymn_add_function(H, "path:absolute", path_absolute);
+    hymn_add_function(H, "path:list", path_list);
     hymn_add_function(H, "path:walk", path_walk);
     hymn_add_function(H, "path:base", path_base);
     hymn_add_function(H, "path:extension", path_extension);

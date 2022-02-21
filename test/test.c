@@ -17,11 +17,11 @@ int tests_count = 0;
 
 static HymnString *out;
 
-static struct FilterList string_filter(HymnString **input, int count, bool (*filter)(HymnString *a, const char *b), const char *with) {
+static struct FilterList string_filter(HymnString **input, int count, bool (*filter)(HymnString *string, const char *using), const char *using) {
     int size = 0;
     HymnString **filtered = hymn_calloc(count, sizeof(HymnString *));
     for (int i = 0; i < count; i++) {
-        if (filter(input[i], with)) {
+        if (filter(input[i], using)) {
             filtered[size++] = hymn_string_copy(input[i]);
         }
     }
@@ -175,11 +175,9 @@ end:
 static void test_hymn(const char *filter) {
     out = hymn_new_string("");
 
-    struct HymnPathFileList all = hymn_walk("test" PATH_SEP_STRING "language");
+    struct HymnPathFileList all = hymn_walk("test" PATH_SEP_STRING "language", true);
 
-    HymnString *end = hymn_new_string(".hm");
-
-    struct FilterList scripts = string_filter(all.files, all.count, hymn_string_ends_with, end);
+    struct FilterList scripts = string_filter(all.files, all.count, hymn_string_ends_with, ".hm");
 
     for (int i = 0; i < scripts.count; i++) {
         HymnString *script = scripts.filtered[i];
@@ -200,7 +198,6 @@ static void test_hymn(const char *filter) {
 
     hymn_delete_file_list(&all);
     delete_filter_list(&scripts);
-    hymn_string_delete(end);
 
     if (filter == NULL || strcmp(filter, "api") == 0) {
         test_api();

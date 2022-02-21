@@ -52,13 +52,15 @@ echo list
 ## Ideas
 
 1. Tail call optimizations. Any time a function ends with another function call, the stack can be re-used
-1. Consistent, descriptive error messages. Use the form `[Expression Name]: Expected/Missing [X], but was [Y]`
-1. Add `finally` keyword for after try blocks
+1. Consistent, descriptive error messages
+1. Add `finally` keyword for try blocks
 1. Refactor string related handling to reduce copying
+   - HymnString and HymnObjectString are separate objects
+   - Can HymnObjectString have it's own `char*`?
 1. Insert into table collision linked lists using sorted order, so subsequent operations can be quicker
 1. A failed malloc, calloc, realloc should return a compile or runtime error if possible
-1. Standard library written in Hymn
 1. Delay dereferencing to the end of subroutines and analyze where reference counting can be ignored
+1. Include registers to avoid `push` and `pop` costs
 
 ## Progress
 
