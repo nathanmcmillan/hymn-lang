@@ -1,0 +1,2 @@
+echo text.starts('foobar', 'foo')
+echo text.starts('foobar', 'bar')

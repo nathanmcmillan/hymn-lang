@@ -217,16 +217,17 @@ static HymnValue path_extension(Hymn *H, int count, HymnValue *arguments) {
 }
 
 void hymn_use_path(Hymn *H) {
-    // hymn_add_lib_function(H, "path", "working", path_working);
-    hymn_add_function(H, "path:working", path_working);
-    hymn_add_function(H, "path:convert", path_convert);
-    hymn_add_function(H, "path:normalize", path_normalize);
-    hymn_add_function(H, "path:parent", path_parent);
-    hymn_add_function(H, "path:cat", path_cat);
-    hymn_add_function(H, "path:absolute", path_absolute);
-    hymn_add_function(H, "path:list", path_list);
-    hymn_add_function(H, "path:walk", path_walk);
-    hymn_add_function(H, "path:base", path_base);
-    hymn_add_function(H, "path:extension", path_extension);
-    hymn_add(H, "path:symbol", hymn_new_string_value(hymn_new_intern_string(H, PATH_SEP_STRING)));
+    HymnTable *path = hymn_new_table();
+    hymn_add_function_to_table(H, path, "working", path_working);
+    hymn_add_function_to_table(H, path, "convert", path_convert);
+    hymn_add_function_to_table(H, path, "normalize", path_normalize);
+    hymn_add_function_to_table(H, path, "parent", path_parent);
+    hymn_add_function_to_table(H, path, "cat", path_cat);
+    hymn_add_function_to_table(H, path, "absolute", path_absolute);
+    hymn_add_function_to_table(H, path, "list", path_list);
+    hymn_add_function_to_table(H, path, "walk", path_walk);
+    hymn_add_function_to_table(H, path, "base", path_base);
+    hymn_add_function_to_table(H, path, "extension", path_extension);
+    hymn_add_string_to_table(H, path, "symbol", PATH_SEP_STRING);
+    hymn_add_table(H, "path", path);
 }

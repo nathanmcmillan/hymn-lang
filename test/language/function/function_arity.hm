@@ -1,0 +1,7 @@
+-- @Exception
+
+function foo(x)
+  echo x
+end
+
+echo foo(2, 3)

@@ -98,6 +98,9 @@ static HymnValue pattern(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
+// pattern_match
+// pattern_replace
+
 void hymn_use_pattern(Hymn *H) {
     hymn_add_function(H, "glob", glob);
     hymn_add_function(H, "pattern", pattern);

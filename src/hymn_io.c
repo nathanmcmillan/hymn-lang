@@ -82,9 +82,11 @@ static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
 }
 
 void hymn_use_io(Hymn *H) {
-    hymn_add_function(H, "io:size", io_size);
-    hymn_add_function(H, "io:read", io_read);
-    hymn_add_function(H, "io:exists", io_exists);
-    hymn_add_function(H, "io:stats", io_stats);
-    hymn_add_function(H, "io:input", io_input);
+    HymnTable *io = hymn_new_table();
+    hymn_add_function_to_table(H, io, "size", io_size);
+    hymn_add_function_to_table(H, io, "read", io_read);
+    hymn_add_function_to_table(H, io, "exists", io_exists);
+    hymn_add_function_to_table(H, io, "stats", io_stats);
+    hymn_add_function_to_table(H, io, "input", io_input);
+    hymn_add_table(H, "io", io);
 }

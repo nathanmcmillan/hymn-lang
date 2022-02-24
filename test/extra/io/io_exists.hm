@@ -1,1 +1,1 @@
-echo io:exists(".gitattributes")
+echo io.exists(".gitattributes")

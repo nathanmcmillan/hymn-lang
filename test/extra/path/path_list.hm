@@ -1,7 +1,7 @@
-for file in path:list("test")
+for file in path.list("test")
   echo file
 end
 echo "<---"
-echo path:list("does-not-exist")
-echo path:list(none)
-echo path:list(".gitattributes")
+echo path.list("does-not-exist")
+echo path.list(none)
+echo path.list(".gitattributes")

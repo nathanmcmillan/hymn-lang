@@ -1,1 +1,1 @@
-echo math:abs(-PI)
+echo math.abs(-PI)

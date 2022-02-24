@@ -1,1 +1,1 @@
-echo math:cos(PI)
+echo math.cos(PI)

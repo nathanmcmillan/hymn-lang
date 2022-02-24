@@ -217,25 +217,28 @@ static HymnValue math_log10(Hymn *H, int count, HymnValue *arguments) {
     MATH_FUNCTION(log10)
 }
 
-void hymn_use_math(Hymn *hymn) {
-    hymn_add_function(hymn, "math:abs", math_abs);
-    hymn_add_function(hymn, "math:min", math_min);
-    hymn_add_function(hymn, "math:max", math_max);
-    hymn_add_function(hymn, "math:floor", math_floor);
-    hymn_add_function(hymn, "math:ceil", math_ceil);
-    hymn_add_function(hymn, "math:sin", math_sin);
-    hymn_add_function(hymn, "math:cos", math_cos);
-    hymn_add_function(hymn, "math:tan", math_tan);
-    hymn_add_function(hymn, "math:asin", math_asin);
-    hymn_add_function(hymn, "math:acos", math_acos);
-    hymn_add_function(hymn, "math:sinh", math_sinh);
-    hymn_add_function(hymn, "math:cosh", math_cosh);
-    hymn_add_function(hymn, "math:atan", math_atan);
-    hymn_add_function(hymn, "math:atan2", math_atan2);
-    hymn_add_function(hymn, "math:sqrt", math_sqrt);
-    hymn_add_function(hymn, "math:pow", math_pow);
-    hymn_add_function(hymn, "math:log", math_log);
-    hymn_add_function(hymn, "math:log2", math_log2);
-    hymn_add_function(hymn, "math:log10", math_log10);
-    hymn_add(hymn, "PI", hymn_new_float(PI));
+void hymn_use_math(Hymn *H) {
+    HymnTable *math = hymn_new_table();
+    hymn_add_function_to_table(H, math, "abs", math_abs);
+    hymn_add_function_to_table(H, math, "min", math_min);
+    hymn_add_function_to_table(H, math, "max", math_max);
+    hymn_add_function_to_table(H, math, "floor", math_floor);
+    hymn_add_function_to_table(H, math, "ceil", math_ceil);
+    hymn_add_function_to_table(H, math, "sin", math_sin);
+    hymn_add_function_to_table(H, math, "cos", math_cos);
+    hymn_add_function_to_table(H, math, "tan", math_tan);
+    hymn_add_function_to_table(H, math, "asin", math_asin);
+    hymn_add_function_to_table(H, math, "acos", math_acos);
+    hymn_add_function_to_table(H, math, "sinh", math_sinh);
+    hymn_add_function_to_table(H, math, "cosh", math_cosh);
+    hymn_add_function_to_table(H, math, "atan", math_atan);
+    hymn_add_function_to_table(H, math, "atan2", math_atan2);
+    hymn_add_function_to_table(H, math, "sqrt", math_sqrt);
+    hymn_add_function_to_table(H, math, "pow", math_pow);
+    hymn_add_function_to_table(H, math, "log", math_log);
+    hymn_add_function_to_table(H, math, "log2", math_log2);
+    hymn_add_function_to_table(H, math, "log10", math_log10);
+    hymn_add_table(H, "math", math);
+
+    hymn_add(H, "PI", hymn_new_float(PI));
 }

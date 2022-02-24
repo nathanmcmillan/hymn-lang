@@ -4,6 +4,8 @@
 
 #include "hymn.h"
 
+// HYMN_DEBUG_TRACE is causing a segfault during unit tests
+
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
@@ -586,6 +588,7 @@ enum OpCode {
     OP_FALSE,
     OP_GET_DYNAMIC,
     OP_GET_GLOBAL,
+    OP_GET_GLOBAL_PROPERTY,
     OP_GET_LOCAL,
     OP_GET_TWO_LOCAL,
     OP_GET_PROPERTY,
@@ -763,11 +766,11 @@ HymnValue hymn_new_bool(bool v) {
     return (HymnValue){.is = HYMN_VALUE_BOOL, .as = {.b = v}};
 }
 
-HymnValue hymn_new_int(int64_t v) {
+HymnValue hymn_new_int(HymnInt v) {
     return (HymnValue){.is = HYMN_VALUE_INTEGER, .as = {.i = v}};
 }
 
-HymnValue hymn_new_float(double v) {
+HymnValue hymn_new_float(HymnFloat v) {
     return (HymnValue){.is = HYMN_VALUE_FLOAT, .as = {.f = v}};
 }
 
@@ -1485,13 +1488,6 @@ static char peek_char(Compiler *C) {
     return C->source[C->pos];
 }
 
-static char double_peek_char(Compiler *C) {
-    if (C->pos + 1 >= C->size) {
-        return '\0';
-    }
-    return C->source[C->pos + 1];
-}
-
 static void token(Compiler *C, enum TokenType type) {
     Token *current = &C->current;
     current->type = type;
@@ -1915,18 +1911,16 @@ static void advance(Compiler *C) {
             } else if (is_ident(c)) {
                 size_t start = C->pos - 1;
                 while (true) {
-                    c = peek_char(C);
-                    if (is_ident(c) || (c == ':' && is_ident(double_peek_char(C)))) {
-                        next_char(C);
-                    } else {
+                    if (!is_ident(peek_char(C))) {
                         break;
                     }
+                    next_char(C);
                 }
                 size_t end = C->pos;
                 push_ident_token(C, start, end);
                 return;
             } else {
-                compile_error(C, &C->current, "Unknown character: `%c`", c);
+                compile_error(C, &C->current, "unknown character: %c", c);
             }
         }
         }
@@ -2649,7 +2643,7 @@ static void native_function_delete(Hymn *H, HymnNativeFunction *this) {
 static void push_local(Compiler *C, Token name) {
     Scope *scope = C->scope;
     if (scope->local_count == HYMN_UINT8_COUNT) {
-        compile_error(C, &name, "Too many local variables in scope");
+        compile_error(C, &name, "too many local variables in scope");
         return;
     }
     Local *local = &scope->locals[scope->local_count++];
@@ -2700,8 +2694,8 @@ static void finalize_variable(Compiler *C, uint8_t global) {
 }
 
 static void define_new_variable(Compiler *C) {
-    uint8_t global = variable(C, "Expected variable name");
-    consume(C, TOKEN_ASSIGN, "Expected `=` after variable");
+    uint8_t global = variable(C, "expected variable name");
+    consume(C, TOKEN_ASSIGN, "expected '=' after variable");
     expression(C);
     finalize_variable(C, global);
 }
@@ -2712,7 +2706,7 @@ static int resolve_local(Compiler *C, Token *name) {
         Local *local = &scope->locals[i];
         if (ident_match(C, name, &local->name)) {
             if (local->depth == -1) {
-                compile_error(C, name, "Local variable `%.*s` referenced before assignment", name->length, &C->source[name->start]);
+                compile_error(C, name, "local variable `%.*s` referenced before assignment", name->length, &C->source[name->start]);
             }
             return i;
         }
@@ -2944,6 +2938,7 @@ static int next(uint8_t instruction) {
     case OP_EXISTS:
     case OP_PRINT:
         return 2;
+    case OP_GET_GLOBAL_PROPERTY:
     case OP_GET_TWO_LOCAL:
     case OP_ADD_TWO_LOCAL:
     case OP_JUMP:
@@ -2956,7 +2951,7 @@ static int next(uint8_t instruction) {
     case OP_JUMP_IF_LESS_EQUAL:
     case OP_JUMP_IF_GREATER_EQUAL:
     case OP_LOOP:
-    case OP_INCREMENT_LOCAL_AND_SET:;
+    case OP_INCREMENT_LOCAL_AND_SET:
     case OP_INCREMENT_LOCAL:
         return 3;
     case OP_FOR:
@@ -3237,6 +3232,14 @@ static void optimize(Compiler *C) {
             }
             break;
         }
+        case OP_GET_GLOBAL: {
+            if (second == OP_GET_PROPERTY) {
+                SET(one, OP_GET_GLOBAL_PROPERTY);
+                REWRITE(2, 1);
+                REPEAT;
+            }
+            break;
+        }
         case OP_GET_LOCAL: {
             if (second == OP_GET_LOCAL) {
                 SET(one, OP_GET_TWO_LOCAL);
@@ -3402,29 +3405,30 @@ static void compile_function(Compiler *C, enum FunctionType type) {
 
     begin_scope(C);
 
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after function name");
+    consume(C, TOKEN_LEFT_PAREN, "missing '(' after function name");
+
+    HymnFunction *func = C->scope->func;
 
     if (!check(C, TOKEN_RIGHT_PAREN)) {
         do {
-            C->scope->func->arity++;
-            if (C->scope->func->arity > UINT8_MAX) {
-                compile_error(C, &C->previous, "Can't have more than 255 function parameters");
+            func->arity++;
+            if (func->arity > UINT8_MAX) {
+                compile_error(C, &C->previous, "can't have more than 255 function parameters");
             }
-            uint8_t parameter = variable(C, "Expected parameter name");
+            uint8_t parameter = variable(C, "missing parameter name");
             finalize_variable(C, parameter);
         } while (match(C, TOKEN_COMMA));
     }
 
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after function parameters");
+    consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters");
 
     while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
 
-    end_scope(C);
     consume(C, TOKEN_END, "missing 'end' after function body");
 
-    HymnFunction *func = end_function(C);
+    end_function(C);
     emit_constant(C, hymn_new_func_value(func));
 }
 
@@ -4394,7 +4398,7 @@ static void push_string(Hymn *H, HymnString *string) {
     push(H, hymn_new_string_value(intern));
 }
 
-static HymnFrame *machine_exception(Hymn *H) {
+static HymnFrame *exception(Hymn *H) {
     HymnFrame *frame = current_frame(H);
     while (true) {
         HymnFunction *func = frame->func;
@@ -4462,16 +4466,16 @@ static HymnFrame *machine_push_error(Hymn *H, HymnString *error) {
     HymnObjectString *message = hymn_intern_string(H, error);
     hymn_reference_string(message);
     push(H, hymn_new_string_value(message));
-    return machine_exception(H);
+    return exception(H);
 }
 
-static HymnFrame *machine_throw_existing_error(Hymn *H, char *error) {
+static HymnFrame *throw_existing_error(Hymn *H, char *error) {
     HymnString *message = hymn_new_string(error);
     free(error);
     return machine_push_error(H, message);
 }
 
-static HymnFrame *machine_throw_error(Hymn *H, const char *format, ...) {
+static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
     va_list ap;
     va_start(ap, format);
     int len = vsnprintf(NULL, 0, format, ap);
@@ -4491,17 +4495,17 @@ static HymnFrame *machine_throw_error(Hymn *H, const char *format, ...) {
     return machine_push_error(H, error);
 }
 
-static HymnFrame *machine_throw_error_string(Hymn *H, HymnString *string) {
-    HymnFrame *frame = machine_throw_error(H, string);
+static HymnFrame *throw_error_string(Hymn *H, HymnString *string) {
+    HymnFrame *frame = throw_error(H, string);
     hymn_string_delete(string);
     return frame;
 }
 
 static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     if (count != func->arity) {
-        return machine_throw_error(H, "Expected %d function arguments but found %d.", func->arity, count);
+        return throw_error(H, "unexpected number of function arguments: %d != %d", count, func->arity);
     } else if (H->frame_count == HYMN_FRAMES_MAX) {
-        return machine_throw_error(H, "Stack overflow");
+        return throw_error(H, "stack overflow");
     }
 
     HymnFrame *frame = &H->frames[H->frame_count++];
@@ -4529,7 +4533,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
     }
     default: {
         const char *is = value_name(value.is);
-        return machine_throw_error(H, "Not a function call: %s", is);
+        return throw_error(H, "not a function call: %s", is);
     }
     }
 }
@@ -4609,11 +4613,13 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
         hymn_string_delete(look);
         if (parent) hymn_string_delete(parent);
 
-        return machine_throw_error_string(H, missing);
+        return throw_error_string(H, missing);
     }
 
     hymn_string_delete(look);
-    if (parent) hymn_string_delete(parent);
+    if (parent != NULL) {
+        hymn_string_delete(parent);
+    }
 
     table_put(imports, module, hymn_new_bool(true));
 
@@ -4629,9 +4635,9 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
 
     hymn_string_delete(source);
 
-    if (error) {
+    if (error != NULL) {
         function_delete(func);
-        return machine_throw_existing_error(H, error);
+        return throw_existing_error(H, error);
     }
 
     HymnValue function = hymn_new_func_value(func);
@@ -4641,8 +4647,8 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     call(H, func, 0);
 
     error = interpret(H);
-    if (error) {
-        return machine_throw_existing_error(H, error);
+    if (error != NULL) {
+        return throw_existing_error(H, error);
     }
 
     return current_frame(H);
@@ -4656,6 +4662,17 @@ static size_t debug_constant_instruction(HymnString **debug, const char *name, H
     hymn_string_delete(value);
     *debug = hymn_string_append(*debug, "]");
     return index + 2;
+}
+
+static size_t debug_two_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+    uint8_t constant = code->instructions[index + 1];
+    HymnString *value = debug_value_to_string(code->constants.values[constant]);
+    uint8_t constant2 = code->instructions[index + 2];
+    HymnString *value2 = debug_value_to_string(code->constants.values[constant2]);
+    *debug = string_append_format(*debug, "%s: [%d] [%s] & [%d] [%s]", name, constant, value, constant2, value2);
+    hymn_string_delete(value);
+    hymn_string_delete(value2);
+    return index + 3;
 }
 
 static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
@@ -4725,6 +4742,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_FOR_LOOP: return debug_for_loop_instruction(debug, "OP_FOR_LOOP", -1, code, index);
     case OP_GET_DYNAMIC: return debug_instruction(debug, "OP_GET_DYNAMIC", index);
     case OP_GET_GLOBAL: return debug_constant_instruction(debug, "OP_GET_GLOBAL", code, index);
+    case OP_GET_GLOBAL_PROPERTY: return debug_two_constant_instruction(debug, "OP_GET_GLOBAL_PROPERTY", code, index);
     case OP_GET_LOCAL: return debug_byte_instruction(debug, "OP_GET_LOCAL", code, index);
     case OP_GET_PROPERTY: return debug_constant_instruction(debug, "OP_GET_PROPERTY", code, index);
     case OP_GET_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_GET_TWO_LOCAL", code, index);
@@ -4795,9 +4813,9 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
 
 #define READ_CONSTANT(frame) (frame->func->code.constants.values[READ_BYTE(frame)])
 
-#define THROW(...)                                 \
-    frame = machine_throw_error(H, ##__VA_ARGS__); \
-    if (frame == NULL) return;                     \
+#define THROW(...)                         \
+    frame = throw_error(H, ##__VA_ARGS__); \
+    if (frame == NULL) return;             \
     HYMN_DISPATCH;
 
 #define ARITHMETIC_OP(_arithmetic_)                                                   \
@@ -4808,7 +4826,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
             a.as.i _arithmetic_ b.as.i;                                               \
             push(H, a);                                                               \
         } else if (hymn_is_float(b)) {                                                \
-            HymnValue new = hymn_new_float((double)a.as.i);                           \
+            HymnValue new = hymn_new_float((HymnFloat)a.as.i);                        \
             new.as.f _arithmetic_ b.as.f;                                             \
             push(H, new);                                                             \
         } else {                                                                      \
@@ -4897,7 +4915,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         frame->ip += jump;                                            \
     }
 
-static void machine_run(Hymn *H) {
+static void run(Hymn *H) {
     HymnFrame *frame = current_frame(H);
 
 #define HYMN_DISPATCH goto dispatch
@@ -5488,7 +5506,7 @@ dispatch:
         HymnValue value = peek(H, 1);
         HymnValue previous = table_put(&H->globals, name, value);
         if (hymn_is_undefined(previous)) {
-            THROW("undefined variable '%s'", name->string)
+            THROW("undefined global '%s'", name->string)
         } else {
             hymn_dereference(H, previous);
         }
@@ -5499,9 +5517,29 @@ dispatch:
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         HymnValue get = table_get(&H->globals, name);
         if (hymn_is_undefined(get)) {
-            THROW("undefined variable '%s'", name->string)
+            THROW("undefined global '%s'", name->string)
         }
         hymn_reference(get);
+        push(H, get);
+        HYMN_DISPATCH;
+    }
+    case OP_GET_GLOBAL_PROPERTY: {
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnObjectString *property = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue global = table_get(&H->globals, name);
+        if (hymn_is_undefined(global)) {
+            THROW("undefined global '%s'", name->string)
+        } else if (!hymn_is_table(global)) {
+            const char *is = value_name(global.is);
+            THROW("get property: requires 'table' but was '%s'", is)
+        }
+        HymnTable *table = hymn_as_table(global);
+        HymnValue get = table_get(table, property);
+        if (hymn_is_undefined(get)) {
+            get.is = HYMN_VALUE_NONE;
+        } else {
+            hymn_reference(get);
+        }
         push(H, get);
         HYMN_DISPATCH;
     }
@@ -5578,22 +5616,22 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_GET_PROPERTY: {
-        HymnValue v = pop(H);
-        if (!hymn_is_table(v)) {
-            const char *is = value_name(v.is);
-            hymn_dereference(H, v);
+        HymnValue value = pop(H);
+        if (!hymn_is_table(value)) {
+            const char *is = value_name(value.is);
+            hymn_dereference(H, value);
             THROW("Get Property: Requires `Table` but was `%s`", is)
         }
-        HymnTable *table = hymn_as_table(v);
+        HymnTable *table = hymn_as_table(value);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue g = table_get(table, name);
-        if (hymn_is_undefined(g)) {
-            g.is = HYMN_VALUE_NONE;
+        HymnValue get = table_get(table, name);
+        if (hymn_is_undefined(get)) {
+            get.is = HYMN_VALUE_NONE;
         } else {
-            hymn_reference(g);
+            hymn_reference(get);
         }
-        hymn_dereference(H, v);
-        push(H, g);
+        hymn_dereference(H, value);
+        push(H, get);
         HYMN_DISPATCH;
     }
     case OP_EXISTS: {
@@ -6269,7 +6307,7 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_THROW: {
-        frame = machine_exception(H);
+        frame = exception(H);
         if (frame == NULL) return;
         HYMN_DISPATCH;
     }
@@ -6287,7 +6325,7 @@ dispatch:
             if (frame == NULL) return;
         } else {
             hymn_dereference(H, file);
-            THROW("Expected `String` for `use` command")
+            THROW("expected 'string' argument for 'use' operator")
         }
         HYMN_DISPATCH;
     }
@@ -6297,7 +6335,7 @@ dispatch:
 }
 
 static char *interpret(Hymn *H) {
-    machine_run(H);
+    run(H);
     char *error = NULL;
     if (H->error) {
         error = string_to_chars(H->error);
@@ -6452,21 +6490,33 @@ void hymn_add(Hymn *H, const char *name, HymnValue value) {
     hymn_reference(value);
 }
 
+void hymn_add_string(Hymn *H, const char *name, const char *string) {
+    HymnObjectString *object = hymn_new_intern_string(H, string);
+    hymn_add(H, name, hymn_new_string_value(object));
+}
+
+void hymn_add_table(Hymn *H, const char *name, HymnTable *table) {
+    hymn_add(H, name, hymn_new_table_value(table));
+}
+
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer) {
     hymn_add(H, name, hymn_new_pointer(pointer));
 }
 
-void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
+void hymn_add_string_to_table(Hymn *H, HymnTable *table, const char *name, const char *string) {
+    HymnObjectString *object = hymn_new_intern_string(H, string);
+    hymn_set_property_const(H, table, name, hymn_new_string_value(object));
+}
+
+void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, HymnNativeCall func) {
     HymnObjectString *string = hymn_new_intern_string(H, name);
     HymnNativeFunction *native = new_native_function(string, func);
     HymnValue value = hymn_new_native(native);
-    hymn_reference(value);
-    HymnValue previous = table_put(&H->globals, string, value);
-    if (hymn_is_undefined(previous)) {
-        hymn_reference_string(string);
-    } else {
-        hymn_dereference(H, previous);
-    }
+    hymn_set_property(H, table, string, value);
+}
+
+void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
+    hymn_add_function_to_table(H, &H->globals, name, func);
 }
 
 char *hymn_debug(Hymn *H, const char *script, const char *source) {

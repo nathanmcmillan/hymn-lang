@@ -1,1 +1,1 @@
-echo path:parent('foo/bar/hello')
+echo path.parent('foo/bar/hello')

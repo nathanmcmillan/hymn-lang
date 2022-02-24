@@ -4,7 +4,7 @@
 
 #include "hymn.h"
 #include "hymn_path.h"
-#include "hymn_string.h"
+#include "hymn_text.h"
 
 struct FilterList {
     int count;

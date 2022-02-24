@@ -1,1 +1,1 @@
-echo math:sin(PI)
+echo math.sin(PI)

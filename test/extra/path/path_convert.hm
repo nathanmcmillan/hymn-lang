@@ -1,2 +1,2 @@
-echo path:convert('foo/bar')
-echo path:convert('foo\\bar')
+echo path.convert('foo/bar')
+echo path.convert('foo\\bar')

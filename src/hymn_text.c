@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "hymn.h"
+#include "hymn_text.h"
 
 bool hymn_string_ends_with(HymnString *string, const char *using) {
     size_t slen = hymn_string_len(string);
@@ -62,7 +62,7 @@ void hymn_string_trim(HymnString *string) {
     }
 }
 
-static HymnValue string_ends(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue text_ends(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count >= 2) {
         HymnValue value = arguments[0];
@@ -75,7 +75,7 @@ static HymnValue string_ends(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-static HymnValue string_starts(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue text_starts(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count >= 2) {
         HymnValue value = arguments[0];
@@ -88,7 +88,7 @@ static HymnValue string_starts(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-static HymnValue string_replace(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue text_replace(Hymn *H, int count, HymnValue *arguments) {
     if (count >= 3) {
         HymnValue value = arguments[0];
         HymnValue find = arguments[1];
@@ -102,7 +102,7 @@ static HymnValue string_replace(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-static HymnValue string_trim(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue text_trim(Hymn *H, int count, HymnValue *arguments) {
     if (count >= 1) {
         HymnValue value = arguments[0];
         if (hymn_is_string(value)) {
@@ -115,9 +115,11 @@ static HymnValue string_trim(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-void hymn_use_string(Hymn *hymn) {
-    hymn_add_function(hymn, "string:ends", string_ends);
-    hymn_add_function(hymn, "string:starts", string_starts);
-    hymn_add_function(hymn, "string:replace", string_replace);
-    hymn_add_function(hymn, "string:trim", string_trim);
+void hymn_use_string(Hymn *H) {
+    HymnTable *text = hymn_new_table();
+    hymn_add_function_to_table(H, text, "ends", text_ends);
+    hymn_add_function_to_table(H, text, "starts", text_starts);
+    hymn_add_function_to_table(H, text, "replace", text_replace);
+    hymn_add_function_to_table(H, text, "trim", text_trim);
+    hymn_add_table(H, "text", text);
 }

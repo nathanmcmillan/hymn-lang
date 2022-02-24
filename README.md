@@ -49,10 +49,11 @@ echo list
 1. No classes
 1. No breaking changes after version 1.0
 
-## Ideas
+## To Do
 
 1. Tail call optimizations. Any time a function ends with another function call, the stack can be re-used
 1. Consistent, descriptive error messages
+1. Add special `@` array for vardic functions `@[0] == parameter[0]`
 1. Add `finally` keyword for try blocks
 1. Refactor string related handling to reduce copying
    - HymnString and HymnObjectString are separate objects
@@ -74,8 +75,9 @@ echo list
 ## Notes
 
 1. Using a macro READ_BYTE instead of an inline functions improves performance
-1. Using an instruction pointer rather than index improves performance
+1. Using an instruction pointer rather than an index improves performance
 1. Using computed goto instead of a switch **_does not_** always improve performance
+1. Namespaces require significant complexity but they can be simulated using a table with anonymous functions
 
 # Compiling
 

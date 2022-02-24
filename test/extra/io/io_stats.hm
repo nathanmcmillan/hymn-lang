@@ -1,4 +1,4 @@
-echo io:stats("src")
-echo io:stats(".gitattributes")
-echo io:stats("")
-echo io:stats(none)
+echo io.stats("src")
+echo io.stats(".gitattributes")
+echo io.stats("")
+echo io.stats(none)

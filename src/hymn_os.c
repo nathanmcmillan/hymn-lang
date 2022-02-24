@@ -182,13 +182,13 @@ static HymnValue os_read(Hymn *H, int count, HymnValue *arguments) {
 }
 
 void hymn_use_os(Hymn *H) {
-    hymn_add_function(H, "os:clock", os_clock);
-    hymn_add_function(H, "os:env", os_env);
-    hymn_add_function(H, "os:popen", os_popen);
-    hymn_add_function(H, "os:pclose", os_pclose);
-    hymn_add_function(H, "os:fopen", os_fopen);
-    hymn_add_function(H, "os:fclose", os_fclose);
-    hymn_add_function(H, "os:read", os_read);
+    hymn_add_function(H, "os.clock", os_clock);
+    hymn_add_function(H, "os.env", os_env);
+    hymn_add_function(H, "os.popen", os_popen);
+    hymn_add_function(H, "os.pclose", os_pclose);
+    hymn_add_function(H, "os.fopen", os_fopen);
+    hymn_add_function(H, "os.fclose", os_fclose);
+    hymn_add_function(H, "os.read", os_read);
     hymn_add_function(H, "system", os_system);
     hymn_add(H, "stdout", hymn_new_int(0));
     hymn_add(H, "stderr", hymn_new_int(1));

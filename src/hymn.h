@@ -47,6 +47,9 @@
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
 
+typedef int64_t HymnInt;
+typedef double HymnFloat;
+
 enum HymnValueType {
     HYMN_VALUE_UNDEFINED,
     HYMN_VALUE_NONE,
@@ -99,8 +102,8 @@ struct HymnValue {
     enum HymnValueType is;
     union {
         bool b;
-        int64_t i;
-        double f;
+        HymnInt i;
+        HymnFloat f;
         HymnObject *o;
         void *p;
     } as;
@@ -249,8 +252,8 @@ HymnTable *hymn_new_table();
 HymnValue hymn_new_undefined();
 HymnValue hymn_new_none();
 HymnValue hymn_new_bool(bool v);
-HymnValue hymn_new_int(int64_t v);
-HymnValue hymn_new_float(double v);
+HymnValue hymn_new_int(HymnInt v);
+HymnValue hymn_new_float(HymnFloat v);
 HymnValue hymn_new_native(HymnNativeFunction *v);
 HymnValue hymn_new_pointer(void *v);
 HymnValue hymn_new_string_value(HymnObjectString *v);
@@ -263,8 +266,8 @@ HymnObjectString *hymn_new_string_object(HymnString *string);
 HymnString *hymn_value_to_string(HymnValue value);
 
 bool hymn_as_bool(HymnValue v);
-int64_t hymn_as_int(HymnValue v);
-double hymn_as_float(HymnValue v);
+HymnInt hymn_as_int(HymnValue v);
+HymnFloat hymn_as_float(HymnValue v);
 HymnNativeFunction *hymn_as_native(HymnValue v);
 void *hymn_as_pointer(HymnValue v);
 HymnObject *hymn_as_object(HymnValue v);
@@ -309,8 +312,12 @@ char *hymn_read(Hymn *H, const char *script);
 HymnValue hymn_get(Hymn *H, const char *name);
 
 void hymn_add(Hymn *H, const char *name, HymnValue value);
-void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
+void hymn_add_string(Hymn *H, const char *name, const char *string);
+void hymn_add_table(Hymn *H, const char *name, HymnTable *table);
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer);
+void hymn_add_string_to_table(Hymn *H, HymnTable *table, const char *name, const char *string);
+void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, HymnNativeCall func);
+void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);
 

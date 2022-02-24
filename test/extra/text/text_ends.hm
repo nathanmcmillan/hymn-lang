@@ -1,0 +1,2 @@
+echo text.ends('foobar', 'bar')
+echo text.ends('foobar', 'foo')

@@ -1,1 +1,1 @@
-echo path:working()
+echo path.working()
