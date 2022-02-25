@@ -245,7 +245,7 @@ static HymnString *char_to_string(char ch) {
     return s;
 }
 
-static HymnString *int64_to_string(int64_t number) {
+static HymnString *int_to_string(HymnInt number) {
     int len = snprintf(NULL, 0, "%" PRId64, number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%" PRId64, number);
@@ -254,7 +254,7 @@ static HymnString *int64_to_string(int64_t number) {
     return s;
 }
 
-static HymnString *double_to_string(double number) {
+static HymnString *float_to_string(HymnFloat number) {
     int len = snprintf(NULL, 0, "%g", number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%g", number);
@@ -802,11 +802,11 @@ bool hymn_as_bool(HymnValue v) {
     return (v).as.b;
 }
 
-int64_t hymn_as_int(HymnValue v) {
+HymnInt hymn_as_int(HymnValue v) {
     return (v).as.i;
 }
 
-double hymn_as_float(HymnValue v) {
+HymnFloat hymn_as_float(HymnValue v) {
     return (v).as.f;
 }
 
@@ -1949,12 +1949,12 @@ bool hymn_values_equal(HymnValue a, HymnValue b) {
     case HYMN_VALUE_INTEGER:
         switch (b.is) {
         case HYMN_VALUE_INTEGER: return hymn_as_int(a) == hymn_as_int(b);
-        case HYMN_VALUE_FLOAT: return (double)hymn_as_int(a) == hymn_as_float(b);
+        case HYMN_VALUE_FLOAT: return (HymnFloat)hymn_as_int(a) == hymn_as_float(b);
         default: return false;
         }
     case HYMN_VALUE_FLOAT:
         switch (b.is) {
-        case HYMN_VALUE_INTEGER: return hymn_as_float(a) == (double)hymn_as_int(b);
+        case HYMN_VALUE_INTEGER: return hymn_as_float(a) == (HymnFloat)hymn_as_int(b);
         case HYMN_VALUE_FLOAT: return hymn_as_float(a) == hymn_as_float(b);
         default: return false;
         }
@@ -2038,7 +2038,7 @@ static HymnNativeFunction *new_native_function(HymnObjectString *name, HymnNativ
     return native;
 }
 
-static void array_init_with_capacity(HymnArray *this, int64_t length, int64_t capacity) {
+static void array_init_with_capacity(HymnArray *this, HymnInt length, HymnInt capacity) {
     if (capacity == 0) {
         this->items = NULL;
     } else {
@@ -2048,29 +2048,29 @@ static void array_init_with_capacity(HymnArray *this, int64_t length, int64_t ca
     this->capacity = capacity;
 }
 
-static void array_init(HymnArray *this, int64_t length) {
+static void array_init(HymnArray *this, HymnInt length) {
     array_init_with_capacity(this, length, length);
 }
 
-static HymnArray *new_array_with_capacity(int64_t length, int64_t capacity) {
+static HymnArray *new_array_with_capacity(HymnInt length, HymnInt capacity) {
     HymnArray *this = hymn_calloc(1, sizeof(HymnArray));
     array_init_with_capacity(this, length, capacity);
     return this;
 }
 
-HymnArray *hymn_new_array(int64_t length) {
+HymnArray *hymn_new_array(HymnInt length) {
     return new_array_with_capacity(length, length);
 }
 
-static HymnArray *new_array_slice(HymnArray *from, int64_t start, int64_t end) {
-    int64_t length = end - start;
+static HymnArray *new_array_slice(HymnArray *from, HymnInt start, HymnInt end) {
+    HymnInt length = end - start;
     size_t size = (size_t)length * sizeof(HymnValue);
     HymnArray *this = hymn_calloc(1, sizeof(HymnArray));
     this->items = hymn_malloc(size);
     memcpy(this->items, &from->items[start], size);
     this->length = length;
     this->capacity = length;
-    for (int64_t i = 0; i < length; i++) {
+    for (HymnInt i = 0; i < length; i++) {
         hymn_reference(this->items[i]);
     }
     return this;
@@ -2080,7 +2080,7 @@ static HymnArray *new_array_copy(HymnArray *from) {
     return new_array_slice(from, 0, from->length);
 }
 
-static void array_update_capacity(HymnArray *this, int64_t length) {
+static void array_update_capacity(HymnArray *this, HymnInt length) {
     if (length > this->capacity) {
         if (this->capacity == 0) {
             this->capacity = length;
@@ -2094,34 +2094,34 @@ static void array_update_capacity(HymnArray *this, int64_t length) {
 }
 
 void hymn_array_push(HymnArray *this, HymnValue value) {
-    int64_t length = this->length + 1;
+    HymnInt length = this->length + 1;
     array_update_capacity(this, length);
     this->length = length;
     this->items[length - 1] = value;
 }
 
-void hymn_array_insert(HymnArray *this, int64_t index, HymnValue value) {
-    int64_t length = this->length + 1;
+void hymn_array_insert(HymnArray *this, HymnInt index, HymnValue value) {
+    HymnInt length = this->length + 1;
     array_update_capacity(this, length);
     this->length = length;
     HymnValue *items = this->items;
-    for (int64_t i = length - 1; i > index; i--) {
+    for (HymnInt i = length - 1; i > index; i--) {
         items[i] = items[i - 1];
     }
     items[index] = value;
 }
 
-HymnValue hymn_array_get(HymnArray *this, int64_t index) {
+HymnValue hymn_array_get(HymnArray *this, HymnInt index) {
     if (index >= this->length) {
         return hymn_new_undefined();
     }
     return this->items[index];
 }
 
-int64_t hymn_array_index_of(HymnArray *this, HymnValue match) {
-    int64_t len = this->length;
+HymnInt hymn_array_index_of(HymnArray *this, HymnValue match) {
+    HymnInt len = this->length;
     HymnValue *items = this->items;
-    for (int64_t i = 0; i < len; i++) {
+    for (HymnInt i = 0; i < len; i++) {
         if (hymn_match_values(match, items[i])) {
             return i;
         }
@@ -2136,20 +2136,20 @@ HymnValue hymn_array_pop(HymnArray *this) {
     return this->items[--this->length];
 }
 
-HymnValue hymn_array_remove_index(HymnArray *this, int64_t index) {
-    int64_t len = --this->length;
+HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index) {
+    HymnInt len = --this->length;
     HymnValue *items = this->items;
     HymnValue deleted = items[index];
-    for (int64_t i = index; i < len; i++) {
+    for (HymnInt i = index; i < len; i++) {
         items[i] = items[i + 1];
     }
     return deleted;
 }
 
 void hymn_array_clear(Hymn *H, HymnArray *this) {
-    int64_t len = this->length;
+    HymnInt len = this->length;
     HymnValue *items = this->items;
-    for (int64_t i = 0; i < len; i++) {
+    for (HymnInt i = 0; i < len; i++) {
         hymn_dereference(H, items[i]);
     }
     this->length = 0;
@@ -2488,7 +2488,7 @@ static void compile_false(Compiler *C, bool assign) {
 static void compile_integer(Compiler *C, bool assign) {
     (void)assign;
     Token *previous = &C->previous;
-    int64_t number = (int64_t)strtoll(&C->source[previous->start], NULL, 10);
+    long long number = (long long)strtoll(&C->source[previous->start], NULL, 10);
     emit_constant(C, hymn_new_int(number));
 }
 
@@ -3251,7 +3251,7 @@ static void optimize(Compiler *C) {
                 if (third == OP_ADD) {
                     HymnValue value = code->constants.values[code->instructions[two + 1]];
                     if (hymn_is_int(value)) {
-                        int64_t add = hymn_as_int(value);
+                        HymnInt add = hymn_as_int(value);
                         if (add >= 0 && add <= UINT8_MAX) {
                             uint8_t local = code->instructions[one + 1];
                             REWRITE(0, 2);
@@ -3305,7 +3305,7 @@ static void optimize(Compiler *C) {
             } else if (second == OP_ADD) {
                 HymnValue value = code->constants.values[code->instructions[one + 1]];
                 if (hymn_is_int(value)) {
-                    int64_t add = hymn_as_int(value);
+                    HymnInt add = hymn_as_int(value);
                     if (add >= 0 && add <= UINT8_MAX) {
                         SET(one, OP_INCREMENT);
                         SET(one + 1, (uint8_t)add);
@@ -4088,8 +4088,8 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
     case HYMN_VALUE_UNDEFINED: return hymn_new_string("undefined");
     case HYMN_VALUE_NONE: return hymn_new_string("none");
     case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
-    case HYMN_VALUE_INTEGER: return int64_to_string(hymn_as_int(value));
-    case HYMN_VALUE_FLOAT: return double_to_string(hymn_as_float(value));
+    case HYMN_VALUE_INTEGER: return int_to_string(hymn_as_int(value));
+    case HYMN_VALUE_FLOAT: return float_to_string(hymn_as_float(value));
     case HYMN_VALUE_STRING: {
         if (quote) return hymn_string_format("\"%s\"", hymn_as_string(value));
         return hymn_string_copy(hymn_as_string(value));
@@ -4105,7 +4105,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             pointer_set_add(set, array);
         }
         HymnString *string = hymn_new_string("[");
-        for (int64_t i = 0; i < array->length; i++) {
+        for (HymnInt i = 0; i < array->length; i++) {
             if (i != 0) {
                 string = hymn_string_append(string, ", ");
             }
@@ -4557,8 +4557,8 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     HymnObjectString *module = NULL;
 
     HymnArray *paths = H->paths;
-    int64_t size = paths->length;
-    for (int64_t i = 0; i < size; i++) {
+    HymnInt size = paths->length;
+    for (HymnInt i = 0; i < size; i++) {
         HymnValue value = paths->items[i];
         if (!hymn_is_string(value)) {
             continue;
@@ -4592,7 +4592,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     if (module == NULL) {
         HymnString *missing = hymn_string_format("import not found: %s\n", look);
 
-        for (int64_t i = 0; i < size; i++) {
+        for (HymnInt i = 0; i < size; i++) {
             HymnValue value = paths->items[i];
             if (!hymn_is_string(value)) {
                 continue;
@@ -4836,7 +4836,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         }                                                                             \
     } else if (hymn_is_float(a)) {                                                    \
         if (hymn_is_int(b)) {                                                         \
-            a.as.f _arithmetic_(double) b.as.i;                                       \
+            a.as.f _arithmetic_(HymnFloat) b.as.i;                                    \
             push(H, a);                                                               \
         } else if (hymn_is_float(b)) {                                                \
             a.as.f _arithmetic_ b.as.f;                                               \
@@ -4852,67 +4852,67 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`")     \
     }
 
-#define COMPARE_OP(compare)                                                          \
-    HymnValue b = pop(H);                                                            \
-    HymnValue a = pop(H);                                                            \
-    if (hymn_is_int(a)) {                                                            \
-        if (hymn_is_int(b)) {                                                        \
-            push(H, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));           \
-        } else if (hymn_is_float(b)) {                                               \
-            push(H, hymn_new_bool((double)hymn_as_int(a) compare hymn_as_float(b))); \
-        } else {                                                                     \
-            hymn_dereference(H, a);                                                  \
-            hymn_dereference(H, b);                                                  \
-            THROW("Operands must be numbers")                                        \
-        }                                                                            \
-    } else if (hymn_is_float(a)) {                                                   \
-        if (hymn_is_int(b)) {                                                        \
-            push(H, hymn_new_bool(hymn_as_float(a) compare(double) hymn_as_int(b))); \
-        } else if (hymn_is_float(b)) {                                               \
-            push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));       \
-        } else {                                                                     \
-            hymn_dereference(H, a);                                                  \
-            hymn_dereference(H, b);                                                  \
-            THROW("Operands must be numbers")                                        \
-        }                                                                            \
-    } else {                                                                         \
-        hymn_dereference(H, a);                                                      \
-        hymn_dereference(H, b);                                                      \
-        THROW("Operands must be numbers")                                            \
+#define COMPARE_OP(compare)                                                             \
+    HymnValue b = pop(H);                                                               \
+    HymnValue a = pop(H);                                                               \
+    if (hymn_is_int(a)) {                                                               \
+        if (hymn_is_int(b)) {                                                           \
+            push(H, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));              \
+        } else if (hymn_is_float(b)) {                                                  \
+            push(H, hymn_new_bool((HymnFloat)hymn_as_int(a) compare hymn_as_float(b))); \
+        } else {                                                                        \
+            hymn_dereference(H, a);                                                     \
+            hymn_dereference(H, b);                                                     \
+            THROW("Operands must be numbers")                                           \
+        }                                                                               \
+    } else if (hymn_is_float(a)) {                                                      \
+        if (hymn_is_int(b)) {                                                           \
+            push(H, hymn_new_bool(hymn_as_float(a) compare(HymnFloat) hymn_as_int(b))); \
+        } else if (hymn_is_float(b)) {                                                  \
+            push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));          \
+        } else {                                                                        \
+            hymn_dereference(H, a);                                                     \
+            hymn_dereference(H, b);                                                     \
+            THROW("Operands must be numbers")                                           \
+        }                                                                               \
+    } else {                                                                            \
+        hymn_dereference(H, a);                                                         \
+        hymn_dereference(H, b);                                                         \
+        THROW("Operands must be numbers")                                               \
     }
 
-#define JUMP_COMPARE_OP(compare)                                      \
-    HymnValue b = pop(H);                                             \
-    HymnValue a = pop(H);                                             \
-    bool answer;                                                      \
-    if (hymn_is_int(a)) {                                             \
-        if (hymn_is_int(b)) {                                         \
-            answer = hymn_as_int(a) compare hymn_as_int(b);           \
-        } else if (hymn_is_float(b)) {                                \
-            answer = (double)hymn_as_int(a) compare hymn_as_float(b); \
-        } else {                                                      \
-            hymn_dereference(H, a);                                   \
-            hymn_dereference(H, b);                                   \
-            THROW("Comparison: Operands must be numbers")             \
-        }                                                             \
-    } else if (hymn_is_float(a)) {                                    \
-        if (hymn_is_int(b)) {                                         \
-            answer = hymn_as_float(a) compare(double) hymn_as_int(b); \
-        } else if (hymn_is_float(b)) {                                \
-            answer = hymn_as_float(a) compare hymn_as_float(b);       \
-        } else {                                                      \
-            hymn_dereference(H, a);                                   \
-            hymn_dereference(H, b);                                   \
-            THROW("Comparison: Operands must be numbers")             \
-        }                                                             \
-    } else {                                                          \
-        hymn_dereference(H, a);                                       \
-        hymn_dereference(H, b);                                       \
-        THROW("Comparison: Operands must be numbers")                 \
-    }                                                                 \
-    uint16_t jump = READ_SHORT(frame);                                \
-    if (answer) {                                                     \
-        frame->ip += jump;                                            \
+#define JUMP_COMPARE_OP(compare)                                         \
+    HymnValue b = pop(H);                                                \
+    HymnValue a = pop(H);                                                \
+    bool answer;                                                         \
+    if (hymn_is_int(a)) {                                                \
+        if (hymn_is_int(b)) {                                            \
+            answer = hymn_as_int(a) compare hymn_as_int(b);              \
+        } else if (hymn_is_float(b)) {                                   \
+            answer = (HymnFloat)hymn_as_int(a) compare hymn_as_float(b); \
+        } else {                                                         \
+            hymn_dereference(H, a);                                      \
+            hymn_dereference(H, b);                                      \
+            THROW("Comparison: Operands must be numbers")                \
+        }                                                                \
+    } else if (hymn_is_float(a)) {                                       \
+        if (hymn_is_int(b)) {                                            \
+            answer = hymn_as_float(a) compare(HymnFloat) hymn_as_int(b); \
+        } else if (hymn_is_float(b)) {                                   \
+            answer = hymn_as_float(a) compare hymn_as_float(b);          \
+        } else {                                                         \
+            hymn_dereference(H, a);                                      \
+            hymn_dereference(H, b);                                      \
+            THROW("Comparison: Operands must be numbers")                \
+        }                                                                \
+    } else {                                                             \
+        hymn_dereference(H, a);                                          \
+        hymn_dereference(H, b);                                          \
+        THROW("Comparison: Operands must be numbers")                    \
+    }                                                                    \
+    uint16_t jump = READ_SHORT(frame);                                   \
+    if (answer) {                                                        \
+        frame->ip += jump;                                               \
     }
 
 static void run(Hymn *H) {
@@ -5130,7 +5130,7 @@ dispatch:
             }
         } else {
             HymnArray *array = hymn_as_array(object);
-            int64_t key = hymn_as_int(frame->stack[index]) + 1;
+            HymnInt key = hymn_as_int(frame->stack[index]) + 1;
             if (key >= array->length) {
                 frame->ip += 2;
             } else {
@@ -5297,13 +5297,13 @@ dispatch:
             hymn_dereference(H, a);
             THROW("Increment: 1st and 2nd values can't be added")
         } else if (hymn_is_int(a)) {
-            a.as.i += (int64_t)increment;
+            a.as.i += (HymnInt)increment;
             push(H, a);
         } else if (hymn_is_float(a)) {
-            a.as.f += (double)increment;
+            a.as.f += (HymnFloat)increment;
             push(H, a);
         } else if (hymn_is_string(a)) {
-            push_string(H, value_concat(a, hymn_new_int((int64_t)increment)));
+            push_string(H, value_concat(a, hymn_new_int((HymnInt)increment)));
         } else {
             THROW("Increment: 1st and 2nd values can't be added")
         }
@@ -5574,9 +5574,9 @@ dispatch:
         uint8_t increment = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
-            value.as.i += (uint64_t)increment;
+            value.as.i += (HymnInt)increment;
         } else if (hymn_is_float(value)) {
-            value.as.f += (double)increment;
+            value.as.f += (HymnFloat)increment;
         } else {
             const char *is = value_name(value.is);
             THROW("Increment Local: Expected `Number` but was `%s`", is)
@@ -5589,9 +5589,9 @@ dispatch:
         uint8_t increment = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
-            value.as.i += (uint64_t)increment;
+            value.as.i += (HymnInt)increment;
         } else if (hymn_is_float(value)) {
-            value.as.f += (double)increment;
+            value.as.f += (HymnFloat)increment;
         } else {
             const char *is = value_name(value.is);
             THROW("Get and Set Local: Expected `Number` but was `%s`", is)
@@ -5673,8 +5673,8 @@ dispatch:
                 THROW("Dynamic Set: `Integer` required to set `Array` index")
             }
             HymnArray *array = hymn_as_array(object);
-            int64_t size = array->length;
-            int64_t index = hymn_as_int(property);
+            HymnInt size = array->length;
+            HymnInt index = hymn_as_int(property);
             if (index > size) {
                 hymn_dereference(H, value);
                 hymn_dereference(H, property);
@@ -5736,8 +5736,8 @@ dispatch:
                 THROW("Get Dynamic: Requires `Integer` to get string character from index, but was `%s`", is)
             }
             HymnString *string = hymn_as_string(v);
-            int64_t size = (int64_t)hymn_string_len(string);
-            int64_t index = hymn_as_int(i);
+            HymnInt size = (HymnInt)hymn_string_len(string);
+            HymnInt index = hymn_as_int(i);
             if (index >= size) {
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
@@ -5763,8 +5763,8 @@ dispatch:
                 THROW("Integer required to get array index")
             }
             HymnArray *array = hymn_as_array(v);
-            int64_t size = array->length;
-            int64_t index = hymn_as_int(i);
+            HymnInt size = array->length;
+            HymnInt index = hymn_as_int(i);
             if (index >= size) {
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
@@ -5817,17 +5817,17 @@ dispatch:
         HymnValue value = pop(H);
         switch (value.is) {
         case HYMN_VALUE_STRING: {
-            int64_t len = (int64_t)hymn_string_len(hymn_as_string(value));
+            HymnInt len = (HymnInt)hymn_string_len(hymn_as_string(value));
             push(H, hymn_new_int(len));
             break;
         }
         case HYMN_VALUE_ARRAY: {
-            int64_t len = hymn_as_array(value)->length;
+            HymnInt len = hymn_as_array(value)->length;
             push(H, hymn_new_int(len));
             break;
         }
         case HYMN_VALUE_TABLE: {
-            int64_t len = (int64_t)hymn_as_table(value)->size;
+            HymnInt len = (HymnInt)hymn_as_table(value)->size;
             push(H, hymn_new_int(len));
             break;
         }
@@ -5880,8 +5880,8 @@ dispatch:
                 THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
             }
             HymnArray *array = hymn_as_array(v);
-            int64_t size = array->length;
-            int64_t index = hymn_as_int(i);
+            HymnInt size = array->length;
+            HymnInt index = hymn_as_int(i);
             if (index > size) {
                 hymn_dereference(H, p);
                 hymn_dereference(H, i);
@@ -5924,8 +5924,8 @@ dispatch:
                 THROW("Integer required to delete from array")
             }
             HymnArray *array = hymn_as_array(v);
-            int64_t size = array->length;
-            int64_t index = hymn_as_int(i);
+            HymnInt size = array->length;
+            HymnInt index = hymn_as_int(i);
             if (index >= size) {
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
@@ -6009,11 +6009,11 @@ dispatch:
             hymn_dereference(H, v);
             THROW("Integer required for slice expression")
         }
-        int64_t start = hymn_as_int(a);
+        HymnInt start = hymn_as_int(a);
         if (hymn_is_string(v)) {
             HymnString *original = hymn_as_string(v);
-            int64_t size = (int64_t)hymn_string_len(original);
-            int64_t end;
+            HymnInt size = (HymnInt)hymn_string_len(original);
+            HymnInt end;
             if (hymn_is_int(b)) {
                 end = hymn_as_int(b);
             } else if (hymn_is_none(b)) {
@@ -6049,8 +6049,8 @@ dispatch:
             push_string(H, sub);
         } else if (hymn_is_array(v)) {
             HymnArray *array = hymn_as_array(v);
-            int64_t size = array->length;
-            int64_t end;
+            HymnInt size = array->length;
+            HymnInt end;
             if (hymn_is_int(b)) {
                 end = hymn_as_int(b);
             } else if (hymn_is_none(b)) {
@@ -6160,7 +6160,7 @@ dispatch:
             size_t index = 0;
             bool found = string_find(hymn_as_string(a), hymn_as_string(b), &index);
             if (found) {
-                push(H, hymn_new_int((int64_t)index));
+                push(H, hymn_new_int((HymnInt)index));
             } else {
                 push(H, hymn_new_int(-1));
             }
@@ -6237,7 +6237,7 @@ dispatch:
         if (hymn_is_int(value)) {
             push(H, value);
         } else if (hymn_is_float(value)) {
-            int64_t number = (int64_t)hymn_as_float(value);
+            HymnInt number = (HymnInt)hymn_as_float(value);
             push(H, hymn_new_int(number));
         } else if (hymn_is_string(value)) {
             HymnString *string = hymn_as_string(value);
@@ -6246,7 +6246,7 @@ dispatch:
             if (string == end) {
                 push(H, hymn_new_none());
             } else {
-                push(H, hymn_new_int((int64_t)number));
+                push(H, hymn_new_int((HymnInt)number));
             }
             hymn_dereference(H, value);
         } else {
@@ -6258,7 +6258,7 @@ dispatch:
     case OP_FLOAT: {
         HymnValue value = pop(H);
         if (hymn_is_int(value)) {
-            double number = (double)hymn_as_int(value);
+            HymnFloat number = (HymnFloat)hymn_as_int(value);
             push(H, hymn_new_float(number));
         } else if (hymn_is_float(value)) {
             push(H, value);

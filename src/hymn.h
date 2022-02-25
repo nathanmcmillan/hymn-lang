@@ -122,8 +122,8 @@ struct HymnObjectString {
 struct HymnArray {
     HymnObject object;
     HymnValue *items;
-    int64_t length;
-    int64_t capacity;
+    HymnInt length;
+    HymnInt capacity;
 };
 
 struct HymnTableItem {
@@ -236,14 +236,14 @@ HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
 
-HymnArray *hymn_new_array(int64_t length);
+HymnArray *hymn_new_array(HymnInt length);
 
 void hymn_array_push(HymnArray *this, HymnValue value);
-void hymn_array_insert(HymnArray *this, int64_t index, HymnValue value);
-HymnValue hymn_array_get(HymnArray *this, int64_t index);
-int64_t hymn_array_index_of(HymnArray *this, HymnValue match);
+void hymn_array_insert(HymnArray *this, HymnInt index, HymnValue value);
+HymnValue hymn_array_get(HymnArray *this, HymnInt index);
+HymnInt hymn_array_index_of(HymnArray *this, HymnValue match);
 HymnValue hymn_array_pop(HymnArray *this);
-HymnValue hymn_array_remove_index(HymnArray *this, int64_t index);
+HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index);
 void hymn_array_clear(Hymn *H, HymnArray *this);
 void hymn_array_delete(Hymn *H, HymnArray *this);
 
