@@ -1,4 +1,4 @@
-let start = os_clock()
+let start = os.clock()
 
 let N = 10000000
 let list = []
@@ -13,5 +13,5 @@ for i = 0, i < N
   sum = sum + list[i]
 end
 
-let seconds = os_clock() - start
+let seconds = os.clock() - start
 echo "elapsed: " + seconds + "s | " + sum

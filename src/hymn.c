@@ -2670,7 +2670,7 @@ static uint8_t variable(Compiler *C, const char *error) {
         if (local->depth != -1 && local->depth < scope->depth) {
             break;
         } else if (ident_match(C, name, &local->name)) {
-            compile_error(C, name, "Variable `%.*s` already exists in this scope", name->length, &C->source[name->start]);
+            compile_error(C, name, "variable '%.*s' already exists in this scope", name->length, &C->source[name->start]);
         }
     }
     push_local(C, *name);

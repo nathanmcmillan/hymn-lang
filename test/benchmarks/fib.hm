@@ -3,7 +3,7 @@ function fib(n)
   return fib(n - 1) + fib(n - 2)
 end
 
-let start = os_clock()
+let start = os.clock()
 
 let sum = 0
 
@@ -11,5 +11,5 @@ for i = 0, i < 10
   sum = sum + fib(30)
 end
 
-let seconds = os_clock() - start
+let seconds = os.clock() - start
 echo "elapsed: " + seconds + "s | " + sum

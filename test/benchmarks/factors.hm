@@ -1,4 +1,4 @@
-let start = os_clock()
+let start = os.clock()
 
 let N = 50000000
 let factors = []
@@ -9,5 +9,5 @@ for i = 1, i <= N
   end
 end
 
-let seconds = os_clock() - start
+let seconds = os.clock() - start
 echo "elapsed: " + seconds + "s | " + factors[-1]
