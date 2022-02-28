@@ -81,6 +81,8 @@ static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_string_value(hymn_intern_string(H, string));
 }
 
+// read_lines
+
 void hymn_use_io(Hymn *H) {
     HymnTable *io = hymn_new_table();
     hymn_add_function_to_table(H, io, "size", io_size);

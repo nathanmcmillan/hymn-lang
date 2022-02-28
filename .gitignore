@@ -38,3 +38,5 @@ cachegrind.out.*
 
 test.hm
 test2.hm
+
+test.lua

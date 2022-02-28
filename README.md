@@ -61,6 +61,10 @@ echo list
 1. Insert into table collision linked lists using sorted order, so subsequent operations can be quicker
 1. A failed malloc, calloc, realloc should return a compile or runtime error if possible
 1. Delay dereferencing to the end of subroutines and analyze where reference counting can be ignored
+   1. Using registers accomplishes this
+   1. Can we use the current stack depth instead of adding and subtracting reference counts for everything
+      - Set object depth = current stack depth or -1 for global
+      - On function return, delete anything on the stack at the current depth that wasn't referenced elsewhere
 1. Include registers to avoid `push` and `pop` costs
 
 ## Progress

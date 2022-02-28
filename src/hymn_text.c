@@ -115,6 +115,10 @@ static HymnValue text_trim(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
+// join (combine list into string with optional delimiter)
+// left_strip (remove spaces on left)
+// right_strip (remove spaces on right)
+
 void hymn_use_string(Hymn *H) {
     HymnTable *text = hymn_new_table();
     hymn_add_function_to_table(H, text, "ends", text_ends);
