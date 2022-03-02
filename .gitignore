@@ -36,7 +36,6 @@ luac.out
 callgrind.out.*
 cachegrind.out.*
 
-test.hm
-test2.hm
+test*.hm
 
 test.lua

@@ -47,6 +47,8 @@
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
 
+#define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
+
 typedef int64_t HymnInt;
 typedef double HymnFloat;
 
@@ -182,6 +184,7 @@ struct HymnFunction {
     HymnString *name;
     HymnString *script;
     int arity;
+    int registers;
     HymnByteCode code;
     HymnExceptList *except;
 };

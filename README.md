@@ -51,6 +51,11 @@ echo list
 
 ## To Do
 
+1. Optimizations
+   - Registers to avoid push / pop / references
+   - If we have two number only instructions in a row
+   - We can take out the type check for the second instruction
+   - We know an exception will be thrown from the first instruction if the types are not allowed
 1. Tail call optimizations. Any time a function ends with another function call, the stack can be re-used
 1. Consistent, descriptive error messages
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`
@@ -60,12 +65,6 @@ echo list
    - Can HymnObjectString have it's own `char*`?
 1. Insert into table collision linked lists using sorted order, so subsequent operations can be quicker
 1. A failed malloc, calloc, realloc should return a compile or runtime error if possible
-1. Delay dereferencing to the end of subroutines and analyze where reference counting can be ignored
-   1. Using registers accomplishes this
-   1. Can we use the current stack depth instead of adding and subtracting reference counts for everything
-      - Set object depth = current stack depth or -1 for global
-      - On function return, delete anything on the stack at the current depth that wasn't referenced elsewhere
-1. Include registers to avoid `push` and `pop` costs
 
 ## Progress
 

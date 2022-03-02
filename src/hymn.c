@@ -10,7 +10,7 @@
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
 
-// #define HYMN_NO_REGISTERS
+#define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
 void *hymn_malloc(size_t size) {
@@ -40,147 +40,10 @@ void *hymn_realloc(void *mem, size_t size) {
     exit(1);
 }
 
-static HymnStringHead *string_head_init(size_t length, size_t capacity) {
-    size_t memory = sizeof(HymnStringHead) + capacity + 1;
-    HymnStringHead *head = (HymnStringHead *)hymn_malloc(memory);
-    memset(head, 0, memory);
-    head->length = length;
-    head->capacity = capacity;
-    return head;
-}
-
-HymnString *hymn_new_string_with_capacity(size_t capacity) {
-    HymnStringHead *head = string_head_init(0, capacity);
-    return (HymnString *)(head + 1);
-}
-
-HymnString *hymn_new_string_with_length(const char *chars, size_t length) {
-    HymnStringHead *head = string_head_init(length, length);
-    char *string = (char *)(head + 1);
-    memcpy(string, chars, length);
-    return (HymnString *)string;
-}
-
-HymnString *hymn_new_empty_string(size_t length) {
-    HymnStringHead *head = string_head_init(length, length);
-    char *string = (char *)(head + 1);
-    return (HymnString *)string;
-}
-
-HymnString *hymn_new_string(const char *chars) {
-    size_t length = strlen(chars);
-    return hymn_new_string_with_length(chars, length);
-}
-
-HymnString *hymn_substring(const char *init, size_t start, size_t end) {
-    size_t length = end - start;
-    HymnStringHead *head = string_head_init(length, length);
-    char *string = (char *)(head + 1);
-    memcpy(string, &init[start], length);
-    string[length] = '\0';
-    return (HymnString *)string;
-}
-
-#define STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
-
-HymnStringHead *hymn_string_head(HymnString *string) {
-    return STRING_HEAD(string);
-}
-
-HymnString *hymn_string_copy(HymnString *string) {
-    HymnStringHead *head = STRING_HEAD(string);
-    return hymn_new_string_with_length(string, head->length);
-}
-
-size_t hymn_string_len(HymnString *string) {
-    HymnStringHead *head = STRING_HEAD(string);
-    return head->length;
-}
-
-void hymn_string_delete(HymnString *string) {
-    if (string == NULL) {
-        return;
-    }
-    free((char *)string - sizeof(HymnStringHead));
-}
-
-static HymnString *substring(HymnString *string, size_t start, size_t end) {
-    size_t len = end - start;
-    HymnStringHead *head = string_head_init(len, len);
-    char *s = (char *)(head + 1);
-    memcpy(s, string + start, len);
-    s[len] = '\0';
-    return (HymnString *)s;
-}
-
-void hymn_string_zero(HymnString *string) {
-    HymnStringHead *head = STRING_HEAD(string);
-    head->length = 0;
-    string[0] = '\0';
-}
-
-static HymnStringHead *string_resize(HymnStringHead *head, size_t capacity) {
-    size_t memory = sizeof(HymnStringHead) + capacity + 1;
-    HymnStringHead *new = hymn_realloc(head, memory);
-    new->capacity = capacity;
-    return new;
-}
-
-HymnString *hymn_string_append(HymnString *string, const char *b) {
-    HymnStringHead *head = STRING_HEAD(string);
-    size_t len_a = head->length;
-    size_t len_b = strlen(b);
-    size_t len = len_a + len_b;
-    if (len > head->capacity) {
-        head = string_resize(head, len * 2);
-    }
-    head->length = len;
-    char *s = (char *)(head + 1);
-    memcpy(s + len_a, b, len_b + 1);
-    s[len] = '\0';
-    return (HymnString *)s;
-}
-
-HymnString *hymn_string_append_char(HymnString *string, const char b) {
-    HymnStringHead *head = STRING_HEAD(string);
-    size_t len = head->length + 1;
-    if (len > head->capacity) {
-        head = string_resize(head, len * 2);
-    }
-    head->length = len;
-    char *s = (char *)(head + 1);
-    s[len - 1] = b;
-    s[len] = '\0';
-    return (HymnString *)s;
-}
-
-static HymnString *string_append_substring(HymnString *string, const char *b, size_t start, size_t end) {
-    HymnStringHead *head = STRING_HEAD(string);
-    size_t len_a = head->length;
-    size_t len_b = end - start;
-    size_t len = len_a + len_b;
-    if (len > head->capacity) {
-        head = string_resize(head, len * 2);
-    }
-    head->length = len;
-    char *s = (char *)(head + 1);
-    memcpy(s + len_a, &b[start], len_b);
-    s[len] = '\0';
-    return (HymnString *)s;
-}
-
-bool hymn_string_equal(HymnString *a, HymnString *b) {
-    return 0 == strcmp(a, b);
-}
-
-bool hymn_string_starts_with(HymnString *s, const char *using) {
-    size_t slen = hymn_string_len(s);
-    size_t plen = strlen(using);
-    return slen < plen ? false : memcmp(s, using, plen) == 0;
-}
+// STRINGS
 
 static bool string_find(HymnString *string, HymnString *sub, size_t *out) {
-    HymnStringHead *head = STRING_HEAD(string);
+    HymnStringHead *head = HYMN_STRING_HEAD(string);
     HymnStringHead *head_sub = (HymnStringHead *)((char *)sub - sizeof(HymnStringHead));
     size_t len = head->length;
     size_t len_sub = head_sub->length;
@@ -205,39 +68,6 @@ static bool string_find(HymnString *string, HymnString *sub, size_t *out) {
         }
     }
     return false;
-}
-
-HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace) {
-    HymnStringHead *head = STRING_HEAD(string);
-    size_t len = head->length;
-    size_t len_sub = strlen(find);
-    if (len_sub > len) {
-        return hymn_new_string("");
-    } else if (len == 0) {
-        return hymn_new_string("");
-    }
-    HymnString *out = hymn_new_string_with_capacity(len);
-    size_t end = len - len_sub + 1;
-    size_t p = 0;
-    for (size_t i = 0; i < end; i++) {
-        bool match = true;
-        for (size_t k = 0; k < len_sub; k++) {
-            if (find[k] != string[i + k]) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            out = string_append_substring(out, string, p, i);
-            out = hymn_string_append(out, replace);
-            i += len_sub;
-            p = i;
-        }
-    }
-    if (p < len) {
-        out = string_append_substring(out, string, p, len);
-    }
-    return out;
 }
 
 static HymnString *char_to_string(char ch) {
@@ -272,21 +102,6 @@ static char *string_to_chars(HymnString *this) {
     return s;
 }
 
-HymnString *hymn_string_format(const char *format, ...) {
-    va_list args;
-
-    va_start(args, format);
-    int len = vsnprintf(NULL, 0, format, args);
-    va_end(args);
-    char *chars = hymn_malloc((len + 1) * sizeof(char));
-    va_start(args, format);
-    len = vsnprintf(chars, len + 1, format, args);
-    va_end(args);
-    HymnString *str = hymn_new_string_with_length(chars, len);
-    free(chars);
-    return str;
-}
-
 static HymnString *string_append_format(HymnString *this, const char *format, ...) {
     va_list args;
 
@@ -301,6 +116,8 @@ static HymnString *string_append_format(HymnString *this, const char *format, ..
     free(chars);
     return this;
 }
+
+// END STRINGS
 
 // IO
 
@@ -418,7 +235,7 @@ HymnString *hymn_read_file(const char *path) {
         return NULL;
     }
     HymnString *string = hymn_new_string_with_capacity(size);
-    HymnStringHead *head = STRING_HEAD(string);
+    HymnStringHead *head = HYMN_STRING_HEAD(string);
     for (size_t i = 0; i < size; i++) {
         string[i] = (char)fgetc(open);
     }
@@ -643,10 +460,11 @@ enum OpCode {
     OP_USE,
     OP_FOR,
     OP_FOR_LOOP,
-    IR_GLOBAL,
     IR_JUMP_IF_GREATER,
     IR_MODULO,
     IR_ARRAY_PUSH,
+    RE_GLOBAL,
+    RE_JUMP_IF_GREATER,
 };
 
 enum FunctionType {
@@ -1386,12 +1204,8 @@ static void set_release(Hymn *H, HymnSet *set) {
     free(set->items);
 }
 
-static HymnFunction *current_func(Compiler *C) {
-    return C->scope->func;
-}
-
 static HymnByteCode *current(Compiler *C) {
-    return &current_func(C)->code;
+    return &C->scope->func->code;
 }
 
 static size_t beginning_of_line(const char *source, size_t i) {
@@ -2957,13 +2771,15 @@ static int next(uint8_t instruction) {
     case OP_LOOP:
     case OP_INCREMENT_LOCAL_AND_SET:
     case OP_INCREMENT_LOCAL:
-    case IR_GLOBAL:
+    case RE_GLOBAL:
         return 3;
     case OP_FOR:
     case OP_FOR_LOOP:
     case IR_MODULO:
     case IR_ARRAY_PUSH:
         return 4;
+    case RE_JUMP_IF_GREATER:
+        return 5;
     case IR_JUMP_IF_GREATER:
         return 6;
     default:
@@ -3020,6 +2836,15 @@ static bool adjustable(Optimizer *optimizer, int target) {
             if (i < target) {
                 uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
                 if (i + 3 + jump == target) {
+                    return false;
+                }
+            }
+            break;
+        }
+        case RE_JUMP_IF_GREATER: {
+            if (i < target) {
+                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
+                if (i + 5 - jump == target) {
                     return false;
                 }
             }
@@ -3097,6 +2922,23 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
                     jump -= (uint16_t)shift;
                     instructions[i + 2] = (jump >> 8) & UINT8_MAX;
                     instructions[i + 3] = jump & UINT8_MAX;
+                }
+            }
+            break;
+        }
+        case RE_JUMP_IF_GREATER: {
+            if (i < start) {
+                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
+                uint16_t destination = i + 5 + jump;
+                if (destination >= start && destination <= start + shift) {
+                    uint8_t instruction = optimizer->code->instructions[destination];
+                    jump -= next(instruction);
+                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 4] = jump & UINT8_MAX;
+                } else if (destination > start) {
+                    jump -= (uint16_t)shift;
+                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 4] = jump & UINT8_MAX;
                 }
             }
             break;
@@ -3210,6 +3052,17 @@ static void extend(Optimizer *optimizer, int start, int shift) {
                     jump += (uint16_t)shift;
                     instructions[i + 2] = (jump >> 8) & UINT8_MAX;
                     instructions[i + 3] = jump & UINT8_MAX;
+                }
+            }
+            break;
+        }
+        case RE_JUMP_IF_GREATER: {
+            if (i + 5 < start) {
+                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
+                if (i + 5 + jump > start) {
+                    jump += (uint16_t)shift;
+                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
+                    instructions[i + 4] = jump & UINT8_MAX;
                 }
             }
             break;
@@ -3341,6 +3194,11 @@ static void interest(Optimizer *optimizer) {
 }
 
 static void optimize(Compiler *C) {
+
+    uint8_t locals = C->scope->local_count;
+    uint8_t parameters = C->scope->func->arity;
+    uint8_t registers = 0;
+
     Optimizer optimizer = {0};
     optimizer.code = current(C);
     interest(&optimizer);
@@ -3572,6 +3430,55 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_JUMP_IF_GREATER: {
+#define HYMN_REGISTERS
+#ifdef HYMN_REGISTERS
+            // This took off ~ 0.1 seconds in factors.hm benchmark!
+            uint8_t zed = SAFE_INSTRUCTION(zero);
+            uint8_t omega = SAFE_INSTRUCTION(minus);
+            if ((zed == OP_GET_LOCAL || zed == OP_GET_GLOBAL) && (omega == OP_GET_LOCAL || omega == OP_GET_GLOBAL)) {
+                ADD(one + 1, 2);
+                UPDATE(one, RE_JUMP_IF_GREATER);
+                if (zed == OP_GET_LOCAL) {
+                    uint8_t value_b = INSTRUCTION(zero + 1);
+                    SET(one + 2, value_b);
+                    DELETE(zero, 2);
+                    one -= 2;
+                } else {
+                    if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
+                        fprintf(stderr, "out of registers");
+                        exit(1);
+                    }
+                    uint8_t slot_2 = locals + (++registers);
+                    SET(one + 2, slot_2);
+                    SET(zero, RE_GLOBAL);
+                    ADD(zero + 2, 1);
+                    SET(zero + 2, slot_2);
+                    one += 1;
+                }
+                if (omega == OP_GET_LOCAL) {
+                    uint8_t value_a = INSTRUCTION(minus + 1);
+                    SET(one + 1, value_a);
+                    DELETE(minus, 2);
+                    one -= 2;
+                } else {
+                    if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
+                        fprintf(stderr, "out of registers");
+                        exit(1);
+                    }
+                    uint8_t slot_1 = locals + (++registers);
+                    SET(one + 1, slot_1);
+                    SET(minus, RE_GLOBAL);
+                    ADD(minus + 2, 1);
+                    SET(minus + 2, slot_1);
+                    one += 1;
+                }
+                minus = -1;
+                zero = -1;
+                minus_three = -1;
+                minus_two = -1;
+                REPEAT;
+            }
+#endif
 #ifndef HYMN_NO_REGISTERS
             uint8_t zed = SAFE_INSTRUCTION(zero);
             uint8_t omega = SAFE_INSTRUCTION(minus);
@@ -3674,6 +3581,62 @@ static void optimize(Compiler *C) {
         Instruction *next = important->next;
         free(important);
         important = next;
+    }
+
+    if (registers == 0) {
+        return;
+    }
+
+    C->scope->func->registers = registers;
+    // printf("locals: %d\n", locals);
+    // printf("parameters: %d\n", parameters);
+    // printf("registers: %d\n", registers);
+
+    int x = 0;
+    while (x < COUNT()) {
+        uint8_t opcode = INSTRUCTION(x);
+        switch (opcode) {
+            // OP_ADD_TWO_LOCAL:
+            // OP_GET_TWO_LOCAL:
+            // OP_INCREMENT_LOCAL:
+        case OP_INCREMENT_LOCAL_AND_SET: {
+            uint8_t slot = INSTRUCTION(x + 1);
+            SET(x + 1, slot + registers);
+            break;
+        }
+        case OP_GET_LOCAL: {
+            uint8_t slot = INSTRUCTION(x + 1);
+            // if ((int)slot + (int)registers > UINT8_MAX) {
+            //     fprintf(stderr, "out of locals due to registers");
+            //     exit(1);
+            // }
+            if (slot > parameters) { // don't touch function parameters
+                SET(x + 1, slot + registers);
+            }
+            break;
+        }
+        case RE_GLOBAL: {
+            uint8_t slot = INSTRUCTION(x + 2);
+            SET(x + 2, slot - locals + parameters);
+            break;
+        }
+        case RE_JUMP_IF_GREATER: {
+            uint8_t slot_1 = INSTRUCTION(x + 1);
+            uint8_t slot_2 = INSTRUCTION(x + 2);
+            if (slot_1 > locals) {
+                SET(x + 1, slot_1 - locals + parameters);
+            } else {
+                SET(x + 1, slot_1 + registers);
+            }
+            if (slot_2 > locals) {
+                SET(x + 2, slot_2 - locals + parameters);
+            } else {
+                SET(x + 2, slot_2 + registers);
+            }
+            break;
+        }
+        }
+        x += next(opcode);
     }
 }
 
@@ -4080,7 +4043,7 @@ static void try_statement(Compiler *C) {
     except->locals = C->scope->local_count;
     except->start = code->count;
 
-    HymnFunction *func = current_func(C);
+    HymnFunction *func = C->scope->func;
     except->next = func->except;
     func->except = except;
 
@@ -4800,6 +4763,10 @@ static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     frame->ip = func->code.instructions;
     frame->stack = H->stack_top - count - 1;
 
+    for (int r = 0; r < func->registers; r++) {
+        push(H, hymn_new_none());
+    }
+
     return frame;
 }
 
@@ -4981,6 +4948,14 @@ static size_t debug_jump_instruction(HymnString **debug, const char *name, int s
     return index + 3;
 }
 
+static size_t debug_register_2_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
+    uint8_t data_a = code->instructions[index + 1];
+    uint8_t data_b = code->instructions[index + 2];
+    uint16_t jump = (uint16_t)(code->instructions[index + 3] << 8) | (uint16_t)code->instructions[index + 4];
+    *debug = string_append_format(*debug, "%s: [%d] [%d] ? [%zu] -> [%zu]", name, data_a, data_b, index, index + 5 + sign * jump);
+    return index + 5;
+}
+
 static size_t debug_register_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
     uint8_t data_a = code->instructions[index + 1];
     uint8_t data_b = code->instructions[index + 2];
@@ -5102,10 +5077,11 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_TRUE: return debug_instruction(debug, "OP_TRUE", index);
     case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
     case OP_USE: return debug_instruction(debug, "OP_USE", index);
-    case IR_GLOBAL: return debug_constant_to_register_instruction(debug, "IR_GLOBAL", code, index);
     case IR_JUMP_IF_GREATER: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER", 1, code, index);
     case IR_MODULO: return debug_register_instruction(debug, "IR_MODULO", code, index);
     case IR_ARRAY_PUSH: return debug_register_instruction(debug, "IR_ARRAY_PUSH", code, index);
+    case RE_GLOBAL: return debug_constant_to_register_instruction(debug, "RE_GLOBAL", code, index);
+    case RE_JUMP_IF_GREATER: return debug_register_2_jump_instruction(debug, "RE_JUMP_IF_GREATER", 1, code, index);
     default: *debug = string_append_format(*debug, "UNKNOWN OPCODE %d\n", instruction); return index + 1;
     }
 }
@@ -5264,13 +5240,16 @@ dispatch:
     case OP_RETURN: {
         HymnValue result = pop(H);
         H->frame_count--;
-        if (H->frame_count == 0 || frame->func->name == NULL) {
+        while (H->stack_top != frame->stack) { // account for registers
             hymn_dereference(H, pop(H));
+        }
+        if (H->frame_count == 0 || frame->func->name == NULL) {
+            // hymn_dereference(H, pop(H));
             return;
         }
-        while (H->stack_top != frame->stack) {
-            hymn_dereference(H, pop(H));
-        }
+        // while (H->stack_top != frame->stack) {
+        //     hymn_dereference(H, pop(H));
+        // }
         push(H, result);
         frame = current_frame(H);
         HYMN_DISPATCH;
@@ -6646,22 +6625,11 @@ dispatch:
         }
         HYMN_DISPATCH;
     }
-    case IR_GLOBAL: {
-        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        HymnValue get = table_get(&H->globals, name);
-        if (hymn_is_undefined(get)) {
-            THROW("undefined global '%s'", name->string)
-        }
-        uint8_t slot = READ_BYTE(frame);
-        hymn_dereference(H, frame->stack[slot]);
-        frame->stack[slot] = get;
-        hymn_reference(get);
-        HYMN_DISPATCH;
-    }
     case IR_JUMP_IF_GREATER: {
         uint8_t data_a = READ_BYTE(frame);
         uint8_t data_b = READ_BYTE(frame);
         uint8_t data_flag = READ_BYTE(frame);
+        uint16_t jump = READ_SHORT(frame);
         HymnValue a;
         HymnValue b;
         if ((data_flag & IR_FLAG_LOCAL_A) == IR_FLAG_LOCAL_A) {
@@ -6710,7 +6678,6 @@ dispatch:
         } else {
             THROW("Comparison: Operands must be numbers")
         }
-        uint16_t jump = READ_SHORT(frame);
         if (answer) {
             frame->ip += jump;
         }
@@ -6801,6 +6768,49 @@ dispatch:
                 push(H, value);
                 hymn_reference(value);
             }
+        }
+        HYMN_DISPATCH;
+    }
+    case RE_GLOBAL: {
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        uint8_t slot = READ_BYTE(frame);
+        HymnValue get = table_get(&H->globals, name);
+        if (hymn_is_undefined(get)) {
+            THROW("undefined global '%s'", name->string)
+        }
+        hymn_dereference(H, frame->stack[slot]);
+        frame->stack[slot] = get;
+        hymn_reference(get);
+        HYMN_DISPATCH;
+    }
+    case RE_JUMP_IF_GREATER: {
+        uint8_t data_a = READ_BYTE(frame);
+        uint8_t data_b = READ_BYTE(frame);
+        uint16_t jump = READ_SHORT(frame);
+        HymnValue a = frame->stack[data_a];
+        HymnValue b = frame->stack[data_b];
+        bool answer;
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                answer = hymn_as_int(a) > hymn_as_int(b);
+            } else if (hymn_is_float(b)) {
+                answer = (HymnFloat)hymn_as_int(a) > hymn_as_float(b);
+            } else {
+                THROW("Comparison: Operands must be numbers")
+            }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                answer = hymn_as_float(a) > (HymnFloat)hymn_as_int(b);
+            } else if (hymn_is_float(b)) {
+                answer = hymn_as_float(a) > hymn_as_float(b);
+            } else {
+                THROW("Comparison: Operands must be numbers")
+            }
+        } else {
+            THROW("Comparison: Operands must be numbers")
+        }
+        if (answer) {
+            frame->ip += jump;
         }
         HYMN_DISPATCH;
     }
