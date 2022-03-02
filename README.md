@@ -51,6 +51,7 @@ echo list
 
 ## To Do
 
+1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
 1. Optimizations
    - Registers to avoid push / pop / references
    - If we have two number only instructions in a row
@@ -79,8 +80,24 @@ echo list
 
 1. Using a macro READ_BYTE instead of an inline functions improves performance
 1. Using an instruction pointer rather than an index improves performance
-1. Using computed goto instead of a switch **_does not_** always improve performance
+1. Using computed goto instead of a switch **does not** always improve performance
+1. Instructions using a bit mask flag to control local / global / constant information is **terrible** for performance
+   - Likely the extra work to extract information from the bit mask is too costly
+   - Or the branching instructions were impossible to predict
 1. Namespaces require significant complexity but they can be simulated using a table with anonymous functions
+1. Deferred reference counting doesn't work
+   - Intermediate values such as a concatenated string are only briefly present on the stack
+1. Lua loops with cached increment and bounds in special instructions is a major performance boost
+
+## Performance
+
+AMD Ryzen 5 1600 6 core 3.2 GHz - Windows 10 using Ubuntu WSL
+
+| Test   | Factors | Fib   | List  | Loop  | Primes |
+| ------ | ------- | ----- | ----- | ----- | ------ |
+| Hymn   | 1.65s   | 1.55s | 2.64s | 1.25s | 2.78s  |
+| Lua    | 1.14s   | 1.16s | 2.05s | 0.77s | 0.81s  |
+| Python | 4.17s   | 2.27s | 2.67s | 2.00s | 2.59s  |
 
 # Compiling
 
