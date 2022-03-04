@@ -10,6 +10,7 @@
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
 
+// #define HYMN_NO_OPTIMIZE
 // #define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
@@ -39,8 +40,6 @@ void *hymn_realloc(void *mem, size_t size) {
     fprintf(stderr, "realloc failed.\n");
     exit(1);
 }
-
-// STRINGS
 
 static bool string_find(HymnString *string, HymnString *sub, size_t *out) {
     HymnStringHead *head = HYMN_STRING_HEAD(string);
@@ -116,10 +115,6 @@ static HymnString *string_append_format(HymnString *this, const char *format, ..
     free(chars);
     return this;
 }
-
-// END STRINGS
-
-// IO
 
 HymnString *hymn_working_directory() {
     char path[PATH_MAX];
@@ -248,10 +243,6 @@ bool hymn_file_exists(const char *path) {
     struct stat b;
     return stat(path, &b) == 0;
 }
-
-// END IO
-
-// VM
 
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_RESET "\x1b[0m"
@@ -2221,7 +2212,7 @@ static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
     Rule *rule = token_rule(C->previous.type);
     void (*prefix)(Compiler *, bool) = rule->prefix;
     if (prefix == NULL) {
-        compile_error(C, &C->previous, "syntax error: expected expression following '%.*s'", C->previous.length, &C->source[C->previous.start]);
+        compile_error(C, &C->previous, "expected expression following '%.*s'", C->previous.length, &C->source[C->previous.start]);
         return;
     }
     bool assign = precedence <= PRECEDENCE_ASSIGN;
@@ -2237,7 +2228,7 @@ static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
     }
     if (assign && check_assign(C)) {
         advance(C);
-        compile_error(C, &C->current, "Invalid assignment target");
+        compile_error(C, &C->current, "invalid assignment");
     }
 }
 
@@ -2800,6 +2791,16 @@ struct Optimizer {
     Instruction *important;
 };
 
+#define IS_ADJUSTABLE(instructions, index, off, compare, T, operator)                           \
+    if (index compare target) {                                                                 \
+        int offset = index + off;                                                               \
+        uint16_t jump = (uint16_t)((instructions[offset - 2] << 8) | instructions[offset - 1]); \
+        if (offset operator jump == target) {                                                   \
+            return false;                                                                       \
+        }                                                                                       \
+    }                                                                                           \
+    break;
+
 static bool adjustable(Optimizer *optimizer, int target) {
     Instruction *view = optimizer->important;
     uint8_t *instructions = optimizer->code->instructions;
@@ -2816,59 +2817,23 @@ static bool adjustable(Optimizer *optimizer, int target) {
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            if (i < target) {
-                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-                if (i + 3 + jump == target) {
-                    return false;
-                }
-            }
-            break;
+            IS_ADJUSTABLE(instructions, i, 3, <, target, +);
         }
         case OP_FOR: {
-            if (i < target) {
-                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                if (i + 3 + jump == target) {
-                    return false;
-                }
-            }
-            break;
+            IS_ADJUSTABLE(instructions, i, 4, <, target, +);
         }
         case IR_JUMP_IF_GREATER:
         case IR_JUMP_IF_GREATER_EQUAL: {
-            if (i < target) {
-                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
-                if (i + 5 - jump == target) {
-                    return false;
-                }
-            }
-            break;
+            IS_ADJUSTABLE(instructions, i, 5, <, target, +);
         }
         case OP_LOOP: {
-            if (i >= target) {
-                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-                if (i + 3 - jump == target) {
-                    return false;
-                }
-            }
-            break;
+            IS_ADJUSTABLE(instructions, i, 3, >=, target, -);
         }
         case OP_FOR_LOOP: {
-            if (i >= target) {
-                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                if (i + 3 - jump == target) {
-                    return false;
-                }
-            }
-            break;
+            IS_ADJUSTABLE(instructions, i, 4, >=, target, -);
         }
         case OP_INCREMENT_LOOP: {
-            if (i >= target) {
-                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
-                if (i + 5 - jump == target) {
-                    return false;
-                }
-            }
-            break;
+            IS_ADJUSTABLE(instructions, i, 5, >=, target, -);
         }
         }
         view = view->next;
@@ -2910,7 +2875,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_FOR: {
             if (i < start) {
                 uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                uint16_t destination = i + 3 + jump;
+                uint16_t destination = i + 4 + jump;
                 if (destination > start) {
                     jump -= (uint16_t)shift;
                     instructions[i + 2] = (jump >> 8) & UINT8_MAX;
@@ -3222,8 +3187,10 @@ static void optimize(Compiler *C) {
     }
 
     int one = 0;
+#ifndef HYMN_NO_REGISTERS
     int zero = -1;
     int minus = -1;
+#endif
     // int minus_two = -1;
     // int minus_three = -1;
 
@@ -3584,8 +3551,10 @@ static void optimize(Compiler *C) {
     next:
         // minus_three = minus_two;
         // minus_two = minus;
+#ifndef HYMN_NO_REGISTERS
         minus = zero;
         zero = one;
+#endif
         one = two;
     }
 
@@ -3609,8 +3578,7 @@ static void optimize(Compiler *C) {
     while (x < COUNT()) {
         uint8_t opcode = INSTRUCTION(x);
         switch (opcode) {
-            // OP_ADD_TWO_LOCAL:
-            // OP_INCREMENT_LOCAL:
+        case OP_ADD_TWO_LOCAL:
         case OP_GET_TWO_LOCAL:
         case IR_MODULO: {
             uint8_t slot_1 = INSTRUCTION(x + 1);
@@ -3631,6 +3599,7 @@ static void optimize(Compiler *C) {
             }
             break;
         }
+        case OP_INCREMENT_LOCAL:
         case OP_INCREMENT_LOCAL_AND_SET:
         case OP_INCREMENT_LOOP:
         case OP_GET_LOCAL: {
@@ -3672,12 +3641,16 @@ static void optimize(Compiler *C) {
 }
 
 static HymnFunction *end_function(Compiler *C) {
+#ifndef HYMN_NO_OPTIMIZE
     HymnByteCode *code = current(C);
     if (code->instructions[code->count - 1] != OP_RETURN) {
+#endif
         emit(C, OP_NONE);
         emit(C, OP_RETURN);
+#ifndef HYMN_NO_OPTIMIZE
     }
     optimize(C);
+#endif
     HymnFunction *func = C->scope->func;
     C->scope = C->scope->enclosing;
     return func;
@@ -3949,7 +3922,7 @@ static void for_statement(Compiler *C) {
     C->loop = &loop;
 
     if (match(C, TOKEN_COMMA)) {
-        expression(C);
+        expression_statement(C);
     } else {
         emit_word(C, OP_INCREMENT_LOCAL_AND_SET, index, 1);
     }
@@ -5266,16 +5239,13 @@ dispatch:
     case OP_RETURN: {
         HymnValue result = pop(H);
         H->frame_count--;
-        while (H->stack_top != frame->stack) { // account for registers
+        bool done = H->frame_count == 0 || frame->func->name == NULL;
+        while (H->stack_top != frame->stack) {
             hymn_dereference(H, pop(H));
         }
-        if (H->frame_count == 0 || frame->func->name == NULL) {
-            // hymn_dereference(H, pop(H));
+        if (done) {
             return;
         }
-        // while (H->stack_top != frame->stack) {
-        //     hymn_dereference(H, pop(H));
-        // }
         push(H, result);
         frame = current_frame(H);
         HYMN_DISPATCH;
@@ -6838,8 +6808,6 @@ static char *interpret(Hymn *H) {
     }
     return error;
 }
-
-// END VM
 
 static void print_stdout(const char *format, ...) {
     va_list args;

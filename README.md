@@ -84,6 +84,9 @@ echo list
 1. Instructions using a bit mask flag to control local / global / constant information is **terrible** for performance
    - Likely the extra work to extract information from the bit mask is too costly
    - Or the branching instructions were impossible to predict
+1. A single monolithic source file **significantly** improves performance compared to multiple source and header files
+   - Likely due to inlining and better compiler information
+   - No code organization!
 1. Namespaces require significant complexity but they can be simulated using a table with anonymous functions
 1. Deferred reference counting doesn't work
    - Intermediate values such as a concatenated string are only briefly present on the stack
