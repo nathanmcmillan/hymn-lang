@@ -4,8 +4,6 @@
 
 #include "hymn.h"
 
-// HYMN_DEBUG_TRACE is causing a segfault during unit tests
-
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
@@ -3162,6 +3160,14 @@ static void optimize(Compiler *C) {
 
     Optimizer optimizer = {0};
     optimizer.code = current(C);
+
+    if (optimizer.code->count <= 2) {
+        return;
+    }
+
+    // if [-3] == OP_RETURN && [-2] == OP_NONE && [-1] == OP_RETURN
+    //     DELETE(-2, 2)
+
     interest(&optimizer);
 
 #define COUNT() optimizer.code->count
@@ -3641,16 +3647,9 @@ static void optimize(Compiler *C) {
 }
 
 static HymnFunction *end_function(Compiler *C) {
-#ifndef HYMN_NO_OPTIMIZE
-    HymnByteCode *code = current(C);
-    if (code->instructions[code->count - 1] != OP_RETURN) {
-#endif
-        emit(C, OP_NONE);
-        emit(C, OP_RETURN);
-#ifndef HYMN_NO_OPTIMIZE
-    }
+    emit(C, OP_NONE);
+    emit(C, OP_RETURN);
     optimize(C);
-#endif
     HymnFunction *func = C->scope->func;
     C->scope = C->scope->enclosing;
     return func;
@@ -4693,7 +4692,7 @@ static HymnFrame *exception(Hymn *H) {
     }
 }
 
-static HymnString *machine_stacktrace(Hymn *H) {
+static HymnString *stacktrace(Hymn *H) {
     HymnString *trace = hymn_new_string("");
 
     for (int i = H->frame_count - 1; i >= 0; i--) {
@@ -4719,7 +4718,7 @@ static HymnString *machine_stacktrace(Hymn *H) {
     return trace;
 }
 
-static HymnFrame *machine_push_error(Hymn *H, HymnString *error) {
+static HymnFrame *push_error(Hymn *H, HymnString *error) {
     HymnObjectString *message = hymn_intern_string(H, error);
     hymn_reference_string(message);
     push(H, hymn_new_string_value(message));
@@ -4729,7 +4728,7 @@ static HymnFrame *machine_push_error(Hymn *H, HymnString *error) {
 static HymnFrame *throw_existing_error(Hymn *H, char *error) {
     HymnString *message = hymn_new_string(error);
     free(error);
-    return machine_push_error(H, message);
+    return push_error(H, message);
 }
 
 static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
@@ -4744,12 +4743,12 @@ static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
     HymnString *error = hymn_new_string(chars);
     free(chars);
 
-    HymnString *trace = machine_stacktrace(H);
+    HymnString *trace = stacktrace(H);
     error = hymn_string_append(error, "\n\n");
     error = hymn_string_append(error, trace);
     hymn_string_delete(trace);
 
-    return machine_push_error(H, error);
+    return push_error(H, error);
 }
 
 static HymnFrame *throw_error_string(Hymn *H, HymnString *string) {
@@ -5020,7 +5019,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
     case OP_EQUAL: return debug_instruction(debug, "OP_EQUAL", index);
     case OP_ECHO: return debug_instruction(debug, "OP_ECHO", index);
-    case OP_EXISTS: return debug_constant_instruction(debug, "OP_EXISTS", code, index);
+    case OP_EXISTS: return debug_instruction(debug, "OP_EXISTS", index);
     case OP_FALSE: return debug_instruction(debug, "OP_FALSE", index);
     case OP_FOR: return debug_for_loop_instruction(debug, "OP_FOR", 1, code, index);
     case OP_FOR_LOOP: return debug_for_loop_instruction(debug, "OP_FOR_LOOP", -1, code, index);
@@ -5060,7 +5059,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_POP: return debug_instruction(debug, "OP_POP", index);
     case OP_POP_N: return debug_byte_instruction(debug, "OP_POP_N", code, index);
     case OP_POP_TWO: return debug_instruction(debug, "OP_POP_TWO", index);
-    case OP_PRINT: return debug_constant_instruction(debug, "OP_PRINT", code, index);
+    case OP_PRINT: return debug_instruction(debug, "OP_PRINT", index);
     case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
     case OP_SET_DYNAMIC: return debug_instruction(debug, "OP_SET_DYNAMIC", index);
     case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", code, index);
@@ -7007,18 +7006,27 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
     disassemble_byte_code(&main->code, script);
 
     HymnValuePool *constants = &main->code.constants;
-    for (int i = 0; i < constants->count; i++) {
-        HymnValue value = constants->values[i];
+    int count = constants->count;
+    HymnValue *values = constants->values;
+
+    for (int i = 0; i < count; i++) {
+        HymnValue value = values[i];
         if (hymn_is_func(value)) {
             HymnFunction *func = hymn_as_func(value);
             disassemble_byte_code(&func->code, func->name);
         }
     }
 
+    for (int i = 0; i < count; i++) {
+        HymnValue value = values[i];
+        if (hymn_is_func(value)) {
+            HymnFunction *func = hymn_as_func(value);
+            function_delete(func);
+        }
+    }
+
     function_delete(main);
     hymn_string_delete(code);
-
-    // More than a main function is causing memory leak. Second function is not cleaned up
 
     assert(H->stack_top == H->stack);
     reset_stack(H);
