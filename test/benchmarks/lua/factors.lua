@@ -5,7 +5,7 @@ factors = {}
 
 for i = 1, N do
   if N % i == 0 then
-    table.insert(factors, i)
+    factors[#factors] = i
   end
 end
 

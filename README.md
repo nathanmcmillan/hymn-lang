@@ -51,6 +51,7 @@ echo list
 
 ## To Do
 
+1. Self referncing local functions
 1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
 1. Optimizations
    - Registers to avoid push / pop / references
@@ -96,11 +97,11 @@ echo list
 
 AMD Ryzen 5 1600 6 core 3.2 GHz - Windows 10 using Ubuntu WSL
 
-| Test   | Factors | Fib   | List  | Loop  | Primes |
-| ------ | ------- | ----- | ----- | ----- | ------ |
-| Hymn   | 1.65s   | 1.55s | 2.64s | 1.25s | 2.78s  |
-| Lua    | 1.14s   | 1.16s | 2.05s | 0.77s | 0.81s  |
-| Python | 4.17s   | 2.27s | 2.67s | 2.00s | 2.59s  |
+| Test   | Factors | Fib   | List  | Loop  | Primes | Tail  |
+| ------ | ------- | ----- | ----- | ----- | ------ | ----- |
+| Hymn   | 1.64s   | 1.55s | 2.29s | 0.97s | 0.90s  | 3.05s |
+| Lua    | 1.14s   | 1.16s | 1.98s | 0.72s | 0.81s  | 1.81s |
+| Python | 4.17s   | 2.27s | 2.67s | 2.00s | 2.59s  | -     |
 
 # Compiling
 

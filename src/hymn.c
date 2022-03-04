@@ -8,7 +8,7 @@
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
 
-#define HYMN_NO_OPTIMIZE
+// #define HYMN_NO_OPTIMIZE
 // #define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
@@ -3834,7 +3834,9 @@ static void optimize(Compiler *C) {
 static HymnFunction *end_function(Compiler *C) {
     emit(C, OP_NONE);
     emit(C, OP_RETURN);
+#ifndef HYMN_NO_OPTIMIZE
     optimize(C);
+#endif
     HymnFunction *func = C->scope->func;
     C->scope = C->scope->enclosing;
     return func;
@@ -5470,10 +5472,48 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_TAIL_CALL: {
-        // TODO
         int count = READ_BYTE(frame);
         HymnValue value = peek(H, count + 1);
-        frame = call_value(H, value, count);
+        if (!hymn_is_func(value)) {
+            const char *is = value_name(value.is);
+            frame = throw_error(H, "not a tail function call: %s", is);
+        } else {
+            HymnFunction *func = hymn_as_func(value);
+            if (count != func->arity) {
+                frame = throw_error(H, "unexpected number of function arguments: %d != %d", count, func->arity);
+            } else {
+                HymnValue *top = H->stack_top;
+                HymnValue *start = top - (count + 1);
+                HymnValue *bottom = frame->stack;
+                HymnValue *shift = start;
+                while (bottom != start) {
+                    // HymnString *string = hymn_value_to_string(*bottom);
+                    // printf("<< %s\n", string);
+                    // hymn_string_delete(string);
+                    hymn_dereference(H, *bottom);
+                    if (shift != top) {
+                        *bottom = *shift;
+                        // string = hymn_value_to_string(*bottom);
+                        // printf(">> %p %p %s\n", (void *)shift, (void *)top, string);
+                        // hymn_string_delete(string);
+                        shift++;
+                    }
+                    bottom++;
+                }
+                while (shift != top) {
+                    // printf("%% %p != %p\n", (void *)shift, (void *)top);
+                    *bottom = *shift;
+                    shift++;
+                    bottom++;
+                }
+                H->stack_top = start;
+                frame->func = func;
+                frame->ip = func->code.instructions;
+                for (int r = 0; r < func->registers; r++) {
+                    push(H, hymn_new_none());
+                }
+            }
+        }
         if (frame == NULL) return;
         HYMN_DISPATCH;
     }
