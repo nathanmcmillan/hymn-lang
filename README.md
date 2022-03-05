@@ -97,11 +97,12 @@ echo list
 
 AMD Ryzen 5 1600 6 core 3.2 GHz - Windows 10 using Ubuntu WSL
 
-| Test   | Factors | Fib   | List  | Loop  | Primes | Tail  |
-| ------ | ------- | ----- | ----- | ----- | ------ | ----- |
-| Hymn   | 1.64s   | 1.55s | 2.29s | 0.97s | 0.90s  | 3.05s |
-| Lua    | 1.14s   | 1.16s | 1.98s | 0.72s | 0.81s  | 1.81s |
-| Python | 4.17s   | 2.27s | 2.67s | 2.00s | 2.59s  | -     |
+| Test   | Factors | Fib   | List  | Loop  | Primes | Objects | Tail  |
+| ------ | ------- | ----- | ----- | ----- | ------ | ------- | ----- |
+| Hymn   | 1.64s   | 1.55s | 2.29s | 0.97s | 0.90s  | 3.70s   | 3.05s |
+| Lua    | 1.14s   | 1.16s | 1.98s | 0.72s | 0.81s  | 4.66s   | 1.81s |
+| Python | 3.98s   | 2.27s | 2.63s | 1.28s | 2.59s  | 4.68s   | -     |
+| Node   | 0.69s   | ?     | 0.68s | ?     | ?      | ?       | -     |
 
 # Compiling
 

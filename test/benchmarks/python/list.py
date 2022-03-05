@@ -10,12 +10,15 @@ def reverse_list(data):
         data[i] = data[n]
         data[n] = t
 
-start = clock()
+def main():
+    start = clock()
 
-N = 20000000
-data = list(range(N))
+    N = 20000000
+    data = list(range(N))
 
-reverse_list(data)
+    reverse_list(data)
 
-seconds = clock() - start
-print("elapsed: " + str(seconds) + "s | " + str(data[0]))
+    seconds = clock() - start
+    print("elapsed: " + str(seconds) + "s | " + str(data[0]))
+
+main()

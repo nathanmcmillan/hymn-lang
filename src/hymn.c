@@ -3793,7 +3793,9 @@ static void optimize(Compiler *C) {
         case OP_INCREMENT_LOCAL:
         case OP_INCREMENT_LOCAL_AND_SET:
         case OP_INCREMENT_LOOP:
-        case OP_GET_LOCAL: {
+        case OP_GET_LOCAL:
+        case OP_FOR:
+        case OP_FOR_LOOP: {
             uint8_t slot = INSTRUCTION(x + 1);
             if (slot > parameters) {
                 if ((int)slot + (int)registers > UINT8_MAX) {
@@ -4599,7 +4601,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             HymnObjectString *key = keys[i];
             HymnValue item = table_get(table, key);
             HymnString *add = value_to_string_recusive(item, set, true);
-            string = string_append_format(string, "%s: %s", key->string, add);
+            string = string_append_format(string, "\"%s\": %s", key->string, add);
             hymn_string_delete(add);
         }
         string = hymn_string_append(string, " }");
@@ -5636,7 +5638,8 @@ dispatch:
         } else {
             frame->stack[slot + 1] = hymn_new_none();
             frame->stack[slot + 2] = hymn_new_none();
-            THROW("Loop: Expected table or array")
+            const char *is = value_name(object.is);
+            THROW("for loop requires an array or table but was '%s'", is)
         }
         HYMN_DISPATCH;
     }

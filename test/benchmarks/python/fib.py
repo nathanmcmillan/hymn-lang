@@ -5,12 +5,15 @@ def fib(n):
         return n
     return fib(n - 1) + fib(n - 2)
 
-start = clock()
+def main():
+    start = clock()
 
-result = 0
+    result = 0
 
-for i in range(0, 10):
-    result += fib(30)
+    for i in range(0, 10):
+        result += fib(30)
 
-seconds = clock() - start
-print("elapsed: " + str(seconds) + "s | " + str(result))
+    seconds = clock() - start
+    print("elapsed: " + str(seconds) + "s | " + str(result))
+
+main()

@@ -3,24 +3,21 @@
 HYMN=false
 LUA=false
 PYTHON=false
-WREN=false
-HYMN_NODE=false
+NODE=false
 
 if [ $# -eq 0 ]; then
   HYMN=true
   LUA=true
   PYTHON=true
-  WREN=true
-  HYMN_NODE=true
+  NODE=true
 fi
 
-while getopts "lwphn" option; do
+while getopts "hlpn" option; do
   case "$option" in
     h) HYMN=true ;;
     l) LUA=true ;;
     p) PYTHON=true ;;
-    w) WREN=true ;;
-    n) HYMN_NODE=true ;;
+    n) NODE=true ;;
     *) exit 1 ;;
   esac
 done
@@ -51,18 +48,10 @@ if [ $PYTHON = true ]; then
   echo $'----------------------------------------\n'
 fi
 
-if [ $WREN = true ]; then
-  echo 'WREN'
-  for file in test/benchmarks/wren/*.wren; do
-    printf '> %s: %s\n' "$(basename "$file" .wren)" "$(wren "$file")"
-  done
-  echo $'----------------------------------------\n'
-fi
-
-if [ $HYMN_NODE = true ]; then
-  echo 'HYMN NODE JS'
-  for file in test/benchmarks/*.hm; do
-    printf '> %s: %s\n' "$(basename "$file" .hm)" "$(js/cli.js "$file")"
+if [ $NODE = true ]; then
+  echo 'NODE'
+  for file in test/benchmarks/node/*.js; do
+    printf '> %s: %s\n' "$(basename "$file" .js)" "$(node "$file")"
   done
   echo $'----------------------------------------\n'
 fi
