@@ -460,7 +460,6 @@ enum TokenType {
     TOKEN_ASSIGN_MODULO,
     TOKEN_ASSIGN_MULTIPLY,
     TOKEN_ASSIGN_SUBTRACT,
-    TOKEN_BEGIN,
     TOKEN_BIT_AND,
     TOKEN_BIT_LEFT_SHIFT,
     TOKEN_BIT_NOT,
@@ -479,7 +478,6 @@ enum TokenType {
     TOKEN_ECHO,
     TOKEN_ELIF,
     TOKEN_ELSE,
-    TOKEN_END,
     TOKEN_EOF,
     TOKEN_EQUAL,
     TOKEN_ERROR,
@@ -898,7 +896,6 @@ Rule rules[] = {
     [TOKEN_ASSIGN_MODULO] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ASSIGN_MULTIPLY] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ASSIGN_SUBTRACT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_BEGIN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_BIT_AND] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BIT_LEFT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
     [TOKEN_BIT_NOT] = {compile_unary, NULL, PRECEDENCE_NONE},
@@ -917,7 +914,6 @@ Rule rules[] = {
     [TOKEN_ECHO] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ELIF] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_ELSE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_END] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_EOF] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY},
     [TOKEN_ERROR] = {NULL, NULL, PRECEDENCE_NONE},
@@ -1546,10 +1542,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 5) return ident_trie(ident, 1, "hile", TOKEN_WHILE);
         break;
     case 'b':
-        if (size == 5) {
-            if (ident[1] == 'e') return ident_trie(ident, 2, "gin", TOKEN_BEGIN);
-            if (ident[1] == 'r') return ident_trie(ident, 2, "eak", TOKEN_BREAK);
-        }
+        if (size == 5) return ident_trie(ident, 1, "reak", TOKEN_BREAK);
         break;
     case 'd':
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
@@ -1597,7 +1590,6 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 4) return ident_trie(ident, 1, "ush", TOKEN_PUSH);
         break;
     case 'e':
-        if (size == 3) return ident_trie(ident, 1, "nd", TOKEN_END);
         if (size == 6) {
             if (ident[1] == 'x') {
                 if (ident[2] == 'c') return ident_trie(ident, 3, "ept", TOKEN_EXCEPT);
@@ -1712,6 +1704,15 @@ static void advance(Compiler *C) {
                 c = peek_char(C);
             }
             continue;
+        case '#': {
+            next_char(C);
+            c = peek_char(C);
+            while (c != '\n' && c != '\0') {
+                next_char(C);
+                c = peek_char(C);
+            }
+            continue;
+        }
         case '!':
             if (peek_char(C) == '=') {
                 next_char(C);
@@ -1729,15 +1730,7 @@ static void advance(Compiler *C) {
             }
             return;
         case '-': {
-            if (peek_char(C) == '-') {
-                next_char(C);
-                c = peek_char(C);
-                while (c != '\n' && c != '\0') {
-                    next_char(C);
-                    c = peek_char(C);
-                }
-                continue;
-            } else if (peek_char(C) == '=') {
+            if (peek_char(C) == '=') {
                 next_char(C);
                 token_special(C, TOKEN_ASSIGN_SUBTRACT, 2, 2);
                 return;
@@ -2383,7 +2376,7 @@ static bool check(Compiler *C, enum TokenType type) {
 }
 
 static bool match(Compiler *C, enum TokenType type) {
-    if (!check(C, type)) {
+    if (C->current.type != type) {
         return false;
     }
     advance(C);
@@ -3867,11 +3860,11 @@ static void compile_function(Compiler *C, enum FunctionType type) {
 
     consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters");
 
-    while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+    while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
 
-    consume(C, TOKEN_END, "missing 'end' after function body");
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after function body");
 
     end_function(C);
     emit_constant(C, hymn_new_func_value(func));
@@ -3901,7 +3894,7 @@ static void declaration(Compiler *C) {
 
 static void block(Compiler *C) {
     begin_scope(C);
-    while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+    while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
@@ -3914,12 +3907,12 @@ static void if_statement(Compiler *C) {
     free_jump_or_list(C);
 
     begin_scope(C);
-    while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+    while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
 
-    if (check(C, TOKEN_END)) {
+    if (check(C, TOKEN_RIGHT_CURLY)) {
         patch_jump(C, jump);
         free_jump_and_list(C);
     } else {
@@ -3937,7 +3930,7 @@ static void if_statement(Compiler *C) {
             free_jump_or_list(C);
 
             begin_scope(C);
-            while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+            while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
                 declaration(C);
             }
             end_scope(C);
@@ -3960,7 +3953,7 @@ static void if_statement(Compiler *C) {
         free_jumps(C, jump_end.next);
     }
 
-    consume(C, TOKEN_END, "If statement is missing \"end\"");
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after if statement");
 }
 
 static void emit_loop(Compiler *C, int start) {
@@ -4045,6 +4038,7 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     // BODY
 
+    consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop");
     block(C);
 
     // LOOP
@@ -4054,7 +4048,7 @@ static void iterator_statement(Compiler *C, bool pair) {
     emit_short(C, OP_FOR_LOOP, object);
     int offset = current(C)->count - start + 2;
     if (offset > UINT16_MAX) {
-        compile_error(C, &C->previous, "Loop is too large");
+        compile_error(C, &C->previous, "loop is too large");
     }
     emit_short(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
 
@@ -4067,10 +4061,11 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     end_scope(C);
 
-    consume(C, TOKEN_END, "Missing `end` in for loop");
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop");
 }
 
 static void for_statement(Compiler *C) {
+
     begin_scope(C);
 
     // ASSIGN
@@ -4126,6 +4121,7 @@ static void for_statement(Compiler *C) {
 
     // BODY
 
+    consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop");
     block(C);
 
     // INCREMENT
@@ -4154,7 +4150,7 @@ static void for_statement(Compiler *C) {
 
     end_scope(C);
 
-    consume(C, TOKEN_END, "Missing `end` in for loop");
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop");
 }
 
 static void while_statement(Compiler *C) {
@@ -4175,14 +4171,14 @@ static void while_statement(Compiler *C) {
     patch_jump(C, jump);
     patch_jump_list(C);
 
-    consume(C, TOKEN_END, "While: Missing 'end'");
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after while loop");
 }
 
 static void return_statement(Compiler *C) {
     if (C->scope->type == TYPE_SCRIPT) {
         compile_error(C, &C->previous, "Return: Outside of function");
     }
-    if (check(C, TOKEN_END)) {
+    if (check(C, TOKEN_RIGHT_CURLY)) {
         emit(C, OP_NONE);
     } else {
         expression(C);
@@ -4257,12 +4253,12 @@ static void try_statement(Compiler *C) {
     begin_scope(C);
     uint8_t message = variable(C, "Try: Missing variable after 'except'");
     finalize_variable(C, message);
-    while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+    while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
 
-    consume(C, TOKEN_END, "Try: Missing 'end'");
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after try statement");
 
     patch_jump(C, jump);
 }
@@ -4314,9 +4310,9 @@ static void statement(Compiler *C) {
         try_statement(C);
     } else if (match(C, TOKEN_THROW)) {
         throw_statement(C);
-    } else if (match(C, TOKEN_BEGIN)) {
+    } else if (match(C, TOKEN_LEFT_CURLY)) {
         block(C);
-        consume(C, TOKEN_END, "Expected `end` after block");
+        consume(C, TOKEN_RIGHT_CURLY, "missing '}' after block scope");
     } else {
         expression_statement(C);
     }

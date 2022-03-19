@@ -4,7 +4,7 @@
   "scopeName": "source.hymn",
   "patterns": [
     {
-      "match": "--.*$",
+      "match": "\b#.*$",
       "name": "comment.line.double-slash.hymn"
     },
     {
@@ -95,7 +95,7 @@
       }
     },
     {
-      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|in|try|except|throw|begin|end|function)\\b",
+      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|in|try|except|throw|function)\\b",
       "captures": {
         "1": {
           "name": "keyword.control.hymn"
