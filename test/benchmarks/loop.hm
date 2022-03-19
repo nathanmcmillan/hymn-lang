@@ -11,7 +11,7 @@ begin
   let sum = 0
 
   for i = 0, i < N
-    sum = sum + list[i]
+    sum += list[i]
   end
 
   let seconds = os.clock() - start

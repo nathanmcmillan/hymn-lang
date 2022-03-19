@@ -79,7 +79,7 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
 static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
 #ifdef HYMN_POPEN_SUPPORTED
-    if (count < 1) {
+    if (count < 2) {
         return hymn_new_none();
     }
     HymnValue a = arguments[0];
@@ -126,7 +126,7 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
-    if (count < 1) {
+    if (count < 2) {
         return hymn_new_none();
     }
     HymnValue a = arguments[0];
@@ -160,7 +160,7 @@ static HymnValue os_fclose(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_int(1);
 }
 
-static HymnValue os_read(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue os_fget(Hymn *H, int count, HymnValue *arguments) {
     if (count < 1) {
         return hymn_new_none();
     }
@@ -189,7 +189,7 @@ void hymn_use_os(Hymn *H) {
     hymn_add_function_to_table(H, os, "pclose", os_pclose);
     hymn_add_function_to_table(H, os, "fopen", os_fopen);
     hymn_add_function_to_table(H, os, "fclose", os_fclose);
-    hymn_add_function_to_table(H, os, "read", os_read);
+    hymn_add_function_to_table(H, os, "fget", os_fget);
     hymn_add_table(H, "os", os);
 
     hymn_add_function(H, "system", os_system);

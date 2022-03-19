@@ -19,6 +19,25 @@ function _wad_skip(s, i)
     end
 end
 
+function _wad_skip(s, i) {
+    i += 1
+    let c = s[i]
+    if c != '\n' and c != ' ' {
+        return i - 1
+    }
+    let size = len(s)
+    while true {
+        i += 1
+        if i == size {
+            return i
+        }
+        c = s[i]
+        if c != '\n' and c != ' ' {
+            return i - 1
+        }
+    }
+}
+
 function load_wad(s)
     let wad = {}
     let stack = [wad]

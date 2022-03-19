@@ -4982,7 +4982,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
     }
     default: {
         const char *is = value_name(value.is);
-        return throw_error(H, "not a function call: %s", is);
+        return throw_error(H, "not a function: %s", is);
     }
     }
 }
@@ -5477,8 +5477,7 @@ dispatch:
         int count = READ_BYTE(frame);
         HymnValue value = peek(H, count + 1);
         if (!hymn_is_func(value)) {
-            const char *is = value_name(value.is);
-            frame = throw_error(H, "not a tail function call: %s", is);
+            frame = call_value(H, value, count);
         } else {
             HymnFunction *func = hymn_as_func(value);
             if (count != func->arity) {
@@ -5489,21 +5488,14 @@ dispatch:
                 HymnValue *bottom = frame->stack;
                 HymnValue *shift = start;
                 while (bottom != start) {
-                    // HymnString *string = hymn_value_to_string(*bottom);
-                    // printf("<< %s\n", string);
-                    // hymn_string_delete(string);
                     hymn_dereference(H, *bottom);
                     if (shift != top) {
                         *bottom = *shift;
-                        // string = hymn_value_to_string(*bottom);
-                        // printf(">> %p %p %s\n", (void *)shift, (void *)top, string);
-                        // hymn_string_delete(string);
                         shift++;
                     }
                     bottom++;
                 }
                 while (shift != top) {
-                    // printf("%% %p != %p\n", (void *)shift, (void *)top);
                     *bottom = *shift;
                     shift++;
                     bottom++;
