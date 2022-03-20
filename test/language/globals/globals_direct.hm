@@ -1,5 +1,5 @@
--- 4
--- none
+# 4
+# none
 
  __globals.foo = 4
  __globals.bar = none

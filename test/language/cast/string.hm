@@ -1,13 +1,13 @@
--- none
--- 0
--- 0
--- 1
--- -1
--- 1.2
--- -1.2
--- true
--- false
--- foobar
+# none
+# 0
+# 0
+# 1
+# -1
+# 1.2
+# -1.2
+# true
+# false
+# foobar
 
 echo string(none)
 echo string(0)

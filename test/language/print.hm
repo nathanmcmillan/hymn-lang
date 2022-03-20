@@ -1,5 +1,5 @@
--- is error
--- not error
+# is error
+# not error
 
 print(1, "is error\n")
 print(0, "not error\n")

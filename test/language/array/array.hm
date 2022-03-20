@@ -1,12 +1,12 @@
--- []
--- [2, 4, 6]
+# []
+# [2, 4, 6]
 
-begin
+{
   let array = []
   echo array
-end
+}
 
-begin
+{
   let array = [2, 4, 6]
   echo array
-end
+}

@@ -1,29 +1,29 @@
--- if
--- elif
--- else
+# if
+# elif
+# else
 
 let x = 3
 
-if x == 3
+if x == 3 {
   echo "if"
-elif x == 4
+} elif x == 4 {
   echo "bad"
-else
+} else {
   echo "bad"
-end
+}
 
-if x == 2
+if x == 2 {
   echo "bad"
-elif x == 3
+} elif x == 3 {
   echo "elif"
-else
+} else {
   echo "bad"
-end
+}
 
-if x == 1
+if x == 1 {
   echo "bad"
-elif x == 2
+} elif x == 2 {
   echo "bad"
-else
+} else {
   echo "else"
-end
+}

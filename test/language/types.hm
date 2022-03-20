@@ -1,16 +1,16 @@
--- integer
--- integer
--- float
--- float
--- none
--- boolean
--- boolean
--- string
--- array
--- table
--- function
+# integer
+# integer
+# float
+# float
+# none
+# boolean
+# boolean
+# string
+# array
+# table
+# function
 
-function example() pass end
+function example() { return }
 
 echo type(0)
 echo type(-1)

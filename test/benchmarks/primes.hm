@@ -1,24 +1,24 @@
-begin
-  function is_prime(n)
-    if n < 2 return false end
+{
+  function is_prime(n) {
+    if n < 2 { return false }
     let minus = n - 1
-    for i = 2, i < minus
-      if n % i == 0 return false end
-    end
+    for i = 2, i < minus {
+      if n % i == 0 { return false }
+    }
     return true
-  end
+  }
 
   let start = os.clock()
 
   let N = 30000
   let primes = []
 
-  for i = 0, i < N
+  for i = 0, i < N {
     if is_prime(i)
       push(primes, i)
-    end
-  end
+    }
+  }
 
   let seconds = os.clock() - start
   echo "elapsed: " + seconds + "s | " + primes[-1]
-end
+}

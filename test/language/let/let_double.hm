@@ -1,6 +1,6 @@
--- @Exception
+# @Exception
 
-begin
+{
   let x = 1
   let x = 2
-end
+}

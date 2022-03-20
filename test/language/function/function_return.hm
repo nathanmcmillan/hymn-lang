@@ -1,26 +1,26 @@
--- none
--- true
--- false
--- 1
--- 0.01
---
--- [1]
--- { hello: "world" }
--- bar
--- 2
--- 4
+# none
+# true
+# false
+# 1
+# 0.01
+#
+# [1]
+# { "hello": "world" }
+# bar
+# 2
+# 4
 
-function a() return none end
-function b() return true end
-function c() return false end
-function d() return 1 end
-function e() return 0.01 end
-function f() return "" end
-function g() return [1] end
-function h() return { hello: "world" } end
+function a() { return none }
+function b() { return true }
+function c() { return false }
+function d() { return 1 }
+function e() { return 0.01 }
+function f() { return "" }
+function g() { return [1] }
+function h() { return { hello: "world" } }
 
-function bar() return 2 end
-function foo() return bar end
+function bar() { return 2 }
+function foo() { return bar }
 
 echo a()
 echo b()
@@ -34,9 +34,9 @@ echo h()
 echo foo()
 echo foo()()
 
-function min(a, b)
-  if a < b return a end
+function min(a, b) {
+  if a < b { return a }
   return b
-end
+}
 
 echo min(4, 6)

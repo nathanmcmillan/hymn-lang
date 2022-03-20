@@ -53,9 +53,9 @@ static HymnString *parse_expected(HymnString *source) {
     size_t size = hymn_string_len(source);
     for (size_t pos = 0; pos < size; pos++) {
         char c = source[pos];
-        if (c == '-' && pos + 2 < size && source[pos + 1] == '-') {
-            if (source[pos + 2] == ' ') {
-                pos += 3;
+        if (c == '#' && pos + 1 < size) {
+            if (source[pos + 1] == ' ') {
+                pos += 2;
                 while (pos < size) {
                     c = source[pos];
                     expected = hymn_string_append_char(expected, c);
@@ -65,8 +65,8 @@ static HymnString *parse_expected(HymnString *source) {
                     pos++;
                 }
                 continue;
-            } else if (source[pos + 2] == '\n') {
-                pos += 2;
+            } else if (source[pos + 1] == '\n') {
+                pos++;
                 expected = hymn_string_append_char(expected, '\n');
                 continue;
             }
@@ -155,8 +155,10 @@ static void test_api() {
     }
 
     hymn_string_trim(out);
-    if (strcmp(out, "{ number: 8 }") != 0) {
-        printf("Incorrent output: %s\n\n", out);
+    if (strcmp(out, "{ \"number\": 8 }") != 0) {
+        printf("incorrent output: %s\n\n", out);
+        tests_fail++;
+        goto end;
     }
 
     tests_success++;

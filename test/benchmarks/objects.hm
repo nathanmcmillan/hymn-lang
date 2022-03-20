@@ -5,14 +5,14 @@ let objects = []
 let sum = 0
 let words = ["foo", "bar", "baz"]
 
-for i = 1, i < N
+for i = 1, i < N {
     let object = {}
-    for word in words
+    for word in words {
       object[word] = sum
       sum += i
-    end
+    }
     push(objects, object)
-end
+}
 
 let seconds = os.clock() - start
 echo "elapsed: " + seconds + "s | " + objects[-1].foo

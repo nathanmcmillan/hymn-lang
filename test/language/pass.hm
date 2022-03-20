@@ -1,7 +1,7 @@
--- ok
+# ok
 
-if true
-else
+if true {
+} else {
   echo "bad"
-end
+}
 echo "ok"

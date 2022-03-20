@@ -1,7 +1,7 @@
--- Hello World
--- Good Bye
--- This Is Text
--- I Am One Line
+# Hello World
+# Good Bye
+# This Is Text
+# I Am One Line
 
 echo "Hello " "World"
 echo "Good" " Bye"

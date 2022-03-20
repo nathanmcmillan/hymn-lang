@@ -1,10 +1,10 @@
 #!/usr/bin/env hymn
 
-begin
+{
   let a = {}
   let b = {}
   a.x = b
   b.y = a
   echo a
   echo b
-end
+}

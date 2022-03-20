@@ -1,6 +1,6 @@
--- { foo: "bar", hello: "world" }
--- { foo: "baz", hello: "world" }
--- { foo: "bar", hello: "world" }
+# { "foo": "bar", "hello": "world" }
+# { "foo": "baz", "hello": "world" }
+# { "foo": "bar", "hello": "world" }
 
 let table = { foo: "bar", hello: "world" }
 echo table

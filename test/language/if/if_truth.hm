@@ -1,30 +1,30 @@
--- boolean
--- integer
--- float
--- string
--- array
--- table
--- function
--- false
--- none
--- zero
--- empty
--- length
--- size
+# boolean
+# integer
+# float
+# string
+# array
+# table
+# function
+# false
+# none
+# zero
+# empty
+# length
+# size
 
-function example() end
+function example() {}
 
-if true echo "boolean" else echo "bad" end
-if 1 echo "integer" else echo "bad" end
-if 0.4 echo "float" else echo "bad" end
-if "foo" echo "string" else echo "bad" end
-if [1] echo "array" else echo "bad" end
-if { foo: 1 } echo "table" else echo "bad" end
-if example echo "function" else echo "bad" end
+if true { echo "boolean" } else { echo "bad" }
+if 1 { echo "integer" } else { echo "bad" }
+if 0.4 { echo "float" } else { echo "bad" }
+if "foo" { echo "string" } else { echo "bad" }
+if [1] { echo "array" } else { echo "bad" }
+if { foo: 1 } { echo "table" } else { echo "bad" }
+if example { echo "function" } else { echo "bad" }
 
-if false echo "bad" else echo "false" end
-if none echo "bad" else echo "none" end
-if 0 echo "bad" else echo "zero" end
-if "" echo "bad" else echo "empty" end
-if [] echo "bad" else echo "length" end
-if {} echo "bad" else echo "size" end
+if false { echo "bad" } else { echo "false" }
+if none { echo "bad" } else { echo "none" }
+if 0 { echo "bad" } else { echo "zero" }
+if "" { echo "bad" } else { echo "empty" }
+if [] { echo "bad" } else { echo "length" }
+if {} { echo "bad" } else { echo "size" }

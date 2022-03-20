@@ -3859,6 +3859,7 @@ static void compile_function(Compiler *C, enum FunctionType type) {
     }
 
     consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters");
+    consume(C, TOKEN_LEFT_CURLY, "missing '{' after function parameters");
 
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
@@ -3906,16 +3907,16 @@ static void if_statement(Compiler *C) {
 
     free_jump_or_list(C);
 
+    consume(C, TOKEN_LEFT_CURLY, "missing '{' in if statement");
     begin_scope(C);
-    while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
+    while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
 
-    if (check(C, TOKEN_RIGHT_CURLY)) {
-        patch_jump(C, jump);
-        free_jump_and_list(C);
-    } else {
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after if statement");
+
+    if (check(C, TOKEN_ELIF) || check(C, TOKEN_ELSE)) {
         JumpList jump_end = {0};
         jump_end.jump = emit_jump(C, OP_JUMP);
         JumpList *tail = &jump_end;
@@ -3929,11 +3930,13 @@ static void if_statement(Compiler *C) {
 
             free_jump_or_list(C);
 
+            consume(C, TOKEN_LEFT_CURLY, "missing '{' in elif statement");
             begin_scope(C);
-            while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
+            while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
                 declaration(C);
             }
             end_scope(C);
+            consume(C, TOKEN_RIGHT_CURLY, "missing '}' after elif statement");
 
             JumpList *next = hymn_calloc(1, sizeof(JumpList));
             next->jump = emit_jump(C, OP_JUMP);
@@ -3946,21 +3949,24 @@ static void if_statement(Compiler *C) {
         free_jump_and_list(C);
 
         if (match(C, TOKEN_ELSE)) {
+            consume(C, TOKEN_LEFT_CURLY, "missing '{' in else statement");
             block(C);
+            consume(C, TOKEN_RIGHT_CURLY, "missing '}' after else statement");
         }
 
         patch_jump(C, jump_end.jump);
         free_jumps(C, jump_end.next);
+    } else {
+        patch_jump(C, jump);
+        free_jump_and_list(C);
     }
-
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after if statement");
 }
 
 static void emit_loop(Compiler *C, int start) {
     emit(C, OP_LOOP);
     int offset = current(C)->count - start + 2;
     if (offset > UINT16_MAX) {
-        compile_error(C, &C->previous, "Loop is too large");
+        compile_error(C, &C->previous, "loop is too large");
     }
     emit_short(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
 }
@@ -4163,6 +4169,7 @@ static void while_statement(Compiler *C) {
 
     int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
+    consume(C, TOKEN_LEFT_CURLY, "missing '{' in while loop");
     block(C);
     emit_loop(C, start);
 
@@ -4212,7 +4219,7 @@ static void break_statement(Compiler *C) {
 
 static void continue_statement(Compiler *C) {
     if (C->loop == NULL) {
-        compile_error(C, &C->previous, "Continue Error: Outside of loop");
+        compile_error(C, &C->previous, "continue outside of loop");
     }
     pop_stack_loop(C);
     if (C->loop->is_for) {
@@ -4238,21 +4245,24 @@ static void try_statement(Compiler *C) {
     except->next = func->except;
     func->except = except;
 
+    consume(C, TOKEN_LEFT_CURLY, "missing '{' in try statement");
     begin_scope(C);
-    while (!check(C, TOKEN_EXCEPT) && !check(C, TOKEN_EOF)) {
+    while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
 
     int jump = emit_jump(C, OP_JUMP);
 
-    consume(C, TOKEN_EXCEPT, "Try statement is missing `except`");
+    consume(C, TOKEN_RIGHT_CURLY, "try statement missing '}' before 'except'");
+    consume(C, TOKEN_EXCEPT, "try statement is missing 'except'");
 
     except->end = code->count;
 
     begin_scope(C);
-    uint8_t message = variable(C, "Try: Missing variable after 'except'");
+    uint8_t message = variable(C, "try statement missing variable after 'except'");
     finalize_variable(C, message);
+    consume(C, TOKEN_LEFT_CURLY, "try statement missing '{' after except variable");
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }

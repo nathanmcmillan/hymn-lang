@@ -4,7 +4,7 @@
   "scopeName": "source.hymn",
   "patterns": [
     {
-      "match": "\b#.*$",
+      "match": "#.*$",
       "name": "comment.line.double-slash.hymn"
     },
     {

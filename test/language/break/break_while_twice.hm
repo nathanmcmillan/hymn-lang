@@ -1,28 +1,28 @@
--- begin
--- x = 1
--- x = 2
--- i = 1
--- x = 1
--- x = 2
--- i = 2
--- x = 1
--- x = 2
--- i = 3
--- x = 1
--- x = 2
--- end
+# begin
+# x = 1
+# x = 2
+# i = 1
+# x = 1
+# x = 2
+# i = 2
+# x = 1
+# x = 2
+# i = 3
+# x = 1
+# x = 2
+# end
 
 echo "begin"
 let i = 1
-while i < 8
+while i < 8 {
   let x = 1
-  while x < 16
+  while x < 16 {
     echo "x = " + x
     x = x + 1
-    if x == 3 break end
-  end
-  if i == 4 break end
+    if x == 3 { break }
+  }
+  if i == 4 { break }
   echo "i = " + i
   i = i + 1
-end
+}
 echo "end"
