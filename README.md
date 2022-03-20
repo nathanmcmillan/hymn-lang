@@ -70,12 +70,12 @@ echo list
 
 ## Progress
 
-| Implementation | Status        | Description                      |
-| -------------- | ------------- | -------------------------------- |
-| C              | Version 0.5.1 | Get Global Property Optimization |
-| JavaScript     | Version 0.5   | Anonmyous functions              |
-| Go             | Not Started   |                                  |
-| Java           | Not Started   |                                  |
+| Implementation | Status      | Description         |
+| -------------- | ----------- | ------------------- |
+| C              | Version 0.6 | C-like brackets     |
+| JavaScript     | Version 0.5 | Anonmyous functions |
+| Go             | Not Started |                     |
+| Java           | Not Started |                     |
 
 ## Notes
 

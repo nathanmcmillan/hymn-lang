@@ -10,7 +10,7 @@ let sum = 0
 
 for i = 0, i < N {
   let number = fib(1000, 0, 1)
-  if number > 1
+  if number > 1 {
     sum += 1
   }
 }

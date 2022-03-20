@@ -14,7 +14,7 @@
   let primes = []
 
   for i = 0, i < N {
-    if is_prime(i)
+    if is_prime(i) {
       push(primes, i)
     }
   }

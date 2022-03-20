@@ -638,7 +638,6 @@ enum OpCode {
     IR_JUMP_IF_GREATER,
     IR_JUMP_IF_GREATER_EQUAL,
     IR_MODULO,
-    IR_ARRAY_PUSH
 };
 
 enum FunctionType {
@@ -3375,8 +3374,6 @@ static void optimize(Compiler *C) {
     int zero = -1;
     int minus = -1;
 #endif
-    // int minus_two = -1;
-    // int minus_three = -1;
 
     while (one < COUNT()) {
 
@@ -3633,8 +3630,6 @@ static void optimize(Compiler *C) {
                 }
                 minus = -1;
                 zero = -1;
-                // minus_three = -1;
-                // minus_two = -1;
                 REPEAT;
             }
 #endif
@@ -3643,48 +3638,7 @@ static void optimize(Compiler *C) {
         case OP_MODULO: {
 #ifndef HYMN_NO_REGISTERS
             uint8_t zed = SAFE_INSTRUCTION(zero);
-            uint8_t omega = SAFE_INSTRUCTION(minus);
-            if ((zed == OP_GET_LOCAL || zed == OP_GET_GLOBAL || zed == OP_CONSTANT) && (omega == OP_GET_LOCAL || omega == OP_GET_GLOBAL || omega == OP_CONSTANT)) {
-                // ADD(one + 1, 2);
-                // SET(one, IR_MODULO);
-                // if (zed == OP_GET_LOCAL) {
-                //     uint8_t value_b = INSTRUCTION(zero + 1);
-                //     SET(one + 2, value_b);
-                //     DELETE(zero, 2);
-                //     one -= 2;
-                // } else {
-                //     if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
-                //         fprintf(stderr, "out of registers");
-                //         exit(1);
-                //     }
-                //     uint8_t slot_2 = locals + (++registers);
-                //     SET(one + 2, slot_2);
-                //     SET(zero, (zed == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                //     ADD(zero + 2, 1);
-                //     SET(zero + 2, slot_2);
-                //     one += 1;
-                // }
-                // if (omega == OP_GET_LOCAL) {
-                //     uint8_t value_a = INSTRUCTION(minus + 1);
-                //     SET(one + 1, value_a);
-                //     DELETE(minus, 2);
-                //     one -= 2;
-                // } else {
-                //     if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
-                //         fprintf(stderr, "out of registers");
-                //         exit(1);
-                //     }
-                //     uint8_t slot_1 = locals + (++registers);
-                //     SET(one + 1, slot_1);
-                //     SET(minus, (omega == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                //     ADD(minus + 2, 1);
-                //     SET(minus + 2, slot_1);
-                //     one += 1;
-                // }
-                // minus = -1;
-                // zero = -1;
-                // REPEAT;
-            } else if (zed == OP_GET_TWO_LOCAL) {
+            if (zed == OP_GET_TWO_LOCAL) {
                 SET(zero, IR_MODULO);
                 REWRITE(0, 1);
                 one = zero;
@@ -3695,46 +3649,9 @@ static void optimize(Compiler *C) {
 #endif
             break;
         }
-        case OP_ARRAY_PUSH: {
-#ifndef HYMN_NO_REGISTERS
-            // uint8_t zed = SAFE_INSTRUCTION(zero);
-            // uint8_t omega = SAFE_INSTRUCTION(minus);
-            // if ((zed == OP_GET_LOCAL || zed == OP_GET_GLOBAL || zed == OP_CONSTANT) && (omega == OP_GET_LOCAL || omega == OP_GET_GLOBAL || omega == OP_CONSTANT)) {
-            //     uint8_t flag = 0;
-            //     if (second == OP_POP) {
-            //         DELETE(two, 1);
-            //         flag |= IR_FLAG_NO_PUSH;
-            //     }
-            //     ADD(one + 1, 3);
-            //     LINE(one + 1, one);
-            //     LINE(one + 2, one);
-            //     LINE(one + 3, one);
-            //     SET(one, IR_ARRAY_PUSH);
-            //     uint8_t value_b = INSTRUCTION(zero + 1);
-            //     SET(one + 2, value_b);
-            //     uint8_t flag_b = zed == OP_GET_LOCAL ? IR_FLAG_LOCAL_B : (zed == OP_GET_GLOBAL ? IR_FLAG_GLOBAL_B : IR_FLAG_CONSTANT_B);
-            //     DELETE(zero, 2);
-            //     one -= 2;
-            //     uint8_t value_a = INSTRUCTION(minus + 1);
-            //     SET(one + 1, value_a);
-            //     uint8_t flag_a = omega == OP_GET_LOCAL ? IR_FLAG_LOCAL_A : (omega == OP_GET_GLOBAL ? IR_FLAG_GLOBAL_A : IR_FLAG_CONSTANT_A);
-            //     DELETE(minus, 2);
-            //     one -= 2;
-            //     SET(one + 3, flag | flag_a | flag_b);
-            //     minus = minus_three;
-            //     zero = minus_two;
-            //     minus_three = -1;
-            //     minus_two = -1;
-            //     REPEAT;
-            // }
-#endif
-            break;
-        }
         }
 
     next:
-        // minus_three = minus_two;
-        // minus_two = minus;
 #ifndef HYMN_NO_REGISTERS
         minus = zero;
         zero = one;
@@ -3754,9 +3671,6 @@ static void optimize(Compiler *C) {
     }
 
     C->scope->func->registers = registers;
-    // printf("locals: %d\n", locals);
-    // printf("parameters: %d\n", parameters);
-    // printf("registers: %d\n", registers);
 
     int x = 0;
     while (x < COUNT()) {
@@ -6973,50 +6887,6 @@ dispatch:
             THROW("Modulo Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
-    }
-    case IR_ARRAY_PUSH: {
-        // uint8_t data_a = READ_BYTE(frame);
-        // uint8_t data_b = READ_BYTE(frame);
-        // uint8_t data_flag = READ_BYTE(frame);
-        // HymnValue array;
-        // HymnValue value;
-        // if ((data_flag & IR_FLAG_LOCAL_A) == IR_FLAG_LOCAL_A) {
-        //     array = frame->stack[data_a];
-        // } else {
-        //     array = GET_CONSTANT(frame, data_a);
-        //     if ((data_flag & IR_FLAG_GLOBAL_A) == IR_FLAG_GLOBAL_A) {
-        //         HymnObjectString *name = hymn_as_hymn_string(array);
-        //         HymnValue get = table_get(&H->globals, name);
-        //         if (hymn_is_undefined(get)) {
-        //             THROW("undefined global '%s'", name->string)
-        //         }
-        //         array = get;
-        //     }
-        // }
-        // if ((data_flag & IR_FLAG_LOCAL_B) == IR_FLAG_LOCAL_B) {
-        //     value = frame->stack[data_b];
-        // } else {
-        //     value = GET_CONSTANT(frame, data_b);
-        //     if ((data_flag & IR_FLAG_GLOBAL_B) == IR_FLAG_GLOBAL_B) {
-        //         HymnObjectString *name = hymn_as_hymn_string(value);
-        //         HymnValue get = table_get(&H->globals, name);
-        //         if (hymn_is_undefined(get)) {
-        //             THROW("undefined global '%s'", name->string)
-        //         }
-        //         value = get;
-        //     }
-        // }
-        // if (!hymn_is_array(array)) {
-        //     const char *is = value_name(array.is);
-        //     THROW("array push expected 'array' for 1st argument, but was '%s'", is)
-        // } else {
-        //     hymn_array_push(hymn_as_array(array), value);
-        //     if ((data_flag & IR_FLAG_NO_PUSH) != IR_FLAG_NO_PUSH) {
-        //         push(H, value);
-        //         hymn_reference(value);
-        //     }
-        // }
-        // HYMN_DISPATCH;
     }
     default:
         UNREACHABLE();
