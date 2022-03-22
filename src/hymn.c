@@ -1446,8 +1446,7 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
         error = hymn_string_append_char(error, '^');
     }
     error = hymn_string_append(error, ANSI_COLOR_RESET);
-
-    error = string_append_format(error, "\nat %s:%d\n", C->script, token->row);
+    error = string_append_format(error, "\nat %s:%d\n", C->script == NULL ? "script" : C->script, token->row);
 
     C->error = error;
 
@@ -6360,7 +6359,7 @@ dispatch:
             hymn_dereference(H, p);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
-            THROW("Insert Function: Expected `Array` for 1st argument, but was `%s`.", is)
+            THROW("insert function expects 'array' for 1st argument but was '%s'", is)
         }
         HYMN_DISPATCH;
     }
@@ -7195,14 +7194,14 @@ char *hymn_read(Hymn *H, const char *script) {
     return error;
 }
 
-char *hymn_repl(Hymn *H) {
+void hymn_repl(Hymn *H) {
     printf("Hymn " HYMN_VERSION "\n");
 
     char input[1024];
 
     while (true) {
         printf("> ");
-        if (!fgets(input, sizeof(input), stdin)) {
+        if ((!fgets(input, sizeof(input), stdin)) || strcmp(input, ".exit\n") == 0) {
             printf("\n");
             break;
         }
@@ -7211,18 +7210,22 @@ char *hymn_repl(Hymn *H) {
         char *error = result.error;
         if (error != NULL) {
             function_delete(func);
-            return error;
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
+            continue;
         }
         HymnValue function = hymn_new_func_value(func);
         hymn_reference(function);
         push(H, function);
         call(H, func, 0);
         error = interpret(H);
-        if (error) {
-            return error;
+        if (error != NULL) {
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
         }
         assert(H->stack_top == H->stack);
+        reset_stack(H);
     }
-
-    return NULL;
 }

@@ -20,14 +20,19 @@ static void signal_handle(int signum) {
 
 int main(int argc, char **argv) {
 
+    // TODO: Non ordered options
+    // Run a script and open REPL afterwards
+
     if (argc >= 2) {
-        if (strcmp(argv[1], "-h") || strcmp(argv[1], "--help")) {
+        if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
             printf("Interprets a Hymn script FILE.\n\n");
             printf("  -c  Run FILE as source code\n");
             printf("  -b  Print compiled byte code\n");
             printf("  -v  Prints version information\n");
+            printf("  -h  Print this help message\n");
+            printf("  -r  Open REPL\n");
             return 2;
-        } else if (strcmp(argv[1], "-v") || strcmp(argv[1], "--version")) {
+        } else if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0) {
             printf("Hymn " HYMN_VERSION "\n");
             return 1;
         }
@@ -41,7 +46,7 @@ int main(int argc, char **argv) {
     char *error = NULL;
 
     if (argc <= 1) {
-        error = hymn_repl(hymn);
+        hymn_repl(hymn);
     } else if (argc >= 3) {
         if (strcmp(argv[1], "-b") == 0) {
             if (argc >= 4) {
@@ -58,6 +63,8 @@ int main(int argc, char **argv) {
         } else {
             printf("Unknown argument: %s\n", argv[1]);
         }
+    } else if (argc >= 2 && strcmp(argv[1], "-r") == 0) {
+        hymn_repl(hymn);
     } else {
         error = hymn_read(hymn, argv[1]);
     }
