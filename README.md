@@ -3,28 +3,28 @@
 A small byte-code interpreted language with a focus on simplicity. [Visit the website!](https://hymn-lang.org)
 
 ```
--- import additional scripts
+# import additional scripts
 use "math"
 
--- tables hold key value pairs
-function new_node(value)
+# tables hold key value pairs
+function new_node(value) {
   return { value: value, next: none }
-end
+}
 
-function node_add(list, value)
+function node_add(list, value) {
   let node = list
-  while true
-    if node.next == none break end
+  while true {
+    if node.next == none { break }
     node = node.next
-  end
+  }
   node.next = new_node(value)
-end
+}
 
--- objects are passed by reference
+# objects are passed by reference
 let list = new_node("hello")
 node_add(list, "world")
 
--- print statements will show all nested values in an object
+# print statements will show all nested values in an object
 echo list
 ```
 
@@ -119,6 +119,12 @@ $ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -
 
 ```
 $ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm
+```
+
+### Benchmark
+
+```
+gcc test/*.c src/*.c -std=c11 -O3 -s -DNDEBUG -DHYMN_NO_CLI -DHYMN_NO_TEST -DHYMN_BENCHMARK -Isrc -o hymnbenchmark -lm
 ```
 
 ### Release

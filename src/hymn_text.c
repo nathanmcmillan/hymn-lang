@@ -203,6 +203,24 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *object = hymn_intern_string(H, string);
             return hymn_new_string_value(object);
         }
+    } else if (count == 1) {
+        HymnValue a = arguments[0];
+        if (hymn_is_array(a)) {
+            HymnArray *array = hymn_as_array(a);
+            HymnString *string = hymn_new_string("");
+            for (int i = 0; i < array->length; i++) {
+                HymnValue item = array->items[i];
+                if (hymn_is_string(item)) {
+                    string = hymn_string_append(string, hymn_as_string(item));
+                } else {
+                    HymnString *cast = hymn_value_to_string(item);
+                    string = hymn_string_append(string, cast);
+                    hymn_string_delete(cast);
+                }
+            }
+            HymnObjectString *object = hymn_intern_string(H, string);
+            return hymn_new_string_value(object);
+        }
     }
     return hymn_new_none();
 }

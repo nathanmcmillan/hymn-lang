@@ -10,7 +10,7 @@
 #include "hymn.h"
 #include "hymn_libs.h"
 
-#ifndef HYMN_TESTING
+#if !defined(HYMN_TESTING) && !defined(HYMN_NO_CLI)
 
 static void signal_handle(int signum) {
     if (signum != 2) {
@@ -20,12 +20,17 @@ static void signal_handle(int signum) {
 
 int main(int argc, char **argv) {
 
-    if (argc <= 1) {
-        printf("Usage: hymn [-b] [-c] FILE\n");
-        printf("Interprets a Hymn script FILE.\n\n");
-        printf("  -b  Print compiled byte code\n");
-        printf("  -c  Run FILE as source code\n");
-        return 2;
+    if (argc >= 2) {
+        if (strcmp(argv[1], "-h") || strcmp(argv[1], "--help")) {
+            printf("Interprets a Hymn script FILE.\n\n");
+            printf("  -c  Run FILE as source code\n");
+            printf("  -b  Print compiled byte code\n");
+            printf("  -v  Prints version information\n");
+            return 2;
+        } else if (strcmp(argv[1], "-v") || strcmp(argv[1], "--version")) {
+            printf("Hymn " HYMN_VERSION "\n");
+            return 1;
+        }
     }
 
     signal(SIGINT, signal_handle);
@@ -35,7 +40,9 @@ int main(int argc, char **argv) {
 
     char *error = NULL;
 
-    if (argc >= 3) {
+    if (argc <= 1) {
+        error = hymn_repl(hymn);
+    } else if (argc >= 3) {
         if (strcmp(argv[1], "-b") == 0) {
             if (argc >= 4) {
                 if (strcmp(argv[2], "-c") == 0) {

@@ -6,6 +6,8 @@
 #include "hymn_path.h"
 #include "hymn_text.h"
 
+#if !defined(HYMN_NO_TEST)
+
 struct FilterList {
     int count;
     HymnString **filtered;
@@ -222,3 +224,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+#endif

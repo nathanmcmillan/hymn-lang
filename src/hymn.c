@@ -438,6 +438,7 @@ typedef struct Local Local;
 typedef struct Rule Rule;
 typedef struct Scope Scope;
 typedef struct Compiler Compiler;
+typedef struct CompileResult CompileResult;
 
 typedef struct Instruction Instruction;
 typedef struct Optimizer Optimizer;
@@ -4385,12 +4386,12 @@ static HymnFrame *current_frame(Hymn *H) {
     return &H->frames[H->frame_count - 1];
 }
 
-struct CompileReturn {
+struct CompileResult {
     HymnFunction *func;
     char *error;
 };
 
-static struct CompileReturn compile(Hymn *H, const char *script, const char *source) {
+static CompileResult compile(Hymn *H, const char *script, const char *source) {
     Scope scope = {0};
 
     Compiler compiler = new_compiler(script, source, H, &scope);
@@ -4409,7 +4410,7 @@ static struct CompileReturn compile(Hymn *H, const char *script, const char *sou
         hymn_string_delete(C->error);
     }
 
-    return (struct CompileReturn){.func = func, .error = error};
+    return (CompileResult){.func = func, .error = error};
 }
 
 struct PointerSet {
@@ -4997,7 +4998,8 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
         printf("file not found: %s\n", module->string);
         exit(1);
     }
-    struct CompileReturn result = compile(H, module->string, source);
+
+    CompileResult result = compile(H, module->string, source);
 
     HymnFunction *func = result.func;
     char *error = result.error;
@@ -7088,7 +7090,7 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
         code = hymn_new_string(source);
     }
 
-    struct CompileReturn result = compile(H, script, code);
+    CompileResult result = compile(H, script, code);
 
     HymnFunction *main = result.func;
 
@@ -7152,21 +7154,20 @@ char *hymn_call(Hymn *H, const char *name, int arguments) {
 }
 
 char *hymn_run(Hymn *H, const char *script, const char *source) {
-    struct CompileReturn result = compile(H, script, source);
+    CompileResult result = compile(H, script, source);
 
-    HymnFunction *main = result.func;
-
+    HymnFunction *func = result.func;
     char *error = result.error;
     if (error) {
-        function_delete(main);
+        function_delete(func);
         return error;
     }
 
-    HymnValue function = hymn_new_func_value(main);
+    HymnValue function = hymn_new_func_value(func);
     hymn_reference(function);
 
     push(H, function);
-    call(H, main, 0);
+    call(H, func, 0);
 
     error = interpret(H);
     if (error) {
@@ -7192,4 +7193,36 @@ char *hymn_read(Hymn *H, const char *script) {
     char *error = hymn_run(H, script, source);
     hymn_string_delete(source);
     return error;
+}
+
+char *hymn_repl(Hymn *H) {
+    printf("Hymn " HYMN_VERSION "\n");
+
+    char input[1024];
+
+    while (true) {
+        printf("> ");
+        if (!fgets(input, sizeof(input), stdin)) {
+            printf("\n");
+            break;
+        }
+        CompileResult result = compile(H, NULL, input);
+        HymnFunction *func = result.func;
+        char *error = result.error;
+        if (error != NULL) {
+            function_delete(func);
+            return error;
+        }
+        HymnValue function = hymn_new_func_value(func);
+        hymn_reference(function);
+        push(H, function);
+        call(H, func, 0);
+        error = interpret(H);
+        if (error) {
+            return error;
+        }
+        assert(H->stack_top == H->stack);
+    }
+
+    return NULL;
 }

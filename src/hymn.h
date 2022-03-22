@@ -19,6 +19,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#define HYMN_VERSION "0.6.0"
+
 #ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
@@ -311,6 +313,7 @@ char *hymn_call(Hymn *H, const char *name, int arguments);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
 char *hymn_read(Hymn *H, const char *script);
+char *hymn_repl(Hymn *H);
 
 HymnValue hymn_get(Hymn *H, const char *name);
 
