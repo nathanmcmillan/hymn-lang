@@ -18,23 +18,51 @@ static void signal_handle(int signum) {
     }
 }
 
+static void help() {
+    printf("Hymn Script\n\n"
+           "  -c  Run input as source code\n"
+           "  -r  Open interactive mode\n"
+           "  -b  Print compiled byte code\n"
+           "  -v  Print version information\n"
+           "  -h  Print this help message\n"
+           "  --  End of options\n");
+}
+
 int main(int argc, char **argv) {
 
-    // TODO: Non ordered options
-    // Run a script and open REPL afterwards
+    bool repl = false;
+    bool byte = false;
+    char *file = NULL;
+    char *code = NULL;
 
     if (argc >= 2) {
-        if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
-            printf("Interprets a Hymn script FILE.\n\n");
-            printf("  -c  Run FILE as source code\n");
-            printf("  -b  Print compiled byte code\n");
-            printf("  -v  Prints version information\n");
-            printf("  -h  Print this help message\n");
-            printf("  -r  Open REPL\n");
-            return 2;
-        } else if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0) {
-            printf("Hymn " HYMN_VERSION "\n");
-            return 1;
+        for (int i = 1; i < argc; i++) {
+            if (strcmp(argv[i], "--") == 0) {
+                if (i + 1 < argc) {
+                    file = argv[i + 1];
+                }
+                break;
+            } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+                help();
+                return 2;
+            } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
+                printf("Hymn " HYMN_VERSION "\n");
+                return 0;
+            } else if (strcmp(argv[i], "-c") == 0) {
+                if (i + 1 < argc) {
+                    code = argv[i + 1];
+                    i++;
+                } else {
+                    help();
+                    return 1;
+                }
+            } else if (strcmp(argv[i], "-b") == 0) {
+                byte = true;
+            } else if (strcmp(argv[i], "-r") == 0) {
+                repl = true;
+            } else {
+                file = argv[i];
+            }
         }
     }
 
@@ -43,41 +71,45 @@ int main(int argc, char **argv) {
     Hymn *hymn = new_hymn();
     hymn_use_libs(hymn);
 
-    char *error = NULL;
+    int exit = 0;
 
-    if (argc <= 1) {
-        hymn_repl(hymn);
-    } else if (argc >= 3) {
-        if (strcmp(argv[1], "-b") == 0) {
-            if (argc >= 4) {
-                if (strcmp(argv[2], "-c") == 0) {
-                    error = hymn_debug(hymn, NULL, argv[3]);
-                } else {
-                    printf("Unknown second argument: %s\n", argv[2]);
-                }
-            } else {
-                error = hymn_debug(hymn, argv[2], NULL);
-            }
-        } else if (strcmp(argv[1], "-c") == 0) {
-            error = hymn_do(hymn, argv[2]);
+    if (file != NULL) {
+        char *error;
+        if (byte) {
+            error = hymn_debug(hymn, file, NULL);
         } else {
-            printf("Unknown argument: %s\n", argv[1]);
+            error = hymn_read(hymn, file);
         }
-    } else if (argc >= 2 && strcmp(argv[1], "-r") == 0) {
-        hymn_repl(hymn);
-    } else {
-        error = hymn_read(hymn, argv[1]);
+        if (error != NULL) {
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
+            exit = 1;
+        }
     }
 
-    if (error != NULL) {
-        fprintf(stderr, "%s\n", error);
-        fflush(stderr);
-        free(error);
+    if (code != NULL) {
+        char *error;
+        if (byte) {
+            error = hymn_debug(hymn, NULL, code);
+        } else {
+            error = hymn_do(hymn, code);
+        }
+        if (error != NULL) {
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
+            exit = 1;
+        }
+    }
+
+    if (repl || (file == NULL && code == NULL)) {
+        hymn_repl(hymn);
     }
 
     hymn_delete(hymn);
 
-    return error != NULL ? 1 : 0;
+    return exit;
 }
 
 #endif

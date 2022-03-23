@@ -735,6 +735,7 @@ struct Compiler {
     int column;
     const char *script;
     const char *source;
+    bool interactive;
     size_t size;
     Token previous;
     Token current;
@@ -1418,7 +1419,14 @@ static HymnString *string_append_second_previous_line(const char *source, HymnSt
 }
 
 static void compile_error(Compiler *C, Token *token, const char *format, ...) {
-    if (C->error != NULL) return;
+    if (C->error != NULL) {
+        return;
+    }
+
+    if (C->interactive && token->type == TOKEN_EOF) {
+        C->error = hymn_new_string("<eof>");
+        goto clean;
+    }
 
     va_list ap;
     va_start(ap, format);
@@ -1450,8 +1458,9 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
 
     C->error = error;
 
-    C->previous.type = TOKEN_EOF;
+clean:
     C->current.type = TOKEN_EOF;
+    C->previous.type = TOKEN_EOF;
 }
 
 static char next_char(Compiler *C) {
@@ -2247,7 +2256,7 @@ static void scope_init(Compiler *C, Scope *scope, enum FunctionType type) {
     scope->func = new_function(C->script);
     scope->type = type;
 
-    if (type != TYPE_SCRIPT) {
+    if (type == TYPE_FUNCTION) {
         scope->func->name = hymn_substring(C->source, C->previous.start, C->previous.start + C->previous.length);
     }
 
@@ -2257,12 +2266,13 @@ static void scope_init(Compiler *C, Scope *scope, enum FunctionType type) {
     local->name.length = 0;
 }
 
-static inline Compiler new_compiler(const char *script, const char *source, Hymn *H, Scope *scope) {
+static inline Compiler new_compiler(const char *script, const char *source, Hymn *H, Scope *scope, bool interactive) {
     Compiler C = {0};
     C.row = 1;
     C.column = 1;
     C.script = script;
     C.source = source;
+    C.interactive = interactive;
     C.size = strlen(source);
     C.previous.type = TOKEN_UNDEFINED;
     C.current.type = TOKEN_UNDEFINED;
@@ -4096,8 +4106,8 @@ static void while_statement(Compiler *C) {
 }
 
 static void return_statement(Compiler *C) {
-    if (C->scope->type == TYPE_SCRIPT) {
-        compile_error(C, &C->previous, "Return: Outside of function");
+    if (C->scope->type != TYPE_FUNCTION) {
+        compile_error(C, &C->previous, "return statement outside of function");
     }
     if (check(C, TOKEN_RIGHT_CURLY)) {
         emit(C, OP_NONE);
@@ -4120,7 +4130,7 @@ static void pop_stack_loop(Compiler *C) {
 
 static void break_statement(Compiler *C) {
     if (C->loop == NULL) {
-        compile_error(C, &C->previous, "Break Error: Outside of loop");
+        compile_error(C, &C->previous, "break outside of loop");
     }
     pop_stack_loop(C);
     JumpList *jump_next = C->jump;
@@ -4390,10 +4400,10 @@ struct CompileResult {
     char *error;
 };
 
-static CompileResult compile(Hymn *H, const char *script, const char *source) {
+static CompileResult compile(Hymn *H, const char *script, const char *source, bool interactive) {
     Scope scope = {0};
 
-    Compiler compiler = new_compiler(script, source, H, &scope);
+    Compiler compiler = new_compiler(script, source, H, &scope, interactive);
     Compiler *C = &compiler;
 
     advance(C);
@@ -4404,7 +4414,7 @@ static CompileResult compile(Hymn *H, const char *script, const char *source) {
     HymnFunction *func = end_function(C);
     char *error = NULL;
 
-    if (C->error) {
+    if (C->error != NULL) {
         error = string_to_chars(C->error);
         hymn_string_delete(C->error);
     }
@@ -4998,7 +5008,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
         exit(1);
     }
 
-    CompileResult result = compile(H, module->string, source);
+    CompileResult result = compile(H, module->string, source, false);
 
     HymnFunction *func = result.func;
     char *error = result.error;
@@ -7089,7 +7099,7 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
         code = hymn_new_string(source);
     }
 
-    CompileResult result = compile(H, script, code);
+    CompileResult result = compile(H, script, code, false);
 
     HymnFunction *main = result.func;
 
@@ -7153,7 +7163,7 @@ char *hymn_call(Hymn *H, const char *name, int arguments) {
 }
 
 char *hymn_run(Hymn *H, const char *script, const char *source) {
-    CompileResult result = compile(H, script, source);
+    CompileResult result = compile(H, script, source, false);
 
     HymnFunction *func = result.func;
     char *error = result.error;
@@ -7194,27 +7204,75 @@ char *hymn_read(Hymn *H, const char *script) {
     return error;
 }
 
+typedef struct History History;
+
+struct History {
+    HymnString *line;
+    History *previous;
+    History *next;
+};
+
 void hymn_repl(Hymn *H) {
     printf("Hymn " HYMN_VERSION "\n");
 
     char input[1024];
 
+    HymnString *line = NULL;
+
+    // History *cursor = NULL;
+    // History *history = NULL;
+
     while (true) {
-        printf("> ");
-        if ((!fgets(input, sizeof(input), stdin)) || strcmp(input, ".exit\n") == 0) {
+        if (line != NULL) {
+            printf(">> ");
+        } else {
+            printf("> ");
+        }
+
+        if (fgets(input, sizeof(input), stdin) == NULL || strcmp(input, ".exit\n") == 0) {
             printf("\n");
             break;
         }
-        CompileResult result = compile(H, NULL, input);
+
+        if (line != NULL) {
+            line = hymn_string_append(line, input);
+        }
+
+        CompileResult result = compile(H, NULL, line != NULL ? line : input, true);
         HymnFunction *func = result.func;
         char *error = result.error;
         if (error != NULL) {
             function_delete(func);
-            fprintf(stderr, "%s\n", error);
-            fflush(stderr);
-            free(error);
+            if (strcmp(error, "<eof>") == 0) {
+                if (line == NULL) {
+                    line = hymn_new_string(input);
+                }
+            } else {
+                if (line != NULL) {
+                    hymn_string_delete(line);
+                    line = NULL;
+                }
+                fprintf(stderr, "%s\n", error);
+                fflush(stderr);
+                free(error);
+            }
             continue;
         }
+
+        if (line != NULL) {
+            hymn_string_delete(line);
+            line = NULL;
+        }
+
+        HymnByteCode *code = &func->code;
+        int count = code->count;
+        if (count > 3) {
+            uint8_t *instructions = code->instructions;
+            if (instructions[count - 3] == OP_POP && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
+                instructions[count - 3] = OP_ECHO;
+            }
+        }
+
         HymnValue function = hymn_new_func_value(func);
         hymn_reference(function);
         push(H, function);
