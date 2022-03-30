@@ -80,6 +80,43 @@ HymnString *hymn_substring(const char *init, size_t start, size_t end) {
     return (HymnString *)string;
 }
 
+static bool space(char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+void hymn_string_trim(HymnString *string) {
+    size_t len = hymn_string_len(string);
+    size_t start = 0;
+    while (start < len) {
+        char c = string[start];
+        if (!space(c)) {
+            break;
+        }
+        start++;
+    }
+    if (start == len) {
+        hymn_string_zero(string);
+    } else {
+        size_t end = len - 1;
+        while (end > start) {
+            char c = string[end];
+            if (!space(c)) {
+                break;
+            }
+            end--;
+        }
+        end++;
+        size_t offset = start;
+        size_t size = end - start;
+        for (size_t i = 0; i < size; i++) {
+            string[i] = string[offset++];
+        }
+        HymnStringHead *head = hymn_string_head(string);
+        head->length = size;
+        string[end] = '\0';
+    }
+}
+
 HymnStringHead *hymn_string_head(HymnString *string) {
     return HYMN_STRING_HEAD(string);
 }
@@ -166,8 +203,8 @@ static HymnString *string_append_substring(HymnString *string, const char *b, si
     return (HymnString *)s;
 }
 
-bool hymn_string_equal(HymnString *a, HymnString *b) {
-    return 0 == strcmp(a, b);
+bool hymn_string_equal(const char *a, const char *b) {
+    return strcmp(a, b) == 0;
 }
 
 bool hymn_string_starts_with(HymnString *s, const char *using) {
@@ -751,6 +788,11 @@ struct Compiler {
     HymnString *error;
 };
 
+struct CompileResult {
+    HymnFunction *func;
+    char *error;
+};
+
 HymnValue hymn_new_undefined() {
     return (HymnValue){.is = HYMN_VALUE_UNDEFINED, .as = {.i = 0}};
 }
@@ -1132,7 +1174,7 @@ static HymnValue table_get_const(HymnTable *this, const char *key) {
     unsigned int bin = table_get_bin(this, hash);
     HymnTableItem *item = this->items[bin];
     while (item != NULL) {
-        if (strcmp(key, item->key->string) == 0) {
+        if (hymn_string_equal(key, item->key->string)) {
             return item->value;
         }
         item = item->next;
@@ -3031,8 +3073,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
     Instruction *view = optimizer->important;
     while (view != NULL) {
         int i = view->index;
-        uint8_t instruction = view->instruction;
-        switch (instruction) {
+        switch (view->instruction) {
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
         case OP_JUMP_IF_TRUE:
@@ -3044,7 +3085,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_JUMP_IF_GREATER_EQUAL: {
             if (i < start) {
                 uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-                uint16_t destination = i + 3 + jump;
+                int destination = i + 3 + (int)jump;
                 if (destination >= start && destination <= start + shift) {
                     jump -= (uint16_t)shift;
                     instructions[i + 1] = (jump >> 8) & UINT8_MAX;
@@ -3060,7 +3101,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_FOR: {
             if (i < start) {
                 uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                uint16_t destination = i + 4 + jump;
+                int destination = i + 4 + jump;
                 if (destination > start) {
                     jump -= (uint16_t)shift;
                     instructions[i + 2] = (jump >> 8) & UINT8_MAX;
@@ -3073,10 +3114,10 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case IR_JUMP_IF_GREATER_EQUAL: {
             if (i < start) {
                 uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
-                uint16_t destination = i + 5 + jump;
+                int destination = i + 5 + jump;
                 if (destination >= start && destination <= start + shift) {
                     uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= next(instruction);
+                    jump -= (uint16_t)next(instruction);
                     instructions[i + 3] = (jump >> 8) & UINT8_MAX;
                     instructions[i + 4] = jump & UINT8_MAX;
                 } else if (destination > start) {
@@ -3090,10 +3131,10 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_LOOP: {
             if (i >= start) {
                 uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-                uint16_t destination = i + 3 - jump;
+                int destination = i + 3 - jump;
                 if (destination >= start && destination <= start + shift) {
                     uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= next(instruction);
+                    jump -= (uint16_t)(instruction);
                     instructions[i + 1] = (jump >> 8) & UINT8_MAX;
                     instructions[i + 2] = jump & UINT8_MAX;
                 } else if (destination < start) {
@@ -3107,10 +3148,10 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_FOR_LOOP: {
             if (i >= start) {
                 uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                uint16_t destination = i + 3 - jump;
+                int destination = i + 3 - jump;
                 if (destination >= start && destination <= start + shift) {
                     uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= next(instruction);
+                    jump -= (uint16_t)(instruction);
                     instructions[i + 2] = (jump >> 8) & UINT8_MAX;
                     instructions[i + 3] = jump & UINT8_MAX;
                 } else if (destination < start) {
@@ -3124,10 +3165,10 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_INCREMENT_LOOP: {
             if (i >= start) {
                 uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
-                uint16_t destination = i + 5 - jump;
+                int destination = i + 5 - jump;
                 if (destination >= start && destination <= start + shift) {
                     uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= next(instruction);
+                    jump -= (uint16_t)(instruction);
                     instructions[i + 3] = (jump >> 8) & UINT8_MAX;
                     instructions[i + 4] = jump & UINT8_MAX;
                 } else if (destination < start) {
@@ -3175,7 +3216,7 @@ static void extend(Optimizer *optimizer, int start, int shift) {
         case OP_JUMP_IF_GREATER_EQUAL: {
             if (i + 2 < start) {
                 uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
-                uint16_t destination = i + 3 + jump;
+                int destination = i + 3 + jump;
                 if (destination >= start && destination <= start + shift) {
                     // Not sure about this
                     jump += (uint16_t)shift;
@@ -3341,9 +3382,9 @@ static void interest(Optimizer *optimizer) {
 
 static void optimize(Compiler *C) {
 
-    uint8_t locals = C->scope->local_count;
-    uint8_t parameters = C->scope->func->arity;
-    uint8_t registers = 0;
+    int locals = C->scope->local_count;
+    int parameters = C->scope->func->arity;
+    int registers = 0;
 
     Optimizer optimizer = {0};
     optimizer.code = current(C);
@@ -3353,7 +3394,7 @@ static void optimize(Compiler *C) {
     }
 
     // if [-3] == OP_RETURN && [-2] == OP_NONE && [-1] == OP_RETURN
-    //     DELETE(-2, 2)
+    //     REMOVE(-2, 2)
 
     interest(&optimizer);
 
@@ -3365,7 +3406,7 @@ static void optimize(Compiler *C) {
 #define LINE(I, O) optimizer.code->lines[I] = optimizer.code->lines[O]
 #define UPDATE(I, O) update(&optimizer, I, O)
 #define REWRITE(S, X) rewrite(&optimizer, one + S, X)
-#define DELETE(A, X) rewrite(&optimizer, A, X)
+#define REMOVE(A, X) rewrite(&optimizer, A, X)
 #define ADD(A, X) extend(&optimizer, A, X)
 #define REPEAT continue
 #define JUMP_IF(T, F)                        \
@@ -3607,14 +3648,14 @@ static void optimize(Compiler *C) {
                 if (zed == OP_GET_LOCAL) {
                     uint8_t value_b = INSTRUCTION(zero + 1);
                     SET(one + 2, value_b);
-                    DELETE(zero, 2);
+                    REMOVE(zero, 2);
                     one -= 2;
                 } else {
                     if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
                         fprintf(stderr, "out of registers");
                         exit(1);
                     }
-                    uint8_t slot_2 = locals + (++registers);
+                    uint8_t slot_2 = (uint8_t)(locals + (++registers));
                     SET(one + 2, slot_2);
                     SET(zero, (zed == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
                     ADD(zero + 2, 1);
@@ -3624,14 +3665,14 @@ static void optimize(Compiler *C) {
                 if (omega == OP_GET_LOCAL) {
                     uint8_t value_a = INSTRUCTION(minus + 1);
                     SET(one + 1, value_a);
-                    DELETE(minus, 2);
+                    REMOVE(minus, 2);
                     one -= 2;
                 } else {
                     if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
                         fprintf(stderr, "out of registers");
                         exit(1);
                     }
-                    uint8_t slot_1 = locals + (++registers);
+                    uint8_t slot_1 = (uint8_t)(locals + (++registers));
                     SET(one + 1, slot_1);
                     SET(minus, (omega == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
                     ADD(minus + 2, 1);
@@ -3692,18 +3733,18 @@ static void optimize(Compiler *C) {
             uint8_t slot_1 = INSTRUCTION(x + 1);
             uint8_t slot_2 = INSTRUCTION(x + 2);
             if (slot_1 > parameters) {
-                if ((int)slot_1 + (int)registers > UINT8_MAX) {
+                if ((int)slot_1 + registers > UINT8_MAX) {
                     fprintf(stderr, "out of locals due to registers");
                     exit(1);
                 }
-                SET(x + 1, slot_1 + registers);
+                SET(x + 1, slot_1 + (uint8_t)registers);
             }
             if (slot_2 > parameters) {
-                if ((int)slot_2 + (int)registers > UINT8_MAX) {
+                if ((int)slot_2 + registers > UINT8_MAX) {
                     fprintf(stderr, "out of locals due to registers");
                     exit(1);
                 }
-                SET(x + 2, slot_2 + registers);
+                SET(x + 2, slot_2 + (uint8_t)registers);
             }
             break;
         }
@@ -3715,18 +3756,18 @@ static void optimize(Compiler *C) {
         case OP_FOR_LOOP: {
             uint8_t slot = INSTRUCTION(x + 1);
             if (slot > parameters) {
-                if ((int)slot + (int)registers > UINT8_MAX) {
+                if ((int)slot + registers > UINT8_MAX) {
                     fprintf(stderr, "out of locals due to registers");
                     exit(1);
                 }
-                SET(x + 1, slot + registers);
+                SET(x + 1, slot + (uint8_t)registers);
             }
             break;
         }
         case IR_GLOBAL:
         case IR_CONSTANT: {
             uint8_t slot = INSTRUCTION(x + 2);
-            SET(x + 2, slot - locals + parameters);
+            SET(x + 2, (uint8_t)((int)slot - locals + parameters));
             break;
         }
         case IR_JUMP_IF_GREATER:
@@ -3734,14 +3775,14 @@ static void optimize(Compiler *C) {
             uint8_t slot_1 = INSTRUCTION(x + 1);
             uint8_t slot_2 = INSTRUCTION(x + 2);
             if (slot_1 > locals) {
-                SET(x + 1, slot_1 - locals + parameters);
+                SET(x + 1, (uint8_t)((int)slot_1 - locals + parameters));
             } else if (slot_1 > parameters) {
-                SET(x + 1, slot_1 + registers);
+                SET(x + 1, slot_1 + (uint8_t)registers);
             }
             if (slot_2 > locals) {
-                SET(x + 2, slot_2 - locals + parameters);
+                SET(x + 2, (uint8_t)((int)slot_2 - locals + parameters));
             } else if (slot_2 > parameters) {
-                SET(x + 2, slot_2 + registers);
+                SET(x + 2, slot_2 + (uint8_t)registers);
             }
             break;
         }
@@ -4394,11 +4435,6 @@ static HymnFrame *parent_frame(Hymn *H, int offset) {
 static HymnFrame *current_frame(Hymn *H) {
     return &H->frames[H->frame_count - 1];
 }
-
-struct CompileResult {
-    HymnFunction *func;
-    char *error;
-};
 
 static CompileResult compile(Hymn *H, const char *script, const char *source, bool interactive) {
     Scope scope = {0};
@@ -5952,11 +5988,12 @@ dispatch:
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
         HymnValue value = pop(H);
         HymnValue previous = table_put(&H->globals, name, value);
-        if (!hymn_is_undefined(previous)) {
-            hymn_dereference(H, previous);
-            THROW("multiple global definitions of '%s'", name->string)
-        } else {
+        if (hymn_is_undefined(previous)) {
             hymn_reference_string(name);
+        } else {
+            // TODO: Double check this is OK
+            table_put(&H->globals, name, previous);
+            THROW("multiple global definitions of '%s'", name->string)
         }
         HYMN_DISPATCH;
     }
@@ -7204,54 +7241,399 @@ char *hymn_read(Hymn *H, const char *script) {
     return error;
 }
 
+#ifndef HYMN_NO_REPL
+
+#include <ctype.h>
+
+#define INPUT_LIMIT 256
+#define CONTROL_KEY(c) ((c)&0x1f)
+
 typedef struct History History;
 
 struct History {
-    HymnString *line;
+    HymnString *input;
     History *previous;
     History *next;
 };
 
+#ifdef _MSC_VER
+#include <conio.h>
+#else
+#include <termios.h>
+#endif
+
+enum Keyboard {
+    ARROW_UP = 1000,
+    ARROW_DOWN,
+    ARROW_LEFT,
+    ARROW_RIGHT,
+    PAGE_UP,
+    PAGE_DOWN,
+    HOME_KEY,
+    END_KEY,
+    DELETE_KEY
+};
+
+static char letters[] =
+    "0123456789"
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+static struct termios save_termios;
+
+void hymn_format(Hymn *H) {
+}
+
+static int read_key() {
+    do {
+        char c;
+        int e = read(STDIN_FILENO, &c, 1);
+        if (e == 1) {
+            if (c == '\x1b') {
+                char sequence[3];
+                if (read(STDIN_FILENO, &sequence[0], 1) != 1) {
+                    return '\x1b';
+                }
+                if (read(STDIN_FILENO, &sequence[1], 1) != 1) {
+                    return '\x1b';
+                }
+                if (sequence[0] == '[') {
+                    if (sequence[1] >= '0' && sequence[1] <= '9') {
+                        if (read(STDIN_FILENO, &sequence[2], 1) != 1) {
+                            return '\x1b';
+                        }
+                        if (sequence[2] == '~') {
+                            switch (sequence[1]) {
+                            case '1': return HOME_KEY;
+                            case '3': return DELETE_KEY;
+                            case '4': return END_KEY;
+                            case '5': return PAGE_UP;
+                            case '6': return PAGE_DOWN;
+                            case '7': return HOME_KEY;
+                            case '8': return END_KEY;
+                            }
+                        }
+                    } else {
+                        switch (sequence[1]) {
+                        case 'A': return ARROW_UP;
+                        case 'B': return ARROW_DOWN;
+                        case 'D': return ARROW_LEFT;
+                        case 'C': return ARROW_RIGHT;
+                        case 'H': return HOME_KEY;
+                        case 'F': return END_KEY;
+                        }
+                    }
+                } else if (sequence[0] == 'O') {
+                    switch (sequence[1]) {
+                    case 'H': return HOME_KEY;
+                    case 'F': return END_KEY;
+                    }
+                }
+                return '\x1b';
+            } else {
+                return c;
+            }
+        } else if (e == -1 && errno != EAGAIN) {
+            perror("read");
+            return EOF;
+        }
+    } while (true);
+}
+
+static void reset_terminal() {
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &save_termios) == -1) {
+        perror("tcsetattr");
+    }
+}
+
 void hymn_repl(Hymn *H) {
-    printf("Hymn " HYMN_VERSION "\n");
+    printf("Welcome to Hymn v" HYMN_VERSION "\nType .help for more information\n");
 
-    char input[1024];
+    if (tcgetattr(STDIN_FILENO, &save_termios) == -1) {
+        perror("tcgetattr");
+        return;
+    }
+    struct termios new_term = save_termios;
+    new_term.c_lflag &= ~(ECHO | ICANON);
+    new_term.c_cc[VMIN] = 1;
+    new_term.c_cc[VTIME] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &new_term) == -1) {
+        perror("tcsetattr");
+        return;
+    }
+    atexit(reset_terminal);
 
-    HymnString *line = NULL;
+    int index = 0;
+    int count = 0;
 
-    // History *cursor = NULL;
-    // History *history = NULL;
+    char line[INPUT_LIMIT];
+    HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
+
+    History *cursor = NULL;
+    History *history = NULL;
+
+    bool open_editor = false;
+
+#define cursor_backspace() printf("\b \b")
+#define cursor_forward() printf("\033[1C")
+#define cursor_backward() printf("\033[1D")
+#define cursor_clear() printf("\033[s\033[K")
+#define cursor_erase() printf("\033[1D\033[s\033[K")
+#define cursor_unsave() printf("\033[u")
+#define cursor_reset() printf("\033[2K\r")
 
     while (true) {
-        if (line != NULL) {
-            printf(">> ");
+        if (hymn_string_len(input) > 0) {
+            printf("  ");
         } else {
             printf("> ");
         }
+        fflush(stdout);
 
-        if (fgets(input, sizeof(input), stdin) == NULL || strcmp(input, ".exit\n") == 0) {
-            printf("\n");
-            break;
+        index = 0;
+        count = 0;
+
+        while (true) {
+            int c = read_key();
+            switch (c) {
+            case CONTROL_KEY('c'):
+            case CONTROL_KEY('d'):
+                goto cleanup;
+            case CONTROL_KEY('e'):
+                open_editor = true;
+                input = hymn_string_append(input, line);
+                goto scan;
+            case PAGE_UP:
+            case ARROW_UP:
+                if (history != NULL) {
+                    if (cursor == NULL) {
+                        cursor = history;
+                    } else if (cursor->previous == NULL) {
+                        continue;
+                    } else {
+                        cursor = cursor->previous;
+                    }
+                    hymn_string_zero(input);
+                    input = hymn_string_append(input, cursor->input);
+                    cursor_reset();
+                    printf("> %s", input);
+                    fflush(stdout);
+                }
+                continue;
+            case PAGE_DOWN:
+            case ARROW_DOWN:
+                if (cursor != NULL) {
+                    cursor = cursor->next;
+                    hymn_string_zero(input);
+                    if (cursor != NULL) {
+                        input = hymn_string_append(input, cursor->input);
+                    }
+                    cursor_reset();
+                    printf("> %s", input);
+                    fflush(stdout);
+                }
+                continue;
+            case HOME_KEY:
+            case ARROW_LEFT:
+                if (index > 0) {
+                    index--;
+                    cursor_backward();
+                    fflush(stdout);
+                }
+                continue;
+            case END_KEY:
+            case ARROW_RIGHT:
+                if (index < count) {
+                    index++;
+                    cursor_forward();
+                    fflush(stdout);
+                }
+                continue;
+            case DELETE_KEY:
+                if (index < count) {
+                    count--;
+                    for (int i = index; i < count; i++) {
+                        line[i] = line[i + 1];
+                    }
+                    cursor_clear();
+                    line[count] = '\0';
+                    printf("%s", &line[index]);
+                    cursor_unsave();
+                    fflush(stdout);
+                }
+                continue;
+            case EOF:
+            case '\n':
+            case '\r':
+                goto scan;
+            default:
+                if (iscntrl(c)) {
+                    if (c == 8 || c == 127) {
+                        // delete or backspace
+                        if (index > 0) {
+                            index--;
+                            for (int i = index; i < count - 1; i++) {
+                                line[i] = line[i + 1];
+                            }
+                            count--;
+                            if (index == count) {
+                                cursor_backspace();
+                            } else {
+                                cursor_erase();
+                                line[count] = '\0';
+                                printf("%s", &line[index]);
+                                cursor_unsave();
+                            }
+                            fflush(stdout);
+                        }
+                    } else {
+                        printf("<%d>", c);
+                        fflush(stdout);
+                    }
+                } else if (c != '\0') {
+                    if (count < INPUT_LIMIT) {
+                        count++;
+                        for (int i = count - 1; i > index; i--) {
+                            line[i] = line[i - 1];
+                        }
+                        line[index] = (char)c;
+                        index++;
+                        if (index == count) {
+                            printf("%c", c);
+                        } else {
+                            cursor_clear();
+                            line[count] = '\0';
+                            printf("%s", &line[index - 1]);
+                            cursor_unsave();
+                            cursor_forward();
+                        }
+                        fflush(stdout);
+                    }
+                }
+            }
         }
 
-        if (line != NULL) {
-            line = hymn_string_append(line, input);
+    scan:
+        line[count] = '\0';
+        printf("\n");
+
+        if (line[0] == '.' && hymn_string_len(input) == 0) {
+            if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
+                break;
+            } else if (hymn_string_equal(line, ".help")) {
+                printf(".exit   Exit interactive mode\n"
+                       ".quit   Alias for .exit\n"
+                       ".edit   Edit input using $EDITOR\n"
+                       ".debug  Print global variable functions\n"
+                       ".save   Save commands to a file\n"
+                       ".help   Print this help message\n\n"
+                       "Press ^E to use $EDITOR\n"
+                       "Press ^D to exit interactive mode\n");
+                continue;
+            } else if (hymn_string_equal(line, ".debug")) {
+                HymnTable *globals = &H->globals;
+                unsigned int bins = globals->bins;
+                for (unsigned int i = 0; i < bins; i++) {
+                    HymnTableItem *item = globals->items[i];
+                    while (item != NULL) {
+                        HymnValue value = item->value;
+                        if (hymn_is_func(value)) {
+                            HymnFunction *func = hymn_as_func(value);
+                            disassemble_byte_code(&func->code, func->name);
+                        }
+                        item = item->next;
+                    }
+                }
+                continue;
+            } else if (hymn_string_equal(line, ".save")) {
+                if (history != NULL) {
+                    History *head = history;
+                    while (head->previous != NULL) {
+                        head = head->previous;
+                    }
+                    while (head != NULL) {
+                        printf("%s\n", head->input);
+                        head = head->next;
+                    }
+                }
+                continue;
+            } else if (hymn_string_equal(line, ".edit")) {
+                open_editor = true;
+            } else {
+                printf("Invalid REPL keyword\n");
+                continue;
+            }
         }
 
-        CompileResult result = compile(H, NULL, line != NULL ? line : input, true);
+        if (open_editor) {
+            open_editor = false;
+            line[0] = '\0';
+
+            char *editor = getenv("EDITOR");
+            if (editor == NULL) {
+                printf("No EDITOR set\n");
+                continue;
+            }
+
+            FILE *temp = NULL;
+
+            char path[] = "/tmp/hymn.XXXXXX";
+            for (int a = 0; a < 64; a++) {
+                for (int x = 0; x < 6; x++) {
+                    path[10 + x] = letters[(size_t)((double)rand() / RAND_MAX * (sizeof(letters) - 1))];
+                }
+                temp = fopen(path, "wx");
+                if (temp != NULL) {
+                    break;
+                }
+            }
+
+            if (temp == NULL) {
+                printf("Failed to create temporary file\n");
+                continue;
+            }
+
+            hymn_string_trim(input);
+            if (hymn_string_len(input) > 0) {
+                fprintf(temp, "%s", input);
+                hymn_string_zero(input);
+            }
+
+            fclose(temp);
+
+            HymnString *edit = hymn_string_format("%s %s", editor, path);
+            system(edit);
+            hymn_string_delete(edit);
+
+            HymnString *content = hymn_read_file(path);
+            unlink(path);
+
+            if (content == NULL) {
+                printf("Failed to read temporary file\n");
+                continue;
+            }
+
+            input = hymn_string_append(input, content);
+            hymn_string_delete(content);
+
+            printf("%s", input);
+        }
+
+        cursor = NULL;
+
+        input = hymn_string_append(input, line);
+        hymn_string_trim(input);
+        if (hymn_string_len(input) == 0) {
+            continue;
+        }
+
+        CompileResult result = compile(H, NULL, input, true);
         HymnFunction *func = result.func;
         char *error = result.error;
         if (error != NULL) {
             function_delete(func);
-            if (strcmp(error, "<eof>") == 0) {
-                if (line == NULL) {
-                    line = hymn_new_string(input);
-                }
-            } else {
-                if (line != NULL) {
-                    hymn_string_delete(line);
-                    line = NULL;
-                }
+            if (!hymn_string_equal(error, "<eof>")) {
+                hymn_string_zero(input);
                 fprintf(stderr, "%s\n", error);
                 fflush(stderr);
                 free(error);
@@ -7259,9 +7641,17 @@ void hymn_repl(Hymn *H) {
             continue;
         }
 
-        if (line != NULL) {
-            hymn_string_delete(line);
-            line = NULL;
+        History *save = hymn_calloc(1, sizeof(History));
+
+        save->input = hymn_new_string(input);
+        hymn_string_zero(input);
+
+        if (history == NULL) {
+            history = save;
+        } else {
+            history->next = save;
+            save->previous = history;
+            history = save;
         }
 
         HymnByteCode *code = &func->code;
@@ -7286,4 +7676,97 @@ void hymn_repl(Hymn *H) {
         assert(H->stack_top == H->stack);
         reset_stack(H);
     }
+
+cleanup:
+    hymn_string_delete(input);
+    while (history != NULL) {
+        hymn_string_delete(history->input);
+        History *previous = history->previous;
+        free(history);
+        history = previous;
+    }
 }
+
+void hymn_server(Hymn *H) {
+
+    char line[INPUT_LIMIT];
+    HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
+
+    while (true) {
+
+        if (fgets(line, sizeof(line), stdin) == NULL) {
+            break;
+        }
+
+        for (int i = 0; i < INPUT_LIMIT; i++) {
+            if (line[i] == '\n') {
+                line[i] = '\0';
+                break;
+            }
+        }
+
+        if (line[0] == '.' && hymn_string_len(input) == 0) {
+            if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
+                break;
+            } else if (hymn_string_equal(line, ".help")) {
+                printf(".exit   Exit interactive mode\n"
+                       ".quit   Alias for .exit\n"
+                       ".debug  Print global variable functions\n"
+                       ".save   Save commands to a file\n"
+                       ".help   Print this help message\n");
+                continue;
+            } else {
+                printf("Invalid keyword\n");
+                continue;
+            }
+        }
+
+        input = hymn_string_append(input, line);
+        hymn_string_trim(input);
+        if (hymn_string_len(input) == 0) {
+            continue;
+        }
+
+        CompileResult result = compile(H, NULL, input, true);
+        HymnFunction *func = result.func;
+        char *error = result.error;
+        if (error != NULL) {
+            function_delete(func);
+            if (!hymn_string_equal(error, "<eof>")) {
+                hymn_string_zero(input);
+                fprintf(stderr, "%s\n", error);
+                fflush(stderr);
+                free(error);
+            }
+            continue;
+        }
+
+        hymn_string_zero(input);
+
+        HymnByteCode *code = &func->code;
+        int count = code->count;
+        if (count > 3) {
+            uint8_t *instructions = code->instructions;
+            if (instructions[count - 3] == OP_POP && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
+                instructions[count - 3] = OP_ECHO;
+            }
+        }
+
+        HymnValue function = hymn_new_func_value(func);
+        hymn_reference(function);
+        push(H, function);
+        call(H, func, 0);
+        error = interpret(H);
+        if (error != NULL) {
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
+        }
+        assert(H->stack_top == H->stack);
+        reset_stack(H);
+    }
+
+    hymn_string_delete(input);
+}
+
+#endif

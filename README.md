@@ -58,7 +58,8 @@ echo list
    - If we have two number only instructions in a row
    - We can take out the type check for the second instruction
    - We know an exception will be thrown from the first instruction if the types are not allowed
-1. Tail call optimizations. Any time a function ends with another function call, the stack can be re-used
+1. Keep source code for functions, for better inspection and debugging
+1. Named function arguments
 1. Consistent, descriptive error messages
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`
 1. Add `finally` keyword for try blocks
@@ -70,12 +71,12 @@ echo list
 
 ## Progress
 
-| Implementation | Status      | Description         |
-| -------------- | ----------- | ------------------- |
-| C              | Version 0.6 | C-like brackets     |
-| JavaScript     | Version 0.5 | Anonmyous functions |
-| Go             | Not Started |                     |
-| Java           | Not Started |                     |
+| Implementation | Status        | Description                   |
+| -------------- | ------------- | ----------------------------- |
+| C              | Version 0.6.1 | C-like brackets, REPL support |
+| JavaScript     | Version 0.5   | Anonmyous functions           |
+| Go             | Not Started   |                               |
+| Java           | Not Started   |                               |
 
 ## Notes
 
@@ -171,6 +172,16 @@ $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
 
 ```
 > clang -O2 src/*.c -Isrc -Wno-deprecated-declarations -std=c11 -o HYMN.exe
+```
+
+### Formatter
+
+```
+> clang format/*.c -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -o HYMNFMT.exe
+```
+
+```
+> clang -O2 format/*.c -Wno-deprecated-declarations -std=c11 -o HYMNFMT.exe
 ```
 
 ## Node

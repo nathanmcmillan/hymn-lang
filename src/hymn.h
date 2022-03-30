@@ -21,6 +21,8 @@
 
 #define HYMN_VERSION "0.6.0"
 
+// #define HYMN_NO_REPL
+
 #ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
@@ -232,7 +234,7 @@ HymnStringHead *hymn_string_head(HymnString *string);
 HymnString *hymn_string_copy(HymnString *string);
 size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
-bool hymn_string_equal(HymnString *a, HymnString *b);
+bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *this, const char b);
 bool hymn_string_starts_with(HymnString *s, const char *using);
@@ -240,6 +242,7 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
 HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
+void hymn_string_trim(HymnString *string);
 
 HymnArray *hymn_new_array(HymnInt length);
 
@@ -313,7 +316,6 @@ char *hymn_call(Hymn *H, const char *name, int arguments);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
 char *hymn_read(Hymn *H, const char *script);
-void hymn_repl(Hymn *H);
 
 HymnValue hymn_get(Hymn *H, const char *name);
 
@@ -326,5 +328,10 @@ void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, Hym
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);
+
+#ifndef HYMN_NO_REPL
+void hymn_repl(Hymn *H);
+void hymn_server(Hymn *H);
+#endif
 
 #endif

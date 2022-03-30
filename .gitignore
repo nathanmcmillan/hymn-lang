@@ -23,11 +23,13 @@ tests
 hymn
 !hymn/
 
+hymnfmt
 hymntest
 hymnbenchmark
 
-hymn.exe
-hymntest.exe
+HYMN.exe
+HYMNFMT.exe
+HYMNTEST.exe
 
 *.obj
 

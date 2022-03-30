@@ -29,39 +29,6 @@ static bool space(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-void hymn_string_trim(HymnString *string) {
-    size_t len = hymn_string_len(string);
-    size_t start = 0;
-    while (start < len) {
-        char c = string[start];
-        if (!space(c)) {
-            break;
-        }
-        start++;
-    }
-    if (start == len) {
-        hymn_string_zero(string);
-    } else {
-        size_t end = len - 1;
-        while (end > start) {
-            char c = string[end];
-            if (!space(c)) {
-                break;
-            }
-            end--;
-        }
-        end++;
-        size_t offset = start;
-        size_t size = end - start;
-        for (size_t i = 0; i < size; i++) {
-            string[i] = string[offset++];
-        }
-        HymnStringHead *head = hymn_string_head(string);
-        head->length = size;
-        string[end] = '\0';
-    }
-}
-
 static HymnValue text_ends(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count >= 2) {

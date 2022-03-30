@@ -87,14 +87,14 @@ static HymnString *test_source(HymnString *script) {
     }
     HymnString *expected = parse_expected(source);
     HymnString *result = NULL;
-    if (strcmp(expected, "") != 0) {
+    if (!hymn_string_equal(expected, "")) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
         hymn->print_error = console;
         hymn_string_zero(out);
         char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
-        if (strcmp(expected, "@Exception") == 0) {
+        if (hymn_string_equal(expected, "@Exception")) {
             if (error == NULL) {
                 result = hymn_new_string("Expected an error.\n");
             } else {
@@ -157,7 +157,7 @@ static void test_api() {
     }
 
     hymn_string_trim(out);
-    if (strcmp(out, "{ \"number\": 8 }") != 0) {
+    if (!hymn_string_equal(out, "{ \"number\": 8 }")) {
         printf("incorrent output: %s\n\n", out);
         tests_fail++;
         goto end;
@@ -203,7 +203,7 @@ static void test_hymn(const char *filter) {
     hymn_delete_file_list(&all);
     delete_filter_list(&scripts);
 
-    if (filter == NULL || strcmp(filter, "api") == 0) {
+    if (filter == NULL || hymn_string_equal(filter, "api")) {
         test_api();
     }
 

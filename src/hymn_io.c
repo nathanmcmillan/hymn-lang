@@ -155,9 +155,24 @@ static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue io_move(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
-    (void)count;
-    (void)arguments;
-    return hymn_new_none();
+    if (count < 2) {
+        return hymn_new_none();
+    }
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_none();
+    }
+    HymnString *source = hymn_as_string(a);
+    HymnString *target = hymn_as_string(b);
+    int renamed = rename(source, target);
+    return hymn_new_bool(renamed != -1);
+}
+
+static HymnValue io_remove(Hymn *H, int count, HymnValue *arguments) {
+    PATH_STRING
+    int removed = remove(path);
+    return hymn_new_bool(removed != -1);
 }
 
 void hymn_use_io(Hymn *H) {
@@ -171,5 +186,6 @@ void hymn_use_io(Hymn *H) {
     hymn_add_function_to_table(H, io, "stats", io_stats);
     hymn_add_function_to_table(H, io, "input", io_input);
     hymn_add_function_to_table(H, io, "move", io_move);
+    hymn_add_function_to_table(H, io, "remove", io_remove);
     hymn_add_table(H, "io", io);
 }

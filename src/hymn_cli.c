@@ -20,8 +20,9 @@ static void signal_handle(int signum) {
 
 static void help() {
     printf("Hymn Script\n\n"
-           "  -c  Run input as source code\n"
-           "  -r  Open interactive mode\n"
+           "  -c  Run command\n"
+           "  -i  Open interactive mode\n"
+           "  -s  Open server mode\n"
            "  -b  Print compiled byte code\n"
            "  -v  Print version information\n"
            "  -h  Print this help message\n"
@@ -30,36 +31,39 @@ static void help() {
 
 int main(int argc, char **argv) {
 
-    bool repl = false;
+    char mode = 0;
     bool byte = false;
+
     char *file = NULL;
     char *code = NULL;
 
     if (argc >= 2) {
         for (int i = 1; i < argc; i++) {
-            if (strcmp(argv[i], "--") == 0) {
+            if (hymn_string_equal(argv[i], "--")) {
                 if (i + 1 < argc) {
                     file = argv[i + 1];
                 }
                 break;
-            } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            } else if (hymn_string_equal(argv[i], "-h") || hymn_string_equal(argv[i], "--help")) {
                 help();
                 return 2;
-            } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
+            } else if (hymn_string_equal(argv[i], "-v") || hymn_string_equal(argv[i], "--version")) {
                 printf("Hymn " HYMN_VERSION "\n");
-                return 0;
-            } else if (strcmp(argv[i], "-c") == 0) {
+                return EXIT_SUCCESS;
+            } else if (hymn_string_equal(argv[i], "-c")) {
                 if (i + 1 < argc) {
                     code = argv[i + 1];
                     i++;
                 } else {
                     help();
-                    return 1;
+                    return EXIT_FAILURE;
                 }
-            } else if (strcmp(argv[i], "-b") == 0) {
+            } else if (hymn_string_equal(argv[i], "-b")) {
                 byte = true;
-            } else if (strcmp(argv[i], "-r") == 0) {
-                repl = true;
+            } else if (hymn_string_equal(argv[i], "-i")) {
+                mode = 1;
+            } else if (hymn_string_equal(argv[i], "-s")) {
+                mode = 2;
             } else {
                 file = argv[i];
             }
@@ -71,7 +75,7 @@ int main(int argc, char **argv) {
     Hymn *hymn = new_hymn();
     hymn_use_libs(hymn);
 
-    int exit = 0;
+    int exit = EXIT_SUCCESS;
 
     if (file != NULL) {
         char *error;
@@ -84,7 +88,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "%s\n", error);
             fflush(stderr);
             free(error);
-            exit = 1;
+            exit = EXIT_FAILURE;
         }
     }
 
@@ -99,11 +103,13 @@ int main(int argc, char **argv) {
             fprintf(stderr, "%s\n", error);
             fflush(stderr);
             free(error);
-            exit = 1;
+            exit = EXIT_FAILURE;
         }
     }
 
-    if (repl || (file == NULL && code == NULL)) {
+    if (mode == 2) {
+        hymn_server(hymn);
+    } else if (mode == 1 || (file == NULL && code == NULL)) {
         hymn_repl(hymn);
     }
 
