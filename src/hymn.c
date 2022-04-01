@@ -5991,7 +5991,6 @@ dispatch:
         if (hymn_is_undefined(previous)) {
             hymn_reference_string(name);
         } else {
-            // TODO: Double check this is OK
             table_put(&H->globals, name, previous);
             THROW("multiple global definitions of '%s'", name->string)
         }
@@ -7241,7 +7240,7 @@ char *hymn_read(Hymn *H, const char *script) {
     return error;
 }
 
-#ifndef HYMN_NO_REPL
+#ifdef HYMN_REPL
 
 #include <ctype.h>
 
@@ -7255,12 +7254,6 @@ struct History {
     History *previous;
     History *next;
 };
-
-#ifdef _MSC_VER
-#include <conio.h>
-#else
-#include <termios.h>
-#endif
 
 enum Keyboard {
     ARROW_UP = 1000,
@@ -7279,10 +7272,16 @@ static char letters[] =
     "abcdefghijklmnopqrstuvwxyz"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-static struct termios save_termios;
+#ifdef _MSC_VER
+#include <conio.h>
 
-void hymn_format(Hymn *H) {
+static int read_key() {
+    return getch();
 }
+#else
+#include <termios.h>
+
+static struct termios save_termios;
 
 static int read_key() {
     do {
@@ -7345,10 +7344,13 @@ static void reset_terminal() {
         perror("tcsetattr");
     }
 }
+#endif
 
 void hymn_repl(Hymn *H) {
     printf("Welcome to Hymn v" HYMN_VERSION "\nType .help for more information\n");
 
+#ifdef _MSC_VER
+#else
     if (tcgetattr(STDIN_FILENO, &save_termios) == -1) {
         perror("tcgetattr");
         return;
@@ -7362,6 +7364,7 @@ void hymn_repl(Hymn *H) {
         return;
     }
     atexit(reset_terminal);
+#endif
 
     int index = 0;
     int count = 0;
@@ -7384,7 +7387,7 @@ void hymn_repl(Hymn *H) {
 
     while (true) {
         if (hymn_string_len(input) > 0) {
-            printf("  ");
+            printf(">> ");
         } else {
             printf("> ");
         }
@@ -7768,5 +7771,4 @@ void hymn_server(Hymn *H) {
 
     hymn_string_delete(input);
 }
-
 #endif

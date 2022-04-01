@@ -21,7 +21,7 @@
 
 #define HYMN_VERSION "0.6.0"
 
-// #define HYMN_NO_REPL
+#define HYMN_REPL
 
 #ifdef _MSC_VER
 #include <direct.h>
@@ -329,7 +329,7 @@ void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);
 
-#ifndef HYMN_NO_REPL
+#ifdef HYMN_REPL
 void hymn_repl(Hymn *H);
 void hymn_server(Hymn *H);
 #endif

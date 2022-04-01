@@ -37,6 +37,7 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     (void)count;
     (void)arguments;
+    return hymn_new_none();
 
     //     (void)H;
 
