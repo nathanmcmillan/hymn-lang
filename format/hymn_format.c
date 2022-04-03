@@ -15,7 +15,10 @@ static size_t s = 0;
 static char *new = NULL;
 static size_t capacity = 0;
 static size_t n = 0;
-static size_t d = 0;
+static size_t deep = 0;
+static bool *stack = NULL;
+static size_t limit = 0;
+static size_t f = 0;
 
 static bool digit(char c) {
     return '0' <= c && c <= '9';
@@ -25,12 +28,16 @@ static bool word(char c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
-static bool brackets(char c) {
-    return c == '(' || c == ')' || c == '[' || c == ']';
+static bool other(char c) {
+    return !digit(c) && !word(c);
 }
 
 static bool math(char c) {
     return c == '+' || c == '-' || c == '=' || c == '<' || c == '>';
+}
+
+static bool brackets(char c) {
+    return c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}';
 }
 
 #define SIZE_CHECK   \
@@ -38,17 +45,34 @@ static bool math(char c) {
         goto done;   \
     }
 
-#define MEM_CHECK                         \
-    if (new == NULL) {                    \
+#define MEM_CHECK(M)                      \
+    if (M == NULL) {                      \
         fprintf(stderr, "out of memory"); \
         exit(EXIT_FAILURE);               \
     }
+
+static void nest(bool v) {
+    if (f + 1 >= limit) {
+        limit += 16;
+        stack = (stack == NULL) ? malloc(limit * sizeof(bool)) : realloc(stack, limit * sizeof(bool));
+        MEM_CHECK(stack)
+    }
+    stack[f++] = v;
+}
+
+static bool compact() {
+    if (f > 0) {
+        f--;
+        return stack[f];
+    }
+    return false;
+}
 
 static void append(char c) {
     if (n + 1 >= capacity) {
         capacity += 256;
         new = realloc(new, (capacity + 1) * sizeof(char));
-        MEM_CHECK
+        MEM_CHECK(new)
     }
     new[n++] = c;
 }
@@ -58,7 +82,7 @@ static void skip() {
         return;
     }
     char c = source[s];
-    while (c == '\n' || c == '\r' || c == ' ' || c == '\t') {
+    while (c == ' ' || c == '\t') {
         s++;
         if (s >= size) {
             return;
@@ -68,7 +92,7 @@ static void skip() {
 }
 
 static void indent() {
-    for (size_t a = 0; a < d; a++) {
+    for (size_t a = 0; a < deep; a++) {
         append(' ');
         append(' ');
     }
@@ -81,9 +105,35 @@ static char peek() {
     return source[s + 1];
 }
 
+static bool eol() {
+    size_t p = s;
+    while (true) {
+        if (p >= size) {
+            return true;
+        }
+        char c = source[p];
+        if (c == '\n') {
+            return true;
+        } else if (c != '\r' && c != ' ' && c != '\t') {
+            return false;
+        }
+        p++;
+    }
+}
+
 static char pre() {
     if (n >= 1) {
         return new[n - 1];
+    }
+    return '\0';
+}
+
+static char pre2() {
+    char p = pre();
+    if (p != ' ') {
+        return p;
+    } else if (n >= 2) {
+        return new[n - 2];
     }
     return '\0';
 }
@@ -141,12 +191,10 @@ static bool match(size_t b, const char *word) {
 }
 
 static void format() {
-    size = strlen(source);
     capacity = size;
     new = malloc((capacity + 1) * sizeof(char));
-    MEM_CHECK
-    // bool function = false;
-    // bool if_statement = false;
+    MEM_CHECK(new)
+    bool spacing = false;
     while (true) {
         SIZE_CHECK
         char c = source[s];
@@ -165,7 +213,7 @@ static void format() {
             append(' ');
         } else if (word(c)) {
             append(c);
-            // size_t b = s;
+            size_t b = s;
             while (true) {
                 s++;
                 SIZE_CHECK
@@ -176,39 +224,99 @@ static void format() {
                     break;
                 }
             }
-            // size_t x = s - b;
-            // if (x == 8 && match(b, "function")) {
-            //     function = true;
-            // } else if (x == 2 && match(b, "if")) {
-            //     if_statement = true;
-            // }
+            size_t x = s - b;
+            spacing = (x == 2 && match(b, "if")) || (x == 3 && match(b, "for")) || (x == 5 && match(b, "while"));
             append(' ');
         } else {
             switch (c) {
             case '{': {
                 s++;
                 space();
-                append('{');
-                if (peek() == '}') {
+                char p = pre2();
+                append(c);
+                skip();
+                SIZE_CHECK
+                c = source[s];
+                if (c == '}') {
                     s++;
                     append('}');
+                    newline();
                 } else {
-                    d++;
+                    deep++;
+                    if (p == '=' || p == ':') {
+                        // what about tables directly in a function argument
+                        // it's a table unless it's an expression
+                        // if following is an ident that's not a keyword, must be a table
+                        // if inside parenthesis, must be a table
+                        append(' ');
+                        nest(c != '\n');
+                    } else {
+                        newline();
+                    }
                 }
-                newline();
-                // function = false;
-                // if_statement = false;
                 break;
             }
             case '}': {
-                if (d >= 1) {
-                    d--;
+                if (deep >= 1) {
+                    deep--;
                 }
                 s++;
-                clear();
-                newline();
-                append('}');
-                newline();
+                if (compact()) {
+                    space();
+                    append(c);
+                } else {
+                    clear();
+                    newline();
+                    append(c);
+                    newline();
+                }
+                break;
+            }
+            case '(':
+            case '[': {
+                s++;
+                if (brackets(pre2()) || (!spacing && word(pre2()))) {
+                    backspace();
+                }
+                deep++;
+                append(c);
+                skip();
+                SIZE_CHECK
+                c = source[s];
+                nest(c != '\n');
+                break;
+            }
+            case ')': {
+                if (deep >= 1) {
+                    deep--;
+                }
+                s++;
+                if (compact()) {
+                    backspace();
+                    append(c);
+                } else {
+                    clear();
+                    newline();
+                    append(c);
+                    newline();
+                }
+                break;
+            }
+            case ']': {
+                if (deep >= 1) {
+                    deep--;
+                }
+                s++;
+                if (compact()) {
+                    backspace();
+                    append(c);
+                    append(' ');
+                } else {
+                    clear();
+                    newline();
+                    append(c);
+                    newline();
+                }
                 break;
             }
             case '+':
@@ -217,7 +325,7 @@ static void format() {
             case '<':
             case '>': {
                 s++;
-                if (math(pre())) {
+                if (math(pre2())) {
                     backspace();
                 } else {
                     space();
@@ -294,25 +402,24 @@ static void format() {
                 }
                 break;
             }
-            case '\r':
-            case '\t':
-            case ' ': {
-                s++;
-                break;
-            }
-            case '(':
-            case ')':
             case '.': {
                 s++;
                 backspace();
                 append(c);
                 break;
             }
-            case ',': {
+            case ',':
+            case ':': {
                 s++;
                 backspace();
                 append(c);
                 append(' ');
+                break;
+            }
+            case '\r':
+            case '\t':
+            case ' ': {
+                s++;
                 break;
             }
             default: {
@@ -343,22 +450,21 @@ static void help() {
            "  -h  Print this help message\n");
 }
 
-static size_t file_size(const char *path) {
+static void file_size(const char *path) {
+    size = 0;
     FILE *open = fopen(path, "r");
     if (open == NULL) {
-        return 0;
+        return;
     }
-    size_t size = 0;
     int ch;
     while ((ch = fgetc(open)) != EOF) {
         size++;
     }
     fclose(open);
-    return size;
 }
 
 static void read_file(const char *path) {
-    size_t size = file_size(path);
+    file_size(path);
     FILE *open = fopen(path, "rb");
     if (open == NULL) {
         return;
