@@ -33,7 +33,11 @@ static bool other(char c) {
 }
 
 static bool math(char c) {
-    return c == '+' || c == '-' || c == '=' || c == '<' || c == '>';
+    return c == '+' || c == '-' || c == '=' || c == '<' || c == '>' || c == '!';
+}
+
+static bool left(char c) {
+    return c == '(' || c == '[' || c == '{';
 }
 
 static bool brackets(char c) {
@@ -98,29 +102,6 @@ static void indent() {
     }
 }
 
-static char peek() {
-    if (s + 1 >= size) {
-        return '\0';
-    }
-    return source[s + 1];
-}
-
-static bool eol() {
-    size_t p = s;
-    while (true) {
-        if (p >= size) {
-            return true;
-        }
-        char c = source[p];
-        if (c == '\n') {
-            return true;
-        } else if (c != '\r' && c != ' ' && c != '\t') {
-            return false;
-        }
-        p++;
-    }
-}
-
 static char pre() {
     if (n >= 1) {
         return new[n - 1];
@@ -145,15 +126,50 @@ static void backspace() {
 }
 
 static void space() {
-    if (n >= 1 && new[n - 1] != ' ') {
-        append(' ');
+    if (n >= 1) {
+        char p = new[n - 1];
+        if (p != ' ' && p != '\n') {
+            append(' ');
+        }
+    }
+}
+
+static void fix(size_t p) {
+    size_t b = p;
+    while (true) {
+        if (p == 0) {
+            return;
+        }
+        p--;
+        char c = new[p];
+        if (c == '}') {
+            p++;
+            if (p < n) {
+                new[p++] = ' ';
+                size_t d = b - p;
+                if (d > 0) {
+                    while (true) {
+                        if (p + d >= n) {
+                            break;
+                        }
+                        new[p] = new[p + d];
+                        p++;
+                    }
+                    n -= d;
+                }
+            }
+            return;
+        } else if (c == '\n' || c == ' ') {
+            continue;
+        }
+        return;
     }
 }
 
 static void clear() {
     while (true) {
         char c = pre();
-        if (c == '\n' || c == '\r' || c == '\t' || c == ' ') {
+        if (c == '\n' || c == ' ') {
             n--;
             continue;
         }
@@ -190,6 +206,16 @@ static bool match(size_t b, const char *word) {
     return true;
 }
 
+static void spacing(char c) {
+    // TODO
+    char p = pre();
+    if (c == '!') {
+        if (word(p)) {
+            append(' ');
+        }
+    }
+}
+
 static void format() {
     capacity = size;
     new = malloc((capacity + 1) * sizeof(char));
@@ -212,6 +238,7 @@ static void format() {
             }
             append(' ');
         } else if (word(c)) {
+            size_t p = n;
             append(c);
             size_t b = s;
             while (true) {
@@ -225,13 +252,24 @@ static void format() {
                 }
             }
             size_t x = s - b;
-            spacing = (x == 2 && match(b, "if")) || (x == 3 && match(b, "for")) || (x == 5 && match(b, "while"));
+            if ((x == 2 && match(b, "if")) || (x == 3 && match(b, "for")) || (x == 5 && match(b, "while"))) {
+                spacing = true;
+            } else if (x == 4 && (match(b, "elif") || match(b, "else"))) {
+                spacing = true;
+                fix(p);
+            } else {
+                spacing = false;
+            }
             append(' ');
         } else {
             switch (c) {
             case '{': {
                 s++;
-                space();
+                if (left(pre2())) {
+                    backspace();
+                } else {
+                    space();
+                }
                 char p = pre2();
                 append(c);
                 skip();
@@ -243,11 +281,7 @@ static void format() {
                     newline();
                 } else {
                     deep++;
-                    if (p == '=' || p == ':') {
-                        // what about tables directly in a function argument
-                        // it's a table unless it's an expression
-                        // if following is an ident that's not a keyword, must be a table
-                        // if inside parenthesis, must be a table
+                    if (p == '=' || p == ':' || p == '(' || p == ',') {
                         append(' ');
                         nest(c != '\n');
                     } else {
@@ -334,36 +368,50 @@ static void format() {
                 append(' ');
                 break;
             }
+            case '!': {
+                s++;
+                if (math(pre2())) {
+                    backspace();
+                } else {
+                    space();
+                }
+                append(c);
+                break;
+            }
             case '\'': {
                 append(c);
                 s++;
-                char t = '\0';
                 while (true) {
                     SIZE_CHECK
                     c = source[s];
                     append(c);
                     s++;
-                    if (c == '\'' && t != '\\') {
+                    if (c == '\\') {
+                        SIZE_CHECK
+                        append(source[s++]);
+                    } else if (c == '\'') {
                         break;
                     }
-                    t = c;
                 }
+                append(' ');
                 break;
             }
             case '"': {
                 append(c);
                 s++;
-                char t = '\0';
                 while (true) {
                     SIZE_CHECK
                     c = source[s];
                     append(c);
                     s++;
-                    if (c == '"' && t != '\\') {
+                    if (c == '\\') {
+                        SIZE_CHECK
+                        append(source[s++]);
+                    } else if (c == '"') {
                         break;
                     }
-                    t = c;
                 }
+                append(' ');
                 break;
             }
             case '#': {
@@ -430,16 +478,9 @@ static void format() {
         }
     }
 done:
+    newline();
     new[capacity] = '\0';
     new[n] = '\0';
-    while (n >= 1) {
-        n--;
-        if (new[n] == '\n' || new[n] == '\r' || new[n] == '\t' || new[n] == ' ') {
-            new[n] = '\0';
-            continue;
-        }
-        return;
-    }
 }
 
 static void help() {
@@ -450,9 +491,9 @@ static void help() {
            "  -h  Print this help message\n");
 }
 
-static void file_size(const char *path) {
+static void read_file(const char *path) {
     size = 0;
-    FILE *open = fopen(path, "r");
+    FILE *open = fopen(path, "rb");
     if (open == NULL) {
         return;
     }
@@ -460,15 +501,7 @@ static void file_size(const char *path) {
     while ((ch = fgetc(open)) != EOF) {
         size++;
     }
-    fclose(open);
-}
-
-static void read_file(const char *path) {
-    file_size(path);
-    FILE *open = fopen(path, "rb");
-    if (open == NULL) {
-        return;
-    }
+    fseek(open, 0, SEEK_SET);
     source = malloc((size + 1) * sizeof(char));
     if (source == NULL) {
         fprintf(stderr, "out of memory");
@@ -529,15 +562,14 @@ int main(int argc, char **argv) {
         if (new == NULL) {
             return EXIT_FAILURE;
         } else if (write) {
-            // FILE *open = fopen(file, "w");
-            // if (open == NULL) {
-            //     fprintf(stderr, "Failed writing to file: %s\n", file);
-            //     free(new);
-            //     return EXIT_FAILURE;
-            // }
-            // fputs(new, open);
-            // fclose(open);
-            printf("%s", new);
+            FILE *open = fopen(file, "wb");
+            if (open == NULL) {
+                fprintf(stderr, "Failed writing to file: %s\n", file);
+                free(new);
+                return EXIT_FAILURE;
+            }
+            fputs(new, open);
+            fclose(open);
         } else {
             printf("%s", new);
         }
