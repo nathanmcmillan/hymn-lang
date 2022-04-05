@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +20,7 @@ static size_t deep = 0;
 static bool *stack = NULL;
 static size_t limit = 0;
 static size_t f = 0;
+bool keyword = false;
 
 static bool digit(char c) {
     return '0' <= c && c <= '9';
@@ -26,22 +28,6 @@ static bool digit(char c) {
 
 static bool word(char c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
-}
-
-static bool other(char c) {
-    return !digit(c) && !word(c);
-}
-
-static bool math(char c) {
-    return c == '+' || c == '-' || c == '=' || c == '<' || c == '>' || c == '!';
-}
-
-static bool left(char c) {
-    return c == '(' || c == '[' || c == '{';
-}
-
-static bool brackets(char c) {
-    return c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}';
 }
 
 #define SIZE_CHECK   \
@@ -109,31 +95,6 @@ static char pre() {
     return '\0';
 }
 
-static char pre2() {
-    char p = pre();
-    if (p != ' ') {
-        return p;
-    } else if (n >= 2) {
-        return new[n - 2];
-    }
-    return '\0';
-}
-
-static void backspace() {
-    if (pre() == ' ') {
-        n--;
-    }
-}
-
-static void space() {
-    if (n >= 1) {
-        char p = new[n - 1];
-        if (p != ' ' && p != '\n') {
-            append(' ');
-        }
-    }
-}
-
 static void fix(size_t p) {
     size_t b = p;
     while (true) {
@@ -177,6 +138,17 @@ static void clear() {
     }
 }
 
+static bool match(size_t b, const char *word) {
+    int a = 0;
+    do {
+        if (source[b + a] != word[a]) {
+            return false;
+        }
+        a++;
+    } while (word[a] != '\0');
+    return true;
+}
+
 static void newline() {
     if (n == 0) {
         return;
@@ -195,37 +167,69 @@ static void newline() {
     }
 }
 
-static bool match(size_t b, const char *word) {
-    int a = 0;
-    do {
-        if (source[b + a] != word[a]) {
-            return false;
-        }
-        a++;
-    } while (word[a] != '\0');
-    return true;
-}
-
-static void spacing(char c) {
-    // TODO
+static void space(char c) {
     char p = pre();
-    if (c == '!') {
-        if (word(p)) {
+    if (p == ' ' || p == '\n' || p == '\0') {
+        goto push;
+    }
+    if (word(c) || digit(c)) {
+        if (p != '!' && p != '(' && p != '[') {
             append(' ');
         }
+        goto push;
     }
+    switch (c) {
+    case '{':
+    case '!':
+    case '"':
+    case '\'':
+        if (p != '(' && p != '[' && p != '{') {
+            append(' ');
+        }
+        goto push;
+    case '(':
+        if (word(p)) {
+            if (keyword) {
+                append(' ');
+            }
+        } else if (p != '(' && p != '[' && p != '{' && p != ')' && p != ']' && p != '}') {
+            append(' ');
+        }
+        goto push;
+    case '[':
+        if (!word(p) && p != '(' && p != '[' && p != '{' && p != ')' && p != ']' && p != '}') {
+            append(' ');
+        }
+        goto push;
+    case '+':
+    case '-':
+    case '=':
+    case '<':
+    case '>':
+        if (p != '+' && p != '-' && p != '=' && p != '<' && p != '>' && p != '!') {
+            append(' ');
+        }
+        goto push;
+    case '.':
+    case ',':
+    case ':':
+        goto push;
+    default:
+        append(' ');
+    }
+push:
+    append(c);
 }
 
 static void format() {
     capacity = size;
     new = malloc((capacity + 1) * sizeof(char));
     MEM_CHECK(new)
-    bool spacing = false;
     while (true) {
         SIZE_CHECK
         char c = source[s];
         if (digit(c)) {
-            append(c);
+            space(c);
             while (true) {
                 s++;
                 SIZE_CHECK
@@ -236,10 +240,9 @@ static void format() {
                     break;
                 }
             }
-            append(' ');
         } else if (word(c)) {
             size_t p = n;
-            append(c);
+            space(c);
             size_t b = s;
             while (true) {
                 s++;
@@ -253,25 +256,19 @@ static void format() {
             }
             size_t x = s - b;
             if ((x == 2 && match(b, "if")) || (x == 3 && match(b, "for")) || (x == 5 && match(b, "while"))) {
-                spacing = true;
+                keyword = true;
             } else if (x == 4 && (match(b, "elif") || match(b, "else"))) {
-                spacing = true;
+                keyword = true;
                 fix(p);
             } else {
-                spacing = false;
+                keyword = false;
             }
-            append(' ');
         } else {
             switch (c) {
             case '{': {
                 s++;
-                if (left(pre2())) {
-                    backspace();
-                } else {
-                    space();
-                }
-                char p = pre2();
-                append(c);
+                char p = pre();
+                space(c);
                 skip();
                 SIZE_CHECK
                 c = source[s];
@@ -282,7 +279,6 @@ static void format() {
                 } else {
                     deep++;
                     if (p == '=' || p == ':' || p == '(' || p == ',') {
-                        append(' ');
                         nest(c != '\n');
                     } else {
                         newline();
@@ -296,8 +292,7 @@ static void format() {
                 }
                 s++;
                 if (compact()) {
-                    space();
-                    append(c);
+                    space(c);
                 } else {
                     clear();
                     newline();
@@ -309,42 +304,22 @@ static void format() {
             case '(':
             case '[': {
                 s++;
-                if (brackets(pre2()) || (!spacing && word(pre2()))) {
-                    backspace();
-                }
                 deep++;
-                append(c);
+                space(c);
                 skip();
                 SIZE_CHECK
                 c = source[s];
                 nest(c != '\n');
                 break;
             }
-            case ')': {
-                if (deep >= 1) {
-                    deep--;
-                }
-                s++;
-                if (compact()) {
-                    backspace();
-                    append(c);
-                } else {
-                    clear();
-                    newline();
-                    append(c);
-                    newline();
-                }
-                break;
-            }
+            case ')':
             case ']': {
                 if (deep >= 1) {
                     deep--;
                 }
                 s++;
                 if (compact()) {
-                    backspace();
                     append(c);
-                    append(' ');
                 } else {
                     clear();
                     newline();
@@ -357,30 +332,15 @@ static void format() {
             case '-':
             case '=':
             case '<':
-            case '>': {
-                s++;
-                if (math(pre2())) {
-                    backspace();
-                } else {
-                    space();
-                }
-                append(c);
-                append(' ');
-                break;
-            }
+            case '>':
             case '!': {
                 s++;
-                if (math(pre2())) {
-                    backspace();
-                } else {
-                    space();
-                }
-                append(c);
+                space(c);
                 break;
             }
             case '\'': {
-                append(c);
                 s++;
+                space(c);
                 while (true) {
                     SIZE_CHECK
                     c = source[s];
@@ -393,12 +353,11 @@ static void format() {
                         break;
                     }
                 }
-                append(' ');
                 break;
             }
             case '"': {
-                append(c);
                 s++;
+                space(c);
                 while (true) {
                     SIZE_CHECK
                     c = source[s];
@@ -411,12 +370,11 @@ static void format() {
                         break;
                     }
                 }
-                append(' ');
                 break;
             }
             case '#': {
-                append(c);
                 s++;
+                space(c);
                 while (true) {
                     SIZE_CHECK
                     c = source[s];
@@ -450,20 +408,6 @@ static void format() {
                 }
                 break;
             }
-            case '.': {
-                s++;
-                backspace();
-                append(c);
-                break;
-            }
-            case ',':
-            case ':': {
-                s++;
-                backspace();
-                append(c);
-                append(' ');
-                break;
-            }
             case '\r':
             case '\t':
             case ' ': {
@@ -472,7 +416,7 @@ static void format() {
             }
             default: {
                 s++;
-                append(c);
+                space(c);
             }
             }
         }
@@ -514,6 +458,12 @@ static void read_file(const char *path) {
     fclose(open);
 }
 
+static void signal_handle(int signum) {
+    if (signum != 2) {
+        exit(signum);
+    }
+}
+
 int main(int argc, char **argv) {
 
     char *file = NULL;
@@ -542,6 +492,8 @@ int main(int argc, char **argv) {
             }
         }
     }
+
+    signal(SIGINT, signal_handle);
 
     if (source != NULL) {
         format();

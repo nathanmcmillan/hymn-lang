@@ -8,7 +8,8 @@ static HymnValue json_save(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     (void)count;
     (void)arguments;
-    // none -> null
+    // value to string
+    // replace("none", "null")
     return hymn_new_none();
 }
 

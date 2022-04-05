@@ -7255,6 +7255,17 @@ struct History {
     History *next;
 };
 
+#ifndef _MSC_VER
+#include <termios.h>
+
+#define cursor_backspace() printf("\b \b")
+#define cursor_forward() printf("\033[1C")
+#define cursor_backward() printf("\033[1D")
+#define cursor_clear() printf("\033[s\033[K")
+#define cursor_erase() printf("\033[1D\033[s\033[K")
+#define cursor_unsave() printf("\033[u")
+#define cursor_reset() printf("\033[2K\r")
+
 enum Keyboard {
     ARROW_UP = 1000,
     ARROW_DOWN,
@@ -7271,15 +7282,6 @@ static char letters[] =
     "0123456789"
     "abcdefghijklmnopqrstuvwxyz"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-#ifdef _MSC_VER
-#include <conio.h>
-
-static int read_key() {
-    return getch();
-}
-#else
-#include <termios.h>
 
 static struct termios save_termios;
 
@@ -7346,10 +7348,51 @@ static void reset_terminal() {
 }
 #endif
 
+static void echo_if_none(HymnByteCode *code) {
+    int count = code->count;
+    if (count > 3) {
+        uint8_t *instructions = code->instructions;
+        if (instructions[count - 3] == OP_POP && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
+            instructions[count - 3] = OP_ECHO;
+        }
+    }
+}
+
+static void remove_newline(char *input) {
+    size_t p = 0;
+    while (input[p] != '\0') {
+        p++;
+    }
+    while (p > 0) {
+        p--;
+        if (input[p] != '\n') {
+            return;
+        }
+        input[p] = '\0';
+    }
+}
+
+static void call_function(Hymn *H, HymnFunction *func) {
+    HymnValue function = hymn_new_func_value(func);
+    hymn_reference(function);
+    push(H, function);
+    call(H, func, 0);
+    char *error = interpret(H);
+    if (error != NULL) {
+        fprintf(stderr, "%s\n", error);
+        fflush(stderr);
+        free(error);
+    }
+    assert(H->stack_top == H->stack);
+    reset_stack(H);
+}
+
 void hymn_repl(Hymn *H) {
     printf("Welcome to Hymn v" HYMN_VERSION "\nType .help for more information\n");
 
 #ifdef _MSC_VER
+    char temp_dir[MAX_PATH];
+    GetTempPath(MAX_PATH, temp_dir);
 #else
     if (tcgetattr(STDIN_FILENO, &save_termios) == -1) {
         perror("tcgetattr");
@@ -7364,26 +7407,19 @@ void hymn_repl(Hymn *H) {
         return;
     }
     atexit(reset_terminal);
-#endif
 
     int index = 0;
     int count = 0;
 
+    History *cursor = NULL;
+#endif
+
+    History *history = NULL;
+
     char line[INPUT_LIMIT];
     HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
 
-    History *cursor = NULL;
-    History *history = NULL;
-
     bool open_editor = false;
-
-#define cursor_backspace() printf("\b \b")
-#define cursor_forward() printf("\033[1C")
-#define cursor_backward() printf("\033[1D")
-#define cursor_clear() printf("\033[s\033[K")
-#define cursor_erase() printf("\033[1D\033[s\033[K")
-#define cursor_unsave() printf("\033[u")
-#define cursor_reset() printf("\033[2K\r")
 
     while (true) {
         if (hymn_string_len(input) > 0) {
@@ -7393,6 +7429,12 @@ void hymn_repl(Hymn *H) {
         }
         fflush(stdout);
 
+#ifdef _MSC_VER
+        if (fgets(line, sizeof(line), stdin) == NULL) {
+            break;
+        }
+        remove_newline(line);
+#else
         index = 0;
         count = 0;
 
@@ -7519,10 +7561,11 @@ void hymn_repl(Hymn *H) {
     scan:
         line[count] = '\0';
         printf("\n");
+#endif
 
         if (line[0] == '.' && hymn_string_len(input) == 0) {
             if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
-                break;
+                goto cleanup;
             } else if (hymn_string_equal(line, ".help")) {
                 printf(".exit   Exit interactive mode\n"
                        ".quit   Alias for .exit\n"
@@ -7574,12 +7617,21 @@ void hymn_repl(Hymn *H) {
 
             char *editor = getenv("EDITOR");
             if (editor == NULL) {
+#ifdef _MSC_VER
+                editor = "notepad";
+#else
                 printf("No EDITOR set\n");
                 continue;
+#endif
             }
 
             FILE *temp = NULL;
 
+#ifdef _MSC_VER
+            char path[MAX_PATH];
+            GetTempFileName(temp_dir, "hymn", 0, path);
+            temp = fopen(path, "w");
+#else
             char path[] = "/tmp/hymn.XXXXXX";
             for (int a = 0; a < 64; a++) {
                 for (int x = 0; x < 6; x++) {
@@ -7590,6 +7642,7 @@ void hymn_repl(Hymn *H) {
                     break;
                 }
             }
+#endif
 
             if (temp == NULL) {
                 printf("Failed to create temporary file\n");
@@ -7622,7 +7675,9 @@ void hymn_repl(Hymn *H) {
             printf("%s", input);
         }
 
+#ifndef _MSC_VER
         cursor = NULL;
+#endif
 
         input = hymn_string_append(input, line);
         hymn_string_trim(input);
@@ -7645,7 +7700,6 @@ void hymn_repl(Hymn *H) {
         }
 
         History *save = hymn_calloc(1, sizeof(History));
-
         save->input = hymn_new_string(input);
         hymn_string_zero(input);
 
@@ -7657,37 +7711,20 @@ void hymn_repl(Hymn *H) {
             history = save;
         }
 
-        HymnByteCode *code = &func->code;
-        int count = code->count;
-        if (count > 3) {
-            uint8_t *instructions = code->instructions;
-            if (instructions[count - 3] == OP_POP && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
-                instructions[count - 3] = OP_ECHO;
-            }
-        }
-
-        HymnValue function = hymn_new_func_value(func);
-        hymn_reference(function);
-        push(H, function);
-        call(H, func, 0);
-        error = interpret(H);
-        if (error != NULL) {
-            fprintf(stderr, "%s\n", error);
-            fflush(stderr);
-            free(error);
-        }
-        assert(H->stack_top == H->stack);
-        reset_stack(H);
+        echo_if_none(&func->code);
+        call_function(H, func);
     }
 
 cleanup:
     hymn_string_delete(input);
+#ifndef _MSC_VER
     while (history != NULL) {
         hymn_string_delete(history->input);
         History *previous = history->previous;
         free(history);
         history = previous;
     }
+#endif
 }
 
 void hymn_server(Hymn *H) {
@@ -7700,13 +7737,7 @@ void hymn_server(Hymn *H) {
         if (fgets(line, sizeof(line), stdin) == NULL) {
             break;
         }
-
-        for (int i = 0; i < INPUT_LIMIT; i++) {
-            if (line[i] == '\n') {
-                line[i] = '\0';
-                break;
-            }
-        }
+        remove_newline(line);
 
         if (line[0] == '.' && hymn_string_len(input) == 0) {
             if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
@@ -7746,27 +7777,8 @@ void hymn_server(Hymn *H) {
 
         hymn_string_zero(input);
 
-        HymnByteCode *code = &func->code;
-        int count = code->count;
-        if (count > 3) {
-            uint8_t *instructions = code->instructions;
-            if (instructions[count - 3] == OP_POP && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
-                instructions[count - 3] = OP_ECHO;
-            }
-        }
-
-        HymnValue function = hymn_new_func_value(func);
-        hymn_reference(function);
-        push(H, function);
-        call(H, func, 0);
-        error = interpret(H);
-        if (error != NULL) {
-            fprintf(stderr, "%s\n", error);
-            fflush(stderr);
-            free(error);
-        }
-        assert(H->stack_top == H->stack);
-        reset_stack(H);
+        echo_if_none(&func->code);
+        call_function(H, func);
     }
 
     hymn_string_delete(input);

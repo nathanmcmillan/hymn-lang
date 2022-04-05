@@ -154,6 +154,12 @@ $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
 > cl src/*.c /O2 /DNDEBUG /link /out:HYMN.exe
 ```
 
+### Formatter
+
+```
+> cl format/*.c /W4 /WX /wd4996 /link /out:HYMNFMT.exe
+```
+
 ## Windows + Clang
 
 ### Debug
@@ -178,10 +184,6 @@ $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
 
 ```
 > clang format/*.c -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -o HYMNFMT.exe
-```
-
-```
-> clang -O2 format/*.c -Wno-deprecated-declarations -std=c11 -o HYMNFMT.exe
 ```
 
 ## Node
