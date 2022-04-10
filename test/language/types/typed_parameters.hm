@@ -1,0 +1,7 @@
+# 123
+
+function foo(x: int) {
+  return x
+}
+
+echo foo(123)

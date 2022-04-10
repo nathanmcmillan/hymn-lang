@@ -109,13 +109,6 @@ class HymnFrame {
   }
 }
 
-class Instruction {
-  constructor(index, instruction) {
-    this.index = index
-    this.instruction = instruction
-  }
-}
-
 function printOut(text) {
   if (node) nodeProcess.stdout.write(text)
   else console.log(text)
@@ -250,80 +243,74 @@ const STRING_STATUS_CLOSE = 3
 const STRING_STATUS_CONTINUE = 4
 
 const OP_ADD = 0
-const OP_ADD_TWO_LOCAL = 1
-const OP_INCREMENT = 2
-const OP_ARRAY_INSERT = 3
-const OP_ARRAY_POP = 4
-const OP_ARRAY_PUSH = 5
-const OP_BIT_AND = 6
-const OP_BIT_LEFT_SHIFT = 7
-const OP_BIT_NOT = 8
-const OP_BIT_OR = 9
-const OP_BIT_RIGHT_SHIFT = 10
-const OP_BIT_XOR = 11
-const OP_CALL = 12
-const OP_TAIL_CALL = 13
-const OP_CLEAR = 14
-const OP_CONSTANT = 15
-const OP_COPY = 16
-const OP_DEFINE_GLOBAL = 17
-const OP_DELETE = 18
-const OP_DIVIDE = 19
-const OP_DUPLICATE = 20
-const OP_ECHO = 21
-const OP_EQUAL = 22
-const OP_EXISTS = 23
-const OP_FALSE = 24
-const OP_GET_DYNAMIC = 25
-const OP_GET_GLOBAL = 26
-const OP_GET_LOCAL = 27
-const OP_GET_TWO_LOCAL = 28
-const OP_GET_PROPERTY = 29
-const OP_GREATER = 30
-const OP_GREATER_EQUAL = 31
-const OP_INDEX = 32
-const OP_JUMP = 33
-const OP_JUMP_IF_EQUAL = 34
-const OP_JUMP_IF_NOT_EQUAL = 35
-const OP_JUMP_IF_LESS = 36
-const OP_JUMP_IF_GREATER = 37
-const OP_JUMP_IF_LESS_EQUAL = 38
-const OP_JUMP_IF_GREATER_EQUAL = 39
-const OP_JUMP_IF_FALSE = 40
-const OP_JUMP_IF_TRUE = 41
-const OP_KEYS = 42
-const OP_LEN = 43
-const OP_LESS = 44
-const OP_LESS_EQUAL = 45
-const OP_LOOP = 46
-const OP_MODULO = 47
-const OP_MULTIPLY = 48
-const OP_NEGATE = 49
-const OP_NONE = 50
-const OP_NOT = 51
-const OP_NOT_EQUAL = 52
-const OP_POP = 53
-const OP_POP_TWO = 54
-const OP_POP_N = 55
-const OP_PRINT = 56
-const OP_RETURN = 57
-const OP_SET_DYNAMIC = 58
-const OP_SET_GLOBAL = 59
-const OP_SET_LOCAL = 60
-const OP_INCREMENT_LOCAL = 61
-const OP_INCREMENT_LOCAL_AND_SET = 62
-const OP_SET_PROPERTY = 64
-const OP_SLICE = 65
-const OP_SUBTRACT = 66
-const OP_THROW = 67
-const OP_FLOAT = 68
-const OP_INT = 69
-const OP_STRING = 70
-const OP_TRUE = 71
-const OP_TYPE = 72
-const OP_USE = 73
-const OP_FOR = 74
-const OP_FOR_LOOP = 75
+const OP_INCREMENT = 1
+const OP_ARRAY_INSERT = 2
+const OP_ARRAY_POP = 3
+const OP_ARRAY_PUSH = 4
+const OP_BIT_AND = 5
+const OP_BIT_LEFT_SHIFT = 6
+const OP_BIT_NOT = 7
+const OP_BIT_OR = 8
+const OP_BIT_RIGHT_SHIFT = 9
+const OP_BIT_XOR = 10
+const OP_CALL = 11
+const OP_CLEAR = 12
+const OP_CONSTANT = 13
+const OP_COPY = 14
+const OP_DEFINE_GLOBAL = 15
+const OP_DELETE = 16
+const OP_DIVIDE = 17
+const OP_DUPLICATE = 18
+const OP_ECHO = 19
+const OP_EQUAL = 20
+const OP_EXISTS = 21
+const OP_FALSE = 22
+const OP_GET_DYNAMIC = 23
+const OP_GET_GLOBAL = 24
+const OP_GET_LOCAL = 25
+const OP_GET_PROPERTY = 26
+const OP_GREATER = 27
+const OP_GREATER_EQUAL = 28
+const OP_INDEX = 29
+const OP_JUMP = 30
+const OP_JUMP_IF_EQUAL = 31
+const OP_JUMP_IF_NOT_EQUAL = 32
+const OP_JUMP_IF_LESS = 33
+const OP_JUMP_IF_GREATER = 34
+const OP_JUMP_IF_LESS_EQUAL = 35
+const OP_JUMP_IF_GREATER_EQUAL = 36
+const OP_JUMP_IF_FALSE = 37
+const OP_JUMP_IF_TRUE = 38
+const OP_KEYS = 39
+const OP_LEN = 40
+const OP_LESS = 41
+const OP_LESS_EQUAL = 42
+const OP_LOOP = 43
+const OP_MODULO = 44
+const OP_MULTIPLY = 45
+const OP_NEGATE = 46
+const OP_NONE = 47
+const OP_NOT = 48
+const OP_NOT_EQUAL = 49
+const OP_POP = 50
+const OP_PRINT = 51
+const OP_RETURN = 52
+const OP_SET_DYNAMIC = 53
+const OP_SET_GLOBAL = 54
+const OP_SET_LOCAL = 55
+const OP_INCREMENT_LOCAL_AND_SET = 56
+const OP_SET_PROPERTY = 57
+const OP_SLICE = 58
+const OP_SUBTRACT = 59
+const OP_THROW = 60
+const OP_FLOAT = 61
+const OP_INT = 62
+const OP_STRING = 63
+const OP_TRUE = 64
+const OP_TYPE = 65
+const OP_USE = 66
+const OP_FOR = 67
+const OP_FOR_LOOP = 68
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -2113,469 +2100,8 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
-function next(instruction) {
-  switch (instruction) {
-    case OP_POP_N:
-    case OP_SET_GLOBAL:
-    case OP_SET_LOCAL:
-    case OP_SET_PROPERTY:
-    case OP_INCREMENT:
-    case OP_CALL:
-    case OP_TAIL_CALL:
-    case OP_CONSTANT:
-    case OP_DEFINE_GLOBAL:
-    case OP_GET_GLOBAL:
-    case OP_GET_LOCAL:
-    case OP_GET_PROPERTY:
-    case OP_EXISTS:
-    case OP_PRINT:
-      return 2
-    case OP_GET_TWO_LOCAL:
-    case OP_ADD_TWO_LOCAL:
-    case OP_JUMP:
-    case OP_JUMP_IF_FALSE:
-    case OP_JUMP_IF_TRUE:
-    case OP_JUMP_IF_EQUAL:
-    case OP_JUMP_IF_NOT_EQUAL:
-    case OP_JUMP_IF_LESS:
-    case OP_JUMP_IF_GREATER:
-    case OP_JUMP_IF_LESS_EQUAL:
-    case OP_JUMP_IF_GREATER_EQUAL:
-    case OP_LOOP:
-    case OP_INCREMENT_LOCAL_AND_SET:
-    case OP_INCREMENT_LOCAL:
-      return 3
-    case OP_FOR:
-    case OP_FOR_LOOP:
-      return 4
-    default:
-      return 1
-  }
-}
-
-function adjustable(important, instructions, count, target) {
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    const i = view.index
-    const instruction = view.instruction
-    switch (instruction) {
-      case OP_JUMP:
-      case OP_JUMP_IF_FALSE:
-      case OP_JUMP_IF_TRUE:
-      case OP_JUMP_IF_EQUAL:
-      case OP_JUMP_IF_NOT_EQUAL:
-      case OP_JUMP_IF_LESS:
-      case OP_JUMP_IF_GREATER:
-      case OP_JUMP_IF_LESS_EQUAL:
-      case OP_JUMP_IF_GREATER_EQUAL: {
-        if (i < target) {
-          const jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 + jump === target) {
-            return false
-          }
-        }
-        break
-      }
-      case OP_FOR: {
-        if (i < target) {
-          const jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 + jump === target) {
-            return false
-          }
-        }
-        break
-      }
-      case OP_LOOP: {
-        if (i >= target) {
-          const jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 - jump === target) {
-            return false
-          }
-        }
-        break
-      }
-      case OP_FOR_LOOP: {
-        if (i >= target) {
-          const jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 - jump === target) {
-            return false
-          }
-        }
-        break
-      }
-    }
-  }
-  return true
-}
-
-function rewrite(important, instructions, lines, count, start, shift) {
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    const i = view.index
-    const instruction = view.instruction
-    switch (instruction) {
-      case OP_JUMP:
-      case OP_JUMP_IF_FALSE:
-      case OP_JUMP_IF_TRUE:
-      case OP_JUMP_IF_EQUAL:
-      case OP_JUMP_IF_NOT_EQUAL:
-      case OP_JUMP_IF_LESS:
-      case OP_JUMP_IF_GREATER:
-      case OP_JUMP_IF_LESS_EQUAL:
-      case OP_JUMP_IF_GREATER_EQUAL: {
-        if (i < start) {
-          let jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 + jump > start) {
-            jump -= shift
-            instructions[i + 1] = (jump >> 8) & UINT8_MAX
-            instructions[i + 2] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-      case OP_FOR: {
-        if (i < start) {
-          let jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 + jump > start) {
-            jump -= shift
-            instructions[i + 2] = (jump >> 8) & UINT8_MAX
-            instructions[i + 3] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-      case OP_LOOP: {
-        if (i >= start) {
-          let jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 - jump < start) {
-            jump -= shift
-            instructions[i + 1] = (jump >> 8) & UINT8_MAX
-            instructions[i + 2] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-      case OP_FOR_LOOP: {
-        if (i >= start) {
-          let jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 - jump < start) {
-            jump -= shift
-            instructions[i + 2] = (jump >> 8) & UINT8_MAX
-            instructions[i + 3] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-    }
-    if (i >= start) {
-      view.index = i - shift
-    }
-  }
-  count -= shift
-  for (let c = start; c < count; c++) {
-    const n = c + shift
-    instructions[c] = instructions[n]
-    lines[c] = lines[n]
-  }
-  return shift
-}
-
-function update(important, instructions, i, instruction) {
-  instructions[i] = instruction
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    if (i === view.index) {
-      view.instruction = instruction
-      return
-    }
-  }
-  throw 'Optimization failed to find instruction to update.'
-}
-
-function deleter(important, i) {
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    if (i === view.index) {
-      important.splice(t, 1)
-      return
-    }
-  }
-  throw 'Optimization failed to find instruction to delete.'
-}
-
-function interest(instructions, count) {
-  const important = []
-  let i = 0
-  while (i < count) {
-    const instruction = instructions[i]
-    switch (instruction) {
-      case OP_JUMP:
-      case OP_JUMP_IF_FALSE:
-      case OP_JUMP_IF_TRUE:
-      case OP_JUMP_IF_EQUAL:
-      case OP_JUMP_IF_NOT_EQUAL:
-      case OP_JUMP_IF_LESS:
-      case OP_JUMP_IF_GREATER:
-      case OP_JUMP_IF_LESS_EQUAL:
-      case OP_JUMP_IF_GREATER_EQUAL:
-      case OP_FOR:
-      case OP_LOOP:
-      case OP_FOR_LOOP: {
-        important.push(new Instruction(i, instruction))
-        break
-      }
-    }
-    i += next(instruction)
-  }
-  return important
-}
-
-function optimize(C) {
-  const code = current(C)
-  const instructions = code.instructions
-  const lines = code.lines
-  let count = code.count
-  const important = interest(instructions, count)
-  let one = 0
-  while (one < count) {
-    const first = instructions[one]
-    const two = one + next(first)
-    if (two >= count) break
-    const second = instructions[two]
-
-    if (!adjustable(important, instructions, count, one) || !adjustable(important, instructions, count, two)) {
-      one = two
-      continue
-    }
-
-    switch (first) {
-      case OP_CALL: {
-        if (second === OP_RETURN) {
-          instructions[one] = OP_TAIL_CALL
-          continue
-        }
-        break
-      }
-      case OP_POP: {
-        if (second === OP_POP) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          instructions[one] = OP_POP_TWO
-          continue
-        }
-        break
-      }
-      case OP_POP_TWO: {
-        if (second === OP_POP) {
-          instructions[one] = OP_POP_N
-          instructions[one + 1] = 3
-          continue
-        }
-        break
-      }
-      case OP_POP_N: {
-        if (second === OP_POP) {
-          const pop = instructions[one + 1]
-          if (pop < UINT8_MAX - 1) {
-            count -= rewrite(important, instructions, lines, count, one + 1, 1)
-            instructions[one + 1] = pop + 1
-            continue
-          }
-        }
-        break
-      }
-      case OP_GET_LOCAL: {
-        if (second === OP_GET_LOCAL) {
-          instructions[one] = OP_GET_TWO_LOCAL
-          count -= rewrite(important, instructions, lines, count, one + 2, 1)
-          continue
-        } else if (second === OP_CONSTANT) {
-          const three = two + next(second)
-          const third = three < count ? instructions[three] : UINT8_MAX
-          if (third === OP_ADD) {
-            const value = code.constants[code.instructions[two + 1]]
-            if (isInt(value)) {
-              const add = value.value
-              if (add >= 0 && add <= UINT8_MAX) {
-                const local = code.instructions[one + 1]
-                count -= rewrite(important, instructions, lines, count, one, 2)
-                instructions[one] = OP_INCREMENT_LOCAL
-                instructions[one + 1] = local
-                instructions[one + 2] = add
-                continue
-              }
-            }
-          }
-        }
-        break
-      }
-      case OP_GET_TWO_LOCAL: {
-        if (second === OP_ADD) {
-          instructions[one] = OP_ADD_TWO_LOCAL
-          count -= rewrite(important, instructions, lines, count, one + 3, 1)
-          continue
-        }
-        break
-      }
-      case OP_INCREMENT_LOCAL: {
-        if (second === OP_SET_LOCAL) {
-          if (instructions[one + 1] === instructions[one + 4]) {
-            instructions[one] = OP_INCREMENT_LOCAL_AND_SET
-            count -= rewrite(important, instructions, lines, count, one + 3, 2)
-            continue
-          }
-        }
-        break
-      }
-      case OP_INCREMENT_LOCAL_AND_SET: {
-        if (second === OP_POP) {
-          count -= rewrite(important, instructions, lines, count, one + 3, 1)
-          continue
-        }
-        break
-      }
-      case OP_CONSTANT: {
-        if (second === OP_NEGATE) {
-          const value = copyValue(code.constants[instructions[one + 1]])
-          if (isInt(value) || isFloat(value)) {
-            value.value = -value.value
-          }
-          const constant = byteCodeNewConstant(C, value)
-          instructions[one + 1] = constant
-          count -= rewrite(important, instructions, lines, count, one + 2, 1)
-          continue
-        } else if (second === OP_ADD) {
-          const value = code.constants[code.instructions[one + 1]]
-          if (isInt(value)) {
-            const add = value.value
-            if (add >= 0 && add <= UINT8_MAX) {
-              instructions[one] = OP_INCREMENT
-              instructions[one + 1] = add
-              count -= rewrite(important, instructions, lines, count, one + 2, 1)
-              continue
-            }
-          }
-        }
-        break
-      }
-      case OP_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_NOT_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_NOT_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_NOT_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_LESS: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_GREATER: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_LESS_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER)
-          continue
-        }
-        break
-      }
-      case OP_GREATER_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS)
-          continue
-        }
-        break
-      }
-      case OP_TRUE: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          deleter(important, two)
-          count -= rewrite(important, instructions, lines, count, one, 4)
-          continue
-        }
-        break
-      }
-      case OP_FALSE: {
-        if (second === OP_JUMP_IF_TRUE) {
-          deleter(important, two)
-          count -= rewrite(important, instructions, lines, count, one, 4)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP)
-          continue
-        }
-        break
-      }
-      case OP_NOT: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_FALSE)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_TRUE)
-          continue
-        }
-        break
-      }
-    }
-
-    one = two
-  }
-
-  code.count = count
-}
-
 function endFunction(C) {
   emitShort(C, OP_NONE, OP_RETURN)
-  // optimize(C)
   const func = C.scope.func
   C.scope = C.scope.enclosing
   return func
@@ -3676,8 +3202,6 @@ function disassembleInstruction(debug, code, index) {
   switch (instruction) {
     case OP_ADD:
       return debugInstruction(debug, 'OP_ADD', index)
-    case OP_ADD_TWO_LOCAL:
-      return debugThreeByteInstruction(debug, 'OP_ADD_TWO_LOCAL', code, index)
     case OP_ARRAY_INSERT:
       return debugInstruction(debug, 'OP_ARRAY_INSERT', index)
     case OP_ARRAY_POP:
@@ -3732,16 +3256,12 @@ function disassembleInstruction(debug, code, index) {
       return debugByteInstruction(debug, 'OP_GET_LOCAL', code, index)
     case OP_GET_PROPERTY:
       return debugConstantInstruction(debug, 'OP_GET_PROPERTY', code, index)
-    case OP_GET_TWO_LOCAL:
-      return debugThreeByteInstruction(debug, 'OP_GET_TWO_LOCAL', code, index)
     case OP_GREATER:
       return debugInstruction(debug, 'OP_GREATER', index)
     case OP_GREATER_EQUAL:
       return debugInstruction(debug, 'OP_GREATER_EQUAL', index)
     case OP_INCREMENT:
       return debugByteInstruction(debug, 'OP_INCREMENT', code, index)
-    case OP_INCREMENT_LOCAL:
-      return debugThreeByteInstruction(debug, 'OP_INCREMENT_LOCAL', code, index)
     case OP_INCREMENT_LOCAL_AND_SET:
       return debugThreeByteInstruction(debug, 'OP_INCREMENT_LOCAL_AND_SET', code, index)
     case OP_INDEX:
@@ -3788,10 +3308,6 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_NOT_EQUAL', index)
     case OP_POP:
       return debugInstruction(debug, 'OP_POP', index)
-    case OP_POP_N:
-      return debugByteInstruction(debug, 'OP_POP_N', code, index)
-    case OP_POP_TWO:
-      return debugInstruction(debug, 'OP_POP_TWO', index)
     case OP_PRINT:
       return debugInstruction(debug, 'OP_PRINT', index)
     case OP_RETURN:
@@ -3808,8 +3324,6 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_SLICE', index)
     case OP_SUBTRACT:
       return debugInstruction(debug, 'OP_SUBTRACT', index)
-    case OP_TAIL_CALL:
-      return debugByteInstruction(debug, 'OP_TAIL_CALL', code, index)
     case OP_THROW:
       return debugInstruction(debug, 'OP_THROW', index)
     case OP_FLOAT:
@@ -3878,17 +3392,6 @@ async function hymnRun(H) {
       case OP_POP:
         hymnPop(H)
         break
-      case OP_POP_TWO:
-        hymnPop(H)
-        hymnPop(H)
-        break
-      case OP_POP_N: {
-        let count = readByte(frame)
-        while (count--) {
-          hymnPop(H)
-        }
-        break
-      }
       case OP_TRUE:
         hymnPush(H, newBool(true))
         break
@@ -3899,14 +3402,6 @@ async function hymnRun(H) {
         hymnPush(H, newNone())
         break
       case OP_CALL: {
-        const count = readByte(frame)
-        const call = hymnPeek(H, count + 1)
-        frame = hymnCallValue(H, call, count)
-        if (frame === null) return
-        break
-      }
-      case OP_TAIL_CALL: {
-        // TODO
         const count = readByte(frame)
         const call = hymnPeek(H, count + 1)
         frame = hymnCallValue(H, call, count)
@@ -4160,62 +3655,6 @@ async function hymnRun(H) {
       case OP_ADD: {
         const b = hymnPop(H)
         const a = hymnPop(H)
-        if (isNone(a)) {
-          if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isBool(a)) {
-          if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isInt(a)) {
-          if (isInt(b)) {
-            a.value += b.value
-            hymnPush(H, a)
-          } else if (isFloat(b)) {
-            b.value += a.value
-            hymnPush(H, a)
-          } else if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isFloat(a)) {
-          if (isInt(b)) {
-            a.value += b.value
-            hymnPush(H, a)
-          } else if (isFloat(b)) {
-            a.value += b.value
-            hymnPush(H, a)
-          } else if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isString(a)) {
-          hymnPush(H, hymnConcat(a, b))
-        } else {
-          frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-          if (frame === null) return
-          else break
-        }
-        break
-      }
-      case OP_ADD_TWO_LOCAL: {
-        const a = copyValue(H.stack[frame.stack + readByte(frame)])
-        const b = copyValue(H.stack[frame.stack + readByte(frame)])
         if (isNone(a)) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
@@ -4606,29 +4045,6 @@ async function hymnRun(H) {
       case OP_GET_LOCAL: {
         const slot = readByte(frame)
         const value = H.stack[frame.stack + slot]
-        hymnPush(H, value)
-        break
-      }
-      case OP_GET_TWO_LOCAL: {
-        const slotA = readByte(frame)
-        const slotB = readByte(frame)
-        const valueA = H.stack[frame.stack + slotA]
-        const valueB = H.stack[frame.stack + slotB]
-        hymnPush(H, valueA)
-        hymnPush(H, valueB)
-        break
-      }
-      case OP_INCREMENT_LOCAL: {
-        const slot = readByte(frame)
-        const increment = readByte(frame)
-        const value = copyValue(H.stack[frame.stack + slot])
-        if (isInt(value) || isFloat(value)) {
-          value.value += increment
-        } else {
-          frame = hymnThrowError(H, 'Increment Local: Expected `Number` but was `' + valueName(value.is) + '`')
-          if (frame === null) return
-          else break
-        }
         hymnPush(H, value)
         break
       }

@@ -1,0 +1,7 @@
+# 0
+
+function foo(): int {
+  return 0
+}
+
+echo foo()
