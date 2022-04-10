@@ -4036,7 +4036,6 @@ static void iterator_statement(Compiler *C, bool pair) {
 }
 
 static void for_statement(Compiler *C) {
-
     begin_scope(C);
 
     // ASSIGN

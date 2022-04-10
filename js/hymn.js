@@ -159,79 +159,77 @@ const TOKEN_ASSIGN_DIVIDE = 9
 const TOKEN_ASSIGN_MODULO = 10
 const TOKEN_ASSIGN_MULTIPLY = 11
 const TOKEN_ASSIGN_SUBTRACT = 12
-const TOKEN_BEGIN = 13
-const TOKEN_BIT_AND = 14
-const TOKEN_BIT_LEFT_SHIFT = 15
-const TOKEN_BIT_NOT = 16
-const TOKEN_BIT_OR = 17
-const TOKEN_BIT_RIGHT_SHIFT = 18
-const TOKEN_BIT_XOR = 19
-const TOKEN_BREAK = 20
-const TOKEN_CLEAR = 21
-const TOKEN_COLON = 22
-const TOKEN_COMMA = 23
-const TOKEN_CONTINUE = 24
-const TOKEN_COPY = 25
-const TOKEN_DELETE = 26
-const TOKEN_DIVIDE = 27
-const TOKEN_DOT = 28
-const TOKEN_ECHO = 29
-const TOKEN_ELIF = 30
-const TOKEN_ELSE = 31
-const TOKEN_END = 32
-const TOKEN_EOF = 33
-const TOKEN_EQUAL = 34
-const TOKEN_ERROR = 35
-const TOKEN_EXCEPT = 36
-const TOKEN_EXISTS = 37
-const TOKEN_FALSE = 38
-const TOKEN_FLOAT = 39
-const TOKEN_FOR = 40
-const TOKEN_FUNCTION = 41
-const TOKEN_GREATER = 42
-const TOKEN_GREATER_EQUAL = 43
-const TOKEN_IDENT = 44
-const TOKEN_IF = 45
-const TOKEN_IN = 46
-const TOKEN_INDEX = 47
-const TOKEN_INSERT = 48
-const TOKEN_INTEGER = 49
-const TOKEN_KEYS = 50
-const TOKEN_LEFT_CURLY = 51
-const TOKEN_LEFT_PAREN = 52
-const TOKEN_LEFT_SQUARE = 53
-const TOKEN_LEN = 54
-const TOKEN_LESS = 55
-const TOKEN_LESS_EQUAL = 56
-const TOKEN_LET = 57
-const TOKEN_LINE = 58
-const TOKEN_MODULO = 58
-const TOKEN_MULTIPLY = 60
-const TOKEN_NONE = 61
-const TOKEN_NOT = 62
-const TOKEN_NOT_EQUAL = 63
-const TOKEN_OR = 64
-const TOKEN_POP = 65
-const TOKEN_PRINT = 66
-const TOKEN_PUSH = 67
-const TOKEN_RETURN = 68
-const TOKEN_RIGHT_CURLY = 69
-const TOKEN_RIGHT_PAREN = 70
-const TOKEN_RIGHT_SQUARE = 71
-const TOKEN_SEMICOLON = 72
-const TOKEN_STRING = 73
-const TOKEN_SUBTRACT = 74
-const TOKEN_THROW = 75
-const TOKEN_TO_FLOAT = 76
-const TOKEN_TO_INTEGER = 77
-const TOKEN_TO_STRING = 78
-const TOKEN_TRUE = 79
-const TOKEN_TRY = 80
-const TOKEN_TYPE_FUNC = 81
-const TOKEN_UNDEFINED = 82
-const TOKEN_USE = 83
-const TOKEN_VALUE = 84
-const TOKEN_WHILE = 85
+const TOKEN_BIT_AND = 13
+const TOKEN_BIT_LEFT_SHIFT = 14
+const TOKEN_BIT_NOT = 15
+const TOKEN_BIT_OR = 16
+const TOKEN_BIT_RIGHT_SHIFT = 17
+const TOKEN_BIT_XOR = 18
+const TOKEN_BREAK = 19
+const TOKEN_CLEAR = 20
+const TOKEN_COLON = 21
+const TOKEN_COMMA = 22
+const TOKEN_CONTINUE = 23
+const TOKEN_COPY = 24
+const TOKEN_DELETE = 25
+const TOKEN_DIVIDE = 26
+const TOKEN_DOT = 27
+const TOKEN_ECHO = 28
+const TOKEN_ELIF = 29
+const TOKEN_ELSE = 30
+const TOKEN_EOF = 31
+const TOKEN_EQUAL = 32
+const TOKEN_ERROR = 33
+const TOKEN_EXCEPT = 34
+const TOKEN_EXISTS = 35
+const TOKEN_FALSE = 36
+const TOKEN_FLOAT = 37
+const TOKEN_FOR = 38
+const TOKEN_FUNCTION = 39
+const TOKEN_GREATER = 40
+const TOKEN_GREATER_EQUAL = 41
+const TOKEN_IDENT = 42
+const TOKEN_IF = 43
+const TOKEN_IN = 44
+const TOKEN_INDEX = 45
+const TOKEN_INSERT = 46
+const TOKEN_INTEGER = 47
+const TOKEN_KEYS = 48
+const TOKEN_LEFT_CURLY = 49
+const TOKEN_LEFT_PAREN = 50
+const TOKEN_LEFT_SQUARE = 51
+const TOKEN_LEN = 52
+const TOKEN_LESS = 53
+const TOKEN_LESS_EQUAL = 54
+const TOKEN_LET = 55
+const TOKEN_LINE = 56
+const TOKEN_MODULO = 57
+const TOKEN_MULTIPLY = 58
+const TOKEN_NONE = 59
+const TOKEN_NOT = 60
+const TOKEN_NOT_EQUAL = 61
+const TOKEN_OR = 62
+const TOKEN_POP = 63
+const TOKEN_PRINT = 64
+const TOKEN_PUSH = 65
+const TOKEN_RETURN = 66
+const TOKEN_RIGHT_CURLY = 67
+const TOKEN_RIGHT_PAREN = 68
+const TOKEN_RIGHT_SQUARE = 69
+const TOKEN_SEMICOLON = 70
+const TOKEN_STRING = 71
+const TOKEN_SUBTRACT = 72
+const TOKEN_THROW = 73
+const TOKEN_TO_FLOAT = 74
+const TOKEN_TO_INTEGER = 75
+const TOKEN_TO_STRING = 76
+const TOKEN_TRUE = 77
+const TOKEN_TRY = 78
+const TOKEN_TYPE_FUNC = 79
+const TOKEN_UNDEFINED = 80
+const TOKEN_USE = 81
+const TOKEN_VALUE = 82
+const TOKEN_WHILE = 83
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -314,18 +312,18 @@ const OP_SET_GLOBAL = 59
 const OP_SET_LOCAL = 60
 const OP_INCREMENT_LOCAL = 61
 const OP_INCREMENT_LOCAL_AND_SET = 62
-const OP_SET_PROPERTY = 63
-const OP_SLICE = 64
-const OP_SUBTRACT = 65
-const OP_THROW = 66
-const OP_FLOAT = 67
-const OP_INT = 68
-const OP_STRING = 69
-const OP_TRUE = 70
-const OP_TYPE = 71
-const OP_USE = 72
-const OP_FOR = 73
-const OP_FOR_LOOP = 74
+const OP_SET_PROPERTY = 64
+const OP_SLICE = 65
+const OP_SUBTRACT = 66
+const OP_THROW = 67
+const OP_FLOAT = 68
+const OP_INT = 69
+const OP_STRING = 70
+const OP_TRUE = 71
+const OP_TYPE = 72
+const OP_USE = 73
+const OP_FOR = 74
+const OP_FOR_LOOP = 75
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -427,7 +425,6 @@ rules[TOKEN_ASSIGN_DIVIDE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_MODULO] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_MULTIPLY] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_SUBTRACT] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_BEGIN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_BIT_AND] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_LEFT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
@@ -446,7 +443,6 @@ rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
 rules[TOKEN_ECHO] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ELIF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ELSE] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_END] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_EOF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
 rules[TOKEN_ERROR] = new Rule(null, null, PRECEDENCE_NONE)
@@ -857,10 +853,6 @@ function isPointer(value) {
   return value.is === HYMN_VALUE_POINTER
 }
 
-function currentFunc(C) {
-  return C.scope.func
-}
-
 function current(C) {
   return C.scope.func.code
 }
@@ -923,7 +915,7 @@ function compileError(C, token, format) {
     error += '^'
   }
 
-  error += '\nat ' + C.script + ':' + token.row
+  error += '\nat ' + (C.script === null ? 'script' : C.script) + ':' + token.row
 
   C.error = error
 
@@ -1004,10 +996,7 @@ function identKey(ident, size) {
       if (size === 5) return identTrie(ident, 1, 'hile', TOKEN_WHILE)
       break
     case 'b':
-      if (size === 5) {
-        if (ident[1] === 'e') return identTrie(ident, 2, 'gin', TOKEN_BEGIN)
-        if (ident[1] === 'r') return identTrie(ident, 2, 'eak', TOKEN_BREAK)
-      }
+      if (size === 5) return identTrie(ident, 1, 'reak', TOKEN_BREAK)
       break
     case 'd':
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
@@ -1055,7 +1044,6 @@ function identKey(ident, size) {
       if (size === 4) return identTrie(ident, 1, 'ush', TOKEN_PUSH)
       break
     case 'e':
-      if (size === 3) return identTrie(ident, 1, 'nd', TOKEN_END)
       if (size === 6) {
         if (ident[1] === 'x') {
           if (ident[2] === 'c') return identTrie(ident, 3, 'ept', TOKEN_EXCEPT)
@@ -1169,6 +1157,15 @@ function advance(C) {
           c = peekChar(C)
         }
         continue
+      case '#': {
+        nextChar(C)
+        c = peekChar(C)
+        while (c !== '\n' && c !== '\0') {
+          nextChar(C)
+          c = peekChar(C)
+        }
+        continue
+      }
       case '!':
         if (peekChar(C) === '=') {
           nextChar(C)
@@ -1186,15 +1183,7 @@ function advance(C) {
         }
         return
       case '-': {
-        if (peekChar(C) === '-') {
-          nextChar(C)
-          c = peekChar(C)
-          while (c !== '\n' && c !== '\0') {
-            nextChar(C)
-            c = peekChar(C)
-          }
-          continue
-        } else if (peekChar(C) === '=') {
+        if (peekChar(C) === '=') {
           nextChar(C)
           tokenSpecial(C, TOKEN_ASSIGN_SUBTRACT, 2, 2)
           return
@@ -1475,7 +1464,7 @@ function scopeInit(C, scope, type) {
   scope.func = newFunction(C.script)
   scope.type = type
 
-  if (type !== TYPE_SCRIPT) {
+  if (type === TYPE_FUNCTION) {
     scope.func.name = sourceSubstring(C, C.previous.length, C.previous.start)
   }
 
@@ -1581,7 +1570,7 @@ function check(C, type) {
 }
 
 function match(C, type) {
-  if (!check(C, type)) {
+  if (C.current.type !== type) {
     return false
   }
   advance(C)
@@ -1593,7 +1582,7 @@ function compileWithPrecedence(C, precedence) {
   const rule = rules[C.previous.type]
   const prefix = rule.prefix
   if (prefix === null) {
-    compileError(C, C.previous, `syntax error: expected expression following '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
+    compileError(C, C.previous, `expected expression following '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
     return
   }
   const assign = precedence <= PRECEDENCE_ASSIGN
@@ -1602,13 +1591,13 @@ function compileWithPrecedence(C, precedence) {
     advance(C)
     const infix = rules[C.previous.type].infix
     if (infix === null) {
-      compileError(C, C.previous, 'Expected infix.')
+      compileError(C, C.previous, 'expected infix')
     }
     infix(C, assign)
   }
   if (assign && checkAssign(C)) {
     advance(C)
-    compileError(C, C.current, 'Invalid assignment target.')
+    compileError(C, C.current, 'invalid assignment')
   }
 }
 
@@ -2586,7 +2575,7 @@ function optimize(C) {
 
 function endFunction(C) {
   emitShort(C, OP_NONE, OP_RETURN)
-  optimize(C)
+  // optimize(C)
   const func = C.scope.func
   C.scope = C.scope.enclosing
   return func
@@ -2611,14 +2600,15 @@ function compileFunction(C, type) {
     } while (match(C, TOKEN_COMMA))
   }
 
-  consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after function parameters.")
+  consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters")
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' after function parameters")
 
-  while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
 
   endScope(C)
-  consume(C, TOKEN_END, "missing 'end' after function body")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after function body")
 
   const func = endFunction(C)
   emitConstant(C, newFuncValue(func))
@@ -2647,7 +2637,7 @@ function declaration(C) {
 
 function block(C) {
   beginScope(C)
-  while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
@@ -2659,16 +2649,16 @@ function ifStatement(C) {
 
   freeJumpOrList(C)
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in if statement")
   beginScope(C)
-  while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
-  if (check(C, TOKEN_END)) {
-    patchJump(C, jump)
-    freeJumpAndList(C)
-  } else {
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after if statement")
+
+  if (check(C, TOKEN_ELIF) || check(C, TOKEN_ELSE)) {
     const jumpEnd = new JumpList()
     jumpEnd.jump = emitJump(C, OP_JUMP)
     let tail = jumpEnd
@@ -2682,11 +2672,13 @@ function ifStatement(C) {
 
       freeJumpOrList(C)
 
+      consume(C, TOKEN_LEFT_CURLY, "missing '{' in elif statement")
       beginScope(C)
-      while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+      while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C)
       }
       endScope(C)
+      consume(C, TOKEN_RIGHT_CURLY, "missing '}' after elif statement")
 
       const next = new JumpList()
       next.jump = emitJump(C, OP_JUMP)
@@ -2699,21 +2691,24 @@ function ifStatement(C) {
     freeJumpAndList(C)
 
     if (match(C, TOKEN_ELSE)) {
+      consume(C, TOKEN_LEFT_CURLY, "missing '{' in else statement")
       block(C)
+      consume(C, TOKEN_RIGHT_CURLY, "missing '}' after else statement")
     }
 
     patchJump(C, jumpEnd.jump)
     freeJumps(C, jumpEnd.next)
+  } else {
+    patchJump(C, jump)
+    freeJumpAndList(C)
   }
-
-  consume(C, TOKEN_END, "Expected 'end' after if statement.")
 }
 
 function emitLoop(C, start) {
   emit(C, OP_LOOP)
   const offset = current(C).count - start + 2
   if (offset > UINT16_MAX) {
-    compileError(C, C.previous, 'Loop is too large.')
+    compileError(C, C.previous, 'loop is too large.')
   }
   emitShort(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
 }
@@ -2782,6 +2777,7 @@ function iteratorStatement(C, pair) {
 
   // BODY
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop")
   block(C)
 
   // LOOP
@@ -2790,7 +2786,7 @@ function iteratorStatement(C, pair) {
   emitShort(C, OP_FOR_LOOP, object)
   const offset = current(C).count - start + 2
   if (offset > UINT16_MAX) {
-    compileError(C, C.previous, 'Loop is too large')
+    compileError(C, C.previous, 'loop is too large')
   }
   emitShort(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
 
@@ -2803,7 +2799,7 @@ function iteratorStatement(C, pair) {
 
   endScope(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after for loop.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop")
 }
 
 function forStatement(C) {
@@ -2846,7 +2842,7 @@ function forStatement(C) {
   C.loop = loop
 
   if (match(C, TOKEN_COMMA)) {
-    expression(C)
+    expressionStatement(C)
   } else {
     emitWord(C, OP_INCREMENT_LOCAL_AND_SET, index, 1)
   }
@@ -2864,6 +2860,7 @@ function forStatement(C) {
 
   // BODY
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop")
   block(C)
 
   // INCREMENT
@@ -2888,7 +2885,7 @@ function forStatement(C) {
 
   endScope(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after for loop.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop")
 }
 
 function whileStatement(C) {
@@ -2901,6 +2898,7 @@ function whileStatement(C) {
 
   const jump = emitJump(C, OP_JUMP_IF_FALSE)
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in while loop")
   block(C)
   emitLoop(C, start)
 
@@ -2909,14 +2907,14 @@ function whileStatement(C) {
   patchJump(C, jump)
   patchJumpList(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after while loop.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after while loop")
 }
 
 function returnStatement(C) {
-  if (C.scope.type === TYPE_SCRIPT) {
-    compileError(C, C.previous, "Can't return from outside a function.")
+  if (C.scope.type !== TYPE_FUNCTION) {
+    compileError(C, C.previous, 'return statement outside function')
   }
-  if (check(C, TOKEN_END)) {
+  if (check(C, TOKEN_RIGHT_CURLY)) {
     emit(C, OP_NONE)
   } else {
     expression(C)
@@ -2937,7 +2935,7 @@ function popStackLoop(C) {
 
 function breakStatement(C) {
   if (C.loop === null) {
-    compileError(C, C.previous, "Can't use 'break' outside of a loop.")
+    compileError(C, C.previous, 'break outside of loop')
   }
   popStackLoop(C)
   const jumpNext = C.jump
@@ -2950,7 +2948,7 @@ function breakStatement(C) {
 
 function continueStatement(C) {
   if (C.loop === null) {
-    compileError(C, C.previous, "Can't use 'continue' outside of a loop.")
+    compileError(C, C.previous, 'continue outside of loop')
   }
   popStackLoop(C)
   if (C.loop.isFor) {
@@ -2970,31 +2968,34 @@ function tryStatement(C) {
   except.stack = C.scope.localCount
   except.start = current(C).count
 
-  const func = currentFunc(C)
+  const func = C.scope.func
   except.next = func.except
   func.except = except
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in try statement")
   beginScope(C)
-  while (!check(C, TOKEN_EXCEPT) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
   const jump = emitJump(C, OP_JUMP)
 
-  consume(C, TOKEN_EXCEPT, "Expected 'except' after 'try'.")
+  consume(C, TOKEN_RIGHT_CURLY, "try statement missing '}' before 'except'")
+  consume(C, TOKEN_EXCEPT, "try statement is missing 'except'")
 
   except.end = current(C).count
 
   beginScope(C)
-  const message = variable(C, "Expected variable after 'except'.")
+  const message = variable(C, "try statement missing variable after 'except'")
   finalizeVariable(C, message)
-  while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  consume(C, TOKEN_LEFT_CURLY, "try statement missing '{' after except variable")
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after 'except'.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after try statement")
 
   patchJump(C, jump)
 }
@@ -3046,9 +3047,9 @@ function statement(C) {
     tryStatement(C)
   } else if (match(C, TOKEN_THROW)) {
     throwStatement(C)
-  } else if (match(C, TOKEN_BEGIN)) {
+  } else if (match(C, TOKEN_LEFT_CURLY)) {
     block(C)
-    consume(C, TOKEN_END, "Expected 'end' after block.")
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after block scope")
   } else {
     expressionStatement(C)
   }
@@ -3276,7 +3277,7 @@ function valueToStringRecursive(value, set, quote) {
         }
         const key = keys[i]
         const item = tableGet(table, key)
-        print += key + ': ' + valueToStringRecursive(item, set, true)
+        print += '"' + key + '": ' + valueToStringRecursive(item, set, true)
       }
       print += ' }'
       return print
@@ -3452,7 +3453,7 @@ function hymnCallValue(H, value, count) {
     }
     default: {
       const is = valueName(value.is)
-      return hymnThrowError(H, 'Call: Requires `Function`, but was `' + is + '`.')
+      return hymnThrowError(H, `not a function: ${is}`)
     }
   }
 }
@@ -3716,7 +3717,7 @@ function disassembleInstruction(debug, code, index) {
     case OP_ECHO:
       return debugInstruction(debug, 'OP_ECHO', index)
     case OP_EXISTS:
-      return debugConstantInstruction(debug, 'OP_EXISTS', code, index)
+      return debugInstruction(debug, 'OP_EXISTS', index)
     case OP_FALSE:
       return debugInstruction(debug, 'OP_FALSE', index)
     case OP_FOR:
@@ -3792,7 +3793,7 @@ function disassembleInstruction(debug, code, index) {
     case OP_POP_TWO:
       return debugInstruction(debug, 'OP_POP_TWO', index)
     case OP_PRINT:
-      return debugConstantInstruction(debug, 'OP_PRINT', code, index)
+      return debugInstruction(debug, 'OP_PRINT', index)
     case OP_RETURN:
       return debugInstruction(debug, 'OP_RETURN', index)
     case OP_SET_DYNAMIC:
@@ -4057,7 +4058,8 @@ async function hymnRun(H) {
         } else {
           H.stack[frame.stack + slot + 1] = newNone()
           H.stack[frame.stack + slot + 2] = newNone()
-          frame = hymnThrowError(H, 'Loop: Expected table or array')
+          const is = valueName(object.is)
+          frame = hymnThrowError(H, `for loop requires an array or table but was: ${is}`)
           if (frame === null) return
           else break
         }
@@ -4566,6 +4568,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const previous = tablePut(H.globals, name, value)
         if (previous !== null) {
+          tablePut(H.globals, name, previous)
           frame = hymnThrowError(H, `multiple global definitions of '${name}'`)
           if (frame === null) return
           else break
@@ -5298,6 +5301,7 @@ async function debugScript(H, script, source) {
   disassembleByteCode(func.code, script)
 
   const constants = func.code.constants
+
   for (let i = 0; i < constants.length; i++) {
     const constant = constants[i]
     if (isFunc(constant)) {
@@ -5305,6 +5309,8 @@ async function debugScript(H, script, source) {
       disassembleByteCode(value.code, value.name)
     }
   }
+
+  hymnResetStack(H)
 
   return null
 }

@@ -2,39 +2,39 @@
 
 let foo = 0
 
-try let mem = {} 10 + {} except _ echo _ }
-try let mem = {} 10 + [] except _ echo _ }
+try { let mem = {} 10 + {} } except _ { echo _ }
+try { let mem = {} 10 + [] } except _ { echo _ }
 
-try let mem = {} 10 * {} except _ echo _ }
-try let mem = {} 10 * [] except _ echo _ }
+try { let mem = {} 10 * {} } except _ { echo _ }
+try { let mem = {} 10 * [] } except _ { echo _ }
 
-try let mem = {} index({}, 0) except _ echo _ }
-try let mem = {} no except _ echo _ }
-try let mem = {} let arg = [] arg.foo except _ echo _ }
-try let mem = {} let arg = 0 len(arg) except _ echo _ }
-try let mem = {} let arg = 0 arg[0] except _ echo _ }
-try let mem = {} let arg = [] arg[0.0] except _ echo _ }
-try let mem = {} let arg = [] arg() except _ echo _ }
-try let mem = {} let arg = {} push(arg, 0) except _ echo _ }
-try let mem = {} let arg = {} pop(arg) except _ echo _ }
-try let mem = {} let arg = [] insert(arg, "", 0) except _ echo _ }
-try let mem = {} let arg = {} insert(arg, 0, 0) except _ echo _ }
-try let mem = {} let arg = [] insert(arg, -1, 0) except _ echo _ }
-try let mem = {} let arg = [] insert(arg, 10, 0) except _ echo _ }
-try let mem = {} let arg = [] delete(arg, "") except _ echo _ }
-try let mem = {} let arg = {} delete(arg, 0) except _ echo _ }
-try let mem = {} let arg = "" delete(arg, 0) except _ echo _ }
-try let mem = {} let arg = "" arg[:] except _ echo _ }
-try let mem = {} let arg = [] arg[10:20] except _ echo _ }
-try let mem = {} let arg = [] arg["":""] except _ echo _ }
-try let mem = {} let arg = [] keys(arg) except _ echo _ }
-try let mem = {} let arg = [] int(arg) except _ echo _ }
-try let mem = {} let arg = [] float(arg) except _ echo _ }
-try let mem = {} do [] except _ echo _ }
-try let mem = {} use [] except _ echo _ }
+try { let mem = {} index({}, 0) } except _ { echo _ }
+try { let mem = {} no } except _ { echo _ }
+try { let mem = {} let arg = [] arg.foo } except _ { echo _ }
+try { let mem = {} let arg = 0 len(arg) } except _ { echo _ }
+try { let mem = {} let arg = 0 arg[0] } except _ { echo _ }
+try { let mem = {} let arg = [] arg[0.0] } except _ { echo _ }
+try { let mem = {} let arg = [] arg() } except _ { echo _ }
+try { let mem = {} let arg = {} push(arg, 0) } except _ { echo _ }
+try { let mem = {} let arg = {} pop(arg) } except _ { echo _ }
+try { let mem = {} let arg = [] insert(arg, "", 0) } except _ { echo _ }
+try { let mem = {} let arg = {} insert(arg, 0, 0) } except _ { echo _ }
+try { let mem = {} let arg = [] insert(arg, -1, 0) } except _ { echo _ }
+try { let mem = {} let arg = [] insert(arg, 10, 0) } except _ { echo _ }
+try { let mem = {} let arg = [] delete(arg, "") } except _ { echo _ }
+try { let mem = {} let arg = {} delete(arg, 0) } except _ { echo _ }
+try { let mem = {} let arg = "" delete(arg, 0) } except _ { echo _ }
+try { let mem = {} let arg = "" arg[:] } except _ { echo _ }
+try { let mem = {} let arg = [] arg[10:20] } except _ { echo _ }
+try { let mem = {} let arg = [] arg["":""] } except _ { echo _ }
+try { let mem = {} let arg = [] keys(arg) } except _ { echo _ }
+try { let mem = {} let arg = [] int(arg) } except _ { echo _ }
+try { let mem = {} let arg = [] float(arg) } except _ { echo _ }
+try { let mem = {} do [] } except _ { echo _ }
+try { let mem = {} use [] } except _ { echo _ }
 
-function bad_function() {let a = [0, 2, 4] }
+function bad_function() { let a = [0, 2, 4] }
 
-try let b = bad_function() b[0] = b[0] + 1 except _ echo _ }
+try { let b = bad_function() b[0] = b[0] + 1 } except _ { echo _ }
 
 echo "done!"

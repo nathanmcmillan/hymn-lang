@@ -41,7 +41,7 @@ echo list
 ## Principles
 
 1. Portable C11 code that passes with `-Wall` `-Wextra` `-Werror` `-pedantic` flags
-1. Small implementation under 7,000 total lines of C code
+1. Small implementation under 10,000 total lines of C code
 1. Reference counting memory management
 1. Easy to learn syntax
 1. No closures
