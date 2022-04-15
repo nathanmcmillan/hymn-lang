@@ -36,7 +36,7 @@
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
 #else
 #include <dirent.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <unistd.h>
 #define PATH_SEP '/'
 #define PATH_SEP_STRING "/"

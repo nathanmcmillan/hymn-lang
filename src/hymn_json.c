@@ -88,10 +88,12 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
         } else if (c == '}') {
             if (pc != ' ' && pc != ']' && pc != '{' && pc != '}' && pc != '\n') {
                 if (stack->length == 0) {
+                    printf("end of JSON object, stack was empty\n");
                     goto error;
                 }
                 HymnValue head = stack->items[0];
                 if (head.is != HYMN_VALUE_TABLE) {
+                    printf("expected JSON object\n");
                     goto error;
                 }
                 HymnString *string = hymn_new_string(value);
@@ -101,19 +103,12 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
                 hymn_string_zero(value);
             }
             hymn_array_remove_index(stack, 0);
-            if (stack->length == 0) {
-                goto error;
-            }
-            HymnValue head = stack->items[0];
-            if (head.is == HYMN_VALUE_ARRAY) {
-                parsing_key = false;
-            } else {
-                parsing_key = true;
-            }
+            parsing_key = stack->length == 0 || stack->items[0].is != HYMN_VALUE_ARRAY;
             pc = c;
         } else if (c == ']') {
             if (pc != ' ' && pc != '}' && pc != '[' && pc != ']' && pc != '\n') {
                 if (stack->length == 0) {
+                    printf("end of JSON array, stack was empty\n");
                     goto error;
                 }
                 HymnString *string = hymn_new_string(value);
@@ -123,15 +118,7 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
                 hymn_string_zero(value);
             }
             hymn_array_remove_index(stack, 0);
-            if (stack->length == 0) {
-                goto error;
-            }
-            HymnValue head = stack->items[0];
-            if (head.is == HYMN_VALUE_ARRAY) {
-                parsing_key = false;
-            } else {
-                parsing_key = true;
-            }
+            parsing_key = stack->length == 0 || stack->items[0].is != HYMN_VALUE_ARRAY;
             pc = c;
         } else if (c == '"') {
             i++;
@@ -174,10 +161,6 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
             }
         }
     }
-
-    // if (stack->length == 0 || pc != '}') {
-    //     goto error;
-    // }
 
     hymn_string_delete(key);
     hymn_string_delete(value);
