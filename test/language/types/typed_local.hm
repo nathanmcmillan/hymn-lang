@@ -1,6 +1,0 @@
-# 123
-
-{
-  let foo: int = 123
-  echo foo
-}

@@ -1,0 +1,5 @@
+let raw = '{ "foo": "bar" }'
+echo "raw: { raw }"
+let parsed = json.parse(raw)
+echo "parsed: { parsed }"
+echo "saved: { json.save(parsed) }"

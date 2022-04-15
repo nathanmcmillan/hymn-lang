@@ -1,5 +1,14 @@
 # 0
 
+# need keywords
+# array
+# table
+# boolean
+# string
+# none
+# int
+# float
+
 function foo(): int {
   return 0
 }

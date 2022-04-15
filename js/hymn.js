@@ -1821,9 +1821,27 @@ function finalizeVariable(C, global) {
   emitShort(C, OP_DEFINE_GLOBAL, global)
 }
 
+function typeDeclaration(C) {
+  if (match(C, TOKEN_COLON)) {
+    const type = C.current.type
+    switch (type) {
+      case TOKEN_NONE:
+      case TOKEN_TO_FLOAT:
+      case TOKEN_TO_STRING:
+      case TOKEN_TO_INTEGER:
+        advance(C)
+        return
+      default:
+        compileError(C, C.current, 'unknown type declaration')
+        return
+    }
+  }
+}
+
 function defineNewVariable(C) {
-  const v = variable(C, 'Syntax Error: Expected variable name.')
-  consume(C, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.")
+  const v = variable(C, 'expected variable name')
+  typeDeclaration(C)
+  consume(C, TOKEN_ASSIGN, "expected '=' after variable")
   expression(C)
   finalizeVariable(C, v)
 }
@@ -2123,10 +2141,12 @@ function compileFunction(C, type) {
       }
       const parameter = variable(C, 'Expected parameter name.')
       finalizeVariable(C, parameter)
+      typeDeclaration(C)
     } while (match(C, TOKEN_COMMA))
   }
 
   consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters")
+  typeDeclaration(C)
   consume(C, TOKEN_LEFT_CURLY, "missing '{' after function parameters")
 
   while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {

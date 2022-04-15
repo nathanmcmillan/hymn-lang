@@ -51,6 +51,7 @@ echo list
 
 ## To Do
 
+1. Native functions need a way to throw exceptions
 1. Self referncing local functions
 1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
 1. Optimizations
@@ -71,12 +72,10 @@ echo list
 
 ## Progress
 
-| Implementation | Status        | Description                   |
-| -------------- | ------------- | ----------------------------- |
-| C              | Version 0.6.1 | C-like brackets, REPL support |
-| JavaScript     | Version 0.5   | Anonmyous functions           |
-| Go             | Not Started   |                               |
-| Java           | Not Started   |                               |
+| Implementation | Status        | Description       |
+| -------------- | ------------- | ----------------- |
+| C              | Version 0.6.2 | Type declarations |
+| JavaScript     | Version 0.6.2 | Type declarations |
 
 ## Notes
 

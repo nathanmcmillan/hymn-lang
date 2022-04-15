@@ -1,3 +1,11 @@
+# Release 0.6.0
+
+- ?
+
+# Release 0.5.0
+
+- ?
+
 # Release 0.4.0
 
 - Added `exists` function. Returns true if a key exists in a table

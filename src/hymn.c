@@ -2731,8 +2731,26 @@ static void finalize_variable(Compiler *C, uint8_t global) {
     emit_short(C, OP_DEFINE_GLOBAL, global);
 }
 
+static void type_declaration(Compiler *C) {
+    if (match(C, TOKEN_COLON)) {
+        enum TokenType type = C->current.type;
+        switch (type) {
+        case TOKEN_NONE:
+        case TOKEN_TO_FLOAT:
+        case TOKEN_TO_STRING:
+        case TOKEN_TO_INTEGER:
+            advance(C);
+            return;
+        default:
+            compile_error(C, &C->previous, "Jump offset too large");
+            return;
+        }
+    }
+}
+
 static void define_new_variable(Compiler *C) {
     uint8_t global = variable(C, "expected variable name");
+    type_declaration(C);
     consume(C, TOKEN_ASSIGN, "expected '=' after variable");
     expression(C);
     finalize_variable(C, global);
@@ -3820,10 +3838,12 @@ static void compile_function(Compiler *C, enum FunctionType type) {
             }
             uint8_t parameter = variable(C, "missing parameter name");
             finalize_variable(C, parameter);
+            type_declaration(C);
         } while (match(C, TOKEN_COMMA));
     }
 
     consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters");
+    type_declaration(C);
     consume(C, TOKEN_LEFT_CURLY, "missing '{' after function parameters");
 
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {

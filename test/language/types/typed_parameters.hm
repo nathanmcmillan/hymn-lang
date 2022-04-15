@@ -1,7 +1,7 @@
 # 123
 
-function foo(x: int) {
-  return x
+function foo(bar: int) {
+  return bar
 }
 
 echo foo(123)

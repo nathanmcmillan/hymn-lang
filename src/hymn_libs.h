@@ -13,6 +13,7 @@ void hymn_use_os(Hymn *hymn);
 void hymn_use_io(Hymn *hymn);
 void hymn_use_path(Hymn *hymn);
 void hymn_use_math(Hymn *hymn);
+void hymn_use_json(Hymn *hymn);
 void hymn_use_string(Hymn *hymn);
 void hymn_use_pattern(Hymn *hymn);
 
@@ -26,6 +27,7 @@ void hymn_use_pattern(Hymn *hymn);
     hymn_use_io(hymn);      \
     hymn_use_path(hymn);    \
     hymn_use_math(hymn);    \
+    hymn_use_json(hymn);    \
     hymn_use_string(hymn);  \
     hymn_use_pattern(hymn)
 #endif
