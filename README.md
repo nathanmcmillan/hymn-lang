@@ -112,25 +112,31 @@ AMD Ryzen 5 1600 6 core 3.2 GHz - Windows 10 using Ubuntu WSL
 ### Debug
 
 ```
-$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymn -lm
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymn -lm -ldl
 ```
 
 ### Testing
 
 ```
-$ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm
+$ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm -ldl
 ```
 
 ### Benchmark
 
 ```
-gcc test/*.c src/*.c -std=c11 -O3 -s -DNDEBUG -DHYMN_NO_CLI -DHYMN_NO_TEST -DHYMN_BENCHMARK -Isrc -o hymnbenchmark -lm
+gcc test/*.c src/*.c -std=c11 -O3 -s -DNDEBUG -DHYMN_NO_CLI -DHYMN_NO_TEST -DHYMN_BENCHMARK -Isrc -o hymnbenchmark -lm -ldl
 ```
 
 ### Release
 
 ```
-$ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm
+$ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm -ldl
+```
+
+### Formatter
+
+```
+$ gcc format/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymnfmt
 ```
 
 ## Windows + MSVC

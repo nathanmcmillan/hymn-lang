@@ -1,0 +1,14 @@
+function fun(raw) {
+  let parsed = json. parse(raw)
+  echo "parsed: { parsed } --  saved: { json.save(parsed) }"
+}
+
+fun('{ "foo": 123 }')
+fun('{ "foo": 45.67 }')
+fun('{ "foo": null }')
+fun('{ "foo": "bar" }')
+
+fun('123')
+fun('45.67')
+fun('null')
+fun('"foo"')

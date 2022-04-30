@@ -32,4 +32,6 @@ void hymn_use_pattern(Hymn *hymn);
     hymn_use_pattern(hymn)
 #endif
 
+HymnValue hymn_load_lib(Hymn *hymn, const char *path, const char *func);
+
 #endif

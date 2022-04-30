@@ -1496,7 +1496,7 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
         error = hymn_string_append_char(error, '^');
     }
     error = hymn_string_append(error, ANSI_COLOR_RESET);
-    error = string_append_format(error, "\nat %s:%d\n", C->script == NULL ? "script" : C->script, token->row);
+    error = string_append_format(error, "\nat %s:%d", C->script == NULL ? "script" : C->script, token->row);
 
     C->error = error;
 
@@ -2177,8 +2177,9 @@ HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index) {
     HymnInt len = --this->length;
     HymnValue *items = this->items;
     HymnValue deleted = items[index];
-    for (HymnInt i = index; i < len; i++) {
-        items[i] = items[i + 1];
+    while (index < len) {
+        items[index] = items[index + 1];
+        index++;
     }
     return deleted;
 }

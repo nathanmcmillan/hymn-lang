@@ -1,5 +1,38 @@
-let raw = '{ "foo": "bar" }'
-echo "raw: { raw }"
-let parsed = json.parse(raw)
-echo "parsed: { parsed }"
-echo "saved: { json.save(parsed) }"
+function fun(raw) {
+  print(stdout, "{ raw } -> { json.parse(raw) }\n")
+}
+
+fun('123')
+fun('45.67')
+fun('null')
+fun('"foo"')
+fun('[]')
+fun('{}')
+
+fun('[123]')
+fun('[45.67]')
+fun('[null]')
+fun('["bar"]')
+fun('[[]]')
+fun('[{}]')
+
+fun('{ "foo": 123 }')
+fun('{ "foo": 45.67 }')
+fun('{ "foo": null }')
+fun('{ "foo": "bar" }')
+fun('{ "foo": {} }')
+fun('{ "foo": [] }')
+
+fun('[123, 456, 789]')
+fun('["foo", "boo", "zoo"]')
+
+fun('{ "foo": { "hello": "world" } }')
+
+fun('{ "foo": ["bar", 123] }')
+fun('{ "foo": [123, "bar"] }')
+
+fun('{ "foo": 123, "boo": 456, "zoo": 789 }')
+
+fun('[{ "foo": "bar" }, { "hello": "world" }]')
+
+fun('{ "foo": [{ "foo": "bar" }, { "hello": "world" }], "boo": [123, 456], "zoo": [[null, 256, 512, 1024], ["end", "of", "parse"]] }')

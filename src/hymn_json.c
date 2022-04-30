@@ -12,8 +12,6 @@ static HymnValue json_save(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-
     if (count == 0) {
         return hymn_new_none();
     }
@@ -22,8 +20,6 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
         return hymn_new_none();
     }
     HymnString *input = hymn_as_string(string);
-
-    printf("parsing JSON...\n");
 
     size_t i = 0;
     size_t len = hymn_string_len(input);
@@ -39,20 +35,20 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
     }
 
     HymnString *key = NULL;
-    HymnString *value = NULL;
 
     HymnValue json = hymn_new_none();
     HymnArray *stack = hymn_new_array(0);
 
-    char pc = '\0';
-    bool parsing_key = true;
+    bool parsing_key = false;
 
     while (i < len) {
         char c = input[i];
-        printf("<%c>\n", c);
         if (c == ':') {
+            if (key == NULL) {
+                fprintf(stderr, "Exception parsing JSON: Missing key before colon\n");
+                goto error;
+            }
             parsing_key = false;
-            pc = c;
         } else if (c == '{') {
             HymnValue table = hymn_new_table_value(hymn_new_table());
             if (stack->length == 0) {
@@ -61,14 +57,22 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
                 HymnValue head = stack->items[0];
                 if (head.is == HYMN_VALUE_ARRAY) {
                     hymn_array_push(hymn_as_array(head), table);
-                } else {
+                    hymn_reference(table);
+                } else if (head.is == HYMN_VALUE_TABLE) {
+                    if (key == NULL) {
+                        fprintf(stderr, "Exception parsing JSON: No key\n");
+                        goto error;
+                    }
                     hymn_set_property_const(H, hymn_as_table(head), key, table);
-                    hymn_string_zero(key);
+                    hymn_string_delete(key);
+                    key = NULL;
+                } else {
+                    fprintf(stderr, "Exception parsing JSON: Need object or array\n");
+                    goto error;
                 }
             }
             hymn_array_insert(stack, 0, table);
             parsing_key = true;
-            pc = c;
         } else if (c == '[') {
             HymnValue array = hymn_new_array_value(hymn_new_array(0));
             if (stack->length == 0) {
@@ -77,49 +81,52 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
                 HymnValue head = stack->items[0];
                 if (head.is == HYMN_VALUE_ARRAY) {
                     hymn_array_push(hymn_as_array(head), array);
-                } else {
+                    hymn_reference(array);
+                } else if (head.is == HYMN_VALUE_TABLE) {
+                    if (key == NULL) {
+                        fprintf(stderr, "Exception parsing JSON: No key\n");
+                        goto error;
+                    }
                     hymn_set_property_const(H, hymn_as_table(head), key, array);
-                    hymn_string_zero(key);
+                    hymn_string_delete(key);
+                    key = NULL;
+                } else {
+                    fprintf(stderr, "Exception parsing JSON: Need object or array\n");
+                    goto error;
                 }
             }
             hymn_array_insert(stack, 0, array);
             parsing_key = false;
-            pc = c;
         } else if (c == '}') {
-            if (pc != ' ' && pc != ']' && pc != '{' && pc != '}' && pc != '\n') {
-                if (stack->length == 0) {
-                    printf("end of JSON object, stack was empty\n");
-                    goto error;
-                }
-                HymnValue head = stack->items[0];
-                if (head.is != HYMN_VALUE_TABLE) {
-                    printf("expected JSON object\n");
-                    goto error;
-                }
-                HymnString *string = hymn_new_string(value);
-                HymnObjectString *object = hymn_new_string_object(string);
-                hymn_set_property_const(H, hymn_as_table(head), key, hymn_new_string_value(object));
-                hymn_string_zero(key);
-                hymn_string_zero(value);
+            if (stack->length == 0) {
+                fprintf(stderr, "Exception parsing JSON: Not a JSON object\n");
+                goto error;
+            }
+            HymnValue head = stack->items[0];
+            if (head.is != HYMN_VALUE_TABLE) {
+                fprintf(stderr, "Exception parsing JSON: Expected JSON object but was: %d\n", head.is);
+                goto error;
             }
             hymn_array_remove_index(stack, 0);
             parsing_key = stack->length == 0 || stack->items[0].is != HYMN_VALUE_ARRAY;
-            pc = c;
         } else if (c == ']') {
-            if (pc != ' ' && pc != '}' && pc != '[' && pc != ']' && pc != '\n') {
-                if (stack->length == 0) {
-                    printf("end of JSON array, stack was empty\n");
-                    goto error;
-                }
-                HymnString *string = hymn_new_string(value);
-                HymnObjectString *object = hymn_new_string_object(string);
-                HymnValue head = stack->items[0];
-                hymn_array_push(hymn_as_array(head), hymn_new_string_value(object));
-                hymn_string_zero(value);
+            if (stack->length == 0) {
+                fprintf(stderr, "Exception parsing JSON: Not a JSON array\n");
+                goto error;
+            }
+            HymnValue head = stack->items[0];
+            if (head.is != HYMN_VALUE_ARRAY) {
+                fprintf(stderr, "Exception parsing JSON: Not a JSON object\n");
+                goto error;
             }
             hymn_array_remove_index(stack, 0);
             parsing_key = stack->length == 0 || stack->items[0].is != HYMN_VALUE_ARRAY;
-            pc = c;
+        } else if (c == ',') {
+            if (key != NULL) {
+                fprintf(stderr, "Exception parsing JSON: Comma after key\n");
+                goto error;
+            }
+            parsing_key = stack->length == 0 || stack->items[0].is != HYMN_VALUE_ARRAY;
         } else if (c == '"') {
             i++;
             if (i >= len) {
@@ -143,13 +150,107 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
             if (parsing_key) {
                 key = string;
             } else {
-                value = string;
+                HymnObjectString *object = hymn_intern_string(H, string);
+                HymnValue value = hymn_new_string_value(object);
+                if (stack->length == 0) {
+                    json = value;
+                    goto done;
+                } else {
+                    HymnValue head = stack->items[0];
+                    if (head.is == HYMN_VALUE_ARRAY) {
+                        hymn_array_push(hymn_as_array(head), value);
+                        hymn_reference_string(object);
+                    } else if (head.is == HYMN_VALUE_TABLE) {
+                        if (key == NULL) {
+                            fprintf(stderr, "Exception parsing JSON: No key\n");
+                            goto error;
+                        }
+                        hymn_set_property_const(H, hymn_as_table(head), key, value);
+                        hymn_string_delete(key);
+                        key = NULL;
+                    } else {
+                        fprintf(stderr, "Exception parsing JSON: Need object or array\n");
+                        goto error;
+                    }
+                }
             }
-            pc = c;
+        } else if ('0' <= c && c <= '9') {
+            size_t start = i;
+            bool discrete = true;
+            while (true) {
+                i++;
+                if (i >= len) {
+                    break;
+                }
+                char e = input[i];
+                if ('0' <= e && e <= '9') {
+                } else if (e == '.' || e == 'e') {
+                    discrete = false;
+                } else {
+                    i--;
+                    break;
+                }
+            }
+            HymnValue number;
+            if (discrete) {
+                number = hymn_new_int(strtoll(&input[start], NULL, 10));
+            } else {
+                number = hymn_new_float(strtod(&input[start], NULL));
+            }
+            if (stack->length == 0) {
+                json = number;
+                goto done;
+            } else {
+                HymnValue head = stack->items[0];
+                if (head.is == HYMN_VALUE_ARRAY) {
+                    hymn_array_push(hymn_as_array(head), number);
+                } else if (head.is == HYMN_VALUE_TABLE) {
+                    if (key == NULL) {
+                        fprintf(stderr, "Exception parsing JSON: No key\n");
+                        goto error;
+                    }
+                    hymn_set_property_const(H, hymn_as_table(head), key, number);
+                    hymn_string_delete(key);
+                    key = NULL;
+                } else {
+                    fprintf(stderr, "Exception parsing JSON: Need object or array\n");
+                    goto error;
+                }
+            }
+        } else if (c == 'n') {
+            if (i + 3 < len) {
+                if (input[i + 1] == 'u' && input[i + 2] == 'l' && input[i + 3] == 'l') {
+                    i += 3;
+                    if (stack->length == 0) {
+                        json = hymn_new_none();
+                        goto done;
+                    } else {
+                        HymnValue head = stack->items[0];
+                        if (head.is == HYMN_VALUE_ARRAY) {
+                            hymn_array_push(hymn_as_array(head), hymn_new_none());
+                        } else if (head.is == HYMN_VALUE_TABLE) {
+                            if (key == NULL) {
+                                fprintf(stderr, "Exception parsing JSON: No key\n");
+                                goto error;
+                            }
+                            hymn_set_property_const(H, hymn_as_table(head), key, hymn_new_none());
+                            hymn_string_delete(key);
+                            key = NULL;
+                        } else {
+                            fprintf(stderr, "Exception parsing JSON: Need object or array\n");
+                            goto error;
+                        }
+                        goto next;
+                    }
+                }
+            }
+            fprintf(stderr, "Exception parsing JSON: Expected null\n");
+            goto error;
         } else {
-            printf("unknown\n");
+            fprintf(stderr, "Exception parsing JSON: Unknown input\n");
             goto error;
         }
+    next:
         while (true) {
             i++;
             if (i >= len) {
@@ -162,16 +263,25 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
         }
     }
 
+    if (stack->length != 0) {
+        fprintf(stderr, "Exception parsing JSON: Incomplete\n");
+        goto error;
+    }
+
+done:
     hymn_string_delete(key);
-    hymn_string_delete(value);
-    printf("done parsing JSON\n");
+    free(stack->items);
+    free(stack);
     return json;
 
 error:
-    printf("error with JSON\n");
+    fprintf(stderr, "error with JSON\n");
     hymn_string_delete(key);
-    hymn_string_delete(value);
-    hymn_dereference(H, json);
+    hymn_reference(hymn_new_array_value(stack));
+    for (HymnInt i = 0; i < stack->length; i++) {
+        hymn_reference(stack->items[i]);
+    }
+    hymn_array_delete(H, stack);
     return hymn_new_none();
 }
 

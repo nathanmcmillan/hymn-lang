@@ -36,7 +36,11 @@
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
 #else
 #include <dirent.h>
+#ifdef __APPLE__
 #include <limits.h>
+#else
+#include <linux/limits.h>
+#endif
 #include <unistd.h>
 #define PATH_SEP '/'
 #define PATH_SEP_STRING "/"
