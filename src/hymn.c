@@ -7678,7 +7678,10 @@ void hymn_repl(Hymn *H) {
             fclose(temp);
 
             HymnString *edit = hymn_string_format("%s %s", editor, path);
-            system(edit);
+            int result = system(edit);
+            if (result == -1) {
+                printf("Failed edit: %d\n", result);
+            }
             hymn_string_delete(edit);
 
             HymnString *content = hymn_read_file(path);

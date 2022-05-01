@@ -139,6 +139,13 @@ $ gcc src/*.c -std=c11 -O3 -s -DNDEBUG -o hymn -lm -ldl
 $ gcc format/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymnfmt
 ```
 
+### Dynamic Library
+
+```
+$ gcc -Isrc -fpic -c test/dlib/dlib.c
+$ gcc -shared -lc -o dlib.so dlib.o
+```
+
 ## Windows + MSVC
 
 ### Debug

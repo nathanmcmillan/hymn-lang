@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "hymn.h"
+#include "hymn_libs.h"
 #include "hymn_path.h"
 #include "hymn_text.h"
 
@@ -176,6 +177,49 @@ end:
     free(point);
 }
 
+static void test_dynamic_library() {
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    tests_count++;
+    printf("dynamic library\n");
+    Hymn *hymn = new_hymn();
+    hymn->print = console;
+    hymn_string_zero(out);
+
+    HymnValue result = hymn_use_dlib(hymn, "test" PATH_SEP_STRING "dlib.so", "hymn_use_test_dlib");
+
+    if (result.is == HYMN_VALUE_STRING) {
+        HymnString *string = hymn_value_to_string(result);
+        fprintf(stderr, "error: %s\n", string);
+        hymn_string_delete(string);
+    }
+
+    char *error = NULL;
+
+    error = hymn_do(hymn, "echo dlib.fun()");
+    if (error != NULL) {
+        goto fail;
+    }
+
+    hymn_string_trim(out);
+    if (!hymn_string_equal(out, "256")) {
+        printf("incorrent output: %s\n\n", out);
+        tests_fail++;
+        goto end;
+    }
+
+    tests_success++;
+    goto end;
+
+fail:
+    printf("%s\n\n", error);
+    free(error);
+    tests_fail++;
+
+end:
+    hymn_delete(hymn);
+#endif
+}
+
 static void test_hymn(const char *filter) {
     out = hymn_new_string("");
 
@@ -205,6 +249,10 @@ static void test_hymn(const char *filter) {
 
     if (filter == NULL || hymn_string_equal(filter, "api")) {
         test_api();
+    }
+
+    if (filter == NULL || hymn_string_equal(filter, "dl")) {
+        test_dynamic_library();
     }
 
     hymn_string_delete(out);

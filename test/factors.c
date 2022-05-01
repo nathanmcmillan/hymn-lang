@@ -5,7 +5,7 @@
 #include "hymn.h"
 #include "hymn_libs.h"
 
-#if defined(HYMN_BENCHMARK)
+#ifdef HYMN_BENCHMARK
 
 HymnValue compute(Hymn *vm, int count, HymnValue *arguments) {
     (void)vm;

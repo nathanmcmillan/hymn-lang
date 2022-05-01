@@ -31,6 +31,8 @@ HYMN.exe
 HYMNFMT.exe
 HYMNTEST.exe
 
+*.o
+*.so
 *.obj
 
 profile

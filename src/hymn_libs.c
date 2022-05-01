@@ -4,17 +4,18 @@
 
 #include "hymn_libs.h"
 
-#ifdef _MSC_VER
+#ifndef HYMN_NO_DYNAMIC_LIBS
 
+#ifdef _MSC_VER
 #include <windows.h>
 
-HymnValue hymn_load_lib(Hymn *H, const char *path, const char *func) {
+HymnValue hymn_use_dlib(Hymn *H, const char *path, const char *func) {
     HINSTANCE lib = LoadLibrary(path);
     if (lib != NULL) {
         FARPROC proc = GetProcAddress(lib, func);
         if (proc != NULL) {
-            // push lib as pointer too?
-            return hymn_new_pointer(proc);
+            // proc(H);
+            return hymn_new_none();
         }
     }
 
@@ -38,16 +39,16 @@ HymnValue hymn_load_lib(Hymn *H, const char *path, const char *func) {
 }
 
 #else
-
 #include <dlfcn.h>
 
-HymnValue hymn_load_lib(Hymn *H, const char *path, const char *func) {
+HymnValue hymn_use_dlib(Hymn *H, const char *path, const char *func) {
     void *lib = dlopen(path, RTLD_NOW);
     if (lib != NULL) {
-        void *proc = dlsym(lib, func);
+        void *(*proc)(Hymn *);
+        *(void **)(&proc) = dlsym(lib, func);
         if (proc != NULL) {
-            // push lib as pointer too?
-            return hymn_new_pointer(proc);
+            proc(H);
+            return hymn_new_none();
         }
     }
 
@@ -60,5 +61,7 @@ HymnValue hymn_load_lib(Hymn *H, const char *path, const char *func) {
     HymnObjectString *object = hymn_intern_string(H, message);
     return hymn_new_string_value(object);
 }
+
+#endif
 
 #endif

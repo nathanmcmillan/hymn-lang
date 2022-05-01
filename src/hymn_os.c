@@ -86,8 +86,8 @@ static HymnValue os_exec(Hymn *H, int count, HymnValue *arguments) {
         return hymn_new_none();
     }
     HymnString *command = hymn_as_string(value);
-    system(command);
-    return hymn_new_none();
+    int result = system(command);
+    return hymn_new_int(result);
 }
 
 static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
