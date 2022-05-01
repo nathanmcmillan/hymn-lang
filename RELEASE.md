@@ -1,6 +1,21 @@
 # Release 0.6.2
 
-- ?
+- Various optimized OP codes for common instruction sequences
+- New REPL with external editor support
+- Changed comments to use `#` symbol
+- Now using C style brackets `{` and `}` instead of `begin` and `end` keywords
+- Tail call optimizations
+- Optional type declarations of the form `name: type`
+  - Currently has no affect on compiling
+- Shared C libarary loading `.so` / `.dll` files
+- New separate executable for formatting scripts
+- Removed OP code optimizations from JavaScript version to keep it simple
+- Added new command line arguments for `help`, `version`, and `interactive` support
+- New standard library functions
+  - IO `readlines`, `write`, `append`, and `move`
+  - OS `exec`
+  - Text `leftstrip`, `rightsrip`, and `join`
+  - New JSON library
 
 # Release 0.5.1
 

@@ -5285,16 +5285,16 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
     if (frame == NULL) return;             \
     HYMN_DISPATCH;
 
-#define ARITHMETIC_OP(_arithmetic_)                                                   \
+#define ARITHMETIC_OP(arithmetic)                                                     \
     HymnValue b = pop(H);                                                             \
     HymnValue a = pop(H);                                                             \
     if (hymn_is_int(a)) {                                                             \
         if (hymn_is_int(b)) {                                                         \
-            a.as.i _arithmetic_ b.as.i;                                               \
+            a.as.i arithmetic b.as.i;                                                 \
             push(H, a);                                                               \
         } else if (hymn_is_float(b)) {                                                \
             HymnValue new = hymn_new_float((HymnFloat)a.as.i);                        \
-            new.as.f _arithmetic_ b.as.f;                                             \
+            new.as.f arithmetic b.as.f;                                               \
             push(H, new);                                                             \
         } else {                                                                      \
             hymn_dereference(H, a);                                                   \
@@ -5303,10 +5303,10 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         }                                                                             \
     } else if (hymn_is_float(a)) {                                                    \
         if (hymn_is_int(b)) {                                                         \
-            a.as.f _arithmetic_(HymnFloat) b.as.i;                                    \
+            a.as.f arithmetic(HymnFloat) b.as.i;                                      \
             push(H, a);                                                               \
         } else if (hymn_is_float(b)) {                                                \
-            a.as.f _arithmetic_ b.as.f;                                               \
+            a.as.f arithmetic b.as.f;                                                 \
             push(H, a);                                                               \
         } else {                                                                      \
             hymn_dereference(H, a);                                                   \

@@ -19,7 +19,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.6.0"
+#define HYMN_VERSION "0.6.2"
 
 #define HYMN_REPL
 
