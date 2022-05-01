@@ -2743,7 +2743,7 @@ static void type_declaration(Compiler *C) {
             advance(C);
             return;
         default:
-            compile_error(C, &C->previous, "Jump offset too large");
+            compile_error(C, &C->previous, "unknown type declaration");
             return;
         }
     }
