@@ -1,3 +1,11 @@
+# Release 0.5.1
+
+- New optimized OP code `OP_GET_GLOBAL_PROPERTY` for global variables
+- New typedefs `HymnInt` and `HymnFloat`
+- Cleaned up error messages
+- Refactored function names and exposed more as public
+- Significantly expanded standard library
+
 # Release 0.4.0
 
 - Added `exists` function. Returns true if a key exists in a table
