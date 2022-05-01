@@ -1,11 +1,11 @@
--- @Starts
--- index function expects a string, array, or table
+# @Starts
+# index function expects a string, array, or table
 
 let foo = "empty"
-try
+try {
   index(0, 0)
   foo = "bad"
-except e
+} except e {
   foo = e
-end
+}
 echo foo

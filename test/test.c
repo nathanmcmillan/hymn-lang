@@ -3,8 +3,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "hymn.h"
+#include "hymn_libs.h"
 #include "hymn_path.h"
 #include "hymn_text.h"
+
+#if !defined(HYMN_NO_TEST)
 
 struct FilterList {
     int count;
@@ -53,9 +56,9 @@ static HymnString *parse_expected(HymnString *source) {
     size_t size = hymn_string_len(source);
     for (size_t pos = 0; pos < size; pos++) {
         char c = source[pos];
-        if (c == '-' && pos + 2 < size && source[pos + 1] == '-') {
-            if (source[pos + 2] == ' ') {
-                pos += 3;
+        if (c == '#' && pos + 1 < size) {
+            if (source[pos + 1] == ' ') {
+                pos += 2;
                 while (pos < size) {
                     c = source[pos];
                     expected = hymn_string_append_char(expected, c);
@@ -65,8 +68,8 @@ static HymnString *parse_expected(HymnString *source) {
                     pos++;
                 }
                 continue;
-            } else if (source[pos + 2] == '\n') {
-                pos += 2;
+            } else if (source[pos + 1] == '\n') {
+                pos++;
                 expected = hymn_string_append_char(expected, '\n');
                 continue;
             }
@@ -85,14 +88,14 @@ static HymnString *test_source(HymnString *script) {
     }
     HymnString *expected = parse_expected(source);
     HymnString *result = NULL;
-    if (strcmp(expected, "") != 0) {
+    if (!hymn_string_equal(expected, "")) {
         Hymn *hymn = new_hymn();
         hymn->print = console;
         hymn->print_error = console;
         hymn_string_zero(out);
         char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
-        if (strcmp(expected, "@Exception") == 0) {
+        if (hymn_string_equal(expected, "@Exception")) {
             if (error == NULL) {
                 result = hymn_new_string("Expected an error.\n");
             } else {
@@ -155,8 +158,10 @@ static void test_api() {
     }
 
     hymn_string_trim(out);
-    if (strcmp(out, "{ number: 8 }") != 0) {
-        printf("Incorrent output: %s\n\n", out);
+    if (!hymn_string_equal(out, "{ \"number\": 8 }")) {
+        printf("incorrent output: %s\n\n", out);
+        tests_fail++;
+        goto end;
     }
 
     tests_success++;
@@ -170,6 +175,49 @@ fail:
 end:
     hymn_delete(hymn);
     free(point);
+}
+
+static void test_dynamic_library() {
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    tests_count++;
+    printf("dynamic library\n");
+    Hymn *hymn = new_hymn();
+    hymn->print = console;
+    hymn_string_zero(out);
+
+    HymnValue result = hymn_use_dlib(hymn, "test" PATH_SEP_STRING "dlib.so", "hymn_use_test_dlib");
+
+    if (result.is == HYMN_VALUE_STRING) {
+        HymnString *string = hymn_value_to_string(result);
+        fprintf(stderr, "error: %s\n", string);
+        hymn_string_delete(string);
+    }
+
+    char *error = NULL;
+
+    error = hymn_do(hymn, "echo dlib.fun()");
+    if (error != NULL) {
+        goto fail;
+    }
+
+    hymn_string_trim(out);
+    if (!hymn_string_equal(out, "256")) {
+        printf("incorrent output: %s\n\n", out);
+        tests_fail++;
+        goto end;
+    }
+
+    tests_success++;
+    goto end;
+
+fail:
+    printf("%s\n\n", error);
+    free(error);
+    tests_fail++;
+
+end:
+    hymn_delete(hymn);
+#endif
 }
 
 static void test_hymn(const char *filter) {
@@ -199,8 +247,12 @@ static void test_hymn(const char *filter) {
     hymn_delete_file_list(&all);
     delete_filter_list(&scripts);
 
-    if (filter == NULL || strcmp(filter, "api") == 0) {
+    if (filter == NULL || hymn_string_equal(filter, "api")) {
         test_api();
+    }
+
+    if (filter == NULL || hymn_string_equal(filter, "dl")) {
+        test_dynamic_library();
     }
 
     hymn_string_delete(out);
@@ -220,3 +272,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+#endif

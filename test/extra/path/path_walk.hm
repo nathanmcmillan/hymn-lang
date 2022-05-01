@@ -1,6 +1,6 @@
-for file in path.walk("test")
+for file in path.walk("test") {
   echo file
-end
+}
 echo "<---"
 echo path.walk("does-not-exist")
 echo path.walk(none)

@@ -1,11 +1,11 @@
--- else
--- block
--- end
+# else
+# block
+# end
 
-if false
+if false {
   echo "bad"
-else
+} else {
   echo "else"
   echo "block"
   echo "end"
-end
+}

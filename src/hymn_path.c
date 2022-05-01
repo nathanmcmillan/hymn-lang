@@ -27,7 +27,7 @@ static bool directories(const char *path, int recursive, struct HymnPathFileList
     if (handle != INVALID_HANDLE_VALUE) {
         char file[PATH_MAX];
         do {
-            if (strcmp(find.cFileName, ".") == 0 || strcmp(find.cFileName, "..") == 0) {
+            if (hymn_string_equal(find.cFileName, ".") || hymn_string_equal(find.cFileName, "..")) {
                 continue;
             }
             strcpy(file, path);
@@ -52,7 +52,7 @@ static bool directories(const char *path, int recursive, struct HymnPathFileList
     struct dirent *d;
     char file[PATH_MAX];
     while ((d = readdir(dir)) != NULL) {
-        if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {
+        if (hymn_string_equal(d->d_name, ".") || hymn_string_equal(d->d_name, "..")) {
             continue;
         }
         strcpy(file, path);

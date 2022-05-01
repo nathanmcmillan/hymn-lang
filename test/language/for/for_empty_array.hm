@@ -1,8 +1,8 @@
--- begin
--- end
+# begin
+# end
 
 echo "begin"
-for v in []
+for v in [] {
   echo v
-end
+}
 echo "end"

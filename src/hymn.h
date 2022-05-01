@@ -19,6 +19,10 @@
 #include <sys/types.h>
 #include <time.h>
 
+#define HYMN_VERSION "0.6.2"
+
+#define HYMN_REPL
+
 #ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
@@ -32,7 +36,11 @@
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
 #else
 #include <dirent.h>
+#ifdef __APPLE__
+#include <limits.h>
+#else
 #include <linux/limits.h>
+#endif
 #include <unistd.h>
 #define PATH_SEP '/'
 #define PATH_SEP_STRING "/"
@@ -46,6 +54,8 @@
 
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
+
+#define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
 
 typedef int64_t HymnInt;
 typedef double HymnFloat;
@@ -182,6 +192,7 @@ struct HymnFunction {
     HymnString *name;
     HymnString *script;
     int arity;
+    int registers;
     HymnByteCode code;
     HymnExceptList *except;
 };
@@ -227,7 +238,7 @@ HymnStringHead *hymn_string_head(HymnString *string);
 HymnString *hymn_string_copy(HymnString *string);
 size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
-bool hymn_string_equal(HymnString *a, HymnString *b);
+bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *this, const char b);
 bool hymn_string_starts_with(HymnString *s, const char *using);
@@ -235,6 +246,7 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
 HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
+void hymn_string_trim(HymnString *string);
 
 HymnArray *hymn_new_array(HymnInt length);
 
@@ -320,5 +332,10 @@ void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, Hym
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);
+
+#ifdef HYMN_REPL
+void hymn_repl(Hymn *H);
+void hymn_server(Hymn *H);
+#endif
 
 #endif

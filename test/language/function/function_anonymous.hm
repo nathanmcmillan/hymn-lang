@@ -1,17 +1,17 @@
--- > be me
--- > be global
+# > be me
+# > be global
 
 let anon = none
-begin
-  anon = function()
+{
+  anon = function() {
     echo "> be me"
-  end
-end
+  }
+}
 
 anon()
 
-let unnamed = function()
+let unnamed = function() {
   echo "> be global"
-end
+}
 
 unnamed()

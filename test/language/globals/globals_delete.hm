@@ -1,14 +1,14 @@
--- 8
--- Oh no!
--- undefined
+# 8
+# Oh no!
+# undefined
 
 let foo = 8
 
-try
+try {
   echo foo
   delete(__globals, "foo")
   echo foo
-except error
+} except error {
   echo "Oh no!"
   echo error[0:9]
-end
+}

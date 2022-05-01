@@ -1,85 +1,84 @@
 use "util"
 
--- last_index returns the index of the last instance of v in a, or -1 if not found.
-function last_index(a, v)
+# last_index returns the index of the last instance of v in a, or -1 if not found.
+function last_index(a, v) {
   let size = len(a)
   let i = size - 1
-  while i >= 0
-    if a[i] == v
+  while i >= 0 {
+    if a[i] == v {
       return i
-    end
+    }
     i = i - 1
-  end
+  }
   return -1
-end
+}
 
--- upper returns s with letters mapped to their upper case.
-function upper(s)
+# upper returns s with letters mapped to their upper case.
+function upper(s) {
   let new = ""
   let size = len(s)
-  for i = 0, i < size
+  for i = 0, i < size {
     let c = s[i]
-    if c == 'a' c = 'A'
-    elif c == 'b' c = 'B'
-    elif c == 'f' c = 'F'
-    elif c == 'o' c = 'O'
-    end
+    if c == 'a' { c = 'A' }
+    elif c == 'b' { c = 'B' }
+    elif c == 'f' { c = 'F' }
+    elif c == 'o' { c = 'O' }
     new = new + c
-  end
+  }
   return new
-end
+}
 
--- abs returns the absolute value of n.
-function abs(n)
-  if n < 0 return -n end
+# abs returns the absolute value of n.
+function abs(n) {
+  if n < 0 { return -n }
   return n
-end
+}
 
--- min returns the smaller value of a or b.
-function min(a, b)
-  if a < b return a end
+# min returns the smaller value of a or b.
+function min(a, b) {
+  if a < b { return a }
   return b
-end
+}
 
--- max returns the larger value of a or b.
-function max(a, b)
-  if a > b return a end
+# max returns the larger value of a or b.
+function max(a, b) {
+  if a > b { return a }
   return b
-end
+}
 
--- string_comparator returns the alphabetical integer difference comparing a to b.
-function string_comparator(a, b)
+# string_comparator returns the alphabetical integer difference comparing a to b.
+function string_comparator(a, b) {
   let to = min(len(a), len(b))
-  for i = 0, i < to
+  for i = 0, i < to {
     let char = int(a[i]) - int(b[i])
-    if char != 0 return char end
-  end
+    if char != 0 { return char }
+  }
   return len(a) - len(b)
-end
+}
 
--- sort returns a new array with elements sorted using the comparator function.
-function sort(a, comparator)
+# sort returns a new array with elements sorted using the comparator function.
+function sort(a, comparator) {
   let n = []
   let total = 0
-  for v in a
+  for v in a {
     let id = 0
-    while true
-      if id == total break end
-      if comparator(v, n[id]) < 0
-        for swap = total, swap > id, swap = swap - 1
+    while true {
+      if id == total { break }
+      if comparator(v, n[id]) < 0 {
+        for swap = total, swap > id, swap = swap - 1 {
           n[swap] = n[swap - 1]
-        end
+        }
         break
-      end
+      }
       id = id + 1
-    end
+    }
     n[id] = v
     total = total + 1
-  end
+  }
   return n
-end
+}
 
--- sort_strings returns a new array with sorted strings.
-function sort_strings(a)
+# sort_strings returns a new array with sorted strings.
+function sort_strings(a) {
   return sort(a, string_comparator)
-end
+}

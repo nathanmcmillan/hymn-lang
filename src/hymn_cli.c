@@ -10,7 +10,7 @@
 #include "hymn.h"
 #include "hymn_libs.h"
 
-#ifndef HYMN_TESTING
+#if !defined(HYMN_TESTING) && !defined(HYMN_NO_CLI)
 
 static void signal_handle(int signum) {
     if (signum != 2) {
@@ -18,14 +18,56 @@ static void signal_handle(int signum) {
     }
 }
 
+static void help() {
+    printf("Hymn Script\n\n"
+           "  -c  Run command\n"
+           "  -i  Open interactive mode\n"
+           "  -s  Open server mode\n"
+           "  -b  Print compiled byte code\n"
+           "  -v  Print version information\n"
+           "  -h  Print this help message\n"
+           "  --  End of options\n");
+}
+
 int main(int argc, char **argv) {
 
-    if (argc <= 1) {
-        printf("Usage: hymn [-b] [-c] FILE\n");
-        printf("Interprets a Hymn script FILE.\n\n");
-        printf("  -b  Print compiled byte code\n");
-        printf("  -c  Run FILE as source code\n");
-        return 2;
+    char mode = 0;
+    bool byte = false;
+
+    char *file = NULL;
+    char *code = NULL;
+
+    if (argc >= 2) {
+        for (int i = 1; i < argc; i++) {
+            if (hymn_string_equal(argv[i], "--")) {
+                if (i + 1 < argc) {
+                    file = argv[i + 1];
+                }
+                break;
+            } else if (hymn_string_equal(argv[i], "-h") || hymn_string_equal(argv[i], "--help")) {
+                help();
+                return 2;
+            } else if (hymn_string_equal(argv[i], "-v") || hymn_string_equal(argv[i], "--version")) {
+                printf("Hymn " HYMN_VERSION "\n");
+                return EXIT_SUCCESS;
+            } else if (hymn_string_equal(argv[i], "-c")) {
+                if (i + 1 < argc) {
+                    code = argv[i + 1];
+                    i++;
+                } else {
+                    help();
+                    return EXIT_FAILURE;
+                }
+            } else if (hymn_string_equal(argv[i], "-b")) {
+                byte = true;
+            } else if (hymn_string_equal(argv[i], "-i")) {
+                mode = 1;
+            } else if (hymn_string_equal(argv[i], "-s")) {
+                mode = 2;
+            } else {
+                file = argv[i];
+            }
+        }
     }
 
     signal(SIGINT, signal_handle);
@@ -33,37 +75,47 @@ int main(int argc, char **argv) {
     Hymn *hymn = new_hymn();
     hymn_use_libs(hymn);
 
-    char *error = NULL;
+    int exit = EXIT_SUCCESS;
 
-    if (argc >= 3) {
-        if (strcmp(argv[1], "-b") == 0) {
-            if (argc >= 4) {
-                if (strcmp(argv[2], "-c") == 0) {
-                    error = hymn_debug(hymn, NULL, argv[3]);
-                } else {
-                    printf("Unknown second argument: %s\n", argv[2]);
-                }
-            } else {
-                error = hymn_debug(hymn, argv[2], NULL);
-            }
-        } else if (strcmp(argv[1], "-c") == 0) {
-            error = hymn_do(hymn, argv[2]);
+    if (file != NULL) {
+        char *error;
+        if (byte) {
+            error = hymn_debug(hymn, file, NULL);
         } else {
-            printf("Unknown argument: %s\n", argv[1]);
+            error = hymn_read(hymn, file);
         }
-    } else {
-        error = hymn_read(hymn, argv[1]);
+        if (error != NULL) {
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
+            exit = EXIT_FAILURE;
+        }
     }
 
-    if (error != NULL) {
-        fprintf(stderr, "%s\n", error);
-        fflush(stderr);
-        free(error);
+    if (code != NULL) {
+        char *error;
+        if (byte) {
+            error = hymn_debug(hymn, NULL, code);
+        } else {
+            error = hymn_do(hymn, code);
+        }
+        if (error != NULL) {
+            fprintf(stderr, "%s\n", error);
+            fflush(stderr);
+            free(error);
+            exit = EXIT_FAILURE;
+        }
+    }
+
+    if (mode == 2) {
+        hymn_server(hymn);
+    } else if (mode == 1 || (file == NULL && code == NULL)) {
+        hymn_repl(hymn);
     }
 
     hymn_delete(hymn);
 
-    return error != NULL ? 1 : 0;
+    return exit;
 }
 
 #endif

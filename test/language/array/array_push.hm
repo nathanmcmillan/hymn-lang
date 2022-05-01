@@ -1,5 +1,5 @@
--- ["hello"]
--- ["hello", "world"]
+# ["hello"]
+# ["hello", "world"]
 
 let array = ["hello"]
 echo array

@@ -1,4 +1,4 @@
--- @Exception
+# @Exception
 
 let a = [2, 4, 6]
 echo a[-1]

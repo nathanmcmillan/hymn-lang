@@ -1,0 +1,2 @@
+echo io.append("./test-io-append.txt", "Foo bar!")
+echo io.append("./test-io-append.txt", " Zoobie!")

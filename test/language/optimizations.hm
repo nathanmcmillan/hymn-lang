@@ -1,86 +1,86 @@
--- 100
--- 3
--- 20
--- 6
--- 4
--- 6
--- X
--- Y
--- Z
--- W
--- 256
--- 256
--- 256
+# 100
+# 3
+# 20
+# 6
+# 4
+# 6
+# X
+# Y
+# Z
+# W
+# 256
+# 256
+# 256
 
--- tail call
-function tail(i)
-  if i < 0 return 100 end
+# tail call
+function tail(i) {
+  if i < 0 { return 100 }
   return tail(i - 1)
-end
+}
 echo tail(10)
 
--- pop two
-begin
+# pop two
+{
   let x = 1
   let y = 2
   echo x + y
-end
+}
 
--- pop n
-begin
+# pop n
+{
   let x = 2
   let y = 3
   let z = 4
   let w = 5
   let v = 6
   echo x + y + z + w + v
-end
+}
 
--- negate constant
+# negate constant
 let a = [2, 4, 6]
 echo a[-1]
 
--- double negate constant
+# double negate constant
 let b = [2, 4, 6]
 echo b[- - 1]
 
--- add two local
-begin
+# add two local
+{
   let x = 2
   let y = 4
   let z = x + y
   echo z
-end
+}
 
--- if less
-if 0 < 1 echo "X" else echo "no" end
+# if less
+if 0 < 1 { echo "X" } else { echo "no" }
 
--- if true
-if true echo "Y" else echo "no" end
+# if true
+if true { echo "Y" } else { echo "no" }
 
--- if false
-if false echo "no" else echo "Z" end
+# if false
+if false { echo "no" } else { echo "Z" }
 
--- if not
-if !false echo "W" else echo "no" end
+# if not
+if !false { echo "W" } else { echo "no" }
 
--- increment
+# increment
 let x = 1
-begin
+{
   let z = x + 255
   echo z
-end
+}
 
--- increment local
-begin
+# increment local
+{
   let x = 1
   let z = x + 255
   echo z
-end
+}
 
--- increment and set local
-begin
+# increment and set local
+{
   let x = 1
   x = x + 255
   echo x
-end
+}

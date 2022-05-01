@@ -1,11 +1,11 @@
--- begin
--- 1
--- 2
--- end
+# begin
+# 1
+# 2
+# end
 
 echo "begin"
-for i = 1, i < 10
-  if i == 3 break end
+for i = 1, i < 10 {
+  if i == 3 { break }
   echo i
-end
+}
 echo "end"

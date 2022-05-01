@@ -1,0 +1,3 @@
+echo io.write("./test-io-write.txt", "Foo bar!
+Good bye.
+")

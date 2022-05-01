@@ -1,57 +1,57 @@
--- begin
--- 2
--- 4
--- 8
--- end
--- begin
--- 0 -> 2
--- 1 -> 4
--- 2 -> 8
--- end
--- begin
--- 10
--- 12
--- 14
--- end
--- begin
--- 0 -> 10
--- 1 -> 12
--- end
--- begin
--- 4
--- 8
--- end
+# begin
+# 2
+# 4
+# 8
+# end
+# begin
+# 0 -> 2
+# 1 -> 4
+# 2 -> 8
+# end
+# begin
+# 10
+# 12
+# 14
+# end
+# begin
+# 0 -> 10
+# 1 -> 12
+# end
+# begin
+# 4
+# 8
+# end
 
 let array = [2, 4, 8]
 
 echo "begin"
-for value in array
+for value in array {
   echo value
-end
+}
 echo "end"
 
 echo "begin"
-for i, value in array
+for i, value in array {
   echo i + " -> " + value
-end
+}
 echo "end"
 
 echo "begin"
-for value in [10, 12, 14]
+for value in [10, 12, 14] {
   echo value
-end
+}
 echo "end"
 
 echo "begin"
-for i, value in [10, 12, 14]
-  if i == 2 break end
+for i, value in [10, 12, 14] {
+  if i == 2 { break }
   echo i + " -> " + value
-end
+}
 echo "end"
 
 echo "begin"
-for value in array
-  if value == 2 continue end
+for value in array {
+  if value == 2 { continue }
   echo value
-end
+}
 echo "end"

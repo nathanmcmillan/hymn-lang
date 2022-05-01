@@ -109,13 +109,6 @@ class HymnFrame {
   }
 }
 
-class Instruction {
-  constructor(index, instruction) {
-    this.index = index
-    this.instruction = instruction
-  }
-}
-
 function printOut(text) {
   if (node) nodeProcess.stdout.write(text)
   else console.log(text)
@@ -159,79 +152,77 @@ const TOKEN_ASSIGN_DIVIDE = 9
 const TOKEN_ASSIGN_MODULO = 10
 const TOKEN_ASSIGN_MULTIPLY = 11
 const TOKEN_ASSIGN_SUBTRACT = 12
-const TOKEN_BEGIN = 13
-const TOKEN_BIT_AND = 14
-const TOKEN_BIT_LEFT_SHIFT = 15
-const TOKEN_BIT_NOT = 16
-const TOKEN_BIT_OR = 17
-const TOKEN_BIT_RIGHT_SHIFT = 18
-const TOKEN_BIT_XOR = 19
-const TOKEN_BREAK = 20
-const TOKEN_CLEAR = 21
-const TOKEN_COLON = 22
-const TOKEN_COMMA = 23
-const TOKEN_CONTINUE = 24
-const TOKEN_COPY = 25
-const TOKEN_DELETE = 26
-const TOKEN_DIVIDE = 27
-const TOKEN_DOT = 28
-const TOKEN_ECHO = 29
-const TOKEN_ELIF = 30
-const TOKEN_ELSE = 31
-const TOKEN_END = 32
-const TOKEN_EOF = 33
-const TOKEN_EQUAL = 34
-const TOKEN_ERROR = 35
-const TOKEN_EXCEPT = 36
-const TOKEN_EXISTS = 37
-const TOKEN_FALSE = 38
-const TOKEN_FLOAT = 39
-const TOKEN_FOR = 40
-const TOKEN_FUNCTION = 41
-const TOKEN_GREATER = 42
-const TOKEN_GREATER_EQUAL = 43
-const TOKEN_IDENT = 44
-const TOKEN_IF = 45
-const TOKEN_IN = 46
-const TOKEN_INDEX = 47
-const TOKEN_INSERT = 48
-const TOKEN_INTEGER = 49
-const TOKEN_KEYS = 50
-const TOKEN_LEFT_CURLY = 51
-const TOKEN_LEFT_PAREN = 52
-const TOKEN_LEFT_SQUARE = 53
-const TOKEN_LEN = 54
-const TOKEN_LESS = 55
-const TOKEN_LESS_EQUAL = 56
-const TOKEN_LET = 57
-const TOKEN_LINE = 58
-const TOKEN_MODULO = 58
-const TOKEN_MULTIPLY = 60
-const TOKEN_NONE = 61
-const TOKEN_NOT = 62
-const TOKEN_NOT_EQUAL = 63
-const TOKEN_OR = 64
-const TOKEN_POP = 65
-const TOKEN_PRINT = 66
-const TOKEN_PUSH = 67
-const TOKEN_RETURN = 68
-const TOKEN_RIGHT_CURLY = 69
-const TOKEN_RIGHT_PAREN = 70
-const TOKEN_RIGHT_SQUARE = 71
-const TOKEN_SEMICOLON = 72
-const TOKEN_STRING = 73
-const TOKEN_SUBTRACT = 74
-const TOKEN_THROW = 75
-const TOKEN_TO_FLOAT = 76
-const TOKEN_TO_INTEGER = 77
-const TOKEN_TO_STRING = 78
-const TOKEN_TRUE = 79
-const TOKEN_TRY = 80
-const TOKEN_TYPE_FUNC = 81
-const TOKEN_UNDEFINED = 82
-const TOKEN_USE = 83
-const TOKEN_VALUE = 84
-const TOKEN_WHILE = 85
+const TOKEN_BIT_AND = 13
+const TOKEN_BIT_LEFT_SHIFT = 14
+const TOKEN_BIT_NOT = 15
+const TOKEN_BIT_OR = 16
+const TOKEN_BIT_RIGHT_SHIFT = 17
+const TOKEN_BIT_XOR = 18
+const TOKEN_BREAK = 19
+const TOKEN_CLEAR = 20
+const TOKEN_COLON = 21
+const TOKEN_COMMA = 22
+const TOKEN_CONTINUE = 23
+const TOKEN_COPY = 24
+const TOKEN_DELETE = 25
+const TOKEN_DIVIDE = 26
+const TOKEN_DOT = 27
+const TOKEN_ECHO = 28
+const TOKEN_ELIF = 29
+const TOKEN_ELSE = 30
+const TOKEN_EOF = 31
+const TOKEN_EQUAL = 32
+const TOKEN_ERROR = 33
+const TOKEN_EXCEPT = 34
+const TOKEN_EXISTS = 35
+const TOKEN_FALSE = 36
+const TOKEN_FLOAT = 37
+const TOKEN_FOR = 38
+const TOKEN_FUNCTION = 39
+const TOKEN_GREATER = 40
+const TOKEN_GREATER_EQUAL = 41
+const TOKEN_IDENT = 42
+const TOKEN_IF = 43
+const TOKEN_IN = 44
+const TOKEN_INDEX = 45
+const TOKEN_INSERT = 46
+const TOKEN_INTEGER = 47
+const TOKEN_KEYS = 48
+const TOKEN_LEFT_CURLY = 49
+const TOKEN_LEFT_PAREN = 50
+const TOKEN_LEFT_SQUARE = 51
+const TOKEN_LEN = 52
+const TOKEN_LESS = 53
+const TOKEN_LESS_EQUAL = 54
+const TOKEN_LET = 55
+const TOKEN_LINE = 56
+const TOKEN_MODULO = 57
+const TOKEN_MULTIPLY = 58
+const TOKEN_NONE = 59
+const TOKEN_NOT = 60
+const TOKEN_NOT_EQUAL = 61
+const TOKEN_OR = 62
+const TOKEN_POP = 63
+const TOKEN_PRINT = 64
+const TOKEN_PUSH = 65
+const TOKEN_RETURN = 66
+const TOKEN_RIGHT_CURLY = 67
+const TOKEN_RIGHT_PAREN = 68
+const TOKEN_RIGHT_SQUARE = 69
+const TOKEN_SEMICOLON = 70
+const TOKEN_STRING = 71
+const TOKEN_SUBTRACT = 72
+const TOKEN_THROW = 73
+const TOKEN_TO_FLOAT = 74
+const TOKEN_TO_INTEGER = 75
+const TOKEN_TO_STRING = 76
+const TOKEN_TRUE = 77
+const TOKEN_TRY = 78
+const TOKEN_TYPE_FUNC = 79
+const TOKEN_UNDEFINED = 80
+const TOKEN_USE = 81
+const TOKEN_VALUE = 82
+const TOKEN_WHILE = 83
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -252,80 +243,74 @@ const STRING_STATUS_CLOSE = 3
 const STRING_STATUS_CONTINUE = 4
 
 const OP_ADD = 0
-const OP_ADD_TWO_LOCAL = 1
-const OP_INCREMENT = 2
-const OP_ARRAY_INSERT = 3
-const OP_ARRAY_POP = 4
-const OP_ARRAY_PUSH = 5
-const OP_BIT_AND = 6
-const OP_BIT_LEFT_SHIFT = 7
-const OP_BIT_NOT = 8
-const OP_BIT_OR = 9
-const OP_BIT_RIGHT_SHIFT = 10
-const OP_BIT_XOR = 11
-const OP_CALL = 12
-const OP_TAIL_CALL = 13
-const OP_CLEAR = 14
-const OP_CONSTANT = 15
-const OP_COPY = 16
-const OP_DEFINE_GLOBAL = 17
-const OP_DELETE = 18
-const OP_DIVIDE = 19
-const OP_DUPLICATE = 20
-const OP_ECHO = 21
-const OP_EQUAL = 22
-const OP_EXISTS = 23
-const OP_FALSE = 24
-const OP_GET_DYNAMIC = 25
-const OP_GET_GLOBAL = 26
-const OP_GET_LOCAL = 27
-const OP_GET_TWO_LOCAL = 28
-const OP_GET_PROPERTY = 29
-const OP_GREATER = 30
-const OP_GREATER_EQUAL = 31
-const OP_INDEX = 32
-const OP_JUMP = 33
-const OP_JUMP_IF_EQUAL = 34
-const OP_JUMP_IF_NOT_EQUAL = 35
-const OP_JUMP_IF_LESS = 36
-const OP_JUMP_IF_GREATER = 37
-const OP_JUMP_IF_LESS_EQUAL = 38
-const OP_JUMP_IF_GREATER_EQUAL = 39
-const OP_JUMP_IF_FALSE = 40
-const OP_JUMP_IF_TRUE = 41
-const OP_KEYS = 42
-const OP_LEN = 43
-const OP_LESS = 44
-const OP_LESS_EQUAL = 45
-const OP_LOOP = 46
-const OP_MODULO = 47
-const OP_MULTIPLY = 48
-const OP_NEGATE = 49
-const OP_NONE = 50
-const OP_NOT = 51
-const OP_NOT_EQUAL = 52
-const OP_POP = 53
-const OP_POP_TWO = 54
-const OP_POP_N = 55
-const OP_PRINT = 56
-const OP_RETURN = 57
-const OP_SET_DYNAMIC = 58
-const OP_SET_GLOBAL = 59
-const OP_SET_LOCAL = 60
-const OP_INCREMENT_LOCAL = 61
-const OP_INCREMENT_LOCAL_AND_SET = 62
-const OP_SET_PROPERTY = 63
-const OP_SLICE = 64
-const OP_SUBTRACT = 65
-const OP_THROW = 66
-const OP_FLOAT = 67
-const OP_INT = 68
-const OP_STRING = 69
-const OP_TRUE = 70
-const OP_TYPE = 71
-const OP_USE = 72
-const OP_FOR = 73
-const OP_FOR_LOOP = 74
+const OP_INCREMENT = 1
+const OP_ARRAY_INSERT = 2
+const OP_ARRAY_POP = 3
+const OP_ARRAY_PUSH = 4
+const OP_BIT_AND = 5
+const OP_BIT_LEFT_SHIFT = 6
+const OP_BIT_NOT = 7
+const OP_BIT_OR = 8
+const OP_BIT_RIGHT_SHIFT = 9
+const OP_BIT_XOR = 10
+const OP_CALL = 11
+const OP_CLEAR = 12
+const OP_CONSTANT = 13
+const OP_COPY = 14
+const OP_DEFINE_GLOBAL = 15
+const OP_DELETE = 16
+const OP_DIVIDE = 17
+const OP_DUPLICATE = 18
+const OP_ECHO = 19
+const OP_EQUAL = 20
+const OP_EXISTS = 21
+const OP_FALSE = 22
+const OP_GET_DYNAMIC = 23
+const OP_GET_GLOBAL = 24
+const OP_GET_LOCAL = 25
+const OP_GET_PROPERTY = 26
+const OP_GREATER = 27
+const OP_GREATER_EQUAL = 28
+const OP_INDEX = 29
+const OP_JUMP = 30
+const OP_JUMP_IF_EQUAL = 31
+const OP_JUMP_IF_NOT_EQUAL = 32
+const OP_JUMP_IF_LESS = 33
+const OP_JUMP_IF_GREATER = 34
+const OP_JUMP_IF_LESS_EQUAL = 35
+const OP_JUMP_IF_GREATER_EQUAL = 36
+const OP_JUMP_IF_FALSE = 37
+const OP_JUMP_IF_TRUE = 38
+const OP_KEYS = 39
+const OP_LEN = 40
+const OP_LESS = 41
+const OP_LESS_EQUAL = 42
+const OP_LOOP = 43
+const OP_MODULO = 44
+const OP_MULTIPLY = 45
+const OP_NEGATE = 46
+const OP_NONE = 47
+const OP_NOT = 48
+const OP_NOT_EQUAL = 49
+const OP_POP = 50
+const OP_PRINT = 51
+const OP_RETURN = 52
+const OP_SET_DYNAMIC = 53
+const OP_SET_GLOBAL = 54
+const OP_SET_LOCAL = 55
+const OP_INCREMENT_LOCAL_AND_SET = 56
+const OP_SET_PROPERTY = 57
+const OP_SLICE = 58
+const OP_SUBTRACT = 59
+const OP_THROW = 60
+const OP_FLOAT = 61
+const OP_INT = 62
+const OP_STRING = 63
+const OP_TRUE = 64
+const OP_TYPE = 65
+const OP_USE = 66
+const OP_FOR = 67
+const OP_FOR_LOOP = 68
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -427,7 +412,6 @@ rules[TOKEN_ASSIGN_DIVIDE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_MODULO] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_MULTIPLY] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ASSIGN_SUBTRACT] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_BEGIN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_BIT_AND] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_LEFT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
@@ -446,7 +430,6 @@ rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
 rules[TOKEN_ECHO] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ELIF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_ELSE] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_END] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_EOF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
 rules[TOKEN_ERROR] = new Rule(null, null, PRECEDENCE_NONE)
@@ -857,10 +840,6 @@ function isPointer(value) {
   return value.is === HYMN_VALUE_POINTER
 }
 
-function currentFunc(C) {
-  return C.scope.func
-}
-
 function current(C) {
   return C.scope.func.code
 }
@@ -923,7 +902,7 @@ function compileError(C, token, format) {
     error += '^'
   }
 
-  error += '\nat ' + C.script + ':' + token.row
+  error += '\nat ' + (C.script === null ? 'script' : C.script) + ':' + token.row
 
   C.error = error
 
@@ -1004,10 +983,7 @@ function identKey(ident, size) {
       if (size === 5) return identTrie(ident, 1, 'hile', TOKEN_WHILE)
       break
     case 'b':
-      if (size === 5) {
-        if (ident[1] === 'e') return identTrie(ident, 2, 'gin', TOKEN_BEGIN)
-        if (ident[1] === 'r') return identTrie(ident, 2, 'eak', TOKEN_BREAK)
-      }
+      if (size === 5) return identTrie(ident, 1, 'reak', TOKEN_BREAK)
       break
     case 'd':
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
@@ -1055,7 +1031,6 @@ function identKey(ident, size) {
       if (size === 4) return identTrie(ident, 1, 'ush', TOKEN_PUSH)
       break
     case 'e':
-      if (size === 3) return identTrie(ident, 1, 'nd', TOKEN_END)
       if (size === 6) {
         if (ident[1] === 'x') {
           if (ident[2] === 'c') return identTrie(ident, 3, 'ept', TOKEN_EXCEPT)
@@ -1169,6 +1144,15 @@ function advance(C) {
           c = peekChar(C)
         }
         continue
+      case '#': {
+        nextChar(C)
+        c = peekChar(C)
+        while (c !== '\n' && c !== '\0') {
+          nextChar(C)
+          c = peekChar(C)
+        }
+        continue
+      }
       case '!':
         if (peekChar(C) === '=') {
           nextChar(C)
@@ -1186,15 +1170,7 @@ function advance(C) {
         }
         return
       case '-': {
-        if (peekChar(C) === '-') {
-          nextChar(C)
-          c = peekChar(C)
-          while (c !== '\n' && c !== '\0') {
-            nextChar(C)
-            c = peekChar(C)
-          }
-          continue
-        } else if (peekChar(C) === '=') {
+        if (peekChar(C) === '=') {
           nextChar(C)
           tokenSpecial(C, TOKEN_ASSIGN_SUBTRACT, 2, 2)
           return
@@ -1475,7 +1451,7 @@ function scopeInit(C, scope, type) {
   scope.func = newFunction(C.script)
   scope.type = type
 
-  if (type !== TYPE_SCRIPT) {
+  if (type === TYPE_FUNCTION) {
     scope.func.name = sourceSubstring(C, C.previous.length, C.previous.start)
   }
 
@@ -1581,7 +1557,7 @@ function check(C, type) {
 }
 
 function match(C, type) {
-  if (!check(C, type)) {
+  if (C.current.type !== type) {
     return false
   }
   advance(C)
@@ -1593,7 +1569,7 @@ function compileWithPrecedence(C, precedence) {
   const rule = rules[C.previous.type]
   const prefix = rule.prefix
   if (prefix === null) {
-    compileError(C, C.previous, `syntax error: expected expression following '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
+    compileError(C, C.previous, `expected expression following '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
     return
   }
   const assign = precedence <= PRECEDENCE_ASSIGN
@@ -1602,13 +1578,13 @@ function compileWithPrecedence(C, precedence) {
     advance(C)
     const infix = rules[C.previous.type].infix
     if (infix === null) {
-      compileError(C, C.previous, 'Expected infix.')
+      compileError(C, C.previous, 'expected infix')
     }
     infix(C, assign)
   }
   if (assign && checkAssign(C)) {
     advance(C)
-    compileError(C, C.current, 'Invalid assignment target.')
+    compileError(C, C.current, 'invalid assignment')
   }
 }
 
@@ -1845,9 +1821,27 @@ function finalizeVariable(C, global) {
   emitShort(C, OP_DEFINE_GLOBAL, global)
 }
 
+function typeDeclaration(C) {
+  if (match(C, TOKEN_COLON)) {
+    const type = C.current.type
+    switch (type) {
+      case TOKEN_NONE:
+      case TOKEN_TO_FLOAT:
+      case TOKEN_TO_STRING:
+      case TOKEN_TO_INTEGER:
+        advance(C)
+        return
+      default:
+        compileError(C, C.current, 'unknown type declaration')
+        return
+    }
+  }
+}
+
 function defineNewVariable(C) {
-  const v = variable(C, 'Syntax Error: Expected variable name.')
-  consume(C, TOKEN_ASSIGN, "Assignment Error: Expected '=' after variable.")
+  const v = variable(C, 'expected variable name')
+  typeDeclaration(C)
+  consume(C, TOKEN_ASSIGN, "expected '=' after variable")
   expression(C)
   finalizeVariable(C, v)
 }
@@ -2124,469 +2118,8 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
-function next(instruction) {
-  switch (instruction) {
-    case OP_POP_N:
-    case OP_SET_GLOBAL:
-    case OP_SET_LOCAL:
-    case OP_SET_PROPERTY:
-    case OP_INCREMENT:
-    case OP_CALL:
-    case OP_TAIL_CALL:
-    case OP_CONSTANT:
-    case OP_DEFINE_GLOBAL:
-    case OP_GET_GLOBAL:
-    case OP_GET_LOCAL:
-    case OP_GET_PROPERTY:
-    case OP_EXISTS:
-    case OP_PRINT:
-      return 2
-    case OP_GET_TWO_LOCAL:
-    case OP_ADD_TWO_LOCAL:
-    case OP_JUMP:
-    case OP_JUMP_IF_FALSE:
-    case OP_JUMP_IF_TRUE:
-    case OP_JUMP_IF_EQUAL:
-    case OP_JUMP_IF_NOT_EQUAL:
-    case OP_JUMP_IF_LESS:
-    case OP_JUMP_IF_GREATER:
-    case OP_JUMP_IF_LESS_EQUAL:
-    case OP_JUMP_IF_GREATER_EQUAL:
-    case OP_LOOP:
-    case OP_INCREMENT_LOCAL_AND_SET:
-    case OP_INCREMENT_LOCAL:
-      return 3
-    case OP_FOR:
-    case OP_FOR_LOOP:
-      return 4
-    default:
-      return 1
-  }
-}
-
-function adjustable(important, instructions, count, target) {
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    const i = view.index
-    const instruction = view.instruction
-    switch (instruction) {
-      case OP_JUMP:
-      case OP_JUMP_IF_FALSE:
-      case OP_JUMP_IF_TRUE:
-      case OP_JUMP_IF_EQUAL:
-      case OP_JUMP_IF_NOT_EQUAL:
-      case OP_JUMP_IF_LESS:
-      case OP_JUMP_IF_GREATER:
-      case OP_JUMP_IF_LESS_EQUAL:
-      case OP_JUMP_IF_GREATER_EQUAL: {
-        if (i < target) {
-          const jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 + jump === target) {
-            return false
-          }
-        }
-        break
-      }
-      case OP_FOR: {
-        if (i < target) {
-          const jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 + jump === target) {
-            return false
-          }
-        }
-        break
-      }
-      case OP_LOOP: {
-        if (i >= target) {
-          const jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 - jump === target) {
-            return false
-          }
-        }
-        break
-      }
-      case OP_FOR_LOOP: {
-        if (i >= target) {
-          const jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 - jump === target) {
-            return false
-          }
-        }
-        break
-      }
-    }
-  }
-  return true
-}
-
-function rewrite(important, instructions, lines, count, start, shift) {
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    const i = view.index
-    const instruction = view.instruction
-    switch (instruction) {
-      case OP_JUMP:
-      case OP_JUMP_IF_FALSE:
-      case OP_JUMP_IF_TRUE:
-      case OP_JUMP_IF_EQUAL:
-      case OP_JUMP_IF_NOT_EQUAL:
-      case OP_JUMP_IF_LESS:
-      case OP_JUMP_IF_GREATER:
-      case OP_JUMP_IF_LESS_EQUAL:
-      case OP_JUMP_IF_GREATER_EQUAL: {
-        if (i < start) {
-          let jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 + jump > start) {
-            jump -= shift
-            instructions[i + 1] = (jump >> 8) & UINT8_MAX
-            instructions[i + 2] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-      case OP_FOR: {
-        if (i < start) {
-          let jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 + jump > start) {
-            jump -= shift
-            instructions[i + 2] = (jump >> 8) & UINT8_MAX
-            instructions[i + 3] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-      case OP_LOOP: {
-        if (i >= start) {
-          let jump = (instructions[i + 1] << 8) | instructions[i + 2]
-          if (i + 3 - jump < start) {
-            jump -= shift
-            instructions[i + 1] = (jump >> 8) & UINT8_MAX
-            instructions[i + 2] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-      case OP_FOR_LOOP: {
-        if (i >= start) {
-          let jump = (instructions[i + 2] << 8) | instructions[i + 3]
-          if (i + 3 - jump < start) {
-            jump -= shift
-            instructions[i + 2] = (jump >> 8) & UINT8_MAX
-            instructions[i + 3] = jump & UINT8_MAX
-          }
-        }
-        break
-      }
-    }
-    if (i >= start) {
-      view.index = i - shift
-    }
-  }
-  count -= shift
-  for (let c = start; c < count; c++) {
-    const n = c + shift
-    instructions[c] = instructions[n]
-    lines[c] = lines[n]
-  }
-  return shift
-}
-
-function update(important, instructions, i, instruction) {
-  instructions[i] = instruction
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    if (i === view.index) {
-      view.instruction = instruction
-      return
-    }
-  }
-  throw 'Optimization failed to find instruction to update.'
-}
-
-function deleter(important, i) {
-  for (let t = 0; t < important.length; t++) {
-    const view = important[t]
-    if (i === view.index) {
-      important.splice(t, 1)
-      return
-    }
-  }
-  throw 'Optimization failed to find instruction to delete.'
-}
-
-function interest(instructions, count) {
-  const important = []
-  let i = 0
-  while (i < count) {
-    const instruction = instructions[i]
-    switch (instruction) {
-      case OP_JUMP:
-      case OP_JUMP_IF_FALSE:
-      case OP_JUMP_IF_TRUE:
-      case OP_JUMP_IF_EQUAL:
-      case OP_JUMP_IF_NOT_EQUAL:
-      case OP_JUMP_IF_LESS:
-      case OP_JUMP_IF_GREATER:
-      case OP_JUMP_IF_LESS_EQUAL:
-      case OP_JUMP_IF_GREATER_EQUAL:
-      case OP_FOR:
-      case OP_LOOP:
-      case OP_FOR_LOOP: {
-        important.push(new Instruction(i, instruction))
-        break
-      }
-    }
-    i += next(instruction)
-  }
-  return important
-}
-
-function optimize(C) {
-  const code = current(C)
-  const instructions = code.instructions
-  const lines = code.lines
-  let count = code.count
-  const important = interest(instructions, count)
-  let one = 0
-  while (one < count) {
-    const first = instructions[one]
-    const two = one + next(first)
-    if (two >= count) break
-    const second = instructions[two]
-
-    if (!adjustable(important, instructions, count, one) || !adjustable(important, instructions, count, two)) {
-      one = two
-      continue
-    }
-
-    switch (first) {
-      case OP_CALL: {
-        if (second === OP_RETURN) {
-          instructions[one] = OP_TAIL_CALL
-          continue
-        }
-        break
-      }
-      case OP_POP: {
-        if (second === OP_POP) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          instructions[one] = OP_POP_TWO
-          continue
-        }
-        break
-      }
-      case OP_POP_TWO: {
-        if (second === OP_POP) {
-          instructions[one] = OP_POP_N
-          instructions[one + 1] = 3
-          continue
-        }
-        break
-      }
-      case OP_POP_N: {
-        if (second === OP_POP) {
-          const pop = instructions[one + 1]
-          if (pop < UINT8_MAX - 1) {
-            count -= rewrite(important, instructions, lines, count, one + 1, 1)
-            instructions[one + 1] = pop + 1
-            continue
-          }
-        }
-        break
-      }
-      case OP_GET_LOCAL: {
-        if (second === OP_GET_LOCAL) {
-          instructions[one] = OP_GET_TWO_LOCAL
-          count -= rewrite(important, instructions, lines, count, one + 2, 1)
-          continue
-        } else if (second === OP_CONSTANT) {
-          const three = two + next(second)
-          const third = three < count ? instructions[three] : UINT8_MAX
-          if (third === OP_ADD) {
-            const value = code.constants[code.instructions[two + 1]]
-            if (isInt(value)) {
-              const add = value.value
-              if (add >= 0 && add <= UINT8_MAX) {
-                const local = code.instructions[one + 1]
-                count -= rewrite(important, instructions, lines, count, one, 2)
-                instructions[one] = OP_INCREMENT_LOCAL
-                instructions[one + 1] = local
-                instructions[one + 2] = add
-                continue
-              }
-            }
-          }
-        }
-        break
-      }
-      case OP_GET_TWO_LOCAL: {
-        if (second === OP_ADD) {
-          instructions[one] = OP_ADD_TWO_LOCAL
-          count -= rewrite(important, instructions, lines, count, one + 3, 1)
-          continue
-        }
-        break
-      }
-      case OP_INCREMENT_LOCAL: {
-        if (second === OP_SET_LOCAL) {
-          if (instructions[one + 1] === instructions[one + 4]) {
-            instructions[one] = OP_INCREMENT_LOCAL_AND_SET
-            count -= rewrite(important, instructions, lines, count, one + 3, 2)
-            continue
-          }
-        }
-        break
-      }
-      case OP_INCREMENT_LOCAL_AND_SET: {
-        if (second === OP_POP) {
-          count -= rewrite(important, instructions, lines, count, one + 3, 1)
-          continue
-        }
-        break
-      }
-      case OP_CONSTANT: {
-        if (second === OP_NEGATE) {
-          const value = copyValue(code.constants[instructions[one + 1]])
-          if (isInt(value) || isFloat(value)) {
-            value.value = -value.value
-          }
-          const constant = byteCodeNewConstant(C, value)
-          instructions[one + 1] = constant
-          count -= rewrite(important, instructions, lines, count, one + 2, 1)
-          continue
-        } else if (second === OP_ADD) {
-          const value = code.constants[code.instructions[one + 1]]
-          if (isInt(value)) {
-            const add = value.value
-            if (add >= 0 && add <= UINT8_MAX) {
-              instructions[one] = OP_INCREMENT
-              instructions[one + 1] = add
-              count -= rewrite(important, instructions, lines, count, one + 2, 1)
-              continue
-            }
-          }
-        }
-        break
-      }
-      case OP_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_NOT_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_NOT_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_NOT_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_LESS: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_GREATER: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS_EQUAL)
-          continue
-        }
-        break
-      }
-      case OP_LESS_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER)
-          continue
-        }
-        break
-      }
-      case OP_GREATER_EQUAL: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_GREATER_EQUAL)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_LESS)
-          continue
-        }
-        break
-      }
-      case OP_TRUE: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          deleter(important, two)
-          count -= rewrite(important, instructions, lines, count, one, 4)
-          continue
-        }
-        break
-      }
-      case OP_FALSE: {
-        if (second === OP_JUMP_IF_TRUE) {
-          deleter(important, two)
-          count -= rewrite(important, instructions, lines, count, one, 4)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP)
-          continue
-        }
-        break
-      }
-      case OP_NOT: {
-        if (second === OP_JUMP_IF_TRUE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_FALSE)
-          continue
-        } else if (second === OP_JUMP_IF_FALSE) {
-          count -= rewrite(important, instructions, lines, count, one, 1)
-          update(important, instructions, one, OP_JUMP_IF_TRUE)
-          continue
-        }
-        break
-      }
-    }
-
-    one = two
-  }
-
-  code.count = count
-}
-
 function endFunction(C) {
   emitShort(C, OP_NONE, OP_RETURN)
-  optimize(C)
   const func = C.scope.func
   C.scope = C.scope.enclosing
   return func
@@ -2608,17 +2141,20 @@ function compileFunction(C, type) {
       }
       const parameter = variable(C, 'Expected parameter name.')
       finalizeVariable(C, parameter)
+      typeDeclaration(C)
     } while (match(C, TOKEN_COMMA))
   }
 
-  consume(C, TOKEN_RIGHT_PAREN, "Expected ')' after function parameters.")
+  consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters")
+  typeDeclaration(C)
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' after function parameters")
 
-  while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
 
   endScope(C)
-  consume(C, TOKEN_END, "missing 'end' after function body")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after function body")
 
   const func = endFunction(C)
   emitConstant(C, newFuncValue(func))
@@ -2647,7 +2183,7 @@ function declaration(C) {
 
 function block(C) {
   beginScope(C)
-  while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
@@ -2659,16 +2195,16 @@ function ifStatement(C) {
 
   freeJumpOrList(C)
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in if statement")
   beginScope(C)
-  while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
-  if (check(C, TOKEN_END)) {
-    patchJump(C, jump)
-    freeJumpAndList(C)
-  } else {
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after if statement")
+
+  if (check(C, TOKEN_ELIF) || check(C, TOKEN_ELSE)) {
     const jumpEnd = new JumpList()
     jumpEnd.jump = emitJump(C, OP_JUMP)
     let tail = jumpEnd
@@ -2682,11 +2218,13 @@ function ifStatement(C) {
 
       freeJumpOrList(C)
 
+      consume(C, TOKEN_LEFT_CURLY, "missing '{' in elif statement")
       beginScope(C)
-      while (!check(C, TOKEN_ELIF) && !check(C, TOKEN_ELSE) && !check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+      while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C)
       }
       endScope(C)
+      consume(C, TOKEN_RIGHT_CURLY, "missing '}' after elif statement")
 
       const next = new JumpList()
       next.jump = emitJump(C, OP_JUMP)
@@ -2699,21 +2237,24 @@ function ifStatement(C) {
     freeJumpAndList(C)
 
     if (match(C, TOKEN_ELSE)) {
+      consume(C, TOKEN_LEFT_CURLY, "missing '{' in else statement")
       block(C)
+      consume(C, TOKEN_RIGHT_CURLY, "missing '}' after else statement")
     }
 
     patchJump(C, jumpEnd.jump)
     freeJumps(C, jumpEnd.next)
+  } else {
+    patchJump(C, jump)
+    freeJumpAndList(C)
   }
-
-  consume(C, TOKEN_END, "Expected 'end' after if statement.")
 }
 
 function emitLoop(C, start) {
   emit(C, OP_LOOP)
   const offset = current(C).count - start + 2
   if (offset > UINT16_MAX) {
-    compileError(C, C.previous, 'Loop is too large.')
+    compileError(C, C.previous, 'loop is too large.')
   }
   emitShort(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
 }
@@ -2782,6 +2323,7 @@ function iteratorStatement(C, pair) {
 
   // BODY
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop")
   block(C)
 
   // LOOP
@@ -2790,7 +2332,7 @@ function iteratorStatement(C, pair) {
   emitShort(C, OP_FOR_LOOP, object)
   const offset = current(C).count - start + 2
   if (offset > UINT16_MAX) {
-    compileError(C, C.previous, 'Loop is too large')
+    compileError(C, C.previous, 'loop is too large')
   }
   emitShort(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX)
 
@@ -2803,7 +2345,7 @@ function iteratorStatement(C, pair) {
 
   endScope(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after for loop.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop")
 }
 
 function forStatement(C) {
@@ -2846,7 +2388,7 @@ function forStatement(C) {
   C.loop = loop
 
   if (match(C, TOKEN_COMMA)) {
-    expression(C)
+    expressionStatement(C)
   } else {
     emitWord(C, OP_INCREMENT_LOCAL_AND_SET, index, 1)
   }
@@ -2864,6 +2406,7 @@ function forStatement(C) {
 
   // BODY
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop")
   block(C)
 
   // INCREMENT
@@ -2888,7 +2431,7 @@ function forStatement(C) {
 
   endScope(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after for loop.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop")
 }
 
 function whileStatement(C) {
@@ -2901,6 +2444,7 @@ function whileStatement(C) {
 
   const jump = emitJump(C, OP_JUMP_IF_FALSE)
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in while loop")
   block(C)
   emitLoop(C, start)
 
@@ -2909,14 +2453,14 @@ function whileStatement(C) {
   patchJump(C, jump)
   patchJumpList(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after while loop.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after while loop")
 }
 
 function returnStatement(C) {
-  if (C.scope.type === TYPE_SCRIPT) {
-    compileError(C, C.previous, "Can't return from outside a function.")
+  if (C.scope.type !== TYPE_FUNCTION) {
+    compileError(C, C.previous, 'return statement outside function')
   }
-  if (check(C, TOKEN_END)) {
+  if (check(C, TOKEN_RIGHT_CURLY)) {
     emit(C, OP_NONE)
   } else {
     expression(C)
@@ -2937,7 +2481,7 @@ function popStackLoop(C) {
 
 function breakStatement(C) {
   if (C.loop === null) {
-    compileError(C, C.previous, "Can't use 'break' outside of a loop.")
+    compileError(C, C.previous, 'break outside of loop')
   }
   popStackLoop(C)
   const jumpNext = C.jump
@@ -2950,7 +2494,7 @@ function breakStatement(C) {
 
 function continueStatement(C) {
   if (C.loop === null) {
-    compileError(C, C.previous, "Can't use 'continue' outside of a loop.")
+    compileError(C, C.previous, 'continue outside of loop')
   }
   popStackLoop(C)
   if (C.loop.isFor) {
@@ -2970,31 +2514,34 @@ function tryStatement(C) {
   except.stack = C.scope.localCount
   except.start = current(C).count
 
-  const func = currentFunc(C)
+  const func = C.scope.func
   except.next = func.except
   func.except = except
 
+  consume(C, TOKEN_LEFT_CURLY, "missing '{' in try statement")
   beginScope(C)
-  while (!check(C, TOKEN_EXCEPT) && !check(C, TOKEN_EOF)) {
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
   const jump = emitJump(C, OP_JUMP)
 
-  consume(C, TOKEN_EXCEPT, "Expected 'except' after 'try'.")
+  consume(C, TOKEN_RIGHT_CURLY, "try statement missing '}' before 'except'")
+  consume(C, TOKEN_EXCEPT, "try statement is missing 'except'")
 
   except.end = current(C).count
 
   beginScope(C)
-  const message = variable(C, "Expected variable after 'except'.")
+  const message = variable(C, "try statement missing variable after 'except'")
   finalizeVariable(C, message)
-  while (!check(C, TOKEN_END) && !check(C, TOKEN_EOF)) {
+  consume(C, TOKEN_LEFT_CURLY, "try statement missing '{' after except variable")
+  while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     declaration(C)
   }
   endScope(C)
 
-  consume(C, TOKEN_END, "Expected 'end' after 'except'.")
+  consume(C, TOKEN_RIGHT_CURLY, "missing '}' after try statement")
 
   patchJump(C, jump)
 }
@@ -3046,9 +2593,9 @@ function statement(C) {
     tryStatement(C)
   } else if (match(C, TOKEN_THROW)) {
     throwStatement(C)
-  } else if (match(C, TOKEN_BEGIN)) {
+  } else if (match(C, TOKEN_LEFT_CURLY)) {
     block(C)
-    consume(C, TOKEN_END, "Expected 'end' after block.")
+    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after block scope")
   } else {
     expressionStatement(C)
   }
@@ -3276,7 +2823,7 @@ function valueToStringRecursive(value, set, quote) {
         }
         const key = keys[i]
         const item = tableGet(table, key)
-        print += key + ': ' + valueToStringRecursive(item, set, true)
+        print += '"' + key + '": ' + valueToStringRecursive(item, set, true)
       }
       print += ' }'
       return print
@@ -3452,7 +2999,7 @@ function hymnCallValue(H, value, count) {
     }
     default: {
       const is = valueName(value.is)
-      return hymnThrowError(H, 'Call: Requires `Function`, but was `' + is + '`.')
+      return hymnThrowError(H, `not a function: ${is}`)
     }
   }
 }
@@ -3675,8 +3222,6 @@ function disassembleInstruction(debug, code, index) {
   switch (instruction) {
     case OP_ADD:
       return debugInstruction(debug, 'OP_ADD', index)
-    case OP_ADD_TWO_LOCAL:
-      return debugThreeByteInstruction(debug, 'OP_ADD_TWO_LOCAL', code, index)
     case OP_ARRAY_INSERT:
       return debugInstruction(debug, 'OP_ARRAY_INSERT', index)
     case OP_ARRAY_POP:
@@ -3716,7 +3261,7 @@ function disassembleInstruction(debug, code, index) {
     case OP_ECHO:
       return debugInstruction(debug, 'OP_ECHO', index)
     case OP_EXISTS:
-      return debugConstantInstruction(debug, 'OP_EXISTS', code, index)
+      return debugInstruction(debug, 'OP_EXISTS', index)
     case OP_FALSE:
       return debugInstruction(debug, 'OP_FALSE', index)
     case OP_FOR:
@@ -3731,16 +3276,12 @@ function disassembleInstruction(debug, code, index) {
       return debugByteInstruction(debug, 'OP_GET_LOCAL', code, index)
     case OP_GET_PROPERTY:
       return debugConstantInstruction(debug, 'OP_GET_PROPERTY', code, index)
-    case OP_GET_TWO_LOCAL:
-      return debugThreeByteInstruction(debug, 'OP_GET_TWO_LOCAL', code, index)
     case OP_GREATER:
       return debugInstruction(debug, 'OP_GREATER', index)
     case OP_GREATER_EQUAL:
       return debugInstruction(debug, 'OP_GREATER_EQUAL', index)
     case OP_INCREMENT:
       return debugByteInstruction(debug, 'OP_INCREMENT', code, index)
-    case OP_INCREMENT_LOCAL:
-      return debugThreeByteInstruction(debug, 'OP_INCREMENT_LOCAL', code, index)
     case OP_INCREMENT_LOCAL_AND_SET:
       return debugThreeByteInstruction(debug, 'OP_INCREMENT_LOCAL_AND_SET', code, index)
     case OP_INDEX:
@@ -3787,12 +3328,8 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_NOT_EQUAL', index)
     case OP_POP:
       return debugInstruction(debug, 'OP_POP', index)
-    case OP_POP_N:
-      return debugByteInstruction(debug, 'OP_POP_N', code, index)
-    case OP_POP_TWO:
-      return debugInstruction(debug, 'OP_POP_TWO', index)
     case OP_PRINT:
-      return debugConstantInstruction(debug, 'OP_PRINT', code, index)
+      return debugInstruction(debug, 'OP_PRINT', index)
     case OP_RETURN:
       return debugInstruction(debug, 'OP_RETURN', index)
     case OP_SET_DYNAMIC:
@@ -3807,8 +3344,6 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_SLICE', index)
     case OP_SUBTRACT:
       return debugInstruction(debug, 'OP_SUBTRACT', index)
-    case OP_TAIL_CALL:
-      return debugByteInstruction(debug, 'OP_TAIL_CALL', code, index)
     case OP_THROW:
       return debugInstruction(debug, 'OP_THROW', index)
     case OP_FLOAT:
@@ -3877,17 +3412,6 @@ async function hymnRun(H) {
       case OP_POP:
         hymnPop(H)
         break
-      case OP_POP_TWO:
-        hymnPop(H)
-        hymnPop(H)
-        break
-      case OP_POP_N: {
-        let count = readByte(frame)
-        while (count--) {
-          hymnPop(H)
-        }
-        break
-      }
       case OP_TRUE:
         hymnPush(H, newBool(true))
         break
@@ -3898,14 +3422,6 @@ async function hymnRun(H) {
         hymnPush(H, newNone())
         break
       case OP_CALL: {
-        const count = readByte(frame)
-        const call = hymnPeek(H, count + 1)
-        frame = hymnCallValue(H, call, count)
-        if (frame === null) return
-        break
-      }
-      case OP_TAIL_CALL: {
-        // TODO
         const count = readByte(frame)
         const call = hymnPeek(H, count + 1)
         frame = hymnCallValue(H, call, count)
@@ -4057,7 +3573,8 @@ async function hymnRun(H) {
         } else {
           H.stack[frame.stack + slot + 1] = newNone()
           H.stack[frame.stack + slot + 2] = newNone()
-          frame = hymnThrowError(H, 'Loop: Expected table or array')
+          const is = valueName(object.is)
+          frame = hymnThrowError(H, `for loop requires an array or table but was: ${is}`)
           if (frame === null) return
           else break
         }
@@ -4158,62 +3675,6 @@ async function hymnRun(H) {
       case OP_ADD: {
         const b = hymnPop(H)
         const a = hymnPop(H)
-        if (isNone(a)) {
-          if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isBool(a)) {
-          if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isInt(a)) {
-          if (isInt(b)) {
-            a.value += b.value
-            hymnPush(H, a)
-          } else if (isFloat(b)) {
-            b.value += a.value
-            hymnPush(H, a)
-          } else if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isFloat(a)) {
-          if (isInt(b)) {
-            a.value += b.value
-            hymnPush(H, a)
-          } else if (isFloat(b)) {
-            a.value += b.value
-            hymnPush(H, a)
-          } else if (isString(b)) {
-            hymnPush(H, hymnConcat(a, b))
-          } else {
-            frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-            if (frame === null) return
-            else break
-          }
-        } else if (isString(a)) {
-          hymnPush(H, hymnConcat(a, b))
-        } else {
-          frame = hymnThrowError(H, "Add: 1st and 2nd values can't be added.")
-          if (frame === null) return
-          else break
-        }
-        break
-      }
-      case OP_ADD_TWO_LOCAL: {
-        const a = copyValue(H.stack[frame.stack + readByte(frame)])
-        const b = copyValue(H.stack[frame.stack + readByte(frame)])
         if (isNone(a)) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
@@ -4566,6 +4027,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const previous = tablePut(H.globals, name, value)
         if (previous !== null) {
+          tablePut(H.globals, name, previous)
           frame = hymnThrowError(H, `multiple global definitions of '${name}'`)
           if (frame === null) return
           else break
@@ -4603,29 +4065,6 @@ async function hymnRun(H) {
       case OP_GET_LOCAL: {
         const slot = readByte(frame)
         const value = H.stack[frame.stack + slot]
-        hymnPush(H, value)
-        break
-      }
-      case OP_GET_TWO_LOCAL: {
-        const slotA = readByte(frame)
-        const slotB = readByte(frame)
-        const valueA = H.stack[frame.stack + slotA]
-        const valueB = H.stack[frame.stack + slotB]
-        hymnPush(H, valueA)
-        hymnPush(H, valueB)
-        break
-      }
-      case OP_INCREMENT_LOCAL: {
-        const slot = readByte(frame)
-        const increment = readByte(frame)
-        const value = copyValue(H.stack[frame.stack + slot])
-        if (isInt(value) || isFloat(value)) {
-          value.value += increment
-        } else {
-          frame = hymnThrowError(H, 'Increment Local: Expected `Number` but was `' + valueName(value.is) + '`')
-          if (frame === null) return
-          else break
-        }
         hymnPush(H, value)
         break
       }
@@ -5298,6 +4737,7 @@ async function debugScript(H, script, source) {
   disassembleByteCode(func.code, script)
 
   const constants = func.code.constants
+
   for (let i = 0; i < constants.length; i++) {
     const constant = constants[i]
     if (isFunc(constant)) {
@@ -5305,6 +4745,8 @@ async function debugScript(H, script, source) {
       disassembleByteCode(value.code, value.name)
     }
   }
+
+  hymnResetStack(H)
 
   return null
 }

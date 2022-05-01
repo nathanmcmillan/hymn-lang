@@ -1,0 +1,10 @@
+# 45
+# 123
+
+let x: int = 45
+echo x
+
+{
+  let z: int = 123
+  echo z
+}

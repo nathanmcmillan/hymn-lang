@@ -1,13 +1,13 @@
--- 1
--- done
+# 1
+# done
 
-function process()
-  for v in [1, 2, 3]
-    if v == 2 return end
+function process() {
+  for v in [1, 2, 3] {
+    if v == 2 { return }
     echo v
-  end
+  }
   echo "bad"
-end
+}
 
 process()
 echo "done"

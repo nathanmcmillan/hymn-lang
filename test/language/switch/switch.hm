@@ -1,40 +1,40 @@
--- first
--- second
--- or
--- else
+# first
+# second
+# or
+# else
 
 let x = 3
 
-if x == 3
+if x == 3 {
   echo "first"
-elif x == 5
+} elif x == 5 {
   echo "bad"
-else
+} else {
   echo "bad"
-end
+}
 
-if x == 5
+if x == 5 {
   echo "bad"
-elif x == 3
+} elif x == 3 {
   echo "second"
-else
+} else {
   echo "bad"
-end
+}
 
-if x == none
+if x == none {
   echo "bad"
-elif x == true
+} elif x == true {
   echo "bad"
-elif x == 2 or x == 3 or x == 4
+} elif x == 2 or x == 3 or x == 4 {
   echo "or"
-else
+} else {
   echo "bad"
-end
+}
 
-if x == 4
+if x == 4 {
   echo "bad"
-elif x == 5
+} elif x == 5 {
   echo "bad"
-else
+} else {
   echo "else"
-end
+}

@@ -1,5 +1,5 @@
--- foobar
+# foobar
 
-try use "nope" except _ end
+try { use "nope" } except _ { }
 
 echo "foobar"
