@@ -1,10 +1,14 @@
-# Release 0.6.0
+# Release 0.6.2
 
 - ?
 
-# Release 0.5.0
+# Release 0.5.1
 
-- ?
+- New optimized OP code `OP_GET_GLOBAL_PROPERTY` for global variables
+- New typedefs `HymnInt` and `HymnFloat`
+- Cleaned up error messages
+- Refactored function names and exposed more as public
+- Significantly expanded standard library
 
 # Release 0.4.0
 
