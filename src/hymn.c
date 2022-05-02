@@ -6004,6 +6004,7 @@ dispatch:
             hymn_reference_string(name);
         } else {
             table_put(&H->globals, name, previous);
+            hymn_dereference(H, value);
             THROW("multiple global definitions of '%s'", name->string)
         }
         HYMN_DISPATCH;
@@ -7088,6 +7089,16 @@ void hymn_delete(Hymn *H) {
 
     hymn_string_delete(H->error);
 
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    HymnLibList *lib = H->libraries;
+    while (lib != NULL) {
+        hymn_close_dlib(lib->lib);
+        HymnLibList *next = lib->next;
+        free(lib);
+        lib = next;
+    }
+#endif
+
     free(H);
 }
 
@@ -7252,7 +7263,7 @@ char *hymn_read(Hymn *H, const char *script) {
     return error;
 }
 
-#ifdef HYMN_REPL
+#ifndef HYMN_NO_REPL
 
 #include <ctype.h>
 
@@ -7798,4 +7809,75 @@ void hymn_server(Hymn *H) {
 
     hymn_string_delete(input);
 }
+#endif
+
+#ifndef HYMN_NO_DYNAMIC_LIBS
+
+void hymn_add_dlib(Hymn *H, void *library) {
+    HymnLibList *tail = H->libraries;
+    HymnLibList *head = hymn_calloc(1, sizeof(HymnLibList));
+    head->lib = library;
+    head->next = tail;
+    H->libraries = head;
+}
+
+#ifdef _MSC_VER
+typedef void (*HymnDynamicLib)(Hymn *H);
+
+void hymn_close_dlib(void *library) {
+    FreeLibrary(library);
+}
+
+HymnString *hymn_use_dlib(Hymn *H, const char *path, const char *func) {
+    HINSTANCE lib = LoadLibrary(path);
+    if (lib != NULL) {
+        HymnDynamicLib proc = (HymnDynamicLib)GetProcAddress(lib, func);
+        if (proc != NULL) {
+            proc(H);
+            hymn_add_dlib(H, lib);
+            return NULL;
+        }
+    }
+
+    HymnString *message = NULL;
+    int error = GetLastError();
+    char buffer[128];
+    if (FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, buffer, sizeof(buffer), 0)) {
+        message = hymn_new_string(buffer);
+    } else {
+        message = hymn_string_format("windows error: %d\n", error);
+    }
+    if (lib != NULL) {
+        hymn_close_dlib(lib);
+    }
+    return message;
+}
+
+#else
+#include <dlfcn.h>
+
+void hymn_close_dlib(void *library) {
+    dlclose(library);
+}
+
+HymnString *hymn_use_dlib(Hymn *H, const char *path, const char *func) {
+    void *lib = dlopen(path, RTLD_NOW);
+    if (lib != NULL) {
+        void *(*proc)(Hymn *);
+        *(void **)(&proc) = dlsym(lib, func);
+        if (proc != NULL) {
+            proc(H);
+            hymn_add_dlib(H, lib);
+            return NULL;
+        }
+    }
+
+    HymnString *message = hymn_new_string(dlerror());
+    if (lib != NULL) {
+        hymn_close_dlib(lib);
+    }
+    return message;
+}
+#endif
+
 #endif

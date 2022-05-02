@@ -21,7 +21,8 @@
 
 #define HYMN_VERSION "0.6.2"
 
-#define HYMN_REPL
+// #define HYMN_NO_REPL
+// #define HYMN_NO_DYNAMIC_LIBS
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
@@ -43,7 +44,11 @@
 #define HYMN_DLIB_EXTENSION ".dll"
 #define UNREACHABLE() __assume(0)
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#ifdef HYMN_NO_DYNAMIC_LIBS
+#define export
+#else
 #define export __declspec(dllexport)
+#endif
 #else
 #include <dirent.h>
 #ifdef __APPLE__
@@ -215,6 +220,15 @@ struct HymnFrame {
     HymnValue *stack;
 };
 
+#ifndef HYMN_NO_DYNAMIC_LIBS
+typedef struct HymnLibList HymnLibList;
+
+struct HymnLibList {
+    void *lib;
+    HymnLibList *next;
+};
+#endif
+
 struct Hymn {
     HymnValue stack[HYMN_STACK_MAX];
     HymnValue *stack_top;
@@ -225,6 +239,9 @@ struct Hymn {
     HymnArray *paths;
     HymnTable *imports;
     HymnString *error;
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    HymnLibList *libraries;
+#endif
     void (*print)(const char *format, ...);
     void (*print_error)(const char *format, ...);
 };
@@ -345,9 +362,15 @@ void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);
 
-#ifdef HYMN_REPL
+#ifndef HYMN_NO_REPL
 void hymn_repl(Hymn *H);
 void hymn_server(Hymn *H);
+#endif
+
+#ifndef HYMN_NO_DYNAMIC_LIBS
+void hymn_add_dlib(Hymn *H, void *library);
+void hymn_close_dlib(void *library);
+HymnString *hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
 #endif
 
 #endif

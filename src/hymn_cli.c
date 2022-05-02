@@ -107,11 +107,16 @@ int main(int argc, char **argv) {
         }
     }
 
+#ifdef HYMN_NO_REPL
+    (void)mode;
+    fprintf(stderr, "interactive mode not available\n");
+#else
     if (mode == 2) {
         hymn_server(hymn);
     } else if (mode == 1 || (file == NULL && code == NULL)) {
         hymn_repl(hymn);
     }
+#endif
 
     hymn_delete(hymn);
 

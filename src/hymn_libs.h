@@ -8,7 +8,6 @@
 #include "hymn.h"
 
 // #define HYMN_NO_LIBS
-// #define HYMN_NO_DYNAMIC_LIBS
 
 void hymn_use_os(Hymn *hymn);
 void hymn_use_io(Hymn *hymn);
@@ -31,10 +30,6 @@ void hymn_use_pattern(Hymn *hymn);
     hymn_use_json(hymn);    \
     hymn_use_string(hymn);  \
     hymn_use_pattern(hymn)
-#endif
-
-#ifndef HYMN_NO_DYNAMIC_LIBS
-HymnString *hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
 #endif
 
 #endif
