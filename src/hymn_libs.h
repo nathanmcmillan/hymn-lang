@@ -34,7 +34,7 @@ void hymn_use_pattern(Hymn *hymn);
 #endif
 
 #ifndef HYMN_NO_DYNAMIC_LIBS
-HymnValue hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
+HymnString *hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
 #endif
 
 #endif

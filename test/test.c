@@ -180,17 +180,18 @@ end:
 static void test_dynamic_library() {
 #ifndef HYMN_NO_DYNAMIC_LIBS
     tests_count++;
-    printf("dynamic library\n");
+    printf("dlib\n");
     Hymn *hymn = new_hymn();
     hymn->print = console;
     hymn_string_zero(out);
 
-    HymnValue result = hymn_use_dlib(hymn, "test" PATH_SEP_STRING "dlib.so", "hymn_use_test_dlib");
+    HymnString *result = hymn_use_dlib(hymn, "test" PATH_SEP_STRING "dlib" HYMN_DLIB_EXTENSION, "hymn_use_test_dlib");
 
-    if (result.is == HYMN_VALUE_STRING) {
-        HymnString *string = hymn_value_to_string(result);
-        fprintf(stderr, "error: %s\n", string);
-        hymn_string_delete(string);
+    if (result != NULL) {
+        fprintf(stderr, "error: %s\n", result);
+        hymn_string_delete(result);
+        tests_fail++;
+        goto end;
     }
 
     char *error = NULL;
@@ -251,7 +252,7 @@ static void test_hymn(const char *filter) {
         test_api();
     }
 
-    if (filter == NULL || hymn_string_equal(filter, "dl")) {
+    if (filter == NULL || hymn_string_equal(filter, "dlib")) {
         test_dynamic_library();
     }
 

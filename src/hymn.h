@@ -23,6 +23,14 @@
 
 #define HYMN_REPL
 
+// #define HYMN_DEBUG_TRACE
+// #define HYMN_DEBUG_STACK
+// #define HYMN_DEBUG_MEMORY
+
+#define HYMN_NO_OPTIMIZE
+#define HYMN_NO_REGISTERS
+// #define HYMN_NO_MEMORY_MANAGE
+
 #ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
@@ -32,8 +40,10 @@
 #define PATH_SEP_STRING "\\"
 #define PATH_SEP_OTHER '/'
 #define PATH_SEP_OTHER_STRING "/"
+#define HYMN_DLIB_EXTENSION ".dll"
 #define UNREACHABLE() __assume(0)
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#define export __declspec(dllexport)
 #else
 #include <dirent.h>
 #ifdef __APPLE__
@@ -46,8 +56,10 @@
 #define PATH_SEP_STRING "/"
 #define PATH_SEP_OTHER '\\'
 #define PATH_SEP_OTHER_STRING "\\"
+#define HYMN_DLIB_EXTENSION ".so"
 #define UNREACHABLE() __builtin_unreachable()
 #define PACK(expr) expr __attribute__((__packed__))
+#define export
 #endif
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
@@ -259,12 +271,12 @@ HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index);
 void hymn_array_clear(Hymn *H, HymnArray *this);
 void hymn_array_delete(Hymn *H, HymnArray *this);
 
-HymnTable *hymn_new_table();
+export HymnTable *hymn_new_table();
 
 HymnValue hymn_new_undefined();
 HymnValue hymn_new_none();
 HymnValue hymn_new_bool(bool v);
-HymnValue hymn_new_int(HymnInt v);
+export HymnValue hymn_new_int(HymnInt v);
 HymnValue hymn_new_float(HymnFloat v);
 HymnValue hymn_new_native(HymnNativeFunction *v);
 HymnValue hymn_new_pointer(void *v);
@@ -325,10 +337,10 @@ HymnValue hymn_get(Hymn *H, const char *name);
 
 void hymn_add(Hymn *H, const char *name, HymnValue value);
 void hymn_add_string(Hymn *H, const char *name, const char *string);
-void hymn_add_table(Hymn *H, const char *name, HymnTable *table);
+export void hymn_add_table(Hymn *H, const char *name, HymnTable *table);
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer);
 void hymn_add_string_to_table(Hymn *H, HymnTable *table, const char *name, const char *string);
-void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, HymnNativeCall func);
+export void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, HymnNativeCall func);
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);

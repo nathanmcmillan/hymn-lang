@@ -4,14 +4,6 @@
 
 #include "hymn.h"
 
-// #define HYMN_DEBUG_TRACE
-// #define HYMN_DEBUG_STACK
-// #define HYMN_DEBUG_MEMORY
-
-// #define HYMN_NO_OPTIMIZE
-// #define HYMN_NO_REGISTERS
-// #define HYMN_NO_MEMORY_MANAGE
-
 void *hymn_malloc(size_t size) {
     void *mem = malloc(size);
     if (mem) {

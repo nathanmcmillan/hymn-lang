@@ -15,11 +15,12 @@ static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {
     if (count == 0) {
         return hymn_new_none();
     }
-    HymnValue string = arguments[0];
-    if (!hymn_is_string(string)) {
+
+    HymnValue argument = arguments[0];
+    if (!hymn_is_string(argument)) {
         return hymn_new_none();
     }
-    HymnString *input = hymn_as_string(string);
+    HymnString *input = hymn_as_string(argument);
 
     size_t i = 0;
     size_t len = hymn_string_len(input);
@@ -278,8 +279,8 @@ error:
     fprintf(stderr, "error with JSON\n");
     hymn_string_delete(key);
     hymn_reference(hymn_new_array_value(stack));
-    for (HymnInt i = 0; i < stack->length; i++) {
-        hymn_reference(stack->items[i]);
+    for (HymnInt s = 0; s < stack->length; s++) {
+        hymn_reference(stack->items[s]);
     }
     hymn_array_delete(H, stack);
     return hymn_new_none();

@@ -9,57 +9,51 @@
 #ifdef _MSC_VER
 #include <windows.h>
 
-HymnValue hymn_use_dlib(Hymn *H, const char *path, const char *func) {
+typedef void (*HymnDynamicLib)(Hymn *H);
+
+HymnString *hymn_use_dlib(Hymn *H, const char *path, const char *func) {
     HINSTANCE lib = LoadLibrary(path);
     if (lib != NULL) {
-        FARPROC proc = GetProcAddress(lib, func);
+        HymnDynamicLib proc = (HymnDynamicLib)GetProcAddress(lib, func);
         if (proc != NULL) {
-            // proc(H);
-            return hymn_new_none();
+            proc(H);
+            return NULL;
         }
     }
 
     HymnString *message = NULL;
-
     int error = GetLastError();
     char buffer[128];
-
     if (FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, buffer, sizeof(buffer), 0)) {
         message = hymn_new_string(buffer);
     } else {
         message = hymn_string_format("windows error: %d\n", error);
     }
-
     if (lib != NULL) {
         FreeLibrary(lib);
     }
-
-    HymnObjectString *object = hymn_intern_string(H, message);
-    return hymn_new_string_value(object);
+    return message;
 }
 
 #else
 #include <dlfcn.h>
 
-HymnValue hymn_use_dlib(Hymn *H, const char *path, const char *func) {
+HymnString *hymn_use_dlib(Hymn *H, const char *path, const char *func) {
     void *lib = dlopen(path, RTLD_NOW);
     if (lib != NULL) {
         void *(*proc)(Hymn *);
         *(void **)(&proc) = dlsym(lib, func);
         if (proc != NULL) {
             proc(H);
-            return hymn_new_none();
+            return NULL;
         }
     }
 
     HymnString *message = hymn_new_string(dlerror());
-
     if (lib != NULL) {
         dlclose(lib);
     }
-
-    HymnObjectString *object = hymn_intern_string(H, message);
-    return hymn_new_string_value(object);
+    return message;
 }
 
 #endif

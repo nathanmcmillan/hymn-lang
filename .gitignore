@@ -27,9 +27,10 @@ hymnfmt
 hymntest
 hymnbenchmark
 
-HYMN.exe
-HYMNFMT.exe
-HYMNTEST.exe
+*.exp
+*.lib
+*.dll
+*.exe
 
 *.o
 *.so

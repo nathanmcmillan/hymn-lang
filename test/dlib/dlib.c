@@ -11,7 +11,7 @@ static HymnValue fun(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_int(256);
 }
 
-void hymn_use_test_dlib(Hymn *H) {
+export void hymn_use_test_dlib(Hymn *H) {
     HymnTable *dlib = hymn_new_table();
     hymn_add_function_to_table(H, dlib, "fun", fun);
     hymn_add_table(H, "dlib", dlib);

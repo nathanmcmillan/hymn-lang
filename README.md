@@ -31,10 +31,10 @@ echo list
 # Why use Hymn
 
 1. You want reference counting memory management. Memory is released deterministically, as soon as possible. There are no random garbage collection pauses in Hymn.
-1. You feel programming paradigms like classes and interfaces add unnecessary complexity. Hymn only has string, array, and table objects.
+1. You feel programming paradigms like classes and interfaces add unnecessary complexity. Hymn only has strings, arrays, and tables.
 1. You don't need namespaces. The Hymn `use` statement imports all variables and functions globally.
-1. You're weary keeping up with ever evolving programming languages. Hymn is small and will stay small. There will not be significant changes to the core language and built-in functions.
-1. You want a scripting language where indices start at 0 and the not equals operator is `!=`
+1. You want a scripting language with C like conventions: Brackets indicate scope, indices start at 0, and the not equals operator is `!=`
+1. You're weary keeping up with evolving programming languages. Hymn is small and will stay small. There will not be significant changes to the core language and built-in functions.
 
 # Development
 
@@ -51,8 +51,9 @@ echo list
 
 ## To Do
 
+1. Fix and thoroughly test OP code optimizations
 1. Native functions need a way to throw exceptions
-1. Self referncing local functions
+1. Self referencing local functions
 1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
 1. Optimizations
    - Registers to avoid push / pop / references
@@ -67,6 +68,7 @@ echo list
 1. Refactor string related handling to reduce copying
    - HymnString and HymnObjectString are separate objects
    - Can HymnObjectString have it's own `char*`?
+1. Optimize string handling to skip interning for special cases
 1. Insert into table collision linked lists using sorted order, so subsequent operations can be quicker
 1. A failed malloc, calloc, realloc should return a compile or runtime error if possible
 
@@ -170,6 +172,13 @@ $ gcc -shared -lc -o dlib.so dlib.o
 
 ```
 > cl format/*.c /W4 /WX /wd4996 /link /out:HYMNFMT.exe
+```
+
+### Dynamic Library
+
+```
+> cl src/hymn.c /W4 /WX /wd4996 /LD
+> cl /LD /Isrc hymn.lib test\\dlib\\dlib.c
 ```
 
 ## Windows + Clang
