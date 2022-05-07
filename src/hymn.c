@@ -3039,6 +3039,12 @@ struct Optimizer {
     }                                                                                           \
     break;
 
+#define GET_JUMP(instructions, index, x, y) (uint16_t)((instructions[index + x] << 8) | instructions[index + y])
+
+#define UPDATE_JUMP(instructions, index, x, y, jump)   \
+    instructions[index + x] = (jump >> 8) & UINT8_MAX; \
+    instructions[index + y] = jump & UINT8_MAX;
+
 static bool adjustable(Optimizer *optimizer, int target) {
     Instruction *view = optimizer->important;
     uint8_t *instructions = optimizer->code->instructions;
@@ -3095,28 +3101,14 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
             if (i < start) {
-                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 + (int)jump;
-                if (destination >= start && destination <= start + shift) {
-                    jump -= (uint16_t)shift;
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
-                } else if (destination > start) {
-                    jump -= (uint16_t)shift;
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
-                }
-            }
-            break;
-        }
-        case OP_FOR: {
-            if (i < start) {
-                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                int destination = i + 4 + jump;
                 if (destination > start) {
                     jump -= (uint16_t)shift;
-                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 3] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 1, 2, jump)
+                } else if (destination >= start && destination <= start + shift) {
+                    jump -= (uint16_t)shift;
+                    UPDATE_JUMP(instructions, i, 1, 2, jump)
                 }
             }
             break;
@@ -3124,68 +3116,69 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case IR_JUMP_IF_GREATER:
         case IR_JUMP_IF_GREATER_EQUAL: {
             if (i < start) {
-                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
+                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
-                if (destination >= start && destination <= start + shift) {
-                    uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= (uint16_t)next(instruction);
-                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 4] = jump & UINT8_MAX;
-                } else if (destination > start) {
+                if (destination > start) {
                     jump -= (uint16_t)shift;
-                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 4] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 3, 4, jump)
+                } else if (destination >= start && destination <= start + shift) {
+                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
+                    UPDATE_JUMP(instructions, i, 3, 4, jump)
+                }
+            }
+            break;
+        }
+        case OP_FOR: {
+            if (i < start) {
+                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
+                int destination = i + 4 + jump;
+                if (destination > start) {
+                    jump -= (uint16_t)shift;
+                    UPDATE_JUMP(instructions, i, 2, 3, jump)
                 }
             }
             break;
         }
         case OP_LOOP: {
             if (i >= start) {
-                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 - jump;
-                if (destination >= start && destination <= start + shift) {
-                    uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= (uint16_t)(instruction);
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
-                } else if (destination < start) {
+                if (destination < start) {
                     jump -= (uint16_t)shift;
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 1, 2, jump)
+                } else if (destination >= start && destination <= start + shift) {
+                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
+                    UPDATE_JUMP(instructions, i, 1, 2, jump)
                 }
             }
             break;
         }
         case OP_FOR_LOOP: {
             if (i >= start) {
-                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 3 - jump;
-                if (destination >= start && destination <= start + shift) {
-                    uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= (uint16_t)(instruction);
-                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 3] = jump & UINT8_MAX;
-                } else if (destination < start) {
+                if (destination < start) {
                     jump -= (uint16_t)shift;
-                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 3] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 2, 3, jump)
+                } else if (destination >= start && destination <= start + shift) {
+                    jump -= (uint16_t)(optimizer->code->instructions[destination]);
+                    UPDATE_JUMP(instructions, i, 2, 3, jump)
                 }
             }
             break;
         }
         case OP_INCREMENT_LOOP: {
             if (i >= start) {
-                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
+                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 - jump;
-                if (destination >= start && destination <= start + shift) {
-                    uint8_t instruction = optimizer->code->instructions[destination];
-                    jump -= (uint16_t)(instruction);
-                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 4] = jump & UINT8_MAX;
-                } else if (destination < start) {
+                if (destination < start) {
                     jump -= (uint16_t)shift;
-                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 4] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 3, 4, jump)
+                    printf("+++ Z => %d\n", i + 5 - (int)jump);
+                } else if (destination >= start && destination <= start + shift) {
+                    assert(destination < 0);
+                    jump -= (uint16_t)(optimizer->code->instructions[destination]); // What? That looks wrong
+                    UPDATE_JUMP(instructions, i, 3, 4, jump)
                 }
             }
             break;
@@ -3226,28 +3219,15 @@ static void extend(Optimizer *optimizer, int start, int shift) {
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
             if (i + 2 < start) {
-                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 + jump;
-                if (destination >= start && destination <= start + shift) {
+                if (destination > start) {
+                    jump += (uint16_t)shift;
+                    UPDATE_JUMP(instructions, i, 1, 2, jump);
+                } else if (destination >= start && destination <= start + shift) {
                     // Not sure about this
                     jump += (uint16_t)shift;
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
-                } else if (destination > start) {
-                    jump += (uint16_t)shift;
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
-                }
-            }
-            break;
-        }
-        case OP_FOR: {
-            if (i + 3 < start) {
-                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
-                if (i + 3 + jump > start) {
-                    jump += (uint16_t)shift;
-                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 3] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 1, 2, jump);
                 }
             }
             break;
@@ -3255,44 +3235,55 @@ static void extend(Optimizer *optimizer, int start, int shift) {
         case IR_JUMP_IF_GREATER:
         case IR_JUMP_IF_GREATER_EQUAL: {
             if (i + 5 < start) {
-                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
-                if (i + 5 + jump > start) {
+                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
+                int destination = i + 5 + jump;
+                if (destination > start) {
                     jump += (uint16_t)shift;
-                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 4] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 3, 4, jump);
+                } else if (destination >= start && destination <= start + shift) {
+                    // Not sure about this
+                    jump += (uint16_t)shift;
+                    UPDATE_JUMP(instructions, i, 3, 4, jump);
+                }
+            }
+            break;
+        }
+        case OP_FOR: {
+            if (i + 3 < start) {
+                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
+                if (i + 3 + jump > start) {
+                    jump += (uint16_t)shift;
+                    UPDATE_JUMP(instructions, i, 2, 3, jump);
                 }
             }
             break;
         }
         case OP_LOOP: {
             if (i + 2 >= start) {
-                uint16_t jump = (uint16_t)((instructions[i + 1] << 8) | instructions[i + 2]);
+                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
                 if (i + 3 - jump < start) {
                     jump += (uint16_t)shift;
-                    instructions[i + 1] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 2] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 1, 2, jump);
                 }
             }
             break;
         }
         case OP_FOR_LOOP: {
             if (i + 3 >= start) {
-                uint16_t jump = (uint16_t)((instructions[i + 2] << 8) | instructions[i + 3]);
+                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
                 if (i + 3 - jump < start) {
                     jump += (uint16_t)shift;
-                    instructions[i + 2] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 3] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 2, 3, jump);
                 }
             }
             break;
         }
         case OP_INCREMENT_LOOP: {
             if (i + 5 >= start) {
-                uint16_t jump = (uint16_t)((instructions[i + 3] << 8) | instructions[i + 4]);
+                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 if (i + 5 - jump < start) {
                     jump += (uint16_t)shift;
-                    instructions[i + 3] = (jump >> 8) & UINT8_MAX;
-                    instructions[i + 4] = jump & UINT8_MAX;
+                    UPDATE_JUMP(instructions, i, 3, 4, jump);
                 }
             }
             break;
@@ -3317,12 +3308,12 @@ static void extend(Optimizer *optimizer, int start, int shift) {
 }
 
 static void update(Optimizer *optimizer, int index, uint8_t instruction) {
-    uint8_t *instructions = optimizer->code->instructions;
-    instructions[index] = instruction;
     Instruction *view = optimizer->important;
     while (view != NULL) {
         if (index == view->index) {
             view->instruction = instruction;
+            uint8_t *instructions = optimizer->code->instructions;
+            instructions[index] = instruction;
             return;
         }
         view = view->next;
@@ -3331,7 +3322,23 @@ static void update(Optimizer *optimizer, int index, uint8_t instruction) {
     exit(1);
 }
 
-static void deleter(Optimizer *optimizer, int index) {
+static void move(Optimizer *optimizer, int index, uint8_t instruction, int to) {
+    Instruction *view = optimizer->important;
+    while (view != NULL) {
+        if (index == view->index) {
+            view->instruction = instruction;
+            view->index = to;
+            uint8_t *instructions = optimizer->code->instructions;
+            instructions[to] = instruction;
+            return;
+        }
+        view = view->next;
+    }
+    fprintf(stderr, "optimization failed to find instruction to move.\n");
+    exit(1);
+}
+
+static void deletion(Optimizer *optimizer, int index) {
     Instruction *view = optimizer->important;
     Instruction *previous = NULL;
     while (view != NULL) {
@@ -3404,8 +3411,21 @@ static void optimize(Compiler *C) {
         return;
     }
 
+    // IF RETURNING A VALUE - NO NEED TO INCLUDE EXTRA NONE ON STACK
     // if [-3] == OP_RETURN && [-2] == OP_NONE && [-1] == OP_RETURN
-    //     REMOVE(-2, 2)
+    //     REMOVE [-2] and REMOVE [-1]
+    // int count = optimizer.code->count;
+    // if (count >= 3) {
+    //     uint8_t *instructions = optimizer.code->instructions;
+    //     if (instructions[count - 3] == OP_RETURN && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
+    //         if (adjustable(&optimizer, count - 2) && adjustable(&optimizer, count - 1)) {
+    //         }
+    //     }
+    // }
+
+    // IF POP AT END OF FUNCTION AND RETURNING NONE - NO NEED TO CALL POP INSTRUCTIONS
+    // if [-3] == OP_POP(S) && [-2] == OP_NONE && [-1] == OP_RETURN
+    //     REMOVE [-3]
 
     interest(&optimizer);
 
@@ -3449,8 +3469,14 @@ static void optimize(Compiler *C) {
         switch (first) {
         case OP_INCREMENT_LOCAL_AND_SET: {
             if (second == OP_LOOP) {
-                SET(one, OP_INCREMENT_LOOP);
-                REWRITE(3, 1);
+                // set to increment loop and reuse op loop link
+                move(&optimizer, two, OP_INCREMENT_LOOP, one);
+                // delete op loop
+                rewrite(&optimizer, two, 1);
+                // subtract 1 to account for one less byte to jump after deleting instruction
+                uint8_t *instructions = optimizer.code->instructions;
+                uint16_t jump = GET_JUMP(instructions, one, 3, 4) - 1;
+                UPDATE_JUMP(instructions, one, 3, 4, jump);
                 REPEAT;
             }
             break;
@@ -3614,7 +3640,7 @@ static void optimize(Compiler *C) {
                 UPDATE(one, OP_JUMP);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
-                deleter(&optimizer, two);
+                deletion(&optimizer, two);
                 REWRITE(0, 4);
                 REPEAT;
             }
@@ -3622,7 +3648,7 @@ static void optimize(Compiler *C) {
         }
         case OP_FALSE: {
             if (second == OP_JUMP_IF_TRUE) {
-                deleter(&optimizer, two);
+                deletion(&optimizer, two);
                 REWRITE(0, 4);
                 REPEAT;
             } else if (second == OP_JUMP_IF_FALSE) {
