@@ -4,12 +4,12 @@ try
   use "runtime_error"
 except m
   echo "runtime: " + m
-end
+}
 
 try
   use "compiler_error"
 except m
   echo "compile: " + m
-end
+}
 
 echo "exit"

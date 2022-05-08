@@ -1,44 +1,44 @@
 #!/usr/bin/env bash
 
-LUA=false
-WREN=false
-PYTHON=false
 HYMN=false
-HYMN_NODE=false
+LUA=false
+PYTHON=false
+NODE=false
+LUAJIT=false
 
 if [ $# -eq 0 ]; then
-  LUA=true
-  WREN=true
-  PYTHON=true
   HYMN=true
-  HYMN_NODE=true
+  LUA=true
+  PYTHON=true
+  NODE=true
+  LUAJIT=true
 fi
 
-while getopts "lwphn" option; do
+while getopts "hlpnj" option; do
   case "$option" in
-    l) LUA=true ;;
-    w) WREN=true ;;
-    p) PYTHON=true ;;
     h) HYMN=true ;;
-    n) HYMN_NODE=true ;;
+    l) LUA=true ;;
+    p) PYTHON=true ;;
+    n) NODE=true ;;
+    j) LUAJIT=true ;;
     *) exit 1 ;;
   esac
 done
 
 echo
 
-if [ $LUA = true ]; then
-  echo 'LUA'
-  for file in test/benchmarks/lua/*.lua; do
-    printf '> %s: %s\n' "$(basename "$file" .lua)" "$(lua "$file")"
+if [ $HYMN = true ]; then
+  echo 'HYMN'
+  for file in test/benchmarks/*.hm; do
+    printf '> %s: %s\n' "$(basename "$file" .hm)" "$(./hymn "$file")"
   done
   echo $'----------------------------------------\n'
 fi
 
-if [ $WREN = true ]; then
-  echo 'WREN'
-  for file in test/benchmarks/wren/*.wren; do
-    printf '> %s: %s\n' "$(basename "$file" .wren)" "$(wren "$file")"
+if [ $LUA = true ]; then
+  echo 'LUA'
+  for file in test/benchmarks/lua/*.lua; do
+    printf '> %s: %s\n' "$(basename "$file" .lua)" "$(lua "$file")"
   done
   echo $'----------------------------------------\n'
 fi
@@ -51,18 +51,18 @@ if [ $PYTHON = true ]; then
   echo $'----------------------------------------\n'
 fi
 
-if [ $HYMN = true ]; then
-  echo 'HYMN'
-  for file in test/benchmarks/*.hm; do
-    printf '> %s: %s\n' "$(basename "$file" .hm)" "$(./hymn "$file")"
+if [ $NODE = true ]; then
+  echo 'NODE'
+  for file in test/benchmarks/node/*.js; do
+    printf '> %s: %s\n' "$(basename "$file" .js)" "$(node "$file")"
   done
   echo $'----------------------------------------\n'
 fi
 
-if [ $HYMN_NODE = true ]; then
-  echo 'HYMN NODE JS'
-  for file in test/benchmarks/*.hm; do
-    printf '> %s: %s\n' "$(basename "$file" .hm)" "$(js/cli.js "$file")"
+if [ $LUAJIT = true ]; then
+  echo 'LUA JIT'
+  for file in test/benchmarks/lua/*.lua; do
+    printf '> %s: %s\n' "$(basename "$file" .lua)" "$(luajit "$file")"
   done
   echo $'----------------------------------------\n'
 fi

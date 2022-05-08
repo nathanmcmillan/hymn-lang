@@ -1,12 +1,12 @@
--- 16
+# 16
 
-function foo(number)
+function foo(number) {
   return number * 2
-end
+}
 
-function bar(value)
+function bar(value) {
   echo value
-end
+}
 
 let multiply = foo
 let printer = bar

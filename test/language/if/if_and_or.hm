@@ -1,162 +1,162 @@
--- A
--- end
--- B
--- end
--- C
--- end
--- D
--- end
--- E
--- end
--- F
--- end
--- G
--- end
--- H
--- end
--- I
--- end
--- J
--- end
--- K
--- end
--- L
--- end
--- M
--- end
--- N
--- end
--- M
--- end
+# A
+# end
+# B
+# end
+# C
+# end
+# D
+# end
+# E
+# end
+# F
+# end
+# G
+# end
+# H
+# end
+# I
+# end
+# J
+# end
+# K
+# end
+# L
+# end
+# M
+# end
+# N
+# end
+# M
+# end
 
-if 0 == 1 and 2 == 2
+if 0 == 1 and 2 == 2 {
   echo "no"
-else
+} else {
   echo "A"
-end
+}
 echo "end"
 
-if 0 == 1 and 2 == 2 and 4 == 4
+if 0 == 1 and 2 == 2 and 4 == 4 {
   echo "no"
-else
+} else {
   echo "B"
-end
+}
 echo "end"
 
-if 0 == 1 or 2 == 2
+if 0 == 1 or 2 == 2 {
   echo "C"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
-if 0 == 1 or 2 == 2 or 4 == 4
+if 0 == 1 or 2 == 2 or 4 == 4 {
   echo "D"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
--- if A or (B and C)
-if 0 == 1 or 2 == 2 and 4 == 4
+# if A or (B and C)
+if 0 == 1 or 2 == 2 and 4 == 4 {
   echo "E"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
--- if (A and B) or C
-if 0 == 1 and 2 == 2 or 4 == 4
+# if (A and B) or C
+if 0 == 1 and 2 == 2 or 4 == 4 {
   echo "F"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
--- if (A and B) || (C and D)
-if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4
+# if (A and B) || (C and D)
+if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4 {
   echo "G"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
--- if ((A and B) and C) or D
-if 0 == 1 and 0 == 2 and 0 == 4 or 4 == 4
+# if ((A and B) and C) or D
+if 0 == 1 and 0 == 2 and 0 == 4 or 4 == 4 {
   echo "H"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
--- if (A and B) || (C and D) || (E and F)
-if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4 or 6 == 8 and 10 == 12
+# if (A and B) || (C and D) || (E and F)
+if 0 == 1 and 0 == 2 or 2 == 2 and 4 == 4 or 6 == 8 and 10 == 12 {
   echo "I"
-else
+} else {
   echo "no"
-end
+}
 echo "end"
 
-if 0 == 1
+if 0 == 1 {
   echo "no"
-elif 0 == 2
+} elif 0 == 2 {
   echo "no"
-elif 0 == 4
+} elif 0 == 4 {
   echo "no"
-else
+} else {
   echo "J"
-end
+}
 echo "end"
 
-if 0 == 1 and 1 == 1
+if 0 == 1 and 1 == 1 {
   echo "no"
-elif 0 == 2 and 2 == 2
+} elif 0 == 2 and 2 == 2 {
   echo "no"
-elif 4 == 4 and 8 == 10
+} elif 4 == 4 and 8 == 10 {
   echo "no"
-else
+} else {
   echo "K"
-end
+}
 echo "end"
 
-if 0 == 1 or 0 == 2
+if 0 == 1 or 0 == 2 {
   echo "no"
-elif 4 == 6 or 4 == 8
+} elif 4 == 6 or 4 == 8 {
   echo "no"
-elif 10 == 12 or 10 == 14
+} elif 10 == 12 or 10 == 14 {
   echo "no"
-else
+} else {
   echo "L"
-end
+}
 echo "end"
 
-if 0 == 1 or 0 == 2 and 0 == 100
+if 0 == 1 or 0 == 2 and 0 == 100 {
   echo "no"
-elif 4 == 6 or 4 == 8 and 4 == 104
+} elif 4 == 6 or 4 == 8 and 4 == 104 {
   echo "no"
-elif 10 == 12 or 10 == 14 and 10 == 108
+} elif 10 == 12 or 10 == 14 and 10 == 108 {
   echo "no"
-else
+} else {
   echo "M"
-end
+}
 echo "end"
 
-if 0 == 1 and 0 == 2 or 0 == 100
+if 0 == 1 and 0 == 2 or 0 == 100 {
   echo "no"
-elif 4 == 6 and 4 == 8 or 4 == 104
+} elif 4 == 6 and 4 == 8 or 4 == 104 {
   echo "no"
-elif 10 == 12 and 10 == 14 or 10 == 108
+} elif 10 == 12 and 10 == 14 or 10 == 108 {
   echo "no"
-else
+} else {
   echo "N"
-end
+}
 echo "end"
 
-if 1 == 1 and 2 == 2 or 0 == 100
-  if 0 == 1 and 0 == 2 or 3 == 3
-    if 4 == 4 or 6 == 8 or 10 == 12
+if 1 == 1 and 2 == 2 or 0 == 100 {
+  if 0 == 1 and 0 == 2 or 3 == 3 {
+    if 4 == 4 or 6 == 8 or 10 == 12 {
       echo "M"
-    end
-  end
-end
+    }
+  }
+}
 echo "end"

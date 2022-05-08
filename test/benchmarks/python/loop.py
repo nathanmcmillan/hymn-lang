@@ -1,17 +1,20 @@
 from time import process_time as clock
 
-start = clock()
+def main():
+    start = clock()
 
-N = 10000000
-data = []
+    N = 10000000
+    data = []
 
-for i in range(N):
-    data.append(i)
+    for i in range(N):
+        data.append(i)
 
-total = 0
+    total = 0
 
-for i in data:
-    total += data[i]
+    for i in data:
+        total += data[i]
 
-seconds = clock() - start
-print("elapsed: " + str(seconds) + "s | " + str(total))
+    seconds = clock() - start
+    print("elapsed: " + str(seconds) + "s | " + str(total))
+
+main()

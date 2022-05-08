@@ -1,11 +1,11 @@
--- number 42
--- number format 42
--- simply {foo}
--- multiplied 84
--- add two 5 numbers
--- table { a: 1 } value
--- escape {foo}
--- foo32bar
+# number 42
+# number format 42
+# simply {foo}
+# multiplied 84
+# add two 5 numbers
+# table { "a": 1 } value
+# escape {foo}
+# foo32bar
 
 let foo = 42
 

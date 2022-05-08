@@ -23,11 +23,17 @@ tests
 hymn
 !hymn/
 
+hymnfmt
 hymntest
+hymnbenchmark
 
-hymn.exe
-hymntest.exe
+*.exp
+*.lib
+*.dll
+*.exe
 
+*.o
+*.so
 *.obj
 
 profile
@@ -36,5 +42,6 @@ luac.out
 callgrind.out.*
 cachegrind.out.*
 
-test.hm
-test2.hm
+test*.hm
+
+test.lua

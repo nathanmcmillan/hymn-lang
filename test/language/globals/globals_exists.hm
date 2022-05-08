@@ -1,32 +1,32 @@
--- A
--- B
--- C
--- D
+# A
+# B
+# C
+# D
 
 let foo = 1
 
-if __globals.foo
+if __globals.foo {
   echo "A"
-else
+} else {
   echo "No"
-end
+}
 
-if __globals.bar
+if __globals.bar {
   echo "No"
-else
+} else {
   echo "B"
-end
+}
 
 let hello = none
 
-if exists(__globals, "hello")
+if exists(__globals, "hello") {
   echo "C"
-else
+} else {
   echo "No"
-end
+}
 
-if exists(__globals, "world")
+if exists(__globals, "world") {
   echo "No"
-else
+} else {
   echo "D"
-end
+}

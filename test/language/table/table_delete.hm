@@ -1,8 +1,8 @@
--- { a: true, b: true, c: false, d: false }
--- true
--- { b: true, c: false, d: false }
--- false
--- { b: true, d: false }
+# { "a": true, "b": true, "c": false, "d": false }
+# true
+# { "b": true, "c": false, "d": false }
+# false
+# { "b": true, "d": false }
 
 let table = { a: true, b: true, c: false, d: false }
 echo table

@@ -1,4 +1,4 @@
--- ["alpha", "beta", "gamma", "omega", "zed"]
+# ["alpha", "beta", "gamma", "omega", "zed"]
 
 let table = { zed: [4, 6], gamma: 2, omega: none, beta: { hello: 4 }, alpha: true }
 

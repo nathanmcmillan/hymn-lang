@@ -1,21 +1,21 @@
--- My cat is Mittens and says Meow!
--- My dog is Cookies and says Bork!
+# My cat is Mittens and says Meow!
+# My dog is Cookies and says Bork!
 
-function meow()
+function meow() {
   return "Meow!"
-end
+}
 
-function bork()
+function bork() {
   return "Bork!"
-end
+}
 
-function cat(name)
+function cat(name) {
   return { name: name, says: meow }
-end
+}
 
-function dog(name)
+function dog(name) {
   return { name: name, says: bork }
-end
+}
 
 let k = cat("Mittens")
 let d = dog("Cookies")

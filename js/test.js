@@ -58,9 +58,9 @@ function parseExpected(source) {
   const size = source.length
   for (let pos = 0; pos < size; pos++) {
     let c = source[pos]
-    if (c === '-' && pos + 2 < size && source[pos + 1] === '-') {
-      if (source[pos + 2] === ' ') {
-        pos += 3
+    if (c === '#' && pos + 1 < size) {
+      if (source[pos + 1] === ' ') {
+        pos += 2
         while (pos < size) {
           c = source[pos]
           expected += c
@@ -70,8 +70,8 @@ function parseExpected(source) {
           pos++
         }
         continue
-      } else if (source[pos + 2] === '\n') {
-        pos += 2
+      } else if (source[pos + 1] === '\n') {
+        pos++
         expected += '\n'
         continue
       }

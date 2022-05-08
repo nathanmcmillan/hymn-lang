@@ -1,22 +1,22 @@
--- foo
--- bar
--- end
+# foo
+# bar
+# end
 
-function foo()
-  try
+function foo() {
+  try {
     echo [2, 4, 8][3]
-  except _
+  } except _ {
     echo "foo"
-  end
-end
+  }
+}
 
-function bar()
-  try
+function bar() {
+  try {
     throw "bad"
-  except _
-  end
+  } except _ {
+  }
   echo "bar"
-end
+}
 
 foo()
 bar()

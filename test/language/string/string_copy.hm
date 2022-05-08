@@ -1,5 +1,5 @@
--- bar
--- bar
+# bar
+# bar
 
 let foo = "bar"
 let bar = copy(foo)

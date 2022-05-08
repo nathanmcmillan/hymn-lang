@@ -1,0 +1,3 @@
+echo text.join(["no", "thing"])
+
+echo text.join(["foo", "bar", 1, 2, 3], ':')

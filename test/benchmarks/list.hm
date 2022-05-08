@@ -1,24 +1,26 @@
-function reverse(a)
-  let size = len(a)
-  let max = int(math.floor(size / 2))
-  for i = 0, i < max
-    let n = size - i - 1
-    let t = a[i]
-    a[i] = a[n]
-    a[n] = t
-  end
-end
+{
+  function reverse(a) {
+    let size = len(a)
+    let max = int(math.floor(size / 2))
+    for i = 0, i < max {
+      let n = size - i - 1
+      let t = a[i]
+      a[i] = a[n]
+      a[n] = t
+    }
+  }
 
-let start = os.clock()
+  let start = os.clock()
 
-let N = 20000000
-let list = []
+  let N = 20000000
+  let list = []
 
-for i = 0, i < N
-  push(list, i)
-end
+  for i = 0, i < N {
+    push(list, i)
+  }
 
-reverse(list)
+  reverse(list)
 
-let seconds = os.clock() - start
-echo "elapsed: " + seconds + "s | " + list[0]
+  let seconds = os.clock() - start
+  echo "elapsed: " + seconds + "s | " + list[0]
+}

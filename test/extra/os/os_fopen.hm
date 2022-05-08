@@ -1,0 +1,4 @@
+let open = os.fopen("README.md", "r")
+echo open
+echo os.fget(open)
+echo os.fclose(open)

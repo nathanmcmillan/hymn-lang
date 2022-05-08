@@ -41,6 +41,78 @@ static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_string_value(object);
 }
 
+static HymnValue io_readlines(Hymn *H, int count, HymnValue *arguments) {
+    PATH_STRING
+    HymnString *string = hymn_read_file(path);
+    if (string == NULL) {
+        return hymn_new_none();
+    }
+    HymnArray *array = hymn_new_array(0);
+    size_t size = hymn_string_len(string);
+    size_t from = 0;
+    for (size_t to = 0; to < size; to++) {
+        char c = string[to];
+        if (c == '\n' || (c == '\r' && to + 1 < size && string[to + 1] == '\n')) {
+            HymnString *sub = hymn_substring(string, from, to);
+            HymnObjectString *object = hymn_intern_string(H, sub);
+            hymn_reference_string(object);
+            hymn_array_push(array, hymn_new_string_value(object));
+            from = to + 1;
+            if (c == '\r') {
+                from++;
+            }
+        }
+    }
+    if (from < size) {
+        HymnString *sub = hymn_substring(string, from, size);
+        HymnObjectString *object = hymn_intern_string(H, sub);
+        hymn_reference_string(object);
+        hymn_array_push(array, hymn_new_string_value(object));
+    }
+    hymn_string_delete(string);
+    return hymn_new_array_value(array);
+}
+
+static HymnValue writing(HymnString *path, HymnString *content, const char *mode) {
+    FILE *open = fopen(path, mode);
+    if (open == NULL) {
+        return hymn_new_none();
+    }
+    fputs(content, open);
+    fclose(open);
+    return hymn_new_bool(true);
+}
+
+static HymnValue io_write(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count < 2) {
+        return hymn_new_none();
+    }
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_none();
+    }
+    HymnString *path = hymn_as_string(a);
+    HymnString *content = hymn_as_string(b);
+    return writing(path, content, "w");
+}
+
+static HymnValue io_append(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count < 2) {
+        return hymn_new_none();
+    }
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_none();
+    }
+    HymnString *path = hymn_as_string(a);
+    HymnString *content = hymn_as_string(b);
+    return writing(path, content, "a");
+}
+
 static HymnValue io_exists(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     bool exists = hymn_file_exists(path);
@@ -81,12 +153,39 @@ static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_string_value(hymn_intern_string(H, string));
 }
 
+static HymnValue io_move(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count < 2) {
+        return hymn_new_none();
+    }
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_none();
+    }
+    HymnString *source = hymn_as_string(a);
+    HymnString *target = hymn_as_string(b);
+    int renamed = rename(source, target);
+    return hymn_new_bool(renamed != -1);
+}
+
+static HymnValue io_remove(Hymn *H, int count, HymnValue *arguments) {
+    PATH_STRING
+    int removed = remove(path);
+    return hymn_new_bool(removed != -1);
+}
+
 void hymn_use_io(Hymn *H) {
     HymnTable *io = hymn_new_table();
     hymn_add_function_to_table(H, io, "size", io_size);
     hymn_add_function_to_table(H, io, "read", io_read);
+    hymn_add_function_to_table(H, io, "readlines", io_readlines);
+    hymn_add_function_to_table(H, io, "write", io_write);
+    hymn_add_function_to_table(H, io, "append", io_append);
     hymn_add_function_to_table(H, io, "exists", io_exists);
     hymn_add_function_to_table(H, io, "stats", io_stats);
     hymn_add_function_to_table(H, io, "input", io_input);
+    hymn_add_function_to_table(H, io, "move", io_move);
+    hymn_add_function_to_table(H, io, "remove", io_remove);
     hymn_add_table(H, "io", io);
 }

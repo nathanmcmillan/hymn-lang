@@ -1,7 +1,7 @@
--- @Exception
+# @Exception
 
-function foo(x)
+function foo(x) {
   echo x
-end
+}
 
 echo foo(2, 3)

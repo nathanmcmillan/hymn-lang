@@ -19,6 +19,19 @@
 #include <sys/types.h>
 #include <time.h>
 
+#define HYMN_VERSION "0.6.2"
+
+// #define HYMN_NO_REPL
+// #define HYMN_NO_DYNAMIC_LIBS
+
+// #define HYMN_DEBUG_TRACE
+// #define HYMN_DEBUG_STACK
+// #define HYMN_DEBUG_MEMORY
+
+// #define HYMN_NO_OPTIMIZE
+// #define HYMN_NO_REGISTERS
+// #define HYMN_NO_MEMORY_MANAGE
+
 #ifdef _MSC_VER
 #include <direct.h>
 #include <windows.h>
@@ -28,24 +41,38 @@
 #define PATH_SEP_STRING "\\"
 #define PATH_SEP_OTHER '/'
 #define PATH_SEP_OTHER_STRING "/"
+#define HYMN_DLIB_EXTENSION ".dll"
 #define UNREACHABLE() __assume(0)
 #define PACK(expr) __pragma(pack(push, 1)) expr __pragma(pack(pop))
+#ifdef HYMN_NO_DYNAMIC_LIBS
+#define export
+#else
+#define export __declspec(dllexport)
+#endif
 #else
 #include <dirent.h>
+#ifdef __APPLE__
+#include <limits.h>
+#else
 #include <linux/limits.h>
+#endif
 #include <unistd.h>
 #define PATH_SEP '/'
 #define PATH_SEP_STRING "/"
 #define PATH_SEP_OTHER '\\'
 #define PATH_SEP_OTHER_STRING "\\"
+#define HYMN_DLIB_EXTENSION ".so"
 #define UNREACHABLE() __builtin_unreachable()
 #define PACK(expr) expr __attribute__((__packed__))
+#define export
 #endif
 
 #define HYMN_UINT8_COUNT (UINT8_MAX + 1)
 
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
+
+#define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
 
 typedef int64_t HymnInt;
 typedef double HymnFloat;
@@ -182,6 +209,7 @@ struct HymnFunction {
     HymnString *name;
     HymnString *script;
     int arity;
+    int registers;
     HymnByteCode code;
     HymnExceptList *except;
 };
@@ -191,6 +219,15 @@ struct HymnFrame {
     uint8_t *ip;
     HymnValue *stack;
 };
+
+#ifndef HYMN_NO_DYNAMIC_LIBS
+typedef struct HymnLibList HymnLibList;
+
+struct HymnLibList {
+    void *lib;
+    HymnLibList *next;
+};
+#endif
 
 struct Hymn {
     HymnValue stack[HYMN_STACK_MAX];
@@ -202,6 +239,9 @@ struct Hymn {
     HymnArray *paths;
     HymnTable *imports;
     HymnString *error;
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    HymnLibList *libraries;
+#endif
     void (*print)(const char *format, ...);
     void (*print_error)(const char *format, ...);
 };
@@ -227,7 +267,7 @@ HymnStringHead *hymn_string_head(HymnString *string);
 HymnString *hymn_string_copy(HymnString *string);
 size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
-bool hymn_string_equal(HymnString *a, HymnString *b);
+bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *this, const char b);
 bool hymn_string_starts_with(HymnString *s, const char *using);
@@ -235,6 +275,11 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
 HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
+void hymn_string_trim(HymnString *string);
+HymnString *hymn_quote_string(HymnString *string);
+
+HymnString *hymn_int_to_string(HymnInt number);
+HymnString *hymn_float_to_string(HymnFloat number);
 
 HymnArray *hymn_new_array(HymnInt length);
 
@@ -247,12 +292,14 @@ HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index);
 void hymn_array_clear(Hymn *H, HymnArray *this);
 void hymn_array_delete(Hymn *H, HymnArray *this);
 
-HymnTable *hymn_new_table();
+export HymnTable *hymn_new_table();
+
+HymnValue hymn_table_get(HymnTable *this, const char *key);
 
 HymnValue hymn_new_undefined();
 HymnValue hymn_new_none();
 HymnValue hymn_new_bool(bool v);
-HymnValue hymn_new_int(HymnInt v);
+export HymnValue hymn_new_int(HymnInt v);
 HymnValue hymn_new_float(HymnFloat v);
 HymnValue hymn_new_native(HymnNativeFunction *v);
 HymnValue hymn_new_pointer(void *v);
@@ -313,12 +360,23 @@ HymnValue hymn_get(Hymn *H, const char *name);
 
 void hymn_add(Hymn *H, const char *name, HymnValue value);
 void hymn_add_string(Hymn *H, const char *name, const char *string);
-void hymn_add_table(Hymn *H, const char *name, HymnTable *table);
+export void hymn_add_table(Hymn *H, const char *name, HymnTable *table);
 void hymn_add_pointer(Hymn *H, const char *name, void *pointer);
 void hymn_add_string_to_table(Hymn *H, HymnTable *table, const char *name, const char *string);
-void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, HymnNativeCall func);
+export void hymn_add_function_to_table(Hymn *H, HymnTable *table, const char *name, HymnNativeCall func);
 void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func);
 
 void hymn_delete(Hymn *H);
+
+#ifndef HYMN_NO_REPL
+void hymn_repl(Hymn *H);
+void hymn_server(Hymn *H);
+#endif
+
+#ifndef HYMN_NO_DYNAMIC_LIBS
+void hymn_add_dlib(Hymn *H, void *library);
+void hymn_close_dlib(void *library);
+HymnString *hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
+#endif
 
 #endif

@@ -1,1 +1,1 @@
-echo io_read(".gitattributes")
+echo io.read(".gitattributes")
