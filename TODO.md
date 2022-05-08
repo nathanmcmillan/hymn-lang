@@ -7,15 +7,14 @@
 
 # Features
 
-1. Self referencing local functions
 1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
 1. Optimizations
    - Registers to avoid push / pop / references
    - If we have two number only instructions in a row
    - We can take out the type check for the second instruction
    - We know an exception will be thrown from the first instruction if the types are not allowed
+1. Self referencing local functions
 1. Keep source code for functions, for better inspection and debugging
-1. Named function arguments
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`
 1. Add `finally` keyword for try blocks
 1. Refactor string related handling to reduce copying
@@ -25,7 +24,7 @@
 1. Insert into table collision linked lists in sorted order
 1. Macro system
 1. Compile time constant evaluation
-1. Add built-in `destroy` function
+1. Add built-in `destroy` function that looks for a custom clean up function pointer in object
 1. Transpile to C code and use a C compiler to generate a dynamic library at runtime
 
 # Notes

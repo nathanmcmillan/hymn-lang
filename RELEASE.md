@@ -4,6 +4,7 @@
 - New REPL with external editor support
 - Changed comments to use `#` symbol
 - Now using C style brackets `{` and `}` instead of `begin` and `end` keywords
+- Quoted strings can now be used for table keys
 - Tail call optimizations
 - Optional type declarations of the form `name: type`
   - Currently has no affect on compiling

@@ -4,11 +4,141 @@
 
 #include "hymn.h"
 
+struct PointerSet {
+    int count;
+    int capacity;
+    void **items;
+};
+
+static bool pointer_set_has(struct PointerSet *set, void *pointer) {
+    void **items = set->items;
+    if (items) {
+        int count = set->count;
+        for (int i = 0; i < count; i++) {
+            if (pointer == items[i]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void pointer_set_add(struct PointerSet *set, void *pointer) {
+    if (set->items) {
+        int count = set->count;
+        if (count + 1 > set->capacity) {
+            set->capacity *= 2;
+            set->items = hymn_realloc(set->items, set->capacity * sizeof(void *));
+        }
+        set->items[count] = pointer;
+        set->count = count + 1;
+    } else {
+        set->count = 1;
+        set->capacity = 1;
+        set->items = hymn_calloc(1, sizeof(void *));
+        set->items[0] = pointer;
+    }
+}
+
+static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) {
+    switch (value.is) {
+    case HYMN_VALUE_UNDEFINED:
+    case HYMN_VALUE_NONE: return hymn_new_string("null");
+    case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
+    case HYMN_VALUE_INTEGER: return hymn_int_to_string(hymn_as_int(value));
+    case HYMN_VALUE_FLOAT: return hymn_float_to_string(hymn_as_float(value));
+    case HYMN_VALUE_STRING: {
+        return hymn_quote_string(hymn_as_string(value));
+    }
+    case HYMN_VALUE_ARRAY: {
+        HymnArray *array = hymn_as_array(value);
+        if (array == NULL || array->length == 0 || pointer_set_has(set, array)) {
+            return hymn_new_string("[]");
+        } else {
+            pointer_set_add(set, array);
+        }
+        HymnString *string = hymn_new_string("[");
+        for (HymnInt i = 0; i < array->length; i++) {
+            if (i != 0) {
+                string = hymn_string_append(string, ", ");
+            }
+            HymnString *add = json_save_recursive(array->items[i], set);
+            string = hymn_string_append(string, add);
+            hymn_string_delete(add);
+        }
+        string = hymn_string_append_char(string, ']');
+        return string;
+    }
+    case HYMN_VALUE_TABLE: {
+        HymnTable *table = hymn_as_table(value);
+        if (table == NULL || table->size == 0 || pointer_set_has(set, table)) {
+            return hymn_new_string("{}");
+        } else {
+            pointer_set_add(set, table);
+        }
+        unsigned int size = table->size;
+        HymnObjectString **keys = hymn_malloc(size * sizeof(HymnObjectString *));
+        unsigned int total = 0;
+        unsigned int bins = table->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            HymnTableItem *item = table->items[i];
+            while (item != NULL) {
+                HymnString *string = item->key->string;
+                unsigned int insert = 0;
+                while (insert != total) {
+                    if (strcmp(string, keys[insert]->string) < 0) {
+                        for (unsigned int swap = total; swap > insert; swap--) {
+                            keys[swap] = keys[swap - 1];
+                        }
+                        break;
+                    }
+                    insert++;
+                }
+                keys[insert] = item->key;
+                total++;
+                item = item->next;
+            }
+        }
+        HymnString *string = hymn_new_string("{ ");
+        for (unsigned int i = 0; i < size; i++) {
+            if (i != 0) {
+                string = hymn_string_append(string, ", ");
+            }
+            HymnObjectString *key = keys[i];
+            HymnValue item = hymn_table_get(table, key->string);
+            HymnString *add = json_save_recursive(item, set);
+            HymnString *quote = hymn_quote_string(key->string);
+            string = hymn_string_append(string, quote);
+            string = hymn_string_append(string, ": ");
+            string = hymn_string_append(string, add);
+            hymn_string_delete(quote);
+            hymn_string_delete(add);
+        }
+        string = hymn_string_append(string, " }");
+        free(keys);
+        return string;
+    }
+    case HYMN_VALUE_FUNC: {
+        HymnFunction *func = hymn_as_func(value);
+        if (func->name) return hymn_string_format("\"%s\"", func->name);
+        if (func->script) return hymn_string_format("\"%s\"", func->script);
+        return hymn_new_string("\"script\"");
+    }
+    case HYMN_VALUE_FUNC_NATIVE: return hymn_string_copy(hymn_as_native(value)->name->string);
+    case HYMN_VALUE_POINTER: return hymn_string_format("\"%p\"", hymn_as_pointer(value));
+    }
+    return hymn_new_string("?");
+}
+
 static HymnValue json_save(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-    (void)count;
-    (void)arguments;
-    return hymn_new_none();
+    if (count == 0) {
+        return hymn_new_none();
+    }
+    struct PointerSet set = {.count = 0, .capacity = 0, .items = NULL};
+    HymnString *json = json_save_recursive(arguments[0], &set);
+    free(set.items);
+    HymnObjectString *string = hymn_intern_string(H, json);
+    return hymn_new_string_value(string);
 }
 
 static HymnValue json_parse(Hymn *H, int count, HymnValue *arguments) {

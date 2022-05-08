@@ -28,8 +28,8 @@
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
 
-#define HYMN_NO_OPTIMIZE
-#define HYMN_NO_REGISTERS
+// #define HYMN_NO_OPTIMIZE
+// #define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER
@@ -276,6 +276,10 @@ HymnString *hymn_string_append(HymnString *this, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
 void hymn_string_trim(HymnString *string);
+HymnString *hymn_quote_string(HymnString *string);
+
+HymnString *hymn_int_to_string(HymnInt number);
+HymnString *hymn_float_to_string(HymnFloat number);
 
 HymnArray *hymn_new_array(HymnInt length);
 
@@ -289,6 +293,8 @@ void hymn_array_clear(Hymn *H, HymnArray *this);
 void hymn_array_delete(Hymn *H, HymnArray *this);
 
 export HymnTable *hymn_new_table();
+
+HymnValue hymn_table_get(HymnTable *this, const char *key);
 
 HymnValue hymn_new_undefined();
 HymnValue hymn_new_none();

@@ -272,7 +272,7 @@ static HymnString *char_to_string(char ch) {
     return s;
 }
 
-static HymnString *int_to_string(HymnInt number) {
+HymnString *hymn_int_to_string(HymnInt number) {
     int len = snprintf(NULL, 0, "%" PRId64, number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%" PRId64, number);
@@ -281,7 +281,7 @@ static HymnString *int_to_string(HymnInt number) {
     return s;
 }
 
-static HymnString *float_to_string(HymnFloat number) {
+HymnString *hymn_float_to_string(HymnFloat number) {
     int len = snprintf(NULL, 0, "%g", number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%g", number);
@@ -1161,7 +1161,7 @@ static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
     return hymn_new_undefined();
 }
 
-static HymnValue table_get_const(HymnTable *this, const char *key) {
+HymnValue hymn_table_get(HymnTable *this, const char *key) {
     size_t hash = string_mix_code_const(key);
     unsigned int bin = table_get_bin(this, hash);
     HymnTableItem *item = this->items[bin];
@@ -2546,16 +2546,10 @@ char escape_sequence(const char c) {
         return '\t';
     case 'v':
         return '\v';
-    case '\\':
-        return '\\';
-    case '\'':
-        return '\'';
-    case '"':
-        return '"';
     case '?':
         return '\?';
     default:
-        return '\0';
+        return c;
     }
 }
 
@@ -2583,8 +2577,7 @@ HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     return literal;
 }
 
-static void compile_string(Compiler *C, bool assign) {
-    (void)assign;
+static HymnValue string_literal(Compiler *C) {
     Token *previous = &C->previous;
     HymnString *string = parse_string_literal(C->source, previous->start, previous->length);
     while (check(C, TOKEN_STRING)) {
@@ -2594,7 +2587,16 @@ static void compile_string(Compiler *C, bool assign) {
         hymn_string_delete(and);
         advance(C);
     }
-    emit_constant(C, compile_intern_string(C->H, string));
+    return compile_intern_string(C->H, string);
+}
+
+static void compile_string(Compiler *C, bool assign) {
+    (void)assign;
+    emit_constant(C, string_literal(C));
+}
+
+static uint8_t ident_constant_string(Compiler *C) {
+    return byte_code_new_constant(C, string_literal(C));
 }
 
 static uint8_t ident_constant(Compiler *C, Token *token) {
@@ -2640,8 +2642,15 @@ static void compile_table(Compiler *C, bool assign) {
     }
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         emit(C, OP_DUPLICATE);
-        consume(C, TOKEN_IDENT, "Expected property name");
-        uint8_t name = ident_constant(C, &C->previous);
+        uint8_t name;
+        if (match(C, TOKEN_IDENT)) {
+            name = ident_constant(C, &C->previous);
+        } else if (match(C, TOKEN_STRING)) {
+            name = ident_constant_string(C);
+        } else {
+            name = UINT8_MAX;
+            compile_error(C, &C->current, "Expected property name");
+        }
         consume(C, TOKEN_COLON, "Expected `:`");
         expression(C);
         emit_short(C, OP_SET_PROPERTY, name);
@@ -4496,6 +4505,37 @@ static CompileResult compile(Hymn *H, const char *script, const char *source, bo
     return (CompileResult){.func = func, .error = error};
 }
 
+HymnString *hymn_quote_string(HymnString *string) {
+    size_t len = hymn_string_len(string);
+    size_t extra = 2;
+    for (size_t s = 0; s < len; s++) {
+        char c = string[s];
+        if (c == '\\' || c == '\"') {
+            extra++;
+        }
+    }
+    HymnString *quoted = hymn_new_string_with_capacity(len + extra);
+    quoted[0] = '"';
+    size_t q = 1;
+    for (size_t s = 0; s < len; s++) {
+        char c = string[s];
+        if (c == '\\') {
+            quoted[q++] = '\\';
+            quoted[q++] = '\\';
+        } else if (c == '"') {
+            quoted[q++] = '\\';
+            quoted[q++] = '"';
+        } else {
+            quoted[q++] = c;
+        }
+    }
+    HymnStringHead *head = hymn_string_head(quoted);
+    head->length = head->capacity;
+    quoted[len + extra - 1] = '"';
+    quoted[len + extra] = '\0';
+    return quoted;
+}
+
 struct PointerSet {
     int count;
     int capacity;
@@ -4537,10 +4577,10 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
     case HYMN_VALUE_UNDEFINED: return hymn_new_string("undefined");
     case HYMN_VALUE_NONE: return hymn_new_string("none");
     case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
-    case HYMN_VALUE_INTEGER: return int_to_string(hymn_as_int(value));
-    case HYMN_VALUE_FLOAT: return float_to_string(hymn_as_float(value));
+    case HYMN_VALUE_INTEGER: return hymn_int_to_string(hymn_as_int(value));
+    case HYMN_VALUE_FLOAT: return hymn_float_to_string(hymn_as_float(value));
     case HYMN_VALUE_STRING: {
-        if (quote) return hymn_string_format("\"%s\"", hymn_as_string(value));
+        if (quote) return hymn_quote_string(hymn_as_string(value));
         return hymn_string_copy(hymn_as_string(value));
     }
     case HYMN_VALUE_ARRAY: {
@@ -4605,7 +4645,11 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             HymnObjectString *key = keys[i];
             HymnValue item = table_get(table, key);
             HymnString *add = value_to_string_recusive(item, set, true);
-            string = string_append_format(string, "\"%s\": %s", key->string, add);
+            HymnString *quote = hymn_quote_string(key->string);
+            string = hymn_string_append(string, quote);
+            string = hymn_string_append(string, ": ");
+            string = hymn_string_append(string, add);
+            hymn_string_delete(quote);
             hymn_string_delete(add);
         }
         string = hymn_string_append(string, " }");
@@ -4616,7 +4660,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         HymnFunction *func = hymn_as_func(value);
         if (func->name) return hymn_string_copy(func->name);
         if (func->script) return hymn_string_copy(func->script);
-        return hymn_new_string("Script");
+        return hymn_new_string("script");
     }
     case HYMN_VALUE_FUNC_NATIVE: return hymn_string_copy(hymn_as_native(value)->name->string);
     case HYMN_VALUE_POINTER: return hymn_string_format("%p", hymn_as_pointer(value));
@@ -7129,7 +7173,7 @@ void hymn_delete(Hymn *H) {
 }
 
 HymnValue hymn_get(Hymn *H, const char *name) {
-    return table_get_const(&H->globals, name);
+    return hymn_table_get(&H->globals, name);
 }
 
 void hymn_add(Hymn *H, const char *name, HymnValue value) {
@@ -7227,7 +7271,7 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
 }
 
 char *hymn_call(Hymn *H, const char *name, int arguments) {
-    HymnValue function = table_get_const(&H->globals, name);
+    HymnValue function = hymn_table_get(&H->globals, name);
     if (hymn_is_undefined(function)) {
         return NULL;
     }

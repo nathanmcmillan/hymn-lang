@@ -1,5 +1,5 @@
 function fun(raw) {
-  print(stdout, "{ raw } -> { json.parse(raw) }\n")
+  echo "{ raw } -> { json.parse(raw) }"
 }
 
 fun('123')
