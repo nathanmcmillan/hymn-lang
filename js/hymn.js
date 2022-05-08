@@ -311,6 +311,8 @@ const OP_TYPE = 65
 const OP_USE = 66
 const OP_FOR = 67
 const OP_FOR_LOOP = 68
+const OP_NEW_ARRAY = 69
+const OP_NEW_TABLE = 70
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -1708,7 +1710,7 @@ function parseStringLiteral(string, start, len) {
   return literal
 }
 
-function compileString(C) {
+function stringLiteral(C) {
   const previous = C.previous
   let string = parseStringLiteral(C.source, previous.start, previous.length)
   while (check(C, TOKEN_STRING)) {
@@ -1717,7 +1719,15 @@ function compileString(C) {
     string += and
     advance(C)
   }
-  emitConstant(C, newString(string))
+  return string
+}
+
+function compileString(C) {
+  emitConstant(C, newString(stringLiteral(C)))
+}
+
+function identConstantString(C) {
+  return byteCodeNewConstant(C, newString(stringLiteral(C)))
 }
 
 function identConstant(C, token) {
@@ -1739,7 +1749,7 @@ function endScope(C) {
 }
 
 function compileArray(C) {
-  emitConstant(C, newArrayValue(null))
+  emit(C, OP_NEW_ARRAY)
   if (match(C, TOKEN_RIGHT_SQUARE)) {
     return
   }
@@ -1755,14 +1765,20 @@ function compileArray(C) {
 }
 
 function compileTable(C) {
-  emitConstant(C, newTableValue(null))
+  emit(C, OP_NEW_TABLE)
   if (match(C, TOKEN_RIGHT_CURLY)) {
     return
   }
   while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
     emit(C, OP_DUPLICATE)
-    consume(C, TOKEN_IDENT, 'Expected property name')
-    const name = identConstant(C, C.previous)
+    let name = UINT8_MAX
+    if (match(C, TOKEN_IDENT)) {
+      name = identConstant(C, C.previous)
+    } else if (match(C, TOKEN_STRING)) {
+      name = identConstantString(C)
+    } else {
+      compileError(C, C.current, 'Expected property name')
+    }
     consume(C, TOKEN_COLON, "Expected ':'.")
     expression(C)
     emitShort(C, OP_SET_PROPERTY, name)
@@ -2745,6 +2761,22 @@ function compile(H, script, source) {
   return { func: func, error: C.error }
 }
 
+function quoteString(string) {
+  let quoted = '"'
+  const size = string.length
+  for (let i = 0; i < size; i++) {
+    const c = string[i]
+    if (c === '\\') {
+      quoted += '\\\\'
+    } else if (c === '"') {
+      quoted += '\\"'
+    } else {
+      quoted += c
+    }
+  }
+  return quoted + '"'
+}
+
 function valueToStringRecursive(value, set, quote) {
   switch (value.is) {
     case HYMN_VALUE_NONE:
@@ -2757,7 +2789,7 @@ function valueToStringRecursive(value, set, quote) {
       return String(value.value)
     case HYMN_VALUE_STRING:
       if (quote) {
-        return '"' + value.value + '"'
+        return quoteString(value.value)
       }
       return value.value
     case HYMN_VALUE_ARRAY: {
@@ -2823,7 +2855,7 @@ function valueToStringRecursive(value, set, quote) {
         }
         const key = keys[i]
         const item = tableGet(table, key)
-        print += '"' + key + '": ' + valueToStringRecursive(item, set, true)
+        print += quoteString(key) + ': ' + valueToStringRecursive(item, set, true)
       }
       print += ' }'
       return print
@@ -3246,6 +3278,10 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_CLEAR', index)
     case OP_CONSTANT:
       return debugConstantInstruction(debug, 'OP_CONSTANT', code, index)
+    case OP_NEW_ARRAY:
+      return debugInstruction(debug, 'OP_NEW_ARRAY', index)
+    case OP_NEW_TABLE:
+      return debugInstruction(debug, 'OP_NEW_TABLE', index)
     case OP_COPY:
       return debugInstruction(debug, 'OP_COPY', index)
     case OP_DEFINE_GLOBAL:
@@ -4006,19 +4042,17 @@ async function hymnRun(H) {
         break
       }
       case OP_CONSTANT: {
-        let value = readConstant(frame)
-        switch (value.is) {
-          case HYMN_VALUE_ARRAY: {
-            value = newArrayValue([])
-            break
-          }
-          case HYMN_VALUE_TABLE: {
-            value = newTableValue(new HymnTable())
-            break
-          }
-          default:
-            break
-        }
+        const value = readConstant(frame)
+        hymnPush(H, value)
+        break
+      }
+      case OP_NEW_ARRAY: {
+        const value = newArrayValue([])
+        hymnPush(H, value)
+        break
+      }
+      case OP_NEW_TABLE: {
+        const value = newTableValue(new HymnTable())
         hymnPush(H, value)
         break
       }

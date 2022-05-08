@@ -49,12 +49,12 @@ echo list
 1. No classes
 1. No breaking changes after version 1.0
 
-## Progress
+## Status
 
-| Implementation | Status        | Description       |
-| -------------- | ------------- | ----------------- |
-| C              | Version 0.6.2 | Type declarations |
-| JavaScript     | Version 0.6.2 | Type declarations |
+| Implementation | Release       |
+| -------------- | ------------- |
+| C              | Version 0.6.3 |
+| JavaScript     | Version 0.6.3 |
 
 # Performance
 
