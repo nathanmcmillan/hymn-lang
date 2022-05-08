@@ -637,6 +637,8 @@ enum OpCode {
     OP_MODULO,
     OP_MULTIPLY,
     OP_NEGATE,
+    OP_NEW_ARRAY,
+    OP_NEW_TABLE,
     OP_NONE,
     OP_NOT,
     OP_NOT_EQUAL,
@@ -2619,7 +2621,7 @@ static void end_scope(Compiler *C) {
 
 static void compile_array(Compiler *C, bool assign) {
     (void)assign;
-    emit_constant(C, hymn_new_array_value(NULL));
+    emit(C, OP_NEW_ARRAY);
     if (match(C, TOKEN_RIGHT_SQUARE)) {
         return;
     }
@@ -2636,7 +2638,7 @@ static void compile_array(Compiler *C, bool assign) {
 
 static void compile_table(Compiler *C, bool assign) {
     (void)assign;
-    emit_constant(C, hymn_new_table_value(NULL));
+    emit(C, OP_NEW_TABLE);
     if (match(C, TOKEN_RIGHT_CURLY)) {
         return;
     }
@@ -5250,6 +5252,8 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_CALL: return debug_byte_instruction(debug, "OP_CALL", code, index);
     case OP_CLEAR: return debug_instruction(debug, "OP_CLEAR", index);
     case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", code, index);
+    case OP_NEW_ARRAY: return debug_instruction(debug, "OP_NEW_ARRAY", index);
+    case OP_NEW_TABLE: return debug_instruction(debug, "OP_NEW_TABLE", index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
@@ -6050,18 +6054,18 @@ dispatch:
     }
     case OP_CONSTANT: {
         HymnValue constant = READ_CONSTANT(frame);
-        switch (constant.is) {
-        case HYMN_VALUE_ARRAY: {
-            constant = hymn_new_array_value(hymn_new_array(0));
-            break;
-        }
-        case HYMN_VALUE_TABLE: {
-            constant = hymn_new_table_value(hymn_new_table());
-            break;
-        }
-        default:
-            break;
-        }
+        hymn_reference(constant);
+        push(H, constant);
+        HYMN_DISPATCH;
+    }
+    case OP_NEW_ARRAY: {
+        HymnValue constant = hymn_new_array_value(hymn_new_array(0));
+        hymn_reference(constant);
+        push(H, constant);
+        HYMN_DISPATCH;
+    }
+    case OP_NEW_TABLE: {
+        HymnValue constant = hymn_new_table_value(hymn_new_table());
         hymn_reference(constant);
         push(H, constant);
         HYMN_DISPATCH;

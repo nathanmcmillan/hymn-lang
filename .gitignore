@@ -36,12 +36,12 @@ hymnbenchmark
 *.so
 *.obj
 
+*.out
+
 profile
-gmon.out
-luac.out
+
 callgrind.out.*
 cachegrind.out.*
 
 test*.hm
-
-test.lua
+test*.lua

@@ -1,3 +1,7 @@
+# Release 0.6.3
+
+- New `OP_NEW_ARRAY` and `OP_NEW_TABLE` instructions for performance
+
 # Release 0.6.2
 
 - Various optimized OP codes for common instruction sequences

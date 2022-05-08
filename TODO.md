@@ -2,12 +2,13 @@
 
 1. Memory leaks when file not found
 1. Fix and thoroughly test OP code optimizations
+   - Can we assign the original byte index as the unique identifier
+   - And only at the very end, iterate through and match them, then calculate the final difference?
 1. Native functions need a way to throw exceptions
 1. Consistent, descriptive error messages
 
 # Features
 
-1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
 1. Optimizations
    - Registers to avoid push / pop / references
    - If we have two number only instructions in a row
