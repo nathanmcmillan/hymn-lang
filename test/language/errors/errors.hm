@@ -1,0 +1,8 @@
+function runtime(s) {
+  let i = index(s, "\n")
+  if i > 0 {
+    return s[:i]
+  } else {
+    return ""
+  }
+}

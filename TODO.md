@@ -2,18 +2,17 @@
 
 1. Memory leaks when file not found
 1. Fix and thoroughly test OP code optimizations
-   - Can we assign the original byte index as the unique identifier
+   - Can we assign the original byte index as a unique identifier
    - And only at the very end, iterate through and match them, then calculate the final difference?
 1. Native functions need a way to throw exceptions
 1. Consistent, descriptive error messages
 
 # Features
 
-1. Optimizations
-   - Registers to avoid push / pop / references
-   - If we have two number only instructions in a row
-   - We can take out the type check for the second instruction
-   - We know an exception will be thrown from the first instruction if the types are not allowed
+1. Binary numbers prefixed with `0b`
+1. Hexadecimal numbers prefixed with `0x`
+1. Scientific notation numbers `e+1` `e-1`
+1. Registers (avoids push / pop / references)
 1. Self referencing local functions
 1. Keep source code for functions, for better inspection and debugging
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`

@@ -1,4 +1,4 @@
-# @Exception
+# @exception multiple global definitions of 'foo'
 
 function foo() {
   return 1

@@ -1,0 +1,30 @@
+# bitwise not: expected an integer but found a boolean
+# bitwise and: expected integers but found a boolean and integer
+# bitwise and: expected integers but found an integer and boolean
+# bitwise or: expected integers but found a boolean and integer
+# bitwise or: expected integers but found an integer and boolean
+# bitwise xor: expected integers but found a boolean and integer
+# bitwise xor: expected integers but found an integer and boolean
+# bit shift left: expected integers but found a boolean and integer
+# bit shift left: expected integers but found an integer and boolean
+# bit shift right: expected integers but found a boolean and integer
+# bit shift right: expected integers but found an integer and boolean
+
+use "errors"
+
+try { ~false } except e { echo runtime(e) }
+
+try { false & 2 } except e { echo runtime(e) }
+try { 2 & false } except e { echo runtime(e) }
+
+try { false | 2 } except e { echo runtime(e) }
+try { 2 | false } except e { echo runtime(e) }
+
+try { false ^ 2 } except e { echo runtime(e) }
+try { 2 ^ false } except e { echo runtime(e) }
+
+try { false << 2 } except e { echo runtime(e) }
+try { 2 << false } except e { echo runtime(e) }
+
+try { false >> 2 } except e { echo runtime(e) }
+try { 2 >> false } except e { echo runtime(e) }

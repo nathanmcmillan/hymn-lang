@@ -1,4 +1,4 @@
-# @Starts
+# @starts
 # index function expects a string, array, or table
 
 let foo = "empty"

@@ -1,0 +1,12 @@
+# 8
+# undefined global variable 'foo'
+
+use "errors"
+
+let foo = 8
+
+try {
+  echo foo
+  delete(__globals, "foo")
+  echo foo
+} except e { echo runtime(e) }

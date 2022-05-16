@@ -1,7 +1,7 @@
 # 8
-# undefined
 # 4
 # 12
+# 4
 
 {
   function foo() {
@@ -10,15 +10,10 @@
   echo foo()
 }
 
-try {
-  foo()
-} except e {
-  echo e[0:9]
-}
-
 function foo() {
   return 4
 }
+
 echo foo()
 
 {
@@ -27,3 +22,5 @@ echo foo()
   }
   echo foo()
 }
+
+echo foo()

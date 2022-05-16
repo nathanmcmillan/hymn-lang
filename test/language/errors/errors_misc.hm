@@ -1,0 +1,8 @@
+# logical not: expected a boolean but found an integer
+# negate: expected a number but found a boolean
+
+use "errors"
+
+try { !2 } except e { echo runtime(e) }
+
+try { -false } except e { echo runtime(e) }

@@ -1,8 +1,11 @@
 # letter
 # underscore
+# digits
 
 let foo = "letter"
-let _foo = "underscore"
+let _foo_ = "underscore"
+let foo32 = "digits"
 
 echo foo
-echo _foo
+echo _foo_
+echo foo32

@@ -1,6 +1,8 @@
 # Release 0.6.3
 
 - New `OP_NEW_ARRAY` and `OP_NEW_TABLE` instructions for performance
+- Refactored every compile and runtime exception message
+- Numbers now allowed in variable names
 
 # Release 0.6.2
 

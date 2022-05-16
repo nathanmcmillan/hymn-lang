@@ -1,0 +1,7 @@
+# undefined global variable 'foo'
+
+use "errors"
+
+{ function foo() { return 8 } }
+
+try { foo() } except e { echo runtime(e) }

@@ -1,4 +1,4 @@
-# @Exception
+# @exception function argument error: expected 1 but found 2
 
 function foo(x) {
   echo x

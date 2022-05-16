@@ -1,4 +1,4 @@
-# @Exception
+# @exception variable 'x' already exists in scope
 
 {
   let x = 1

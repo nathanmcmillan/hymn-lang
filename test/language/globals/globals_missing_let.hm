@@ -1,4 +1,4 @@
-# @Exception
+# @exception
 
 a = 2
 echo a

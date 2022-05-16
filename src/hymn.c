@@ -2443,7 +2443,7 @@ static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
         advance(C);
         void (*infix)(Compiler *, bool) = token_rule(C->previous.type)->infix;
         if (infix == NULL) {
-            compile_error(C, &C->previous, "Expected infix");
+            compile_error(C, &C->previous, "expected infix");
             return;
         }
         infix(C, assign);
@@ -2487,7 +2487,7 @@ static uint8_t arguments(Compiler *C) {
             count++;
         } while (match(C, TOKEN_COMMA));
     }
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after function arguments");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' after function arguments");
     return count;
 }
 
@@ -2500,7 +2500,7 @@ static void compile_call(Compiler *C, bool assign) {
 static void compile_group(Compiler *C, bool assign) {
     (void)assign;
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected right parenthesis");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' for parenthesis group");
 }
 
 static void compile_none(Compiler *C, bool assign) {
@@ -2534,8 +2534,6 @@ static void compile_float(Compiler *C, bool assign) {
 
 char escape_sequence(const char c) {
     switch (c) {
-    case 'a':
-        return '\a';
     case 'b':
         return '\b';
     case 'f':
@@ -2548,8 +2546,6 @@ char escape_sequence(const char c) {
         return '\t';
     case 'v':
         return '\v';
-    case '?':
-        return '\?';
     default:
         return c;
     }
@@ -2630,10 +2626,10 @@ static void compile_array(Compiler *C, bool assign) {
         expression(C);
         emit_short(C, OP_ARRAY_PUSH, OP_POP);
         if (!check(C, TOKEN_RIGHT_SQUARE)) {
-            consume(C, TOKEN_COMMA, "Expected `,`");
+            consume(C, TOKEN_COMMA, "expected ',' between array elements");
         }
     }
-    consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` declaring array");
+    consume(C, TOKEN_RIGHT_SQUARE, "expected ']' at end of array declaration");
 }
 
 static void compile_table(Compiler *C, bool assign) {
@@ -2651,17 +2647,17 @@ static void compile_table(Compiler *C, bool assign) {
             name = ident_constant_string(C);
         } else {
             name = UINT8_MAX;
-            compile_error(C, &C->current, "Expected property name");
+            compile_error(C, &C->current, "expected table key");
         }
-        consume(C, TOKEN_COLON, "Expected `:`");
+        consume(C, TOKEN_COLON, "expected ':' between table key and value");
         expression(C);
         emit_short(C, OP_SET_PROPERTY, name);
         emit(C, OP_POP);
         if (!check(C, TOKEN_RIGHT_CURLY)) {
-            consume(C, TOKEN_COMMA, "Expected `,`");
+            consume(C, TOKEN_COMMA, "expected ',' between table elements");
         }
     }
-    consume(C, TOKEN_RIGHT_CURLY, "Expected `}` declaring table");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of table declaration");
 }
 
 static void function_delete(HymnFunction *this) {
@@ -2712,7 +2708,7 @@ static uint8_t variable(Compiler *C, const char *error) {
         if (local->depth != -1 && local->depth < scope->depth) {
             break;
         } else if (ident_match(C, name, &local->name)) {
-            compile_error(C, name, "variable '%.*s' already exists in this scope", name->length, &C->source[name->start]);
+            compile_error(C, name, "variable '%.*s' already exists in scope", name->length, &C->source[name->start]);
         }
     }
     push_local(C, *name);
@@ -2746,7 +2742,7 @@ static void type_declaration(Compiler *C) {
             advance(C);
             return;
         default:
-            compile_error(C, &C->previous, "unknown type declaration");
+            compile_error(C, &C->previous, "unavailable type declaration");
             return;
         }
     }
@@ -2766,7 +2762,7 @@ static int resolve_local(Compiler *C, Token *name) {
         Local *local = &scope->locals[i];
         if (ident_match(C, name, &local->name)) {
             if (local->depth == -1) {
-                compile_error(C, name, "local variable `%.*s` referenced before assignment", name->length, &C->source[name->start]);
+                compile_error(C, name, "local variable '%.*s' referenced before assignment", name->length, &C->source[name->start]);
             }
             return i;
         }
@@ -2855,7 +2851,7 @@ static void compile_binary(Compiler *C, bool assign) {
 }
 
 static void compile_dot(Compiler *C, bool assign) {
-    consume(C, TOKEN_IDENT, "Expected property name after `.`");
+    consume(C, TOKEN_IDENT, "expected table key after '.'");
     uint8_t name = ident_constant(C, &C->previous);
     if (assign && match(C, TOKEN_ASSIGN)) {
         expression(C);
@@ -2872,7 +2868,7 @@ static void compile_square(Compiler *C, bool assign) {
             emit_constant(C, hymn_new_none());
         } else {
             expression(C);
-            consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
+            consume(C, TOKEN_RIGHT_SQUARE, "expected ']' after square bracket expression");
         }
         emit(C, OP_SLICE);
     } else {
@@ -2882,11 +2878,11 @@ static void compile_square(Compiler *C, bool assign) {
                 emit_constant(C, hymn_new_none());
             } else {
                 expression(C);
-                consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
+                consume(C, TOKEN_RIGHT_SQUARE, "expected ']' after square bracket expression");
             }
             emit(C, OP_SLICE);
         } else {
-            consume(C, TOKEN_RIGHT_SQUARE, "Expected `]` after expression");
+            consume(C, TOKEN_RIGHT_SQUARE, "expected ']' after square bracket expression");
             if (assign && match(C, TOKEN_ASSIGN)) {
                 expression(C);
                 emit(C, OP_SET_DYNAMIC);
@@ -2911,7 +2907,7 @@ static void patch_jump(Compiler *C, int jump) {
     int count = code->count;
     int offset = count - jump - 2;
     if (offset > UINT16_MAX) {
-        compile_error(C, &C->previous, "Jump offset too large");
+        compile_error(C, &C->previous, "jump offset too large");
         return;
     }
     code->instructions[jump] = (offset >> 8) & UINT8_MAX;
@@ -3329,7 +3325,7 @@ static void update(Optimizer *optimizer, int index, uint8_t instruction) {
         }
         view = view->next;
     }
-    fprintf(stderr, "optimization failed to find instruction to update.\n");
+    fprintf(stderr, "optimization failed to find instruction to update\n");
     exit(1);
 }
 
@@ -3345,7 +3341,7 @@ static void move(Optimizer *optimizer, int index, uint8_t instruction, int to) {
         }
         view = view->next;
     }
-    fprintf(stderr, "optimization failed to find instruction to move.\n");
+    fprintf(stderr, "optimization failed to find instruction to move\n");
     exit(1);
 }
 
@@ -3366,7 +3362,7 @@ static void deletion(Optimizer *optimizer, int index) {
         previous = view;
         view = view->next;
     }
-    fprintf(stderr, "optimization failed to find instruction to delete.\n");
+    fprintf(stderr, "optimization failed to find instruction to delete\n");
     exit(1);
 }
 
@@ -3687,49 +3683,43 @@ static void optimize(Compiler *C) {
             uint8_t zed = SAFE_INSTRUCTION(zero);
             uint8_t omega = SAFE_INSTRUCTION(minus);
             if ((zed == OP_GET_LOCAL || zed == OP_GET_GLOBAL || zed == OP_CONSTANT) && (omega == OP_GET_LOCAL || omega == OP_GET_GLOBAL || omega == OP_CONSTANT)) {
-                ADD(one + 1, 2);
-                if (first == OP_JUMP_IF_GREATER) {
-                    UPDATE(one, IR_JUMP_IF_GREATER);
-                } else {
-                    UPDATE(one, IR_JUMP_IF_GREATER_EQUAL);
-                }
-                if (zed == OP_GET_LOCAL) {
-                    uint8_t value_b = INSTRUCTION(zero + 1);
-                    SET(one + 2, value_b);
-                    REMOVE(zero, 2);
-                    one -= 2;
-                } else {
-                    if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
-                        fprintf(stderr, "out of registers");
-                        exit(1);
+                if ((int)locals + (int)registers + 1 < UINT8_MAX) {
+                    ADD(one + 1, 2);
+                    if (first == OP_JUMP_IF_GREATER) {
+                        UPDATE(one, IR_JUMP_IF_GREATER);
+                    } else {
+                        UPDATE(one, IR_JUMP_IF_GREATER_EQUAL);
                     }
-                    uint8_t slot_2 = (uint8_t)(locals + (++registers));
-                    SET(one + 2, slot_2);
-                    SET(zero, (zed == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                    ADD(zero + 2, 1);
-                    SET(zero + 2, slot_2);
-                    one += 1;
-                }
-                if (omega == OP_GET_LOCAL) {
-                    uint8_t value_a = INSTRUCTION(minus + 1);
-                    SET(one + 1, value_a);
-                    REMOVE(minus, 2);
-                    one -= 2;
-                } else {
-                    if ((int)locals + (int)registers + 1 >= UINT8_MAX) {
-                        fprintf(stderr, "out of registers");
-                        exit(1);
+                    if (zed == OP_GET_LOCAL) {
+                        uint8_t value_b = INSTRUCTION(zero + 1);
+                        SET(one + 2, value_b);
+                        REMOVE(zero, 2);
+                        one -= 2;
+                    } else {
+                        uint8_t slot_2 = (uint8_t)(locals + (++registers));
+                        SET(one + 2, slot_2);
+                        SET(zero, (zed == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
+                        ADD(zero + 2, 1);
+                        SET(zero + 2, slot_2);
+                        one += 1;
                     }
-                    uint8_t slot_1 = (uint8_t)(locals + (++registers));
-                    SET(one + 1, slot_1);
-                    SET(minus, (omega == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                    ADD(minus + 2, 1);
-                    SET(minus + 2, slot_1);
-                    one += 1;
+                    if (omega == OP_GET_LOCAL) {
+                        uint8_t value_a = INSTRUCTION(minus + 1);
+                        SET(one + 1, value_a);
+                        REMOVE(minus, 2);
+                        one -= 2;
+                    } else {
+                        uint8_t slot_1 = (uint8_t)(locals + (++registers));
+                        SET(one + 1, slot_1);
+                        SET(minus, (omega == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
+                        ADD(minus + 2, 1);
+                        SET(minus + 2, slot_1);
+                        one += 1;
+                    }
+                    minus = -1;
+                    zero = -1;
+                    REPEAT;
                 }
-                minus = -1;
-                zero = -1;
-                REPEAT;
             }
 #endif
             break;
@@ -3782,6 +3772,8 @@ static void optimize(Compiler *C) {
             uint8_t slot_2 = INSTRUCTION(x + 2);
             if (slot_1 > parameters) {
                 if ((int)slot_1 + registers > UINT8_MAX) {
+                    // FIXME: Pre-compute if optimization has enough registers to avoid this
+                    // FIXME: Test me!
                     fprintf(stderr, "out of locals due to registers");
                     exit(1);
                 }
@@ -3856,7 +3848,7 @@ static void compile_function(Compiler *C, enum FunctionType type) {
 
     begin_scope(C);
 
-    consume(C, TOKEN_LEFT_PAREN, "missing '(' after function name");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' after function name");
 
     HymnFunction *func = C->scope->func;
 
@@ -3864,23 +3856,23 @@ static void compile_function(Compiler *C, enum FunctionType type) {
         do {
             func->arity++;
             if (func->arity > UINT8_MAX) {
-                compile_error(C, &C->previous, "can't have more than 255 function parameters");
+                compile_error(C, &C->previous, "too many function parameters");
             }
-            uint8_t parameter = variable(C, "missing parameter name");
+            uint8_t parameter = variable(C, "expected parameter name");
             finalize_variable(C, parameter);
             type_declaration(C);
         } while (match(C, TOKEN_COMMA));
     }
 
-    consume(C, TOKEN_RIGHT_PAREN, "missing ')' after function parameters");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' after function parameters");
     type_declaration(C);
-    consume(C, TOKEN_LEFT_CURLY, "missing '{' after function parameters");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after function parameters");
 
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
 
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after function body");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of function body");
 
     end_function(C);
     emit_constant(C, hymn_new_func_value(func));
@@ -3892,7 +3884,7 @@ static void function_expression(Compiler *C, bool assign) {
 }
 
 static void declare_function(Compiler *C) {
-    uint8_t global = variable(C, "missing function name");
+    uint8_t global = variable(C, "expected function name");
     local_initialize(C);
     compile_function(C, TYPE_FUNCTION);
     finalize_variable(C, global);
@@ -3922,14 +3914,14 @@ static void if_statement(Compiler *C) {
 
     free_jump_or_list(C);
 
-    consume(C, TOKEN_LEFT_CURLY, "missing '{' in if statement");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after if statement");
     begin_scope(C);
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
 
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after if statement");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of if statement body");
 
     if (check(C, TOKEN_ELIF) || check(C, TOKEN_ELSE)) {
         JumpList jump_end = {0};
@@ -3945,13 +3937,13 @@ static void if_statement(Compiler *C) {
 
             free_jump_or_list(C);
 
-            consume(C, TOKEN_LEFT_CURLY, "missing '{' in elif statement");
+            consume(C, TOKEN_LEFT_CURLY, "expected '{' after elif statement");
             begin_scope(C);
             while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
                 declaration(C);
             }
             end_scope(C);
-            consume(C, TOKEN_RIGHT_CURLY, "missing '}' after elif statement");
+            consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of elif statement body");
 
             JumpList *next = hymn_calloc(1, sizeof(JumpList));
             next->jump = emit_jump(C, OP_JUMP);
@@ -3964,9 +3956,9 @@ static void if_statement(Compiler *C) {
         free_jump_and_list(C);
 
         if (match(C, TOKEN_ELSE)) {
-            consume(C, TOKEN_LEFT_CURLY, "missing '{' in else statement");
+            consume(C, TOKEN_LEFT_CURLY, "expected '{' after else statement");
             block(C);
-            consume(C, TOKEN_RIGHT_CURLY, "missing '}' after else statement");
+            consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of else statement body");
         }
 
         patch_jump(C, jump_end.jump);
@@ -4033,9 +4025,9 @@ static void iterator_statement(Compiler *C, bool pair) {
     push_hidden_local(C);
 
     if (pair) {
-        variable(C, "Missing variable name in for loop");
+        variable(C, "expected variable name in for loop");
         local_initialize(C);
-        consume(C, TOKEN_IN, "Missing `in` in for loop");
+        consume(C, TOKEN_IN, "expected 'in' after variable name in for loop");
         C->scope->locals[index].name = C->scope->locals[object].name;
     } else {
         push_hidden_local(C);
@@ -4059,7 +4051,7 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     // BODY
 
-    consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after for loop declaration");
     block(C);
 
     // LOOP
@@ -4082,7 +4074,7 @@ static void iterator_statement(Compiler *C, bool pair) {
 
     end_scope(C);
 
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of for loop");
 }
 
 static void for_statement(Compiler *C) {
@@ -4092,12 +4084,12 @@ static void for_statement(Compiler *C) {
 
     uint8_t index = (uint8_t)C->scope->local_count;
 
-    variable(C, "Missing variable name in for loop");
+    variable(C, "expected variable name in for loop");
 
     if (match(C, TOKEN_ASSIGN)) {
         expression(C);
         local_initialize(C);
-        consume(C, TOKEN_COMMA, "Missing `,` in for loop");
+        consume(C, TOKEN_COMMA, "expected ',' in for loop after variable assignment");
     } else if (match(C, TOKEN_COMMA)) {
         iterator_statement(C, true);
         return;
@@ -4105,7 +4097,7 @@ static void for_statement(Compiler *C) {
         iterator_statement(C, false);
         return;
     } else {
-        compile_error(C, &C->previous, "Missing either `=`, `in`, or `,` in for loop");
+        compile_error(C, &C->previous, "expected one of '=', 'in', or ',' in for loop declaration");
         return;
     }
 
@@ -4141,7 +4133,7 @@ static void for_statement(Compiler *C) {
 
     // BODY
 
-    consume(C, TOKEN_LEFT_CURLY, "missing '{' in for loop");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after for loop declaration");
     block(C);
 
     // INCREMENT
@@ -4170,7 +4162,7 @@ static void for_statement(Compiler *C) {
 
     end_scope(C);
 
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' in for loop");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of for loop");
 }
 
 static void while_statement(Compiler *C) {
@@ -4183,7 +4175,7 @@ static void while_statement(Compiler *C) {
 
     int jump = emit_jump(C, OP_JUMP_IF_FALSE);
 
-    consume(C, TOKEN_LEFT_CURLY, "missing '{' in while loop");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after while loop declaration");
     block(C);
     emit_loop(C, start);
 
@@ -4192,7 +4184,7 @@ static void while_statement(Compiler *C) {
     patch_jump(C, jump);
     patch_jump_list(C);
 
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after while loop");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of while loop");
 }
 
 static void return_statement(Compiler *C) {
@@ -4220,7 +4212,7 @@ static void pop_stack_loop(Compiler *C) {
 
 static void break_statement(Compiler *C) {
     if (C->loop == NULL) {
-        compile_error(C, &C->previous, "break outside of loop");
+        compile_error(C, &C->previous, "break statement outside of loop");
     }
     pop_stack_loop(C);
     JumpList *jump_next = C->jump;
@@ -4233,7 +4225,7 @@ static void break_statement(Compiler *C) {
 
 static void continue_statement(Compiler *C) {
     if (C->loop == NULL) {
-        compile_error(C, &C->previous, "continue outside of loop");
+        compile_error(C, &C->previous, "continue statement outside of loop");
     }
     pop_stack_loop(C);
     if (C->loop->is_for) {
@@ -4259,7 +4251,7 @@ static void try_statement(Compiler *C) {
     except->next = func->except;
     func->except = except;
 
-    consume(C, TOKEN_LEFT_CURLY, "missing '{' in try statement");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after try declaration");
     begin_scope(C);
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
@@ -4268,21 +4260,21 @@ static void try_statement(Compiler *C) {
 
     int jump = emit_jump(C, OP_JUMP);
 
-    consume(C, TOKEN_RIGHT_CURLY, "try statement missing '}' before 'except'");
-    consume(C, TOKEN_EXCEPT, "try statement is missing 'except'");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of try statement");
+    consume(C, TOKEN_EXCEPT, "expected 'except' at end of try statement");
 
     except->end = code->count;
 
     begin_scope(C);
-    uint8_t message = variable(C, "try statement missing variable after 'except'");
+    uint8_t message = variable(C, "expected variable name in exception declaration");
     finalize_variable(C, message);
-    consume(C, TOKEN_LEFT_CURLY, "try statement missing '{' after except variable");
+    consume(C, TOKEN_LEFT_CURLY, "expected '{' after exception declaration");
     while (!check(C, TOKEN_RIGHT_CURLY) && !check(C, TOKEN_EOF)) {
         declaration(C);
     }
     end_scope(C);
 
-    consume(C, TOKEN_RIGHT_CURLY, "missing '}' after try statement");
+    consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of exception statement");
 
     patch_jump(C, jump);
 }
@@ -4293,11 +4285,11 @@ static void echo_statement(Compiler *C) {
 }
 
 static void print_statement(Compiler *C) {
-    consume(C, TOKEN_LEFT_PAREN, "missing '(' around print statement");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around print statement");
     expression(C);
-    consume(C, TOKEN_COMMA, "missing ',' between arguments in print statement");
+    consume(C, TOKEN_COMMA, "expected ',' between arguments in print statement");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "missing ')' around print statement");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around print statement");
     emit(C, OP_PRINT);
 }
 
@@ -4336,7 +4328,7 @@ static void statement(Compiler *C) {
         throw_statement(C);
     } else if (match(C, TOKEN_LEFT_CURLY)) {
         block(C);
-        consume(C, TOKEN_RIGHT_CURLY, "missing '}' after block scope");
+        consume(C, TOKEN_RIGHT_CURLY, "expected '}' at end of block statement");
     } else {
         expression_statement(C);
     }
@@ -4344,125 +4336,125 @@ static void statement(Compiler *C) {
 
 static void array_push_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after push");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around push expression");
     expression(C);
-    consume(C, TOKEN_COMMA, "Expected `,` between push arguments");
+    consume(C, TOKEN_COMMA, "expected ',' between arguments in push expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after push expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around push expression");
     emit(C, OP_ARRAY_PUSH);
 }
 
 static void array_insert_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after insert");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around insert expression");
     expression(C);
-    consume(C, TOKEN_COMMA, "Expected `,` between insert arguments");
+    consume(C, TOKEN_COMMA, "expected ',' between 1st and 2nd arguments in insert expression");
     expression(C);
-    consume(C, TOKEN_COMMA, "Expected `,` between insert arguments");
+    consume(C, TOKEN_COMMA, "expected ',' between 2nd and 3rd arguments in insert expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after insert expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around insert expression");
     emit(C, OP_ARRAY_INSERT);
 }
 
 static void array_pop_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after pop");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around pop expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after pop expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around pop expression");
     emit(C, OP_ARRAY_POP);
 }
 
 static void delete_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after delete");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around delete expression");
     expression(C);
-    consume(C, TOKEN_COMMA, "Expected `,` between delete arguments");
+    consume(C, TOKEN_COMMA, "expected ',' between arguments in delete expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after delete expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around pop expression");
     emit(C, OP_DELETE);
 }
 
 static void len_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after len");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around len expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after len expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around len expression");
     emit(C, OP_LEN);
 }
 
 static void cast_integer_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after integer");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around integer expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after integer expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around integer expression");
     emit(C, OP_INT);
 }
 
 static void cast_float_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after float");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around float expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after float expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around float expression");
     emit(C, OP_FLOAT);
 }
 
 static void cast_string_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after string");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around string expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after string expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around string expression");
     emit(C, OP_STRING);
 }
 
 static void type_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after type");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around type expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after type expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around type expression");
     emit(C, OP_TYPE);
 }
 
 static void clear_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after clear");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around clear expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after clear expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around clear expression");
     emit(C, OP_CLEAR);
 }
 
 static void copy_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after copy");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around copy expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after copy expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around copy expression");
     emit(C, OP_COPY);
 }
 
 static void keys_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after keys");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around keys expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after keys expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around keys expression");
     emit(C, OP_KEYS);
 }
 
 static void index_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Missing '(' for paramters in `index` function");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around index expression");
     expression(C);
-    consume(C, TOKEN_COMMA, "Expected 2 arguments for `index` function");
+    consume(C, TOKEN_COMMA, "expected ',' between arguments in index expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Missing ')' after parameters in `index` function");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around index expression");
     emit(C, OP_INDEX);
 }
 
 static void exists_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "Expected `(` after exists");
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' around exists expression");
     expression(C);
-    consume(C, TOKEN_COMMA, "Expected 2 arguments for `exists` function");
+    consume(C, TOKEN_COMMA, "expected ',' between arguments in exists expression");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "Expected `)` after exists expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around exists expression");
     emit(C, OP_EXISTS);
 }
 
@@ -4998,7 +4990,7 @@ static HymnFrame *throw_error_string(Hymn *H, HymnString *string) {
 
 static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     if (count != func->arity) {
-        return throw_error(H, "unexpected number of function arguments: %d != %d", count, func->arity);
+        return throw_error(H, "expected: %d function argument(s) but found: %d", func->arity, count);
     } else if (H->frame_count == HYMN_FRAMES_MAX) {
         return throw_error(H, "stack overflow");
     }
@@ -5102,7 +5094,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
             HymnString *path = parent ? hymn_string_replace(replace, "<parent>", parent) : hymn_string_copy(replace);
             HymnString *use = hymn_path_absolute(path);
 
-            missing = string_append_format(missing, "\nno file %s", use);
+            missing = string_append_format(missing, "\nno file: %s", use);
 
             hymn_string_delete(path);
             hymn_string_delete(replace);
@@ -5124,8 +5116,8 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
 
     HymnString *source = hymn_read_file(module->string);
     if (source == NULL) {
-        printf("file not found: %s\n", module->string);
-        exit(1);
+        HymnString *failed = hymn_string_format("error reading file: %s\n", module->string);
+        return throw_error_string(H, failed);
     }
 
     CompileResult result = compile(H, module->string, source, false);
@@ -5322,7 +5314,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case IR_JUMP_IF_GREATER: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER", 1, code, index);
     case IR_JUMP_IF_GREATER_EQUAL: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER_EQUAL", 1, code, index);
     case IR_MODULO: return debug_three_byte_instruction(debug, "IR_MODULO", code, index);
-    default: *debug = string_append_format(*debug, "UNKNOWN OPCODE %d\n", instruction); return index + 1;
+    default: *debug = string_append_format(*debug, "UNKNOWN_OPCODE %d\n", instruction); return index + 1;
     }
 }
 
@@ -5351,38 +5343,41 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
     if (frame == NULL) return;             \
     HYMN_DISPATCH;
 
-#define ARITHMETIC_OP(arithmetic)                                                     \
-    HymnValue b = pop(H);                                                             \
-    HymnValue a = pop(H);                                                             \
-    if (hymn_is_int(a)) {                                                             \
-        if (hymn_is_int(b)) {                                                         \
-            a.as.i arithmetic b.as.i;                                                 \
-            push(H, a);                                                               \
-        } else if (hymn_is_float(b)) {                                                \
-            HymnValue new = hymn_new_float((HymnFloat)a.as.i);                        \
-            new.as.f arithmetic b.as.f;                                               \
-            push(H, new);                                                             \
-        } else {                                                                      \
-            hymn_dereference(H, a);                                                   \
-            hymn_dereference(H, b);                                                   \
-            THROW("Operation Error: 2nd value must be `Integer` or `Float`")          \
-        }                                                                             \
-    } else if (hymn_is_float(a)) {                                                    \
-        if (hymn_is_int(b)) {                                                         \
-            a.as.f arithmetic(HymnFloat) b.as.i;                                      \
-            push(H, a);                                                               \
-        } else if (hymn_is_float(b)) {                                                \
-            a.as.f arithmetic b.as.f;                                                 \
-            push(H, a);                                                               \
-        } else {                                                                      \
-            hymn_dereference(H, a);                                                   \
-            hymn_dereference(H, b);                                                   \
-            THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`") \
-        }                                                                             \
-    } else {                                                                          \
-        hymn_dereference(H, a);                                                       \
-        hymn_dereference(H, b);                                                       \
-        THROW("Operation Error: 1st and 2nd values must be `Integer` or `Float`")     \
+#define ARITHMETIC_OP(arithmetic)                                                  \
+    HymnValue b = pop(H);                                                          \
+    HymnValue a = pop(H);                                                          \
+    if (hymn_is_int(a)) {                                                          \
+        if (hymn_is_int(b)) {                                                      \
+            a.as.i arithmetic b.as.i;                                              \
+            push(H, a);                                                            \
+        } else if (hymn_is_float(b)) {                                             \
+            HymnValue new = hymn_new_float((HymnFloat)a.as.i);                     \
+            new.as.f arithmetic b.as.f;                                            \
+            push(H, new);                                                          \
+        } else {                                                                   \
+            const char *is = value_name(b.is);                                     \
+            hymn_dereference(H, a);                                                \
+            hymn_dereference(H, b);                                                \
+            THROW("arithmetic error: 2nd value must be a number but was a %s", is) \
+        }                                                                          \
+    } else if (hymn_is_float(a)) {                                                 \
+        if (hymn_is_int(b)) {                                                      \
+            a.as.f arithmetic(HymnFloat) b.as.i;                                   \
+            push(H, a);                                                            \
+        } else if (hymn_is_float(b)) {                                             \
+            a.as.f arithmetic b.as.f;                                              \
+            push(H, a);                                                            \
+        } else {                                                                   \
+            const char *is = value_name(b.is);                                     \
+            hymn_dereference(H, a);                                                \
+            hymn_dereference(H, b);                                                \
+            THROW("arithmetic error: 2nd value must be a number but was a %s", is) \
+        }                                                                          \
+    } else {                                                                       \
+        const char *is = value_name(a.is);                                         \
+        hymn_dereference(H, a);                                                    \
+        hymn_dereference(H, b);                                                    \
+        THROW("arithmetic error: 1st value must be a number but was a %s", is)     \
     }
 
 #define COMPARE_OP(compare)                                                             \
@@ -5394,9 +5389,10 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                                  \
             push(H, hymn_new_bool((HymnFloat)hymn_as_int(a) compare hymn_as_float(b))); \
         } else {                                                                        \
+            const char *is = value_name(b.is);                                          \
             hymn_dereference(H, a);                                                     \
             hymn_dereference(H, b);                                                     \
-            THROW("Operands must be numbers")                                           \
+            THROW("comparison error: 2nd value must be a number, but was a %s", is)     \
         }                                                                               \
     } else if (hymn_is_float(a)) {                                                      \
         if (hymn_is_int(b)) {                                                           \

@@ -1,27 +1,39 @@
 # number 42
 # number format 42
 # simply {foo}
+# simply symbol ${foo}
 # multiplied 84
+# devide32test
 # add two 5 numbers
 # table { "a": 1 } value
-# escape {foo}
-# foo32bar
+# multiline 6 expression
+# escape ${foo}
+# symbol $
+# symbol $-
 
 let foo = 42
 
 echo "number " + foo
-echo "number format {foo}"
+echo "number format ${foo}"
 echo 'simply {foo}'
-
-echo "multiplied {foo * 2}"
+echo 'simply symbol ${foo}'
+echo "multiplied ${foo * 2}"
+echo "devide${64/2}test"
 
 let x = 2
 let y = 3
 
-echo "add two {x + y} numbers"
+echo "add two ${x + y} numbers"
 
-echo "table { { a: 1 } } value"
+echo "table ${ { a: 1 } } value"
 
-echo "escape {{foo}"
+echo "multiline ${
+  2
+  +
+  4
+} expression"
 
-echo "foo{64/2}bar"
+echo "escape \${foo}"
+
+echo "symbol $"
+echo "symbol $-"

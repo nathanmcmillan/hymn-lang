@@ -105,15 +105,20 @@ async function testSource(script) {
     }
     return indent(4, exception)
   })
-  if (expected === '@Exception') {
+  if (expected.startsWith('@exception')) {
     if (error === null) {
-      result = indent(4, 'Expected an error.')
+      result = indent(4, 'Expected an error') + '\n' + indent(4, 'But was:') + '\n' + indent(8, out)
+    } else {
+      const except = expected.substring(11)
+      if (!error.startsWith(except)) {
+        result = indent(4, 'Expected error:') + '\n' + indent(8, except) + '\n' + indent(4, 'But was:') + '\n' + indent(8, error)
+      }
     }
   } else {
     out = out.trim()
     if (error) {
       return indent(4, error.trim())
-    } else if (expected.startsWith('@Starts')) {
+    } else if (expected.startsWith('@starts')) {
       const start = expected.substring(8)
       if (!out.startsWith(start)) {
         result = indent(4, 'Expected:') + '\n' + indent(8, start) + '\n' + indent(4, 'But was:') + '\n' + indent(8, out)

@@ -95,7 +95,7 @@ static HymnString *test_source(HymnString *script) {
         hymn_string_zero(out);
         char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
-        if (hymn_string_equal(expected, "@Exception")) {
+        if (hymn_string_equal(expected, "@exception")) {
             if (error == NULL) {
                 result = hymn_new_string("Expected an error.\n");
             } else {
@@ -107,7 +107,7 @@ static HymnString *test_source(HymnString *script) {
                 result = hymn_new_string(error);
                 free(error);
                 hymn_string_trim(result);
-            } else if (hymn_string_starts_with(expected, "@Starts")) {
+            } else if (hymn_string_starts_with(expected, "@starts")) {
                 HymnString *start = hymn_substring(expected, 8, hymn_string_len(expected));
                 if (!hymn_string_starts_with(out, start)) {
                     result = hymn_string_format("Expected start:\n%s\n\nBut was:\n%s", start, out);

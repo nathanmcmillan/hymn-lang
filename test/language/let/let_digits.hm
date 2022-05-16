@@ -1,3 +1,5 @@
-# @Exception
+# @exception expected a variable name
 
-let foo32 = "no"
+let 32 = "ok"
+
+echo 32

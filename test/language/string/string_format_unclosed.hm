@@ -1,0 +1,16 @@
+# ${
+# ${ -
+# ${ -
+# ${ foo
+# ${ {
+# $}
+# }
+
+echo "${"
+print(0, "${ ")
+print(0, "-\n")
+echo "${ -"
+echo "${ foo"
+echo "${ {"
+echo "$}"
+echo "}"
