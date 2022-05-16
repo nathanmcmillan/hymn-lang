@@ -852,12 +852,14 @@ function beginningOfLine(source, i) {
   }
 }
 
-function endOfLine(source, i) {
+function appendErrorLine(source, begin, end) {
   while (true) {
-    if (i + 1 >= source.length) return i + 1
-    if (source[i] === '\n') return i
-    i++
+    if (source[end] === '\n') break
+    end++
+    if (end >= source.length) break
   }
+  const line = source.substring(begin, end)
+  return line.trim()
 }
 
 function appendPreviousLine(source, i) {
@@ -884,27 +886,22 @@ function appendSecondPreviousLine(source, i) {
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  let error
-  if (C.stringFormat > 0 || C.stringStatus !== STRING_STATUS_NONE) {
-    error = 'bad expression in string: ' + format
-  } else {
-    error = format
-  }
-  error += '\n\n'
+  let error = format + '\n\n'
 
   const begin = beginningOfLine(C.source, token.start)
-  const end = endOfLine(C.source, token.start)
 
   error += appendSecondPreviousLine(C.source, begin)
   error += appendPreviousLine(C.source, begin)
-  error += C.source.substring(begin, end) + '\n'
+  error += appendErrorLine(C.source, begin, token.start)
 
-  for (let i = 0; i < token.start - begin; i++) {
-    error += ' '
-  }
-
-  for (let i = 0; i < token.length; i++) {
-    error += '^'
+  if (token.length > 0) {
+    error += '\n'
+    for (let i = 0; i < token.start - begin; i++) {
+      error += ' '
+    }
+    for (let i = 0; i < token.length; i++) {
+      error += '^'
+    }
   }
 
   error += '\nat ' + (C.script === null ? 'script' : C.script) + ':' + token.row
@@ -1090,10 +1087,17 @@ function stringStatus(C) {
   const source = C.source
   const size = source.length
   let expression = false
+  let brackets = 1
   while (true) {
     if (i >= size) return false
     switch (source[i]) {
       case '}':
+        if (brackets > 1) {
+          expression = true
+          i++
+          brackets--
+          continue
+        }
         return expression ? STRING_STATUS_BEGIN : STRING_STATUS_CONTINUE
       case '"':
         return STRING_STATUS_NONE
@@ -1102,6 +1106,11 @@ function stringStatus(C) {
       case '\r':
       case '\n':
         i++
+        continue
+      case '{':
+        expression = true
+        i++
+        brackets++
         continue
       default:
         expression = true
@@ -1615,7 +1624,7 @@ function compileWithPrecedence(C, precedence) {
   const rule = rules[C.previous.type]
   const prefix = rule.prefix
   if (prefix === null) {
-    compileError(C, C.previous, `expected expression following '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
+    compileError(C, C.previous, `expected expression near '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
     return
   }
   const assign = precedence <= PRECEDENCE_ASSIGN

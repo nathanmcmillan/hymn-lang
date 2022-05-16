@@ -1,3 +1,0 @@
-# @exception bad expression in string near '}'
-
-echo "${ { } -"
