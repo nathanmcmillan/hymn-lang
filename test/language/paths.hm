@@ -1,4 +1,4 @@
 # src/<path>.hm
 
-push(__paths, "src/<path>.hm")
-echo __paths[-1]
+push(PATHS, "src/<path>.hm")
+echo PATHS[-1]

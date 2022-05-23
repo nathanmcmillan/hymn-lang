@@ -3034,6 +3034,7 @@ struct Instruction {
 struct Optimizer {
     HymnByteCode *code;
     Instruction *important;
+    HymnExceptList *except;
 };
 
 #define IS_ADJUSTABLE(instructions, index, off, compare, T, operator)                           \
@@ -3168,7 +3169,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
                     jump -= (uint16_t)shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
                 } else if (destination >= start && destination <= start + shift) {
-                    jump -= (uint16_t)(optimizer->code->instructions[destination]);
+                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
                 }
             }
@@ -3181,10 +3182,9 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
                 if (destination < start) {
                     jump -= (uint16_t)shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
-                    printf("+++ Z => %d\n", i + 5 - (int)jump);
                 } else if (destination >= start && destination <= start + shift) {
                     assert(destination < 0);
-                    jump -= (uint16_t)(optimizer->code->instructions[destination]); // What? That looks wrong
+                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 }
             }
@@ -3196,6 +3196,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         }
         view = view->next;
     }
+
     int *lines = optimizer->code->lines;
     int count = optimizer->code->count - shift;
     for (int c = start; c < count; c++) {
@@ -3204,6 +3205,17 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         lines[c] = lines[n];
     }
     optimizer->code->count = count;
+
+    HymnExceptList *except = optimizer->except;
+    while (except != NULL) {
+        if (start < except->start) {
+            except->start -= shift;
+            except->end -= shift;
+        } else if (start < except->end) {
+            except->end -= shift;
+        }
+        except = except->next;
+    }
 }
 
 static void extend(Optimizer *optimizer, int start, int shift) {
@@ -3301,6 +3313,7 @@ static void extend(Optimizer *optimizer, int start, int shift) {
         }
         view = view->next;
     }
+
     int *lines = optimizer->code->lines;
     int c = optimizer->code->count - 1;
     while (true) {
@@ -3311,6 +3324,17 @@ static void extend(Optimizer *optimizer, int start, int shift) {
         instructions[c] = instructions[p];
         lines[c] = lines[p];
         c--;
+    }
+
+    HymnExceptList *except = optimizer->except;
+    while (except != NULL) {
+        if (start < except->start) {
+            except->start += shift;
+            except->end += shift;
+        } else if (start < except->end) {
+            except->end += shift;
+        }
+        except = except->next;
     }
 }
 
@@ -3407,12 +3431,16 @@ static void interest(Optimizer *optimizer) {
 
 static void optimize(Compiler *C) {
 
-    int locals = C->scope->local_count;
-    int parameters = C->scope->func->arity;
+    Scope *scope = C->scope;
+    HymnFunction *func = scope->func;
+
+    int locals = scope->local_count;
+    int parameters = func->arity;
     int registers = 0;
 
     Optimizer optimizer = {0};
-    optimizer.code = current(C);
+    optimizer.code = &func->code;
+    optimizer.except = func->except;
 
     if (optimizer.code->count <= 2) {
         return;
@@ -4899,13 +4927,13 @@ static HymnFrame *exception(Hymn *H) {
             }
             range = range->next;
         }
-        HymnValue result = pop(H);
+        HymnValue message = pop(H);
         if (except != NULL) {
             while (H->stack_top != &frame->stack[except->locals]) {
                 hymn_dereference(H, pop(H));
             }
             frame->ip = &instructions[except->end];
-            push(H, result);
+            push(H, message);
             return frame;
         }
         while (H->stack_top != frame->stack) {
@@ -4914,38 +4942,33 @@ static HymnFrame *exception(Hymn *H) {
         H->frame_count--;
         if (H->frame_count == 0 || func->name == NULL) {
             assert(H->error == NULL);
-            H->error = hymn_value_to_string(result);
-            hymn_dereference(H, result);
+            H->error = hymn_value_to_string(message);
+            hymn_dereference(H, message);
             return NULL;
         }
-        push(H, result);
+        push(H, message);
         frame = current_frame(H);
     }
 }
 
 static HymnString *stacktrace(Hymn *H) {
     HymnString *trace = hymn_new_string("");
-
     for (int i = H->frame_count - 1; i >= 0; i--) {
         HymnFrame *frame = &H->frames[i];
         HymnFunction *func = frame->func;
         int row = func->code.lines[frame->ip - func->code.instructions - 1];
-
-        trace = hymn_string_append(trace, "at");
-
-        if (func->name != NULL) {
-            trace = string_append_format(trace, " %s", func->name);
-        }
-
-        if (func->script == NULL) {
-            trace = string_append_format(trace, " script:");
+        if (func->name == NULL) {
+            if (func->script == NULL) {
+                trace = string_append_format(trace, "at script:%d\n", row);
+            } else {
+                trace = string_append_format(trace, "at %s:%d\n", func->script, row);
+            }
+        } else if (func->script == NULL) {
+            trace = string_append_format(trace, "at %s script:%d\n", func->name, row);
         } else {
-            trace = string_append_format(trace, " %s:", func->script);
+            trace = string_append_format(trace, "at %s %s:%d\n", func->name, func->script, row);
         }
-
-        trace = string_append_format(trace, "%d\n", row);
     }
-
     return trace;
 }
 
@@ -4982,10 +5005,36 @@ static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
     return push_error(H, error);
 }
 
+static HymnFrame *throw_exception(Hymn *H, const char *name) {
+    HymnString *error = H->exception;
+    H->exception = NULL;
+
+    HymnString *trace = stacktrace(H);
+    error = hymn_string_append(error, "\n\nat ");
+    error = hymn_string_append(error, name);
+    HymnFrame *frame = &H->frames[H->frame_count - 1];
+    HymnFunction *func = frame->func;
+    int row = func->code.lines[frame->ip - func->code.instructions - 1];
+    if (func->script == NULL) {
+        error = string_append_format(error, " script:%d\n", row);
+    } else {
+        error = string_append_format(error, " %s:%d\n", func->script, row);
+    }
+    error = hymn_string_append(error, trace);
+    hymn_string_delete(trace);
+
+    return push_error(H, error);
+}
+
 static HymnFrame *throw_error_string(Hymn *H, HymnString *string) {
     HymnFrame *frame = throw_error(H, string);
     hymn_string_delete(string);
     return frame;
+}
+
+HymnValue hymn_new_exception(Hymn *H, char *error) {
+    H->exception = hymn_new_string(error);
+    return hymn_new_none();
 }
 
 static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
@@ -5012,15 +5061,20 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
     case HYMN_VALUE_FUNC:
         return call(H, hymn_as_func(value), count);
     case HYMN_VALUE_FUNC_NATIVE: {
-        HymnNativeCall func = hymn_as_native(value)->func;
+        HymnNativeFunction *native = hymn_as_native(value);
+        HymnNativeCall func = native->func;
         HymnValue result = func(H, count, H->stack_top - count);
-        hymn_reference(result);
         HymnValue *top = H->stack_top - (count + 1);
         while (H->stack_top != top) {
             hymn_dereference(H, pop(H));
         }
-        push(H, result);
-        return current_frame(H);
+        if (H->exception != NULL) {
+            return throw_exception(H, native->name->string);
+        } else {
+            hymn_reference(result);
+            push(H, result);
+            return current_frame(H);
+        }
     }
     default: {
         const char *is = value_name(value.is);
@@ -7071,12 +7125,12 @@ Hymn *new_hymn() {
 
     table_init(&H->globals);
 
-    HymnObjectString *__globals = hymn_new_intern_string(H, "__globals");
-    hymn_reference_string(__globals);
+    HymnObjectString *globals = hymn_new_intern_string(H, "GLOBALS");
+    hymn_reference_string(globals);
 
     HymnValue globals_value = hymn_new_table_value(&H->globals);
-    table_put(&H->globals, __globals, globals_value);
-    hymn_reference_string(__globals);
+    table_put(&H->globals, globals, globals_value);
+    hymn_reference_string(globals);
     hymn_reference(globals_value);
     hymn_reference(globals_value);
 
@@ -7084,16 +7138,16 @@ Hymn *new_hymn() {
 
     H->paths = hymn_new_array(3);
 
-    HymnObjectString *__paths = hymn_new_intern_string(H, "__paths");
-    hymn_reference_string(__paths);
+    HymnObjectString *paths = hymn_new_intern_string(H, "PATHS");
+    hymn_reference_string(paths);
 
     H->paths->items[0] = hymn_new_string_value(search_this);
     H->paths->items[1] = hymn_new_string_value(search_relative);
     H->paths->items[2] = hymn_new_string_value(search_libs);
 
     HymnValue paths_value = hymn_new_array_value(H->paths);
-    table_put(&H->globals, __paths, paths_value);
-    hymn_reference_string(__paths);
+    table_put(&H->globals, paths, paths_value);
+    hymn_reference_string(paths);
     hymn_reference(paths_value);
     hymn_reference(paths_value);
 
@@ -7101,12 +7155,12 @@ Hymn *new_hymn() {
 
     H->imports = hymn_new_table();
 
-    HymnObjectString *__imports = hymn_new_intern_string(H, "__imports");
-    hymn_reference_string(__imports);
+    HymnObjectString *imports = hymn_new_intern_string(H, "IMPORTS");
+    hymn_reference_string(imports);
 
     HymnValue imports_value = hymn_new_table_value(H->imports);
-    table_put(&H->globals, __imports, imports_value);
-    hymn_reference_string(__imports);
+    table_put(&H->globals, imports, imports_value);
+    hymn_reference_string(imports);
     hymn_reference(imports_value);
     hymn_reference(imports_value);
 
@@ -7118,13 +7172,13 @@ Hymn *new_hymn() {
 
 void hymn_delete(Hymn *H) {
     {
-        HymnTable *globals = &H->globals;
-        HymnObjectString *__globals = hymn_new_intern_string(H, "__globals");
-        table_remove(globals, __globals);
-        hymn_dereference_string(H, __globals);
+        HymnTable *globals_table = &H->globals;
+        HymnObjectString *globals = hymn_new_intern_string(H, "GLOBALS");
+        table_remove(globals_table, globals);
+        hymn_dereference_string(H, globals);
 
-        table_release(H, globals);
-        assert(globals->size == 0);
+        table_release(H, globals_table);
+        assert(globals_table->size == 0);
     }
 
     hymn_array_delete(H, H->paths);

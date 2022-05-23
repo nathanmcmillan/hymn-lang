@@ -5,7 +5,7 @@ let foo = 1
 
 echo foo
 
-delete(__globals, "foo")
+delete(GLOBALS, "foo")
 
 let foo = 2
 

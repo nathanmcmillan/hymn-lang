@@ -4,6 +4,6 @@
 use "../import_me"
 use "../import_me"
 
-delete(__imports, keys(__imports)[0])
+delete(IMPORTS, keys(IMPORTS)[0])
 
 use "../import_me"

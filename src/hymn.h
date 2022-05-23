@@ -21,12 +21,12 @@
 
 #define HYMN_VERSION "0.6.2"
 
-// #define HYMN_NO_REPL
-// #define HYMN_NO_DYNAMIC_LIBS
-
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
+
+// #define HYMN_NO_REPL
+// #define HYMN_NO_DYNAMIC_LIBS
 
 // #define HYMN_NO_OPTIMIZE
 // #define HYMN_NO_REGISTERS
@@ -239,6 +239,7 @@ struct Hymn {
     HymnArray *paths;
     HymnTable *imports;
     HymnString *error;
+    HymnString *exception;
 #ifndef HYMN_NO_DYNAMIC_LIBS
     HymnLibList *libraries;
 #endif
@@ -347,6 +348,8 @@ void hymn_dereference(Hymn *H, HymnValue value);
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
 void hymn_set_property_const(Hymn *H, HymnTable *table, const char *name, HymnValue value);
+
+HymnValue hymn_new_exception(Hymn *H, char *error);
 
 Hymn *new_hymn();
 

@@ -7,7 +7,7 @@ function foo() {
 
 echo foo()
 
-delete(__globals, "foo")
+delete(GLOBALS, "foo")
 
 function foo() {
   return 2

@@ -1,0 +1,12 @@
+# foo
+# ...
+# end
+
+let foo = {}
+foo.bar = function(h) {
+  return h
+}
+
+echo "foo"
+try { foo.bar() } except e { echo "..." }
+echo "end"

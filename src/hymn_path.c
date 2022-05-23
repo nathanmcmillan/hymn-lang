@@ -169,11 +169,11 @@ static HymnValue path_walk(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue path_base(Hymn *H, int count, HymnValue *arguments) {
     if (count == 0) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_string(value)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path not a string");
     }
     HymnString *path = hymn_as_string(value);
     size_t size = hymn_string_len(path);

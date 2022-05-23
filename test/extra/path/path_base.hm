@@ -1,6 +1,18 @@
-echo path.base("")
-echo path.base("/")
-echo path.base("f")
-echo path.base("foo/bar")
-echo path.base("foo/bar/")
-echo path.base("foo/bar/hello.world")
+use "test/libs/assert"
+
+assert("", path.base(""))
+assert("", path.base("/"))
+assert("f", path.base("f"))
+assert("bar", path.base("foo/bar"))
+assert("", path.base("foo/bar/"))
+assert("hello.world", path.base("foo/bar/hello.world"))
+
+try { path.base() } except e { echo e }
+
+function drop_the() {
+  path.base(4)
+}
+
+try { drop_the() } except e { echo e }
+
+echo "..."

@@ -506,11 +506,6 @@ function valueName(type) {
   }
 }
 
-function englishValue(type) {
-  const name = valueName(type)
-  return (name[0] === 'a' || name[0] === 'i' ? 'an ' : 'a ') + name
-}
-
 function stringMixHashCode(key) {
   const length = key.length
   let hash = 0
@@ -2665,112 +2660,112 @@ function statement(C) {
 }
 
 function arrayPushExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around push expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around push function")
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between arguments in push expression")
+  consume(C, TOKEN_COMMA, "expected ',' between arguments in push function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around push expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around push function")
   emit(C, OP_ARRAY_PUSH)
 }
 
 function arrayInsertExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around insert expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around insert function")
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between 1st and 2nd arguments in insert expression")
+  consume(C, TOKEN_COMMA, "expected ',' between 1st and 2nd arguments in insert function")
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between 2nd and 3rd arguments in insert expression")
+  consume(C, TOKEN_COMMA, "expected ',' between 2nd and 3rd arguments in insert function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around insert expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around insert function")
   emit(C, OP_ARRAY_INSERT)
 }
 
 function arrayPopExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around pop expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around pop function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around pop expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around pop function")
   emit(C, OP_ARRAY_POP)
 }
 
 function deleteExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around delete expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around delete function")
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between arguments in delete expression")
+  consume(C, TOKEN_COMMA, "expected ',' between arguments in delete function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around delete expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around delete function")
   emit(C, OP_DELETE)
 }
 
 function lenExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around len expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around len function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around len expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around len function")
   emit(C, OP_LEN)
 }
 
 function castIntegerExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around integer expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around integer function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around integer expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around integer function")
   emit(C, OP_INT)
 }
 
 function castFloatExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around float expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around float function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around float expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around float function")
   emit(C, OP_FLOAT)
 }
 
 function castStringExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around string expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around string function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around string expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around string function")
   emit(C, OP_STRING)
 }
 
 function typeExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around type expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around type function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around type expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around type function")
   emit(C, OP_TYPE)
 }
 
 function clearExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around clear expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around clear function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around clear expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around clear function")
   emit(C, OP_CLEAR)
 }
 
 function copyExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around copy expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around copy function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around copy expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around copy function")
   emit(C, OP_COPY)
 }
 
 function keysExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around keys expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around keys function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around keys expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around keys function")
   emit(C, OP_KEYS)
 }
 
 function indexExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around index expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around index function")
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between arguments in index expression")
+  consume(C, TOKEN_COMMA, "expected ',' between arguments in index function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around index expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around index function")
   emit(C, OP_INDEX)
 }
 
 function existsExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around exists expression")
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' around exists function")
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between arguments in exists expression")
+  consume(C, TOKEN_COMMA, "expected ',' between arguments of exists function")
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around exists expression")
+  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around exists function")
   emit(C, OP_EXISTS)
 }
 
@@ -3006,19 +3001,15 @@ function hymnStacktrace(H) {
     const func = frame.func
     const ip = frame.ip - 1
     const row = func.code.lines[ip]
-
     trace += 'at'
-
     if (func.name !== null) {
       trace += ' ' + func.name
     }
-
     if (func.script === null) {
       trace += ' script:'
     } else {
       trace += ' ' + func.script + ':'
     }
-
     trace += row + '\n'
   }
 
@@ -3556,8 +3547,7 @@ async function hymnRun(H) {
         } else {
           H.stack[frame.stack + slot + 1] = newNone()
           H.stack[frame.stack + slot + 2] = newNone()
-          const is = valueName(object.is)
-          frame = hymnThrowError(H, `for loop requires an array or table but was: ${is}`)
+          frame = hymnThrowError(H, `for loop error: expected array or table but was ${valueName(object.is)}`)
           if (frame === null) return
           else break
         }
@@ -3613,7 +3603,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value < b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '<' error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '<' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3625,7 +3615,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value <= b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '<=' error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '<=' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3637,7 +3627,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value > b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '>' error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '>' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3649,7 +3639,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value >= b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '>=' error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '>=' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3662,7 +3652,7 @@ async function hymnRun(H) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: ${englishValue(a.is)} and ${valueName(b.is)} can't be added`)
+            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3670,7 +3660,7 @@ async function hymnRun(H) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: ${englishValue(a.is)} and ${valueName(b.is)} can't be added`)
+            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3684,7 +3674,7 @@ async function hymnRun(H) {
           } else if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: ${englishValue(a.is)} and ${valueName(b.is)} can't be added`)
+            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3698,14 +3688,14 @@ async function hymnRun(H) {
           } else if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: ${englishValue(a.is)} and ${valueName(b.is)} can't be added`)
+            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else if (isString(a)) {
           hymnPush(H, hymnConcat(a, b))
         } else {
-          frame = hymnThrowError(H, `error: ${englishValue(a.is)} and ${valueName(b.is)} can't be added`)
+          frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3722,7 +3712,7 @@ async function hymnRun(H) {
             a.value -= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `subtract error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3734,12 +3724,12 @@ async function hymnRun(H) {
             a.value -= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `subtract error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `subtract error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3756,7 +3746,7 @@ async function hymnRun(H) {
             a.value *= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `multiply error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3768,12 +3758,12 @@ async function hymnRun(H) {
             a.value *= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `multiply error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `multiply error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3790,7 +3780,7 @@ async function hymnRun(H) {
             a.value /= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `divide error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `divide error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3802,12 +3792,12 @@ async function hymnRun(H) {
             a.value /= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `divide error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `divide error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `divide error: expected numbers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `divide error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3821,12 +3811,12 @@ async function hymnRun(H) {
             a.value %= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `modulo error: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `modulo error: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `modulo error: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `modulo error: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3838,7 +3828,7 @@ async function hymnRun(H) {
           value.value = ~value.value
           hymnPush(H, value)
         } else {
-          frame = hymnThrowError(H, `bitwise not: expected an integer but found ${englishValue(value.is)}`)
+          frame = hymnThrowError(H, `bitwise not: expected an integer but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -3852,12 +3842,12 @@ async function hymnRun(H) {
             a.value |= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise or: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bitwise or: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise or: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bitwise or: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3871,12 +3861,12 @@ async function hymnRun(H) {
             a.value &= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise and: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bitwise and: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise and: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bitwise and: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3890,12 +3880,12 @@ async function hymnRun(H) {
             a.value ^= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise xor: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bitwise xor: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise xor: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bitwise xor: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3909,12 +3899,12 @@ async function hymnRun(H) {
             a.value <<= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bit shift left: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bit shift left: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bit shift left: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bit shift left: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3928,12 +3918,12 @@ async function hymnRun(H) {
             a.value >>= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bit shift right: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bit shift right: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bit shift right: expected integers but found ${englishValue(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bit shift right: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3946,7 +3936,7 @@ async function hymnRun(H) {
         } else if (isFloat(value)) {
           value.value = -value.value
         } else {
-          frame = hymnThrowError(H, `negate: expected a number but found ${englishValue(value.is)}`)
+          frame = hymnThrowError(H, `negate: expected a number but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -3958,7 +3948,7 @@ async function hymnRun(H) {
         if (isBool(value)) {
           value.value = !value.value
         } else {
-          frame = hymnThrowError(H, `logical not: expected a boolean but found ${englishValue(value.is)}`)
+          frame = hymnThrowError(H, `logical not: expected a boolean but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4033,7 +4023,7 @@ async function hymnRun(H) {
         if (isInt(value) || isFloat(value)) {
           value.value += increment
         } else {
-          frame = hymnThrowError(H, 'Get and Set Local: Expected `Number` but was `' + valueName(value.is) + '`')
+          frame = hymnThrowError(H, `increment error: expected a number but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4044,7 +4034,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const tableValue = hymnPop(H)
         if (!isTable(tableValue)) {
-          frame = hymnThrowError(H, `set property: expected a table but found ${englishValue(value.is)}`)
+          frame = hymnThrowError(H, `property error: expected table but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4057,7 +4047,7 @@ async function hymnRun(H) {
       case OP_GET_PROPERTY: {
         const value = hymnPop(H)
         if (!isTable(value)) {
-          frame = hymnThrowError(H, `get property: expected a table but found ${englishValue(value.is)}`)
+          frame = hymnThrowError(H, `property error: expected table but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4072,12 +4062,12 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         const o = hymnPop(H)
         if (!isTable(o)) {
-          frame = hymnThrowError(H, 'The function `exists` requies a table for the 1st argument')
+          frame = hymnThrowError(H, `exists function: expected table for 1st argument but was ${valueName(o.is)}`)
           if (frame === null) return
           else break
         }
         if (!isString(v)) {
-          frame = hymnThrowError(H, 'The function `exists` requies a string for the 2nd argument')
+          frame = hymnThrowError(H, `exists function: expected string for 2nd argument but was ${valueName(v.is)}`)
           if (frame === null) return
           else break
         }
@@ -4097,7 +4087,7 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         if (isArray(v)) {
           if (!isInt(i)) {
-            frame = hymnThrowError(H, 'Integer required to set array index.')
+            frame = hymnThrowError(H, `array index: expected integer but was ${valueName(i.is)}`)
             if (frame === null) return
             else break
           }
@@ -4105,14 +4095,14 @@ async function hymnRun(H) {
           const size = array.length
           let index = i.value
           if (index > size) {
-            frame = hymnThrowError(H, 'Array index out of bounds ' + index + ' > ' + size + '.')
+            frame = hymnThrowError(H, `array index out of bounds: ${index} > ${size}`)
             if (frame === null) return
             else break
           }
           if (index < 0) {
             index = size + index
             if (index < 0) {
-              frame = hymnThrowError(H, 'Array index out of bounds ' + index + '.')
+              frame = hymnThrowError(H, `array index out of bounds: ${index}`)
               if (frame === null) return
               else break
             }
@@ -4124,7 +4114,7 @@ async function hymnRun(H) {
           }
         } else if (isTable(v)) {
           if (!isString(i)) {
-            frame = hymnThrowError(H, 'String required to set table property.')
+            frame = hymnThrowError(H, `table property: expected string but was ${valueName(i.is)}`)
             if (frame === null) return
             else break
           }
@@ -4132,7 +4122,7 @@ async function hymnRun(H) {
           const name = i.value
           tablePut(table, name, s)
         } else {
-          frame = hymnThrowError(H, 'Dynamic Set: 1st argument requires `Array` or `Table`, but was `' + valueName(v.is) + '`.')
+          frame = hymnThrowError(H, `assignment error: expected array or table but was ${valueName(v.is)}`)
           if (frame === null) return
           else break
         }
@@ -4145,7 +4135,7 @@ async function hymnRun(H) {
         switch (v.is) {
           case HYMN_VALUE_STRING: {
             if (!isInt(i)) {
-              frame = hymnThrowError(H, 'Integer required to get string character from index.')
+              frame = hymnThrowError(H, `string index: expected integer but was ${valueName(i.is)}`)
               if (frame === null) return
               else break
             }
@@ -4153,14 +4143,14 @@ async function hymnRun(H) {
             const size = string.length
             let index = i.value
             if (index >= size) {
-              frame = hymnThrowError(H, 'String index out of bounds %d >= %d.', index, size)
+              frame = hymnThrowError(H, `string index out of bounds: ${index} > ${size}`)
               if (frame === null) return
               else break
             }
             if (index < 0) {
               index = size + index
               if (index < 0) {
-                frame = hymnThrowError(H, 'String index out of bounds %d.', index)
+                frame = hymnThrowError(H, `string index out of bounds: ${index}`)
                 if (frame === null) return
                 else break
               }
@@ -4171,7 +4161,7 @@ async function hymnRun(H) {
           }
           case HYMN_VALUE_ARRAY: {
             if (!isInt(i)) {
-              frame = hymnThrowError(H, 'Integer required to get array index.')
+              frame = hymnThrowError(H, `array index: expected integer but was ${valueName(i.is)}`)
               if (frame === null) return
               else break
             }
@@ -4179,14 +4169,14 @@ async function hymnRun(H) {
             const size = array.length
             let index = i.value
             if (index >= size) {
-              frame = hymnThrowError(H, `array index out of bounds: ${index} >= ${size}`)
+              frame = hymnThrowError(H, `array index out of bounds: ${index} > ${size}`)
               if (frame === null) return
               else break
             }
             if (index < 0) {
               index = size + index
               if (index < 0) {
-                frame = hymnThrowError(H, 'Array index out of bounds %d.', index)
+                frame = hymnThrowError(H, `array index out of bounds: ${index}`)
                 if (frame === null) return
                 else break
               }
@@ -4197,8 +4187,7 @@ async function hymnRun(H) {
           }
           case HYMN_VALUE_TABLE: {
             if (!isString(i)) {
-              const is = valueName(i.is)
-              frame = hymnThrowError(H, 'Dynamic Get: Expected 2nd argument to be `String`, but was `' + is + '`.')
+              frame = hymnThrowError(H, `table property: expected string but was ${valueName(i.is)}`)
               if (frame === null) return
               else break
             }
@@ -4210,8 +4199,7 @@ async function hymnRun(H) {
             break
           }
           default: {
-            const is = valueName(v.is)
-            frame = hymnThrowError(H, 'Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.', is)
+            frame = hymnThrowError(H, `indexing error: expected array, table, or string but was ${valueName(v.is)}`)
             if (frame === null) return
             else break
           }
@@ -4237,7 +4225,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, 'Expected array or table for `len` function.')
+            frame = hymnThrowError(H, `len function: expected array, string, or table but was ${valueName(value.is)}`)
             if (frame === null) return
             else break
         }
@@ -4355,7 +4343,7 @@ async function hymnRun(H) {
             hymnPush(H, newNone())
           }
         } else {
-          frame = hymnThrowError(H, `delete function error: expected an array or table but found ${englishValue(value.is)}`)
+          frame = hymnThrowError(H, `delete function error: expected an array or table but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4510,7 +4498,7 @@ async function hymnRun(H) {
       case OP_KEYS: {
         const value = hymnPop(H)
         if (!isTable(value)) {
-          frame = hymnThrowError(H, 'Expected table for `keys` function.')
+          frame = hymnThrowError(H, `keys function: expected table but was ${valueName(value.is)}`)
           if (frame === null) return
           else break
         } else {
@@ -4526,7 +4514,7 @@ async function hymnRun(H) {
         switch (a.is) {
           case HYMN_VALUE_STRING: {
             if (!isString(b)) {
-              frame = hymnThrowError(H, `index function error: expected a string for 2nd argument but found ${englishValue(b.is)}`)
+              frame = hymnThrowError(H, `index function: expected string for 2nd argument but was ${valueName(b.is)}`)
               if (frame === null) return
               else break
             }
@@ -4544,7 +4532,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, 'index function expects a string, array, or table')
+            frame = hymnThrowError(H, `index function: expected string, array, or table for 1st argument but was ${valueName(a.is)}`)
             if (frame === null) return
             else break
         }
@@ -4750,9 +4738,9 @@ function newVM() {
     H.paths.push(newString('/libs/<path>.hm'))
   }
 
-  tablePut(H.globals, '__paths', newArrayValue(H.paths))
-  tablePut(H.globals, '__imports', newTableValue(H.imports))
-  tablePut(H.globals, '__globals', newTableValue(H.globals))
+  tablePut(H.globals, 'PATHS', newArrayValue(H.paths))
+  tablePut(H.globals, 'IMPORTS', newTableValue(H.imports))
+  tablePut(H.globals, 'GLOBALS', newTableValue(H.globals))
 
   return H
 }

@@ -3,18 +3,18 @@
 # globals: none
 # imported
 
-delete(__globals, "__paths")
+delete(GLOBALS, "PATHS")
 
-echo "paths: " + __globals.__paths + ", " + exists(__globals, "__paths")
+echo "paths: " + GLOBALS.PATHS + ", " + exists(GLOBALS, "PATHS")
 
-delete(__globals, "__imports")
+delete(GLOBALS, "IMPORTS")
 
-echo "imports: " + __globals.__imports + ", " + exists(__globals, "__imports")
+echo "imports: " + GLOBALS.IMPORTS + ", " + exists(GLOBALS, "IMPORTS")
 
-__globals = none
+GLOBALS = none
 
-echo "globals: " + __globals
+echo "globals: " + GLOBALS
 
-__globals = none
+GLOBALS = none
 
 use "import_me"

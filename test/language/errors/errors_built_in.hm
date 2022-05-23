@@ -1,0 +1,18 @@
+# keys function: expected table but was integer
+# index function: expected string, array, or table for 1st argument but was integer
+# index function: expected string for 2nd argument but was integer
+# exists function: expected table for 1st argument but was integer
+# exists function: expected string for 2nd argument but was integer
+# len function: expected array, string, or table but was integer
+
+use "errors"
+
+try { keys(2) } except e { echo runtime(e) }
+
+try { index(2, 0) } except e { echo runtime(e) }
+try { index("foo", 0) } except e { echo runtime(e) }
+
+try { exists(0, 0) } except e { echo runtime(e) }
+try { exists({ foo: 0 }, 0) } except e { echo runtime(e) }
+
+try { len(2) } except e { echo runtime(e) }

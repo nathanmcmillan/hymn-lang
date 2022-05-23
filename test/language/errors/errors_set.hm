@@ -1,0 +1,5 @@
+# assignment error: expected array or table but was string
+
+use "errors"
+
+try { "foo"[2] = 0 } except e { echo runtime(e) }

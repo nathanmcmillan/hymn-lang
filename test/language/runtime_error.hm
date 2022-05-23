@@ -1,3 +1,0 @@
-# @exception index function error: expected a string for 2nd argument but found an integer
-
-index("not-an-array", 0)

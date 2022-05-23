@@ -3,6 +3,10 @@
 - New `OP_NEW_ARRAY` and `OP_NEW_TABLE` instructions for performance
 - Refactored every compile and runtime exception message
 - Numbers now allowed in variable names
+- Renamed global variables
+  - `__globals` -> `GLOBALS`
+  - `__paths` -> `PATHS`
+  - `__imports__` -> `IMPORTS`
 
 # Release 0.6.2
 

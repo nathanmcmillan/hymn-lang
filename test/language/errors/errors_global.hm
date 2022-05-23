@@ -7,6 +7,6 @@ let foo = 8
 
 try {
   echo foo
-  delete(__globals, "foo")
+  delete(GLOBALS, "foo")
   echo foo
 } except e { echo runtime(e) }
