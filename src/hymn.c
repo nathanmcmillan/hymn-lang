@@ -1006,7 +1006,7 @@ Rule rules[] = {
     [TOKEN_WHILE] = {NULL, NULL, PRECEDENCE_NONE},
 };
 
-static const char *value_name(enum HymnValueType type) {
+const char *hymn_value_type(enum HymnValueType type) {
     switch (type) {
     case HYMN_VALUE_UNDEFINED: return "undefined";
     case HYMN_VALUE_NONE: return "none";
@@ -4707,7 +4707,7 @@ static HymnString *value_concat(HymnValue a, HymnValue b) {
 
 static HymnString *debug_value_to_string(HymnValue value) {
     HymnString *string = hymn_value_to_string(value);
-    HymnString *format = hymn_string_format("%s: %s", value_name(value.is), string);
+    HymnString *format = hymn_string_format("%s: %s", hymn_value_type(value.is), string);
     hymn_string_delete(string);
     return format;
 }
@@ -5037,9 +5037,19 @@ HymnValue hymn_new_exception(Hymn *H, char *error) {
     return hymn_new_none();
 }
 
+HymnValue hymn_arity_exception(Hymn *H, int expected, int actual) {
+    H->exception = hymn_string_format("expected: %d function argument(s) but was: %d", expected, actual);
+    return hymn_new_none();
+}
+
+HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnValueType actual) {
+    H->exception = hymn_string_format("expected type: %s but was: %s", hymn_value_type(expected), hymn_value_type(actual));
+    return hymn_new_none();
+}
+
 static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     if (count != func->arity) {
-        return throw_error(H, "expected: %d function argument(s) but found: %d", func->arity, count);
+        return throw_error(H, "expected: %d function argument(s) but was: %d", func->arity, count);
     } else if (H->frame_count == HYMN_FRAMES_MAX) {
         return throw_error(H, "stack overflow");
     }
@@ -5077,7 +5087,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
         }
     }
     default: {
-        const char *is = value_name(value.is);
+        const char *is = hymn_value_type(value.is);
         return throw_error(H, "not a function: %s", is);
     }
     }
@@ -5409,7 +5419,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
             new.as.f arithmetic b.as.f;                                            \
             push(H, new);                                                          \
         } else {                                                                   \
-            const char *is = value_name(b.is);                                     \
+            const char *is = hymn_value_type(b.is);                                \
             hymn_dereference(H, a);                                                \
             hymn_dereference(H, b);                                                \
             THROW("arithmetic error: 2nd value must be a number but was a %s", is) \
@@ -5422,13 +5432,13 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
             a.as.f arithmetic b.as.f;                                              \
             push(H, a);                                                            \
         } else {                                                                   \
-            const char *is = value_name(b.is);                                     \
+            const char *is = hymn_value_type(b.is);                                \
             hymn_dereference(H, a);                                                \
             hymn_dereference(H, b);                                                \
             THROW("arithmetic error: 2nd value must be a number but was a %s", is) \
         }                                                                          \
     } else {                                                                       \
-        const char *is = value_name(a.is);                                         \
+        const char *is = hymn_value_type(a.is);                                    \
         hymn_dereference(H, a);                                                    \
         hymn_dereference(H, b);                                                    \
         THROW("arithmetic error: 1st value must be a number but was a %s", is)     \
@@ -5443,7 +5453,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                                  \
             push(H, hymn_new_bool((HymnFloat)hymn_as_int(a) compare hymn_as_float(b))); \
         } else {                                                                        \
-            const char *is = value_name(b.is);                                          \
+            const char *is = hymn_value_type(b.is);                                     \
             hymn_dereference(H, a);                                                     \
             hymn_dereference(H, b);                                                     \
             THROW("comparison error: 2nd value must be a number, but was a %s", is)     \
@@ -5690,7 +5700,7 @@ dispatch:
         } else if (hymn_is_float(value)) {
             value.as.f += (HymnFloat)increment;
         } else {
-            const char *is = value_name(value.is);
+            const char *is = hymn_value_type(value.is);
             THROW("expected a number but was '%s'", is)
         }
         frame->stack[slot] = value;
@@ -5733,7 +5743,7 @@ dispatch:
         } else {
             frame->stack[slot + 1] = hymn_new_none();
             frame->stack[slot + 2] = hymn_new_none();
-            const char *is = value_name(object.is);
+            const char *is = hymn_value_type(object.is);
             THROW("for loop requires an array or table but was '%s'", is)
         }
         HYMN_DISPATCH;
@@ -6162,7 +6172,7 @@ dispatch:
         if (hymn_is_undefined(global)) {
             THROW("undefined global '%s'", name->string)
         } else if (!hymn_is_table(global)) {
-            const char *is = value_name(global.is);
+            const char *is = hymn_value_type(global.is);
             THROW("get property: requires 'table' but was '%s'", is)
         }
         HymnTable *table = hymn_as_table(global);
@@ -6210,7 +6220,7 @@ dispatch:
         } else if (hymn_is_float(value)) {
             value.as.f += (HymnFloat)increment;
         } else {
-            const char *is = value_name(value.is);
+            const char *is = hymn_value_type(value.is);
             THROW("Increment Local: Expected `Number` but was `%s`", is)
         }
         push(H, value);
@@ -6225,7 +6235,7 @@ dispatch:
         } else if (hymn_is_float(value)) {
             value.as.f += (HymnFloat)increment;
         } else {
-            const char *is = value_name(value.is);
+            const char *is = hymn_value_type(value.is);
             THROW("Get and Set Local: Expected `Number` but was `%s`", is)
         }
         frame->stack[slot] = value;
@@ -6235,7 +6245,7 @@ dispatch:
         HymnValue value = pop(H);
         HymnValue table_value = pop(H);
         if (!hymn_is_table(table_value)) {
-            const char *is = value_name(table_value.is);
+            const char *is = hymn_value_type(table_value.is);
             hymn_dereference(H, value);
             hymn_dereference(H, table_value);
             THROW("Set Property: Expected `Table` but was `%s`", is)
@@ -6250,7 +6260,7 @@ dispatch:
     case OP_GET_PROPERTY: {
         HymnValue value = pop(H);
         if (!hymn_is_table(value)) {
-            const char *is = value_name(value.is);
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
             THROW("Get Property: Requires `Table` but was `%s`", is)
         }
@@ -6270,13 +6280,13 @@ dispatch:
         HymnValue value = pop(H);
         HymnValue object = pop(H);
         if (!hymn_is_table(object)) {
-            const char *is = value_name(object.is);
+            const char *is = hymn_value_type(object.is);
             hymn_dereference(H, value);
             hymn_dereference(H, object);
             THROW("Exists: Requires `Table` but was `%s`", is)
         }
         if (!hymn_is_string(value)) {
-            const char *is = value_name(value.is);
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
             hymn_dereference(H, object);
             THROW("Exists: Requires `String` for second argument but was `%s`", is)
@@ -6330,7 +6340,7 @@ dispatch:
             }
         } else if (hymn_is_table(object)) {
             if (!hymn_is_string(property)) {
-                const char *is = value_name(property.is);
+                const char *is = hymn_value_type(property.is);
                 hymn_dereference(H, value);
                 hymn_dereference(H, property);
                 hymn_dereference(H, object);
@@ -6345,7 +6355,7 @@ dispatch:
                 hymn_dereference(H, previous);
             }
         } else {
-            const char *is = value_name(object.is);
+            const char *is = hymn_value_type(object.is);
             hymn_dereference(H, value);
             hymn_dereference(H, property);
             hymn_dereference(H, object);
@@ -6362,7 +6372,7 @@ dispatch:
         switch (v.is) {
         case HYMN_VALUE_STRING: {
             if (!hymn_is_int(i)) {
-                const char *is = value_name(v.is);
+                const char *is = hymn_value_type(v.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
                 THROW("Get Dynamic: Requires `Integer` to get string character from index, but was `%s`", is)
@@ -6418,7 +6428,7 @@ dispatch:
         }
         case HYMN_VALUE_TABLE: {
             if (!hymn_is_string(i)) {
-                const char *is = value_name(i.is);
+                const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
                 THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
@@ -6437,7 +6447,7 @@ dispatch:
             break;
         }
         default: {
-            const char *is = value_name(v.is);
+            const char *is = hymn_value_type(v.is);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
             THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
@@ -6473,7 +6483,7 @@ dispatch:
     case OP_ARRAY_POP: {
         HymnValue a = pop(H);
         if (!hymn_is_array(a)) {
-            const char *is = value_name(a.is);
+            const char *is = hymn_value_type(a.is);
             hymn_dereference(H, a);
             THROW("Pop: Expected `Array` for 1st argument, but was `%s`.", is)
         } else {
@@ -6487,7 +6497,7 @@ dispatch:
         HymnValue value = pop(H);
         HymnValue array = pop(H);
         if (!hymn_is_array(array)) {
-            const char *is = value_name(value.is);
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, array);
             hymn_dereference(H, value);
             THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
@@ -6505,7 +6515,7 @@ dispatch:
         HymnValue v = pop(H);
         if (hymn_is_array(v)) {
             if (!hymn_is_int(i)) {
-                const char *is = value_name(i.is);
+                const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, p);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
@@ -6538,7 +6548,7 @@ dispatch:
             hymn_reference(p);
             hymn_dereference(H, v);
         } else {
-            const char *is = value_name(v.is);
+            const char *is = hymn_value_type(v.is);
             hymn_dereference(H, p);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
@@ -6825,43 +6835,8 @@ dispatch:
     }
     case OP_TYPE: {
         HymnValue value = pop(H);
-        switch (value.is) {
-        case HYMN_VALUE_UNDEFINED:
-        case HYMN_VALUE_NONE:
-            push_string(H, hymn_new_string("none"));
-            break;
-        case HYMN_VALUE_BOOL:
-            push_string(H, hymn_new_string("boolean"));
-            break;
-        case HYMN_VALUE_INTEGER:
-            push_string(H, hymn_new_string("integer"));
-            break;
-        case HYMN_VALUE_FLOAT:
-            push_string(H, hymn_new_string("float"));
-            break;
-        case HYMN_VALUE_STRING:
-            push_string(H, hymn_new_string("string"));
-            hymn_dereference(H, value);
-            break;
-        case HYMN_VALUE_ARRAY:
-            push_string(H, hymn_new_string("array"));
-            hymn_dereference(H, value);
-            break;
-        case HYMN_VALUE_TABLE:
-            push_string(H, hymn_new_string("table"));
-            hymn_dereference(H, value);
-            break;
-        case HYMN_VALUE_FUNC:
-            push_string(H, hymn_new_string("function"));
-            hymn_dereference(H, value);
-            break;
-        case HYMN_VALUE_FUNC_NATIVE:
-            push_string(H, hymn_new_string("native"));
-            break;
-        case HYMN_VALUE_POINTER:
-            push_string(H, hymn_new_string("pointer"));
-            break;
-        }
+        const char *is = hymn_value_type(value.is);
+        push_string(H, hymn_new_string(is));
         HYMN_DISPATCH;
     }
     case OP_INT: {

@@ -479,7 +479,7 @@ rules[TOKEN_VALUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_WHILE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_SEMICOLON] = new Rule(null, null, PRECEDENCE_NONE)
 
-function valueName(type) {
+function valueType(type) {
   switch (type) {
     case HYMN_VALUE_NONE:
       return 'none'
@@ -2926,7 +2926,7 @@ function hymnConcat(a, b) {
 }
 
 function debugValueToString(value) {
-  return valueName(value.is) + ': ' + valueToString(value)
+  return valueType(value.is) + ': ' + valueToString(value)
 }
 
 function hymnResetStack(H) {
@@ -3068,7 +3068,7 @@ function hymnCallValue(H, value, count) {
       return currentFrame(H)
     }
     default: {
-      const is = valueName(value.is)
+      const is = valueType(value.is)
       return hymnThrowError(H, `not a function: ${is}`)
     }
   }
@@ -3547,7 +3547,7 @@ async function hymnRun(H) {
         } else {
           H.stack[frame.stack + slot + 1] = newNone()
           H.stack[frame.stack + slot + 2] = newNone()
-          frame = hymnThrowError(H, `for loop error: expected array or table but was ${valueName(object.is)}`)
+          frame = hymnThrowError(H, `for loop error: expected array or table but was ${valueType(object.is)}`)
           if (frame === null) return
           else break
         }
@@ -3603,7 +3603,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value < b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '<' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '<' error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3615,7 +3615,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value <= b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '<=' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '<=' error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3627,7 +3627,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value > b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '>' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '>' error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3639,7 +3639,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value >= b.value))
         } else {
-          frame = hymnThrowError(H, `comparison '>=' error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `comparison '>=' error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3652,7 +3652,7 @@ async function hymnRun(H) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `error: can't add ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3660,7 +3660,7 @@ async function hymnRun(H) {
           if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `error: can't add ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3674,7 +3674,7 @@ async function hymnRun(H) {
           } else if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `error: can't add ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3688,14 +3688,14 @@ async function hymnRun(H) {
           } else if (isString(b)) {
             hymnPush(H, hymnConcat(a, b))
           } else {
-            frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `error: can't add ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else if (isString(a)) {
           hymnPush(H, hymnConcat(a, b))
         } else {
-          frame = hymnThrowError(H, `error: can't add ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `error: can't add ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3712,7 +3712,7 @@ async function hymnRun(H) {
             a.value -= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3724,12 +3724,12 @@ async function hymnRun(H) {
             a.value -= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `subtract error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3746,7 +3746,7 @@ async function hymnRun(H) {
             a.value *= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3758,12 +3758,12 @@ async function hymnRun(H) {
             a.value *= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `multiply error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3780,7 +3780,7 @@ async function hymnRun(H) {
             a.value /= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `divide error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `divide error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
@@ -3792,12 +3792,12 @@ async function hymnRun(H) {
             a.value /= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `divide error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `divide error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `divide error: expected numbers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `divide error: expected numbers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3811,12 +3811,12 @@ async function hymnRun(H) {
             a.value %= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `modulo error: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `modulo error: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `modulo error: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `modulo error: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3828,7 +3828,7 @@ async function hymnRun(H) {
           value.value = ~value.value
           hymnPush(H, value)
         } else {
-          frame = hymnThrowError(H, `bitwise not: expected an integer but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `bitwise not: expected an integer but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -3842,12 +3842,12 @@ async function hymnRun(H) {
             a.value |= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise or: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bitwise or: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise or: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bitwise or: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3861,12 +3861,12 @@ async function hymnRun(H) {
             a.value &= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise and: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bitwise and: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise and: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bitwise and: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3880,12 +3880,12 @@ async function hymnRun(H) {
             a.value ^= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise xor: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bitwise xor: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise xor: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bitwise xor: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3899,12 +3899,12 @@ async function hymnRun(H) {
             a.value <<= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bit shift left: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bit shift left: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bit shift left: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bit shift left: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3918,12 +3918,12 @@ async function hymnRun(H) {
             a.value >>= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bit shift right: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+            frame = hymnThrowError(H, `bit shift right: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bit shift right: expected integers but was ${valueName(a.is)} and ${valueName(b.is)}`)
+          frame = hymnThrowError(H, `bit shift right: expected integers but was ${valueType(a.is)} and ${valueType(b.is)}`)
           if (frame === null) return
           else break
         }
@@ -3936,7 +3936,7 @@ async function hymnRun(H) {
         } else if (isFloat(value)) {
           value.value = -value.value
         } else {
-          frame = hymnThrowError(H, `negate: expected a number but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `negate: expected a number but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -3948,7 +3948,7 @@ async function hymnRun(H) {
         if (isBool(value)) {
           value.value = !value.value
         } else {
-          frame = hymnThrowError(H, `logical not: expected a boolean but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `logical not: expected a boolean but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4023,7 +4023,7 @@ async function hymnRun(H) {
         if (isInt(value) || isFloat(value)) {
           value.value += increment
         } else {
-          frame = hymnThrowError(H, `increment error: expected a number but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `increment error: expected a number but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4034,7 +4034,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         const tableValue = hymnPop(H)
         if (!isTable(tableValue)) {
-          frame = hymnThrowError(H, `property error: expected table but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `property error: expected table but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4047,7 +4047,7 @@ async function hymnRun(H) {
       case OP_GET_PROPERTY: {
         const value = hymnPop(H)
         if (!isTable(value)) {
-          frame = hymnThrowError(H, `property error: expected table but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `property error: expected table but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4062,12 +4062,12 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         const o = hymnPop(H)
         if (!isTable(o)) {
-          frame = hymnThrowError(H, `exists function: expected table for 1st argument but was ${valueName(o.is)}`)
+          frame = hymnThrowError(H, `exists function: expected table for 1st argument but was ${valueType(o.is)}`)
           if (frame === null) return
           else break
         }
         if (!isString(v)) {
-          frame = hymnThrowError(H, `exists function: expected string for 2nd argument but was ${valueName(v.is)}`)
+          frame = hymnThrowError(H, `exists function: expected string for 2nd argument but was ${valueType(v.is)}`)
           if (frame === null) return
           else break
         }
@@ -4087,7 +4087,7 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         if (isArray(v)) {
           if (!isInt(i)) {
-            frame = hymnThrowError(H, `array index: expected integer but was ${valueName(i.is)}`)
+            frame = hymnThrowError(H, `array index: expected integer but was ${valueType(i.is)}`)
             if (frame === null) return
             else break
           }
@@ -4114,7 +4114,7 @@ async function hymnRun(H) {
           }
         } else if (isTable(v)) {
           if (!isString(i)) {
-            frame = hymnThrowError(H, `table property: expected string but was ${valueName(i.is)}`)
+            frame = hymnThrowError(H, `table property: expected string but was ${valueType(i.is)}`)
             if (frame === null) return
             else break
           }
@@ -4122,7 +4122,7 @@ async function hymnRun(H) {
           const name = i.value
           tablePut(table, name, s)
         } else {
-          frame = hymnThrowError(H, `assignment error: expected array or table but was ${valueName(v.is)}`)
+          frame = hymnThrowError(H, `assignment error: expected array or table but was ${valueType(v.is)}`)
           if (frame === null) return
           else break
         }
@@ -4135,7 +4135,7 @@ async function hymnRun(H) {
         switch (v.is) {
           case HYMN_VALUE_STRING: {
             if (!isInt(i)) {
-              frame = hymnThrowError(H, `string index: expected integer but was ${valueName(i.is)}`)
+              frame = hymnThrowError(H, `string index: expected integer but was ${valueType(i.is)}`)
               if (frame === null) return
               else break
             }
@@ -4161,7 +4161,7 @@ async function hymnRun(H) {
           }
           case HYMN_VALUE_ARRAY: {
             if (!isInt(i)) {
-              frame = hymnThrowError(H, `array index: expected integer but was ${valueName(i.is)}`)
+              frame = hymnThrowError(H, `array index: expected integer but was ${valueType(i.is)}`)
               if (frame === null) return
               else break
             }
@@ -4187,7 +4187,7 @@ async function hymnRun(H) {
           }
           case HYMN_VALUE_TABLE: {
             if (!isString(i)) {
-              frame = hymnThrowError(H, `table property: expected string but was ${valueName(i.is)}`)
+              frame = hymnThrowError(H, `table property: expected string but was ${valueType(i.is)}`)
               if (frame === null) return
               else break
             }
@@ -4199,7 +4199,7 @@ async function hymnRun(H) {
             break
           }
           default: {
-            frame = hymnThrowError(H, `indexing error: expected array, table, or string but was ${valueName(v.is)}`)
+            frame = hymnThrowError(H, `indexing error: expected array, table, or string but was ${valueType(v.is)}`)
             if (frame === null) return
             else break
           }
@@ -4225,7 +4225,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, `len function: expected array, string, or table but was ${valueName(value.is)}`)
+            frame = hymnThrowError(H, `len function: expected array, string, or table but was ${valueType(value.is)}`)
             if (frame === null) return
             else break
         }
@@ -4235,7 +4235,7 @@ async function hymnRun(H) {
       case OP_ARRAY_POP: {
         const a = hymnPop(H)
         if (!isArray(a)) {
-          const is = valueName(a.is)
+          const is = valueType(a.is)
           frame = hymnThrowError(H, 'Pop Function: Expected `Array` for 1st argument, but was `%s`.', is)
           if (frame === null) return
           else break
@@ -4249,7 +4249,7 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         const a = hymnPop(H)
         if (!isArray(a)) {
-          const is = valueName(v.is)
+          const is = valueType(v.is)
           frame = hymnThrowError(H, 'Push Function: Expected `Array` for 1st argument, but was `%s`.', is)
           if (frame === null) return
           else break
@@ -4265,7 +4265,7 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         if (isArray(v)) {
           if (!isInt(i)) {
-            const is = valueName(i.is)
+            const is = valueType(i.is)
             frame = hymnThrowError(H, 'Insert Function: Expected `Integer` for 2nd argument, but was `%s`.', is)
             if (frame === null) return
             else break
@@ -4293,7 +4293,7 @@ async function hymnRun(H) {
           }
           hymnPush(H, p)
         } else {
-          const is = valueName(v.is)
+          const is = valueType(v.is)
           frame = hymnThrowError(H, 'Insert Function: Expected `Array` for 1st argument, but was `%s`.', is)
           if (frame === null) return
           else break
@@ -4343,7 +4343,7 @@ async function hymnRun(H) {
             hymnPush(H, newNone())
           }
         } else {
-          frame = hymnThrowError(H, `delete function error: expected an array or table but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `delete function error: expected an array or table but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         }
@@ -4498,7 +4498,7 @@ async function hymnRun(H) {
       case OP_KEYS: {
         const value = hymnPop(H)
         if (!isTable(value)) {
-          frame = hymnThrowError(H, `keys function: expected table but was ${valueName(value.is)}`)
+          frame = hymnThrowError(H, `keys function: expected table but was ${valueType(value.is)}`)
           if (frame === null) return
           else break
         } else {
@@ -4514,7 +4514,7 @@ async function hymnRun(H) {
         switch (a.is) {
           case HYMN_VALUE_STRING: {
             if (!isString(b)) {
-              frame = hymnThrowError(H, `index function: expected string for 2nd argument but was ${valueName(b.is)}`)
+              frame = hymnThrowError(H, `index function: expected string for 2nd argument but was ${valueType(b.is)}`)
               if (frame === null) return
               else break
             }
@@ -4532,7 +4532,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, `index function: expected string, array, or table for 1st argument but was ${valueName(a.is)}`)
+            frame = hymnThrowError(H, `index function: expected string, array, or table for 1st argument but was ${valueType(a.is)}`)
             if (frame === null) return
             else break
         }
@@ -4540,38 +4540,7 @@ async function hymnRun(H) {
       }
       case OP_TYPE: {
         const value = hymnPop(H)
-        switch (value.is) {
-          case HYMN_VALUE_NONE:
-            hymnPush(H, newString('none'))
-            break
-          case HYMN_VALUE_BOOL:
-            hymnPush(H, newString('boolean'))
-            break
-          case HYMN_VALUE_INTEGER:
-            hymnPush(H, newString('integer'))
-            break
-          case HYMN_VALUE_FLOAT:
-            hymnPush(H, newString('float'))
-            break
-          case HYMN_VALUE_STRING:
-            hymnPush(H, newString('string'))
-            break
-          case HYMN_VALUE_ARRAY:
-            hymnPush(H, newString('array'))
-            break
-          case HYMN_VALUE_TABLE:
-            hymnPush(H, newString('table'))
-            break
-          case HYMN_VALUE_FUNC:
-            hymnPush(H, newString('function'))
-            break
-          case HYMN_VALUE_FUNC_NATIVE:
-            hymnPush(H, newString('native'))
-            break
-          case HYMN_VALUE_POINTER:
-            hymnPush(H, newString('pointer'))
-            break
-        }
+        hymnPush(H, newString(valueType(value.is)))
         break
       }
       case OP_INT: {

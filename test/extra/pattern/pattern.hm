@@ -1,1 +1,51 @@
-echo pattern("^foo.*bar$", "foo hello world bar")
+
+echo pattern.find("(foo)bar", "foobar")
+echo pattern.find("foo(bar)", "foobar")
+echo pattern.find("(foo(bar))", "foobar")
+
+echo pattern.find("(%d?)foo", "foo")
+echo pattern.find("(%d?)foo", "4foo")
+
+echo pattern.find("(%d*)foo", "foo")
+echo pattern.find("(%d*)foo", "48foo")
+
+# echo pattern.replace("(%d*)foo", "48foo", "%0")
+
+# echo " [true]"
+
+# echo " 1. " + pattern.find("bar", "foo bar", 0)
+# echo " 1. " + pattern.find("bar", "foo bar", 4)
+# echo " 1. " + pattern.find("bar", "foo bar", -1)
+
+# echo " 1. " + pattern.find("^foo.*bar$", "foo hello world bar")
+# echo " 1. " + pattern.find("^foo.-bar$", "foo hello world bar")
+# echo " 1. " + pattern.find("^foo.+bar$", "foo hello world bar")
+
+# echo " 1. " + pattern.find("%a", "c")
+# echo " 1. " + pattern.find("%d", "1")
+
+# echo " 1. " + pattern.find("%l", "c")
+# echo " 1. " + pattern.find("%u", "C")
+
+# echo " 1. " + pattern.find("foo[%a%d]*bar", "foobar")
+# echo " 1. " + pattern.find("foo[%a%d]*bar", "foo2x4bar")
+# echo " 1. " + pattern.find("foo[%a%d]+bar", "foo2x4bar")
+
+# print(0, "\n [false]\n")
+
+# echo " 1. " + pattern.find("foo", "foo", 3)
+# echo " 1. " + pattern.find("foo", "foo", 4)
+# echo " 1. " + pattern.find("bar", "foo bar", 5)
+
+# echo " 1. " + pattern.find("%a", "")
+# echo " 1. " + pattern.find("%d", "")
+
+# echo " 1. " + pattern.find("%a", "1")
+# echo " 1. " + pattern.find("%d", "c")
+
+# echo " 1. " + pattern.find("%l", "C")
+# echo " 1. " + pattern.find("%u", "c")
+
+# echo " 1. " + pattern.find("foo[%a%d]bar", "foo bar")
+# echo " 1. " + pattern.find("foo[%a%d]bar", "foo24bar")
+# echo " 1. " + pattern.find("foo[%a%d]bar", "fooxzbar")

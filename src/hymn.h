@@ -341,6 +341,8 @@ bool hymn_value_false(HymnValue value);
 bool hymn_values_equal(HymnValue a, HymnValue b);
 bool hymn_match_values(HymnValue a, HymnValue b);
 
+const char *hymn_value_type(enum HymnValueType type);
+
 void hymn_reference_string(HymnObjectString *string);
 void hymn_reference(HymnValue value);
 void hymn_dereference_string(Hymn *H, HymnObjectString *string);
@@ -350,6 +352,8 @@ void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnVa
 void hymn_set_property_const(Hymn *H, HymnTable *table, const char *name, HymnValue value);
 
 HymnValue hymn_new_exception(Hymn *H, char *error);
+HymnValue hymn_arity_exception(Hymn *H, int expected, int actual);
+HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnValueType actual);
 
 Hymn *new_hymn();
 

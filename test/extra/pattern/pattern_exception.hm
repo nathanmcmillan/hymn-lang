@@ -1,0 +1,14 @@
+
+try { echo pattern.find() } except e { echo e }
+
+try { echo pattern.find(2, 4) } except e { echo e }
+
+try { echo pattern.find("[", "foo") } except e { echo e }
+
+try { echo pattern.find("foo[", "foo") } except e { echo e }
+
+try { echo pattern.find("[foo", "foo") } except e { echo e }
+
+try { echo pattern.find("foo)", "foo") } except e { echo e }
+
+try { echo pattern.find("(foo))bar", "foo") } except e { echo e }
