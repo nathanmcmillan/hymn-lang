@@ -70,7 +70,7 @@ function parse(source) {
   return expected.trim()
 }
 
-async function testFile(file) {
+async function test(file) {
   count++
   const source = fs.readFileSync(file, { encoding: 'utf-8' })
   const expected = parse(source)
@@ -134,10 +134,9 @@ async function main() {
     tests = tests.filter((file) => file.includes(filter))
   }
   tests.sort()
-  for (const test of tests) {
-    const file = path.basename(test)
-    console.info(file)
-    const result = await testFile(test)
+  for (const file of tests) {
+    console.info(path.basename(file))
+    const result = await test(file)
     if (result) {
       console.error(result)
     }

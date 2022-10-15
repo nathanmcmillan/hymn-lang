@@ -11,7 +11,9 @@ const hymn = require('./hymn')
 const libs = require('./hymn_libs')
 
 async function main() {
-  if (process.argv.length <= 2) {
+  const args = process.argv
+
+  if (args.length <= 2) {
     console.info('Usage: hymn [-b] [-c] FILE')
     console.info('Interprets a Hymn script FILE.\n')
     console.info('  -b  Print compiled byte code')
@@ -24,26 +26,26 @@ async function main() {
 
   let error = null
 
-  if (process.argv.length >= 4) {
-    if (process.argv[2] === '-b') {
-      if (process.argv.length >= 5) {
-        if (process.argv[3] === '-c') {
-          error = await hymn.debug(vm, null, process.argv[4])
+  if (args.length >= 4) {
+    if (args[2] === '-b') {
+      if (args.length >= 5) {
+        if (args[3] === '-c') {
+          error = await hymn.debug(vm, null, args[4])
         } else {
-          console.error('Unknown second argument:', process.argv[3])
+          console.error('Unknown second argument:', args[3])
         }
       } else {
-        const script = process.argv[3]
+        const script = args[3]
         const source = fs.readFileSync(script, { encoding: 'utf-8' })
         error = await hymn.debug(vm, script, source)
       }
-    } else if (process.argv[2] === '-c') {
-      error = await hymn.interpret(vm, process.argv[3])
+    } else if (args[2] === '-c') {
+      error = await hymn.interpret(vm, args[3])
     } else {
-      console.error('Unknown argument:', process.argv[2])
+      console.error('Unknown argument:', args[2])
     }
   } else {
-    const script = process.argv[2]
+    const script = args[2]
     const source = fs.readFileSync(script, { encoding: 'utf-8' })
     error = await hymn.interpretScript(vm, script, source)
   }

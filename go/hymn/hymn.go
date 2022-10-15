@@ -539,15 +539,58 @@ func peekChar(c *Compiler) rune {
 	return c.source[c.pos]
 }
 
-func tokenSpecial(c *Compiler, t TokenType, o, l int) {
+func token(c *Compiler, t TokenType) {
 	a := &c.current
 	a.is = t
 	a.row = c.row
 	a.column = c.column
-	if c.pos < o {
+	if c.pos == 0 {
 		a.start = 0
 	} else {
-		a.start = c.pos - o
+		a.start = c.pos - 1
 	}
-	a.length = l
+	a.length = 1
+}
+
+func tokenSpecial(c *Compiler, t TokenType, offset, length int) {
+	a := &c.current
+	a.is = t
+	a.row = c.row
+	a.column = c.column
+	if c.pos < offset {
+		a.start = 0
+	} else {
+		a.start = c.pos - offset
+	}
+	a.length = length
+}
+
+func valueToken(c *Compiler, t TokenType, start, end int) {
+	a := &c.current
+	a.is = t
+	a.row = c.row
+	a.column = c.column
+	a.start = start
+	a.length = end - start
+}
+
+func NewVM() *Hymn {
+	vm := new(Hymn)
+	return vm
+}
+
+func Interpret(vm *Hymn, source string) error {
+	return nil
+}
+
+func InterpretScript(vm *Hymn, script, source string) error {
+	return nil
+}
+
+func DebugInterpret(vm *Hymn, source string) error {
+	return nil
+}
+
+func DebugInterpretScript(vm *Hymn, script, source string) error {
+	return nil
 }
