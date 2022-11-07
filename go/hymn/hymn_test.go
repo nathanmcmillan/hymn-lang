@@ -1,15 +1,16 @@
-package main
+package hymn
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"testing"
 	"time"
 )
 
-var scripts = filepath.Join("test", "language")
+var scripts = filepath.Join("..", "..", "test", "language")
 
 var (
 	success = 0
@@ -24,7 +25,7 @@ func find() ([]string, error) {
 			return err
 		}
 		if !file.IsDir() {
-			tests = append(tests, filepath.Join(scripts, file.Name()))
+			tests = append(tests, path)
 		}
 		return nil
 	})
@@ -61,19 +62,28 @@ func parse(source []rune) string {
 	return strings.Trim(expected, " ")
 }
 
-func testFile(file string) string {
+func test(t *testing.T, file string) error {
 	count++
 	content, err := os.ReadFile(file)
 	if err != nil {
-		return err.Error()
+		return err
 	}
-	source := []rune(string(content))
-	expected := parse(source)
+	source := string(content)
+	runes := []rune(source)
+	expected := parse(runes)
 	if expected == "" {
-		return ""
+		return nil
 	}
-	result := ""
-	if result != "" {
+	vm := NewVM()
+	var result error
+	err = InterpretScript(vm, file, source)
+	if strings.HasPrefix(expected, "@exception") {
+		if err == nil {
+			result = err
+		}
+	} else {
+	}
+	if result != nil {
 		fail++
 	} else {
 		success++
@@ -81,29 +91,29 @@ func testFile(file string) string {
 	return result
 }
 
-func main() {
-	path, err := os.Executable()
-	if err != nil {
-		panic(err)
+func TestHymn(t *testing.T) {
+	_, path, _, report := runtime.Caller(0)
+	if !report {
+		t.Fail()
 	}
-	err = os.Chdir(filepath.Dir(path))
+	err := os.Chdir(filepath.Dir(path))
 	if err != nil {
-		panic(err)
+		t.Error(err)
+		t.Fail()
 	}
-	fmt.Println()
 	start := time.Now().UnixMilli()
 	tests, err := find()
 	if err != nil {
-		panic(err)
+		t.Error(err)
+		t.Fail()
 	}
 	sort.Strings(tests)
-	for _, test := range tests {
-		fmt.Println(test)
-		result := testFile(test)
-		if result != "" {
-			fmt.Println(result)
+	for _, file := range tests {
+		result := test(t, file)
+		if result != nil {
+			t.Error(result)
 		}
 	}
 	end := time.Now().UnixMilli()
-	fmt.Printf("\nSuccess: %d, Failed: %d, Count: %d, Time: %d ms\n\n", success, fail, count, end-start)
+	t.Logf("\nSuccess: %d, Failed: %d, Count: %d, Time: %d ms\n\n", success, fail, count, end-start)
 }

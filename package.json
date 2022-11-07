@@ -2,14 +2,14 @@
   "name": "hymn-lang",
   "version": "0.1.0",
   "description": "A small byte-code interpreted language with a focus on simplicity.",
-  "main": "js/cli.js",
+  "main": "js/main.js",
   "devDependencies": {
     "eslint": "^7.9.0",
     "npm": "^7.5.2"
   },
   "scripts": {
     "test": "node js/test.js",
-    "start": "node js/cli.js"
+    "start": "node js/main.js"
   },
   "repository": {
     "type": "git",
