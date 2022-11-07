@@ -1,8 +1,8 @@
-# Release 0.6.3
+# Release 0.6.3 (In progress)
 
-- New `OP_NEW_ARRAY` and `OP_NEW_TABLE` instructions for performance
-- Refactored every compile and runtime exception message
+- Refactored compile and runtime exception messages
 - Numbers now allowed in variable names
+- New `OP_NEW_ARRAY` and `OP_NEW_TABLE` instructions for performance
 - Renamed global variables
   - `__globals` -> `GLOBALS`
   - `__paths` -> `PATHS`

@@ -55,8 +55,8 @@ echo list
 | -------------- | ------------- |
 | C              | Version 0.6.3 |
 | JavaScript     | Version 0.6.3 |
-| Go             | Incomplete    |
-| Rust           | Incomplete    |
+| Go             | In progress   |
+| Rust           | In progress   |
 
 # Performance
 
