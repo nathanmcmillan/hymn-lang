@@ -2762,7 +2762,7 @@ static int resolve_local(Compiler *C, Token *name) {
         Local *local = &scope->locals[i];
         if (ident_match(C, name, &local->name)) {
             if (local->depth == -1) {
-                compile_error(C, name, "local variable '%.*s' referenced before assignment", name->length, &C->source[name->start]);
+                compile_error(C, name, "local variable \"%.*s\" referenced before assignment", name->length, &C->source[name->start]);
             }
             return i;
         }
@@ -4959,15 +4959,16 @@ static HymnString *stacktrace(Hymn *H) {
         int row = func->code.lines[frame->ip - func->code.instructions - 1];
         if (func->name == NULL) {
             if (func->script == NULL) {
-                trace = string_append_format(trace, "at script:%d\n", row);
+                trace = string_append_format(trace, "at script:%d", row);
             } else {
-                trace = string_append_format(trace, "at %s:%d\n", func->script, row);
+                trace = string_append_format(trace, "at %s:%d", func->script, row);
             }
         } else if (func->script == NULL) {
-            trace = string_append_format(trace, "at %s script:%d\n", func->name, row);
+            trace = string_append_format(trace, "at %s script:%d", func->name, row);
         } else {
-            trace = string_append_format(trace, "at %s %s:%d\n", func->name, func->script, row);
+            trace = string_append_format(trace, "at %s %s:%d", func->name, func->script, row);
         }
+        if (i > 0) trace = hymn_string_append_char(trace, '\n');
     }
     return trace;
 }
@@ -6652,6 +6653,12 @@ dispatch:
             THROW("Integer required for slice expression")
         }
         HymnInt start = hymn_as_int(a);
+        if (start < 0) {
+            hymn_dereference(H, a);
+            hymn_dereference(H, b);
+            hymn_dereference(H, v);
+            THROW("String index out of bounds %d", start)
+        }
         if (hymn_is_string(v)) {
             HymnString *original = hymn_as_string(v);
             HymnInt size = (HymnInt)hymn_string_len(original);

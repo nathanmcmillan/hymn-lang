@@ -1,0 +1,3 @@
+# @exception function 'delete' expected opening '('
+
+delete 0

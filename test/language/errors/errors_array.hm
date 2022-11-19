@@ -1,9 +1,9 @@
-# array index: expected integer but was string
-# array index: expected integer but was string
-# array index out of bounds: 10 > 1
-# array index out of bounds: 10 > 1
-# array index out of bounds: -3
-# array index out of bounds: -3
+# array index can't be string (expected integer)
+# array assignment index can't be string (expected integer)
+# array index out of bounds: 10 >= 1
+# array assignment index out of bounds: 10 > 1
+# negative array index: -3
+# negative array assignment index: -3
 
 use "errors"
 

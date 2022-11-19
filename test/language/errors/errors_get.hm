@@ -1,7 +1,7 @@
-# string index: expected integer but was boolean
-# string index out of bounds: 10 > 3
-# string index out of bounds: -1
-# indexing error: expected array, table, or string but was boolean
+# string index can't be boolean (expected integer)
+# string index out of bounds: 10 >= 3
+# negative string index: -1
+# can't get value from boolean (expected array, table, or string)
 
 use "errors"
 

@@ -9,13 +9,13 @@
 # false
 # foobar
 
-echo string(none)
-echo string(0)
-echo string(0.0)
-echo string(1)
-echo string(-1)
-echo string(1.2)
-echo string(-1.2)
-echo string(true)
-echo string(false)
-echo string("foobar")
+echo str(none)
+echo str(0)
+echo str(0.0)
+echo str(1)
+echo str(-1)
+echo str(1.2)
+echo str(-1.2)
+echo str(true)
+echo str(false)
+echo str("foobar")

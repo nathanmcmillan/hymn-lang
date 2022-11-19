@@ -1,14 +1,14 @@
-# bitwise not: expected an integer but found a boolean
-# bitwise and: expected integers but found a boolean and integer
-# bitwise and: expected integers but found an integer and boolean
-# bitwise or: expected integers but found a boolean and integer
-# bitwise or: expected integers but found an integer and boolean
-# bitwise xor: expected integers but found a boolean and integer
-# bitwise xor: expected integers but found an integer and boolean
-# bit shift left: expected integers but found a boolean and integer
-# bit shift left: expected integers but found an integer and boolean
-# bit shift right: expected integers but found a boolean and integer
-# bit shift right: expected integers but found an integer and boolean
+# bitwise "~" can't use boolean (expected integer)
+# bitwise "&" can't use boolean and integer (expected integers)
+# bitwise "&" can't use integer and boolean (expected integers)
+# bitwise "|" can't use boolean and integer (expected integers)
+# bitwise "|" can't use integer and boolean (expected integers)
+# bitwise "^" can't use boolean and integer (expected integers)
+# bitwise "^" can't use integer and boolean (expected integers)
+# bitwise "<<" can't use boolean and integer (expected integers)
+# bitwise "<<" can't use integer and boolean (expected integers)
+# bitwise ">>" can't use boolean and integer (expected integers)
+# bitwise ">>" can't use integer and boolean (expected integers)
 
 use "errors"
 

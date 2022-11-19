@@ -1,7 +1,7 @@
-# property error: expected table but was integer
-# property error: expected table but was integer
-# table property: expected string but was integer
-# table property: expected string but was integer
+# can't get property of integer (expected table)
+# can't set property of integer (expected table)
+# table key can't be integer (expected string)
+# table assignment key can't be integer (expected string)
 
 use "errors"
 

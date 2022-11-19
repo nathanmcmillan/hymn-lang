@@ -1,0 +1,7 @@
+# can't cast table to integer
+# can't cast table to float
+
+use "errors"
+
+try { int({}) } except e { echo runtime(e) }
+try { float({}) } except e { echo runtime(e) }

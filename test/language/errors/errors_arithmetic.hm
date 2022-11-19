@@ -1,13 +1,13 @@
-# multiply error: expected numbers but found a boolean and integer
-# multiply error: expected numbers but found an integer and boolean
-# divide error: expected numbers but found a boolean and integer
-# divide error: expected numbers but found an integer and boolean
-# subtract error: expected numbers but found a boolean and integer
-# subtract error: expected numbers but found an integer and boolean
-# modulo error: expected integers but found a boolean and integer
-# modulo error: expected integers but found an integer and boolean
-# error: a boolean and integer can't be added
-# error: an integer and boolean can't be added
+# can't multiply boolean and integer (expected numbers)
+# can't multiply integer and boolean (expected numbers)
+# can't divide boolean and integer (expected numbers)
+# can't divide integer and boolean (expected numbers)
+# can't subtract boolean and integer (expected numbers)
+# can't subtract integer and boolean (expected numbers)
+# can't modulo boolean and integer (expected integers)
+# can't modulo integer and boolean (expected integers)
+# can't add boolean and integer
+# can't add integer and boolean
 
 use "errors"
 

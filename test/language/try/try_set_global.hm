@@ -1,11 +1,12 @@
-# @starts
-# index function expects a string, array, or table
+# @starts function 'index' can't use integer for 1st argument (expected string, array, or table)
 
-let foo = "empty"
+use "../errors/errors"
+
+let err = "empty"
 try {
   index(0, 0)
-  foo = "bad"
+  err = "bad"
 } except e {
-  foo = e
+  err = e
 }
-echo foo
+echo runtime(err)

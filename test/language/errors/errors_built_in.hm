@@ -1,9 +1,13 @@
-# keys function: expected table but was integer
-# index function: expected string, array, or table for 1st argument but was integer
-# index function: expected string for 2nd argument but was integer
-# exists function: expected table for 1st argument but was integer
-# exists function: expected string for 2nd argument but was integer
-# len function: expected array, string, or table but was integer
+# function 'keys' can't use integer (expected table)
+# function 'index' can't use integer for 1st argument (expected string, array, or table)
+# function 'index' can't use integer for 2nd argument (expected string)
+# function 'exists' can't use integer for 1st argument (expected table)
+# function 'exists' can't use integer for 2nd argument (expected string)
+# function 'len' can't use integer (expected array, string, or table)
+# function 'pop' can't use integer for 1st argument (expected array)
+# function 'push' can't use integer for 1st argument (expected array)
+# function 'insert' can't use integer for 1st argument (expected array)
+# function 'delete' can't use integer for 1st argument (expected array or table)
 
 use "errors"
 
@@ -16,3 +20,7 @@ try { exists(0, 0) } except e { echo runtime(e) }
 try { exists({ foo: 0 }, 0) } except e { echo runtime(e) }
 
 try { len(2) } except e { echo runtime(e) }
+try { pop(2) } except e { echo runtime(e) }
+try { push(2, 2) } except e { echo runtime(e) }
+try { insert(2, 2, 2) } except e { echo runtime(e) }
+try { delete(2, 2) } except e { echo runtime(e) }

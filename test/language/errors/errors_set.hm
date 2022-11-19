@@ -1,4 +1,4 @@
-# assignment error: expected array or table but was string
+# can't assign value to string (expected array or table)
 
 use "errors"
 

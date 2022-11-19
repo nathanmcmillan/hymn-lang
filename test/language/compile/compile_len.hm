@@ -1,0 +1,3 @@
+# @exception function 'len' expected opening '('
+
+len 0

@@ -2,11 +2,14 @@
 
 - Refactored compile and runtime exception messages
 - Numbers now allowed in variable names
-- New `OP_NEW_ARRAY` and `OP_NEW_TABLE` instructions for performance
+- New instructions `OP_NEW_ARRAY` and `OP_NEW_TABLE` for performance
 - Renamed global variables
   - `__globals` -> `GLOBALS`
   - `__paths` -> `PATHS`
   - `__imports__` -> `IMPORTS`
+- Renamed functions
+  - `string` -> `str`
+- String formatting now uses `"${}"` style syntax
 
 # Release 0.6.2
 

@@ -111,7 +111,7 @@
       }
     },
     {
-      "match": "\\b(copy|delete|float|index|int|insert|keys|pop|echo|print|push|int|string|exists)\\b",
+      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type)\\b",
       "captures": {
         "1": {
           "name": "support.function.hymn"

@@ -1,11 +1,11 @@
-# comparison '>' error: expected numbers but found a boolean and integer
-# comparison '>' error: expected numbers but found an integer and boolean
-# comparison '<' error: expected numbers but found a boolean and integer
-# comparison '<' error: expected numbers but found an integer and boolean
-# comparison '>=' error: expected numbers but found a boolean and integer
-# comparison '>=' error: expected numbers but found an integer and boolean
-# comparison '<=' error: expected numbers but found a boolean and integer
-# comparison '<=' error: expected numbers but found an integer and boolean
+# comparison ">" can't use boolean and integer (expected numbers)
+# comparison ">" can't use integer and boolean (expected numbers)
+# comparison "<" can't use boolean and integer (expected numbers)
+# comparison "<" can't use integer and boolean (expected numbers)
+# comparison ">=" can't use boolean and integer (expected numbers)
+# comparison ">=" can't use integer and boolean (expected numbers)
+# comparison "<=" can't use boolean and integer (expected numbers)
+# comparison "<=" can't use integer and boolean (expected numbers)
 
 use "errors"
 

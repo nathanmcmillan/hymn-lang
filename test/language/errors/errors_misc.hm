@@ -1,5 +1,5 @@
-# logical not: expected a boolean but found an integer
-# negate: expected a number but found a boolean
+# not "!" can't use integer (expected boolean)
+# negation "-" can't use boolean (expected number)
 
 use "errors"
 
