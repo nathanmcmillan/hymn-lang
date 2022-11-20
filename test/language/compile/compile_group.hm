@@ -1,0 +1,3 @@
+# @exception parenthesis group has no closing ')'
+
+echo (2 + 4

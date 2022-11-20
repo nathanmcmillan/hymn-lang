@@ -1,5 +1,5 @@
-# not "!" can't use integer (expected boolean)
-# negation "-" can't use boolean (expected number)
+# not '!' can't use integer (expected boolean)
+# negation '-' can't use boolean (expected number)
 
 use "errors"
 

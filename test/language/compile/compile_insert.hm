@@ -1,3 +1,3 @@
-# @exception function 'insert' expected opening '('
+# @exception expected opening '(' in call to 'insert'
 
 insert 0

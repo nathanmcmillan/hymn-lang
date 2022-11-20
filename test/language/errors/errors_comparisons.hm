@@ -1,11 +1,11 @@
-# comparison ">" can't use boolean and integer (expected numbers)
-# comparison ">" can't use integer and boolean (expected numbers)
-# comparison "<" can't use boolean and integer (expected numbers)
-# comparison "<" can't use integer and boolean (expected numbers)
-# comparison ">=" can't use boolean and integer (expected numbers)
-# comparison ">=" can't use integer and boolean (expected numbers)
-# comparison "<=" can't use boolean and integer (expected numbers)
-# comparison "<=" can't use integer and boolean (expected numbers)
+# comparison '>' can't use boolean and integer (expected numbers)
+# comparison '>' can't use integer and boolean (expected numbers)
+# comparison '<' can't use boolean and integer (expected numbers)
+# comparison '<' can't use integer and boolean (expected numbers)
+# comparison '>=' can't use boolean and integer (expected numbers)
+# comparison '>=' can't use integer and boolean (expected numbers)
+# comparison '<=' can't use boolean and integer (expected numbers)
+# comparison '<=' can't use integer and boolean (expected numbers)
 
 use "errors"
 

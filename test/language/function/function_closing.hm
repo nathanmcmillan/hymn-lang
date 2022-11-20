@@ -1,0 +1,3 @@
+# @exception function has no closing ')'
+
+echo foo(2

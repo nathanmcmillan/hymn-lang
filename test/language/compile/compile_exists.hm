@@ -1,3 +1,3 @@
-# @exception function 'exists' expected opening '('
+# @exception expected opening '(' in call to 'exists'
 
 exists 0

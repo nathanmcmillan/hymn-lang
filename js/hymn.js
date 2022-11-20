@@ -1622,7 +1622,7 @@ function compileWithPrecedence(C, precedence) {
   const rule = rules[C.previous.type]
   const prefix = rule.prefix
   if (prefix === null) {
-    compileError(C, C.previous, `expected expression near '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
+    compileError(C, C.previous, `expression expected near '${sourceSubstring(C, C.previous.length, C.previous.start)}'`)
     return
   }
   const assign = precedence <= PRECEDENCE_ASSIGN
@@ -1674,7 +1674,11 @@ function args(C) {
       count++
     } while (match(C, TOKEN_COMMA))
   }
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' after function arguments")
+  if (C.current.type === TOKEN_RIGHT_PAREN) {
+    advance(C)
+  } else {
+    compileError(C, C.previous, "function has no closing ')'")
+  }
   return count
 }
 
@@ -1685,7 +1689,11 @@ function compileCall(C) {
 
 function compileGroup(C) {
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' for parenthesis group")
+  if (C.current.type === TOKEN_RIGHT_PAREN) {
+    advance(C)
+  } else {
+    compileError(C, C.previous, "parenthesis group has no closing ')'")
+  }
 }
 
 function compileNone(C) {
@@ -2197,7 +2205,7 @@ function compileFunction(C, type) {
   if (!check(C, TOKEN_RIGHT_PAREN)) {
     do {
       C.scope.func.arity++
-      if (C.scope.func.arity > 255) {
+      if (C.scope.func.arity > UINT8_MAX) {
         compileError(C, C.previous, 'too many function parameters')
       }
       const parameter = variable(C, 'expected parameter name')
@@ -2613,11 +2621,11 @@ function echoStatement(C) {
 }
 
 function printStatement(C) {
-  consume(C, TOKEN_LEFT_PAREN, "expected '(' around print statement")
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'print'`)
   expression(C)
-  consume(C, TOKEN_COMMA, 'expected ', ' between arguments in print statement')
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'print' (expected 2)`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, "expected ')' around print statement")
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'print'`)
   emit(C, OP_PRINT)
 }
 
@@ -2663,112 +2671,112 @@ function statement(C) {
 }
 
 function arrayPushExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'push' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'push'`)
   expression(C)
-  consume(C, TOKEN_COMMA, `function 'push' expected ',' between arguments`)
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'push' (expected 2)`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'push' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'push'`)
   emit(C, OP_ARRAY_PUSH)
 }
 
 function arrayInsertExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'insert' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'insert'`)
   expression(C)
-  consume(C, TOKEN_COMMA, `function 'insert' expected ',' between arguments`)
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'insert' (expected 3)`)
   expression(C)
-  consume(C, TOKEN_COMMA, `function 'insert' expected ',' between arguments`)
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'insert' (expected 3)`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'insert' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'insert'`)
   emit(C, OP_ARRAY_INSERT)
 }
 
 function arrayPopExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'pop' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'pop'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'pop' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'pop'`)
   emit(C, OP_ARRAY_POP)
 }
 
 function deleteExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'delete' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'delete'`)
   expression(C)
-  consume(C, TOKEN_COMMA, `function 'delete' expected ',' between arguments`)
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'delete' (expected 2)`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'delete' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'delete'`)
   emit(C, OP_DELETE)
 }
 
 function lenExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'len' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'len'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'len' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'len'`)
   emit(C, OP_LEN)
 }
 
 function castIntegerExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'int' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'int'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'int' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'int'`)
   emit(C, OP_INT)
 }
 
 function castFloatExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'float' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'float'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'float' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'float'`)
   emit(C, OP_FLOAT)
 }
 
 function castStringExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'str' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'str'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'str' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'str'`)
   emit(C, OP_STRING)
 }
 
 function typeExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'type' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'type'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'type' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'type'`)
   emit(C, OP_TYPE)
 }
 
 function clearExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'clear' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'clear'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'clear' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'clear'`)
   emit(C, OP_CLEAR)
 }
 
 function copyExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'copy' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'copy'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'copy' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'copy'`)
   emit(C, OP_COPY)
 }
 
 function keysExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'keys' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'keys'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'keys' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'keys'`)
   emit(C, OP_KEYS)
 }
 
 function indexExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'index' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'index'`)
   expression(C)
-  consume(C, TOKEN_COMMA, `function 'index' expected ',' between arguments`)
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'index' (expected 2)`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'index' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'index'`)
   emit(C, OP_INDEX)
 }
 
 function existsExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `function 'exists' expected opening '('`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'exists'`)
   expression(C)
-  consume(C, TOKEN_COMMA, "expected ',' between arguments of exists function")
+  consume(C, TOKEN_COMMA, `not enough arguments in call to 'exists' (expected 2)`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `function 'exists' expected closing ')'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'exists'`)
   emit(C, OP_EXISTS)
 }
 
@@ -3036,7 +3044,8 @@ function hymnFrameGet(H, index) {
 
 function hymnCall(H, func, count) {
   if (count !== func.arity) {
-    return hymnThrowError(H, `function argument error: expected ${func.arity} but found ${count}`)
+    if (count < func.arity) return hymnThrowError(H, `not enough arguments in call to '${func.name}' (expected ${func.arity})`)
+    return hymnThrowError(H, `too many arguments in call to '${func.name}' (expected ${func.arity})`)
   } else if (H.frameCount === HYMN_FRAMES_MAX) {
     return hymnThrowError(H, 'stack overflow')
   }
@@ -3062,8 +3071,7 @@ function hymnCallValue(H, value, count) {
       return currentFrame(H)
     }
     default: {
-      const is = valueType(value.is)
-      return hymnThrowError(H, `not a function: ${is}`)
+      return hymnThrowError(H, `can't call ${valueType(value.is)} (expected function)`)
     }
   }
 }
@@ -3597,7 +3605,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value < b.value))
         } else {
-          frame = hymnThrowError(H, `comparison "<" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
+          frame = hymnThrowError(H, `comparison '<' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
           if (frame === null) return
           else break
         }
@@ -3609,7 +3617,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value <= b.value))
         } else {
-          frame = hymnThrowError(H, `comparison "<=" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
+          frame = hymnThrowError(H, `comparison '<=' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
           if (frame === null) return
           else break
         }
@@ -3621,7 +3629,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value > b.value))
         } else {
-          frame = hymnThrowError(H, `comparison ">" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
+          frame = hymnThrowError(H, `comparison '>' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
           if (frame === null) return
           else break
         }
@@ -3633,7 +3641,7 @@ async function hymnRun(H) {
         if ((isInt(a) || isFloat(a)) && (isInt(b) || isFloat(b))) {
           hymnPush(H, newBool(a.value >= b.value))
         } else {
-          frame = hymnThrowError(H, `comparison ">=" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
+          frame = hymnThrowError(H, `comparison '>=' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected numbers)`)
           if (frame === null) return
           else break
         }
@@ -3822,7 +3830,7 @@ async function hymnRun(H) {
           value.value = ~value.value
           hymnPush(H, value)
         } else {
-          frame = hymnThrowError(H, `bitwise "~" can't use ${valueType(value.is)} (expected integer)`)
+          frame = hymnThrowError(H, `bitwise '~' can't use ${valueType(value.is)} (expected integer)`)
           if (frame === null) return
           else break
         }
@@ -3836,12 +3844,12 @@ async function hymnRun(H) {
             a.value |= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise "|" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+            frame = hymnThrowError(H, `bitwise '|' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise "|" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+          frame = hymnThrowError(H, `bitwise '|' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
           if (frame === null) return
           else break
         }
@@ -3855,12 +3863,12 @@ async function hymnRun(H) {
             a.value &= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise "&" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+            frame = hymnThrowError(H, `bitwise '&' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise "&" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+          frame = hymnThrowError(H, `bitwise '&' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
           if (frame === null) return
           else break
         }
@@ -3874,12 +3882,12 @@ async function hymnRun(H) {
             a.value ^= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise "^" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+            frame = hymnThrowError(H, `bitwise '^' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise "^" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+          frame = hymnThrowError(H, `bitwise '^' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
           if (frame === null) return
           else break
         }
@@ -3893,12 +3901,12 @@ async function hymnRun(H) {
             a.value <<= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise "<<" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+            frame = hymnThrowError(H, `bitwise '<<' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise "<<" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+          frame = hymnThrowError(H, `bitwise '<<' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
           if (frame === null) return
           else break
         }
@@ -3912,12 +3920,12 @@ async function hymnRun(H) {
             a.value >>= b.value
             hymnPush(H, a)
           } else {
-            frame = hymnThrowError(H, `bitwise ">>" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+            frame = hymnThrowError(H, `bitwise '>>' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
             if (frame === null) return
             else break
           }
         } else {
-          frame = hymnThrowError(H, `bitwise ">>" can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
+          frame = hymnThrowError(H, `bitwise '>>' can't use ${valueType(a.is)} and ${valueType(b.is)} (expected integers)`)
           if (frame === null) return
           else break
         }
@@ -3930,7 +3938,7 @@ async function hymnRun(H) {
         } else if (isFloat(value)) {
           value.value = -value.value
         } else {
-          frame = hymnThrowError(H, `negation "-" can't use ${valueType(value.is)} (expected number)`)
+          frame = hymnThrowError(H, `negation '-' can't use ${valueType(value.is)} (expected number)`)
           if (frame === null) return
           else break
         }
@@ -3942,7 +3950,7 @@ async function hymnRun(H) {
         if (isBool(value)) {
           value.value = !value.value
         } else {
-          frame = hymnThrowError(H, `not "!" can't use ${valueType(value.is)} (expected boolean)`)
+          frame = hymnThrowError(H, `not '!' can't use ${valueType(value.is)} (expected boolean)`)
           if (frame === null) return
           else break
         }
