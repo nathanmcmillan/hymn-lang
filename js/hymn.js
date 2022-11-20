@@ -4064,12 +4064,12 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         const o = hymnPop(H)
         if (!isTable(o)) {
-          frame = hymnThrowError(H, `function 'exists' can't use ${valueType(o.is)} for 1st argument (expected table)`)
+          frame = hymnThrowError(H, `call to 'exists' can't use ${valueType(o.is)} for 1st argument (expected table)`)
           if (frame === null) return
           else break
         }
         if (!isString(v)) {
-          frame = hymnThrowError(H, `function 'exists' can't use ${valueType(v.is)} for 2nd argument (expected string)`)
+          frame = hymnThrowError(H, `call to 'exists' can't use ${valueType(v.is)} for 2nd argument (expected string)`)
           if (frame === null) return
           else break
         }
@@ -4227,7 +4227,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, `function 'len' can't use ${valueType(value.is)} (expected array, string, or table)`)
+            frame = hymnThrowError(H, `call to 'len' can't use ${valueType(value.is)} (expected array, string, or table)`)
             if (frame === null) return
             else break
         }
@@ -4237,7 +4237,7 @@ async function hymnRun(H) {
       case OP_ARRAY_POP: {
         const a = hymnPop(H)
         if (!isArray(a)) {
-          frame = hymnThrowError(H, `function 'pop' can't use ${valueType(a.is)} for 1st argument (expected array)`)
+          frame = hymnThrowError(H, `call to 'pop' can't use ${valueType(a.is)} for 1st argument (expected array)`)
           if (frame === null) return
           else break
         } else {
@@ -4250,7 +4250,7 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         const a = hymnPop(H)
         if (!isArray(a)) {
-          frame = hymnThrowError(H, `function 'push' can't use ${valueType(v.is)} for 1st argument (expected array)`)
+          frame = hymnThrowError(H, `call to 'push' can't use ${valueType(v.is)} for 1st argument (expected array)`)
           if (frame === null) return
           else break
         } else {
@@ -4265,7 +4265,7 @@ async function hymnRun(H) {
         const v = hymnPop(H)
         if (isArray(v)) {
           if (!isInt(i)) {
-            frame = hymnThrowError(H, `function 'insert' can't use ${valueType(v.is)} for 2nd argument (expected integer)`)
+            frame = hymnThrowError(H, `call to 'insert' can't use ${valueType(v.is)} for 2nd argument (expected integer)`)
             if (frame === null) return
             else break
           }
@@ -4273,14 +4273,14 @@ async function hymnRun(H) {
           const size = array.length
           let index = i.value
           if (index > size) {
-            frame = hymnThrowError(H, `function "insert" array index out of bounds: ${index} > ${size}`)
+            frame = hymnThrowError(H, `index out of bounds in call to 'insert': ${index} > ${size}`)
             if (frame === null) return
             else break
           }
           if (index < 0) {
             index = size + index
             if (index < 0) {
-              frame = hymnThrowError(H, `function "insert" negative array index: ${index}`)
+              frame = hymnThrowError(H, `negative index in call to 'insert': ${index}`)
               if (frame === null) return
               else break
             }
@@ -4292,7 +4292,7 @@ async function hymnRun(H) {
           }
           hymnPush(H, p)
         } else {
-          frame = hymnThrowError(H, `function 'insert' can't use ${valueType(v.is)} for 1st argument (expected array)`)
+          frame = hymnThrowError(H, `call to 'insert' can't use ${valueType(v.is)} for 1st argument (expected array)`)
           if (frame === null) return
           else break
         }
@@ -4303,7 +4303,7 @@ async function hymnRun(H) {
         const value = hymnPop(H)
         if (isArray(value)) {
           if (!isInt(at)) {
-            frame = hymnThrowError(H, `function 'delete' can't use ${valueType(at.is)} for 2nd argument (expected integer)`)
+            frame = hymnThrowError(H, `call to 'delete' can't use ${valueType(at.is)} for 2nd argument (expected integer)`)
             if (frame === null) return
             else break
           }
@@ -4311,14 +4311,14 @@ async function hymnRun(H) {
           const size = array.length
           let index = at.value
           if (index >= size) {
-            frame = hymnThrowError(H, `function "delete" array index out of bounds: ${index} >= ${size}`)
+            frame = hymnThrowError(H, `index out of bounds in call to 'delete': ${index} >= ${size}`)
             if (frame === null) return
             else break
           }
           if (index < 0) {
             index = size + index
             if (index < 0) {
-              frame = hymnThrowError(H, `function "delete" negative array index: ${index}`)
+              frame = hymnThrowError(H, `negative index in call to 'delete': ${index}`)
               if (frame === null) return
               else break
             }
@@ -4327,7 +4327,7 @@ async function hymnRun(H) {
           hymnPush(H, item)
         } else if (isTable(value)) {
           if (!isString(at)) {
-            frame = hymnThrowError(H, `function 'delete' can't use ${valueType(at.is)} for 2nd argument (expected string)`)
+            frame = hymnThrowError(H, `call to 'delete' can't use ${valueType(at.is)} for 2nd argument (expected string)`)
             if (frame === null) return
             else break
           }
@@ -4341,7 +4341,7 @@ async function hymnRun(H) {
             hymnPush(H, newNone())
           }
         } else {
-          frame = hymnThrowError(H, `function 'delete' can't use ${valueType(value.is)} for 1st argument (expected array or table)`)
+          frame = hymnThrowError(H, `call to 'delete' can't use ${valueType(value.is)} for 1st argument (expected array or table)`)
           if (frame === null) return
           else break
         }
@@ -4501,7 +4501,7 @@ async function hymnRun(H) {
       case OP_KEYS: {
         const value = hymnPop(H)
         if (!isTable(value)) {
-          frame = hymnThrowError(H, `function 'keys' can't use ${valueType(value.is)} (expected table)`)
+          frame = hymnThrowError(H, `call to 'keys' can't use ${valueType(value.is)} (expected table)`)
           if (frame === null) return
           else break
         } else {
@@ -4517,7 +4517,7 @@ async function hymnRun(H) {
         switch (a.is) {
           case HYMN_VALUE_STRING: {
             if (!isString(b)) {
-              frame = hymnThrowError(H, `function 'index' can't use ${valueType(b.is)} for 2nd argument (expected string)`)
+              frame = hymnThrowError(H, `call to 'index' can't use ${valueType(b.is)} for 2nd argument (expected string)`)
               if (frame === null) return
               else break
             }
@@ -4535,7 +4535,7 @@ async function hymnRun(H) {
             break
           }
           default:
-            frame = hymnThrowError(H, `function 'index' can't use ${valueType(a.is)} for 1st argument (expected string, array, or table)`)
+            frame = hymnThrowError(H, `call to 'index' can't use ${valueType(a.is)} for 1st argument (expected string, array, or table)`)
             if (frame === null) return
             else break
         }

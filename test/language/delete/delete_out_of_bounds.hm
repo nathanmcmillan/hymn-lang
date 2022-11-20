@@ -1,0 +1,5 @@
+# negative index in call to 'delete': -1
+
+use "../errors/errors"
+
+try { delete([], -1) } except e { echo runtime(e) }

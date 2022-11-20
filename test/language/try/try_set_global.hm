@@ -1,4 +1,4 @@
-# @starts function 'index' can't use integer for 1st argument (expected string, array, or table)
+# @starts call to 'index' can't use integer for 1st argument (expected string, array, or table)
 
 use "../errors/errors"
 
