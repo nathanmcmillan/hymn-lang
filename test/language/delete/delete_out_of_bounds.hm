@@ -1,4 +1,4 @@
-# negative index in call to 'delete': -1
+# negative index in 'delete' call: -1
 
 use "../errors/errors"
 

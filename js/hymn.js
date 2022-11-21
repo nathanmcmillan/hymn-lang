@@ -847,7 +847,7 @@ function beginningOfLine(source, i) {
   }
 }
 
-function appendErrorLine(source, begin, end) {
+function appendLine(source, begin, end) {
   while (true) {
     if (source[end] === '\n') break
     end++
@@ -857,24 +857,32 @@ function appendErrorLine(source, begin, end) {
 }
 
 function appendPreviousLine(source, i) {
-  if (i < 2) {
-    return ''
-  }
+  if (i < 1) return ''
   i--
-  const begin = beginningOfLine(source, i - 1)
-  if (i - begin < 2) {
-    return ''
+  while (true) {
+    const begin = beginningOfLine(source, i - 1)
+    if (i - begin < 1) return ''
+    const line = source.substring(begin, i)
+    if (line.trim() !== '') return line
+    i = begin
   }
-  return source.substring(begin, i)
 }
 
 function appendSecondPreviousLine(source, i) {
-  if (i < 2) {
-    return ''
-  }
+  if (i < 1) return ''
   i--
   const begin = beginningOfLine(source, i - 1)
   return appendPreviousLine(source, begin)
+}
+
+function spaceToLine(s) {
+  let i = 0
+  while (true) {
+    if (s[i] !== ' ') {
+      return i
+    }
+    i++
+  }
 }
 
 function compileError(C, token, format) {
@@ -882,23 +890,41 @@ function compileError(C, token, format) {
 
   let error = 'compiler: ' + format + '\n\n'
 
-  const begin = beginningOfLine(C.source, token.start)
+  const source = C.source
+  const begin = beginningOfLine(source, token.start)
 
-  const previous2 = appendSecondPreviousLine(C.source, begin).trim()
-  const previous1 = appendPreviousLine(C.source, begin).trim()
-  const line = appendErrorLine(C.source, begin, token.start).trim()
+  let a = appendLine(source, begin, token.start)
+  let b = appendPreviousLine(source, begin)
+  let c = appendSecondPreviousLine(source, begin)
 
-  if (previous2 !== '') error += '| ' + previous2 + '\n'
-  if (previous1 !== '') error += '| ' + previous1 + '\n'
-  if (line !== '') error += '| ' + line
+  let min = Number.MAX_SAFE_INTEGER
 
-  if (token.length > 0) {
-    error += '\n  '
-    for (let i = 0; i < token.start - begin; i++) {
-      error += ' '
-    }
-    for (let i = 0; i < token.length; i++) {
-      error += '^'
+  if (a !== '') min = spaceToLine(a)
+  if (b !== '') min = Math.min(min, spaceToLine(b))
+  if (c !== '') min = Math.min(min, spaceToLine(c))
+
+  if (min !== 0 && min !== Number.MAX_SAFE_INTEGER) {
+    a = a.substring(min)
+    b = b.substring(min)
+    c = c.substring(min)
+  }
+
+  if (a !== '') {
+    if (c !== '') error += '| ' + c + '\n'
+    if (b !== '') error += '| ' + b + '\n'
+    error += '| ' + a
+
+    if (token.length > 0) {
+      error += '\n  '
+      const spaces = token.start - begin - min
+      if (spaces > 0) {
+        for (let i = 0; i < spaces; i++) {
+          error += ' '
+        }
+      }
+      for (let i = 0; i < token.length; i++) {
+        error += '^'
+      }
     }
   }
 
@@ -4237,7 +4263,7 @@ async function hymnRun(H) {
       case OP_ARRAY_POP: {
         const a = hymnPop(H)
         if (!isArray(a)) {
-          frame = hymnThrowError(H, `call to 'pop' can't use ${valueType(a.is)} for 1st argument (expected array)`)
+          frame = hymnThrowError(H, `call to 'pop' can't use ${valueType(a.is)} (expected array)`)
           if (frame === null) return
           else break
         } else {
@@ -4280,7 +4306,7 @@ async function hymnRun(H) {
           if (index < 0) {
             index = size + index
             if (index < 0) {
-              frame = hymnThrowError(H, `negative index in call to 'insert': ${index}`)
+              frame = hymnThrowError(H, `negative index in 'insert' call: ${index}`)
               if (frame === null) return
               else break
             }
@@ -4318,7 +4344,7 @@ async function hymnRun(H) {
           if (index < 0) {
             index = size + index
             if (index < 0) {
-              frame = hymnThrowError(H, `negative index in call to 'delete': ${index}`)
+              frame = hymnThrowError(H, `negative index in 'delete' call: ${index}`)
               if (frame === null) return
               else break
             }
