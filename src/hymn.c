@@ -456,8 +456,13 @@ bool hymn_file_exists(const char *path) {
     return stat(path, &b) == 0;
 }
 
+#ifdef _MSC_VER
+#define ANSI_COLOR_RED ""
+#define ANSI_COLOR_RESET ""
+#else
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_RESET "\x1b[0m"
+#endif
 
 typedef struct JumpList JumpList;
 typedef struct LoopList LoopList;
@@ -1472,15 +1477,21 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
     va_start(ap, format);
     len = vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
-    HymnString *error = hymn_new_string(chars);
+
+    HymnString *error = hymn_new_string_with_capacity(len + 128);
+    error = hymn_string_append(error, "compiler: ");
+    error = hymn_string_append(error, chars);
+
     free(chars);
-    error = hymn_string_append(error, "\n\n");
 
     size_t begin = beginning_of_line(C->source, token->start);
     size_t end = end_of_line(C->source, C->size, token->start);
 
-    error = string_append_second_previous_line(C->source, error, begin);
-    error = string_append_previous_line(C->source, error, begin);
+    error = hymn_string_append(error, "\n| ");
+    // error = string_append_second_previous_line(C->source, error, begin);
+    // error = hymn_string_append(error, "| ");
+    // error = string_append_previous_line(C->source, error, begin);
+    // error = hymn_string_append(error, "| ");
     error = string_append_format(error, "%.*s\n", end - begin, &C->source[begin]);
     for (int i = 0; i < (int)(token->start - begin); i++) {
         error = hymn_string_append_char(error, ' ');
@@ -2762,7 +2773,7 @@ static int resolve_local(Compiler *C, Token *name) {
         Local *local = &scope->locals[i];
         if (ident_match(C, name, &local->name)) {
             if (local->depth == -1) {
-                compile_error(C, name, "local variable \"%.*s\" referenced before assignment", name->length, &C->source[name->start]);
+                compile_error(C, name, "local variable '%.*s' referenced before assignment", name->length, &C->source[name->start]);
             }
             return i;
         }
@@ -4313,11 +4324,11 @@ static void echo_statement(Compiler *C) {
 }
 
 static void print_statement(Compiler *C) {
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around print statement");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'print'");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between arguments in print statement");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'print' (expected 2)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around print statement");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'print'");
     emit(C, OP_PRINT);
 }
 
@@ -4364,125 +4375,125 @@ static void statement(Compiler *C) {
 
 static void array_push_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around push expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'push'");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between arguments in push expression");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'push' (expected 2)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around push expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'push'");
     emit(C, OP_ARRAY_PUSH);
 }
 
 static void array_insert_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around insert expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'insert'");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between 1st and 2nd arguments in insert expression");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between 2nd and 3rd arguments in insert expression");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around insert expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'insert'");
     emit(C, OP_ARRAY_INSERT);
 }
 
 static void array_pop_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around pop expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'pop'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around pop expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'pop'");
     emit(C, OP_ARRAY_POP);
 }
 
 static void delete_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around delete expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'delete'");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between arguments in delete expression");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'delete' (expected 2)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around pop expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'pop'");
     emit(C, OP_DELETE);
 }
 
 static void len_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around len expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'len'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around len expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'len'");
     emit(C, OP_LEN);
 }
 
 static void cast_integer_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around integer expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'integer'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around integer expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'integer'");
     emit(C, OP_INT);
 }
 
 static void cast_float_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around float expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'float'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around float expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'float'");
     emit(C, OP_FLOAT);
 }
 
 static void cast_string_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around string expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'string'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around string expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'string'");
     emit(C, OP_STRING);
 }
 
 static void type_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around type expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'type'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around type expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'type'");
     emit(C, OP_TYPE);
 }
 
 static void clear_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around clear expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'clear'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around clear expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'clear'");
     emit(C, OP_CLEAR);
 }
 
 static void copy_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around copy expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'copy'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around copy expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'copy'");
     emit(C, OP_COPY);
 }
 
 static void keys_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around keys expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'keys'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around keys expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'keys'");
     emit(C, OP_KEYS);
 }
 
 static void index_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around index expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'index'");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between arguments in index expression");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'index' (expected 2)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around index expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'index'");
     emit(C, OP_INDEX);
 }
 
 static void exists_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected '(' around exists expression");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'exists'");
     expression(C);
-    consume(C, TOKEN_COMMA, "expected ',' between arguments in exists expression");
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'exists' (expected 2)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' around exists expression");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'exists'");
     emit(C, OP_EXISTS);
 }
 
@@ -4667,11 +4678,11 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             HymnObjectString *key = keys[i];
             HymnValue item = table_get(table, key);
             HymnString *add = value_to_string_recusive(item, set, true);
-            HymnString *quote = hymn_quote_string(key->string);
-            string = hymn_string_append(string, quote);
+            HymnString *quoting = hymn_quote_string(key->string);
+            string = hymn_string_append(string, quoting);
             string = hymn_string_append(string, ": ");
             string = hymn_string_append(string, add);
-            hymn_string_delete(quote);
+            hymn_string_delete(quoting);
             hymn_string_delete(add);
         }
         string = hymn_string_append(string, " }");
@@ -4995,11 +5006,15 @@ static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
     va_start(ap, format);
     len = vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
-    HymnString *error = hymn_new_string(chars);
+
+    HymnString *error = hymn_new_string_with_capacity(len + 128);
+    error = hymn_string_append(error, "error: ");
+    error = hymn_string_append(error, chars);
+
     free(chars);
 
     HymnString *trace = stacktrace(H);
-    error = hymn_string_append(error, "\n\n");
+    error = hymn_string_append(error, "\n");
     error = hymn_string_append(error, trace);
     hymn_string_delete(trace);
 
@@ -5050,7 +5065,8 @@ HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnVal
 
 static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     if (count != func->arity) {
-        return throw_error(H, "expected: %d function argument(s) but was: %d", func->arity, count);
+        if (count < func->arity) return throw_error(H, "not enough arguments in call to '%s' (expected %d)", func->name, func->arity);
+        return throw_error(H, "too many arguments in call to '%s' (expected %d)", func->name, func->arity);
     } else if (H->frame_count == HYMN_FRAMES_MAX) {
         return throw_error(H, "stack overflow");
     }
@@ -5089,7 +5105,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
     }
     default: {
         const char *is = hymn_value_type(value.is);
-        return throw_error(H, "not a function: %s", is);
+        return throw_error(H, "can't call %s (expected function)", is);
     }
     }
 }
@@ -5408,71 +5424,35 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
     if (frame == NULL) return;             \
     HYMN_DISPATCH;
 
-#define ARITHMETIC_OP(arithmetic)                                                  \
-    HymnValue b = pop(H);                                                          \
-    HymnValue a = pop(H);                                                          \
-    if (hymn_is_int(a)) {                                                          \
-        if (hymn_is_int(b)) {                                                      \
-            a.as.i arithmetic b.as.i;                                              \
-            push(H, a);                                                            \
-        } else if (hymn_is_float(b)) {                                             \
-            HymnValue new = hymn_new_float((HymnFloat)a.as.i);                     \
-            new.as.f arithmetic b.as.f;                                            \
-            push(H, new);                                                          \
-        } else {                                                                   \
-            const char *is = hymn_value_type(b.is);                                \
-            hymn_dereference(H, a);                                                \
-            hymn_dereference(H, b);                                                \
-            THROW("arithmetic error: 2nd value must be a number but was a %s", is) \
-        }                                                                          \
-    } else if (hymn_is_float(a)) {                                                 \
-        if (hymn_is_int(b)) {                                                      \
-            a.as.f arithmetic(HymnFloat) b.as.i;                                   \
-            push(H, a);                                                            \
-        } else if (hymn_is_float(b)) {                                             \
-            a.as.f arithmetic b.as.f;                                              \
-            push(H, a);                                                            \
-        } else {                                                                   \
-            const char *is = hymn_value_type(b.is);                                \
-            hymn_dereference(H, a);                                                \
-            hymn_dereference(H, b);                                                \
-            THROW("arithmetic error: 2nd value must be a number but was a %s", is) \
-        }                                                                          \
-    } else {                                                                       \
-        const char *is = hymn_value_type(a.is);                                    \
-        hymn_dereference(H, a);                                                    \
-        hymn_dereference(H, b);                                                    \
-        THROW("arithmetic error: 1st value must be a number but was a %s", is)     \
-    }
-
-#define COMPARE_OP(compare)                                                             \
-    HymnValue b = pop(H);                                                               \
-    HymnValue a = pop(H);                                                               \
-    if (hymn_is_int(a)) {                                                               \
-        if (hymn_is_int(b)) {                                                           \
-            push(H, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));              \
-        } else if (hymn_is_float(b)) {                                                  \
-            push(H, hymn_new_bool((HymnFloat)hymn_as_int(a) compare hymn_as_float(b))); \
-        } else {                                                                        \
-            const char *is = hymn_value_type(b.is);                                     \
-            hymn_dereference(H, a);                                                     \
-            hymn_dereference(H, b);                                                     \
-            THROW("comparison error: 2nd value must be a number, but was a %s", is)     \
-        }                                                                               \
-    } else if (hymn_is_float(a)) {                                                      \
-        if (hymn_is_int(b)) {                                                           \
-            push(H, hymn_new_bool(hymn_as_float(a) compare(HymnFloat) hymn_as_int(b))); \
-        } else if (hymn_is_float(b)) {                                                  \
-            push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));          \
-        } else {                                                                        \
-            hymn_dereference(H, a);                                                     \
-            hymn_dereference(H, b);                                                     \
-            THROW("Operands must be numbers")                                           \
-        }                                                                               \
-    } else {                                                                            \
-        hymn_dereference(H, a);                                                         \
-        hymn_dereference(H, b);                                                         \
-        THROW("Operands must be numbers")                                               \
+#define COMPARE_OP(compare)                                                                       \
+    HymnValue b = pop(H);                                                                         \
+    HymnValue a = pop(H);                                                                         \
+    if (hymn_is_int(a)) {                                                                         \
+        if (hymn_is_int(b)) {                                                                     \
+            push(H, hymn_new_bool(hymn_as_int(a) compare hymn_as_int(b)));                        \
+        } else if (hymn_is_float(b)) {                                                            \
+            push(H, hymn_new_bool((HymnFloat)hymn_as_int(a) compare hymn_as_float(b)));           \
+        } else {                                                                                  \
+            const char *is_a = hymn_value_type(a.is);                                             \
+            const char *is_b = hymn_value_type(b.is);                                             \
+            hymn_dereference(H, a);                                                               \
+            hymn_dereference(H, b);                                                               \
+            THROW("comparison '" #compare "' can't use %s and %s (expected numbers)", is_a, is_b) \
+        }                                                                                         \
+    } else if (hymn_is_float(a)) {                                                                \
+        if (hymn_is_int(b)) {                                                                     \
+            push(H, hymn_new_bool(hymn_as_float(a) compare(HymnFloat) hymn_as_int(b)));           \
+        } else if (hymn_is_float(b)) {                                                            \
+            push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));                    \
+        } else {                                                                                  \
+            hymn_dereference(H, a);                                                               \
+            hymn_dereference(H, b);                                                               \
+            THROW("Operands must be numbers")                                                     \
+        }                                                                                         \
+    } else {                                                                                      \
+        hymn_dereference(H, a);                                                                   \
+        hymn_dereference(H, b);                                                                   \
+        THROW("Operands must be numbers")                                                         \
     }
 
 #define JUMP_COMPARE_OP(compare)                                         \
@@ -5745,7 +5725,7 @@ dispatch:
             frame->stack[slot + 1] = hymn_new_none();
             frame->stack[slot + 2] = hymn_new_none();
             const char *is = hymn_value_type(object.is);
-            THROW("for loop requires an array or table but was '%s'", is)
+            THROW("can't iterate over %s (expected array or table)", is)
         }
         HYMN_DISPATCH;
     }
@@ -5826,17 +5806,13 @@ dispatch:
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add;
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add;
             }
         } else if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
@@ -5848,9 +5824,7 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add;
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
@@ -5862,18 +5836,22 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add;
             }
         } else if (hymn_is_string(a)) {
             push_string(H, value_concat(a, b));
         } else {
-            THROW("Add: 1st and 2nd values can't be added")
+            goto bad_add;
         }
         hymn_dereference(H, a);
         hymn_dereference(H, b);
         HYMN_DISPATCH;
+    bad_add:
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
+        THROW("can't add %s and %s", is_a, is_b)
     }
     case OP_ADD_TWO_LOCAL: {
         HymnValue a = frame->stack[READ_BYTE(frame)];
@@ -5882,17 +5860,13 @@ dispatch:
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add_two;
             }
         } else if (hymn_is_bool(a)) {
             if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add_two;
             }
         } else if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
@@ -5904,9 +5878,7 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add_two;
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
@@ -5918,26 +5890,28 @@ dispatch:
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Add: 1st and 2nd values can't be added")
+                goto bad_add_two;
             }
         } else if (hymn_is_string(a)) {
             push_string(H, value_concat(a, b));
         } else {
-            THROW("Add: 1st and 2nd values can't be added")
+            goto bad_add_two;
         }
         HYMN_DISPATCH;
+    bad_add_two:
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
+        THROW("can't add %s and %s", is_a, is_b)
     }
     case OP_INCREMENT: {
         HymnValue a = pop(H);
         uint8_t increment = READ_BYTE(frame);
         if (hymn_is_none(a)) {
-            hymn_dereference(H, a);
-            THROW("Increment: 1st and 2nd values can't be added")
+            goto bad_increment;
         } else if (hymn_is_bool(a)) {
-            hymn_dereference(H, a);
-            THROW("Increment: 1st and 2nd values can't be added")
+            goto bad_increment;
         } else if (hymn_is_int(a)) {
             a.as.i += (HymnInt)increment;
             push(H, a);
@@ -5947,22 +5921,119 @@ dispatch:
         } else if (hymn_is_string(a)) {
             push_string(H, value_concat(a, hymn_new_int((HymnInt)increment)));
         } else {
-            THROW("Increment: 1st and 2nd values can't be added")
+            goto bad_increment;
         }
         hymn_dereference(H, a);
         HYMN_DISPATCH;
+    bad_increment:
+        const char *is = hymn_value_type(a.is);
+        hymn_dereference(H, a);
+        THROW("can't increment %s", is)
     }
     case OP_SUBTRACT: {
-        ARITHMETIC_OP(-=);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i -= b.as.i;
+                push(H, a);
+            } else if (hymn_is_float(b)) {
+                HymnValue new = hymn_new_float((HymnFloat)a.as.i);
+                new.as.f -= b.as.f;
+                push(H, new);
+            } else {
+                goto bad_subtract;
+            }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                a.as.f -= (HymnFloat)b.as.i;
+                push(H, a);
+            } else if (hymn_is_float(b)) {
+                a.as.f -= b.as.f;
+                push(H, a);
+            } else {
+                goto bad_subtract;
+            }
+        } else {
+            goto bad_subtract;
+        }
         HYMN_DISPATCH;
+    bad_subtract:
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
+        THROW("can't subtract %s and %s (expected numbers)", is_a, is_b)
     }
     case OP_MULTIPLY: {
-        ARITHMETIC_OP(*=);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i *= b.as.i;
+                push(H, a);
+            } else if (hymn_is_float(b)) {
+                HymnValue new = hymn_new_float((HymnFloat)a.as.i);
+                new.as.f *= b.as.f;
+                push(H, new);
+            } else {
+                goto bad_multiply;
+            }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                a.as.f *= (HymnFloat)b.as.i;
+                push(H, a);
+            } else if (hymn_is_float(b)) {
+                a.as.f *= b.as.f;
+                push(H, a);
+            } else {
+                goto bad_multiply;
+            }
+        } else {
+            goto bad_multiply;
+        }
         HYMN_DISPATCH;
+    bad_multiply:
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
+        THROW("can't multiply %s and %s (expected numbers)", is_a, is_b)
     }
     case OP_DIVIDE: {
-        ARITHMETIC_OP(/=);
+        HymnValue b = pop(H);
+        HymnValue a = pop(H);
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i /= b.as.i;
+                push(H, a);
+            } else if (hymn_is_float(b)) {
+                HymnValue new = hymn_new_float((HymnFloat)a.as.i);
+                new.as.f /= b.as.f;
+                push(H, new);
+            } else {
+                goto bad_divide;
+            }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                a.as.f /= (HymnFloat)b.as.i;
+                push(H, a);
+            } else if (hymn_is_float(b)) {
+                a.as.f /= b.as.f;
+                push(H, a);
+            } else {
+                goto bad_divide;
+            }
+        } else {
+            goto bad_divide;
+        }
         HYMN_DISPATCH;
+    bad_divide:
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
+        THROW("can't divide %s and %s (expected numbers)", is_a, is_b)
     }
     case OP_MODULO: {
         HymnValue b = pop(H);
@@ -5972,16 +6043,18 @@ dispatch:
                 a.as.i %= b.as.i;
                 push(H, a);
             } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Modulo Error: 2nd value must be `Integer`")
+                goto bad_modulo;
             }
         } else {
-            hymn_dereference(H, a);
-            hymn_dereference(H, b);
-            THROW("Modulo Error: 1st and 2nd values must be `Integer`")
+            goto bad_modulo;
         }
         HYMN_DISPATCH;
+    bad_modulo:
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        hymn_dereference(H, a);
+        hymn_dereference(H, b);
+        THROW("can't modulo %s and %s (expected integers)", is_a, is_b)
     }
     case OP_BIT_NOT: {
         HymnValue value = pop(H);
@@ -5989,103 +6062,84 @@ dispatch:
             value.as.i = ~value.as.i;
             push(H, value);
         } else {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Bitwise operand must integer")
+            THROW("bitwise '~' can't use %s (expected integer)", is)
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_OR: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i |= b.as.i;
-                push(H, a);
-            } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Bit Or Error: 2nd value must be `Integer`")
-            }
+        if (hymn_is_int(a) && hymn_is_int(b)) {
+            a.as.i |= b.as.i;
+            push(H, a);
         } else {
+            const char *is_a = hymn_value_type(a.is);
+            const char *is_b = hymn_value_type(b.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
-            THROW("Bit Or Error: 1st and 2nd values must be `Integer`")
+            THROW("bitwise '|' can't use %s and %s (expected integers)", is_a, is_b)
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_AND: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i &= b.as.i;
-                push(H, a);
-            } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Bit And Error: 2nd value must be `Integer`")
-            }
+        if (hymn_is_int(a) && hymn_is_int(b)) {
+            a.as.i &= b.as.i;
+            push(H, a);
         } else {
+            const char *is_a = hymn_value_type(a.is);
+            const char *is_b = hymn_value_type(b.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
-            THROW("Bit And Error: 1st and 2nd values must be `Integer`")
+            THROW("bitwise '&' can't use %s and %s (expected integers)", is_a, is_b)
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_XOR: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i ^= b.as.i;
-                push(H, a);
-            } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Bit Xor Error: 2nd value must be `Integer`")
-            }
+        if (hymn_is_int(a) && hymn_is_int(b)) {
+            a.as.i ^= b.as.i;
+            push(H, a);
         } else {
+            const char *is_a = hymn_value_type(a.is);
+            const char *is_b = hymn_value_type(b.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
-            THROW("Bit Xor Error: 1st and 2nd values must be `Integer`")
+            THROW("bitwise '^' can't use %s and %s (expected integers)", is_a, is_b)
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_LEFT_SHIFT: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i <<= b.as.i;
-                push(H, a);
-            } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Bit Left Shift Error: 2nd value must be `Integer`")
-            }
+        if (hymn_is_int(a) && hymn_is_int(b)) {
+            a.as.i <<= b.as.i;
+            push(H, a);
         } else {
+            const char *is_a = hymn_value_type(a.is);
+            const char *is_b = hymn_value_type(b.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
-            THROW("Bit Left Shift Error: 1st and 2nd values must be `Integer`")
+            THROW("bitwise '<<' can't use %s and %s (expected integers)", is_a, is_b)
         }
         HYMN_DISPATCH;
     }
     case OP_BIT_RIGHT_SHIFT: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i >>= b.as.i;
-                push(H, a);
-            } else {
-                hymn_dereference(H, a);
-                hymn_dereference(H, b);
-                THROW("Bit Right Shift Error: 2nd value must be `Integer`")
-            }
+        if (hymn_is_int(a) && hymn_is_int(b)) {
+            a.as.i >>= b.as.i;
+            push(H, a);
         } else {
+            const char *is_a = hymn_value_type(a.is);
+            const char *is_b = hymn_value_type(b.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
-            THROW("Bit Right Shift Error: 1st and 2nd values must be `Integer`")
+            THROW("bitwise '>>' can't use %s and %s (expected integers)", is_a, is_b)
         }
         HYMN_DISPATCH;
     }
@@ -6096,8 +6150,9 @@ dispatch:
         } else if (hymn_is_float(value)) {
             value.as.f = -value.as.f;
         } else {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Negate: Must be a number")
+            THROW("negation '-' can't use %s (expected number)", is)
         }
         push(H, value);
         HYMN_DISPATCH;
@@ -6107,8 +6162,9 @@ dispatch:
         if (hymn_is_bool(value)) {
             value.as.b = !value.as.b;
         } else {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Not: Operand must be a boolean")
+            THROW("not '!' can't use %s (expected boolean)", is)
         }
         push(H, value);
         HYMN_DISPATCH;
@@ -6149,6 +6205,7 @@ dispatch:
         HymnValue value = peek(H, 1);
         HymnValue previous = table_put(&H->globals, name, value);
         if (hymn_is_undefined(previous)) {
+            table_put(&H->globals, name, hymn_new_undefined());
             THROW("undefined global '%s'", name->string)
         } else {
             hymn_dereference(H, previous);
@@ -6174,7 +6231,7 @@ dispatch:
             THROW("undefined global '%s'", name->string)
         } else if (!hymn_is_table(global)) {
             const char *is = hymn_value_type(global.is);
-            THROW("get property: requires 'table' but was '%s'", is)
+            THROW("can't get property of %s (expected table)", is)
         }
         HymnTable *table = hymn_as_table(global);
         HymnValue get = table_get(table, property);
@@ -6222,7 +6279,7 @@ dispatch:
             value.as.f += (HymnFloat)increment;
         } else {
             const char *is = hymn_value_type(value.is);
-            THROW("Increment Local: Expected `Number` but was `%s`", is)
+            THROW("can't increment %s (expected number)", is)
         }
         push(H, value);
         HYMN_DISPATCH;
@@ -6237,7 +6294,7 @@ dispatch:
             value.as.f += (HymnFloat)increment;
         } else {
             const char *is = hymn_value_type(value.is);
-            THROW("Get and Set Local: Expected `Number` but was `%s`", is)
+            THROW("can't increment %s (expected number)", is)
         }
         frame->stack[slot] = value;
         HYMN_DISPATCH;
@@ -6249,7 +6306,7 @@ dispatch:
             const char *is = hymn_value_type(table_value.is);
             hymn_dereference(H, value);
             hymn_dereference(H, table_value);
-            THROW("Set Property: Expected `Table` but was `%s`", is)
+            THROW("can't set property of %s (expected table)", is)
         }
         HymnTable *table = hymn_as_table(table_value);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -6263,7 +6320,7 @@ dispatch:
         if (!hymn_is_table(value)) {
             const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Get Property: Requires `Table` but was `%s`", is)
+            THROW("can't get property of %s (expected table)", is)
         }
         HymnTable *table = hymn_as_table(value);
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -6284,13 +6341,13 @@ dispatch:
             const char *is = hymn_value_type(object.is);
             hymn_dereference(H, value);
             hymn_dereference(H, object);
-            THROW("Exists: Requires `Table` but was `%s`", is)
+            THROW("call to 'exists' can't use %s for 1st argument (expected table)", is)
         }
         if (!hymn_is_string(value)) {
             const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
             hymn_dereference(H, object);
-            THROW("Exists: Requires `String` for second argument but was `%s`", is)
+            THROW("call to 'exists' can't use %s for 2nd argument (expected string)", is)
         }
         HymnTable *table = hymn_as_table(object);
         HymnObjectString *name = hymn_as_hymn_string(value);
@@ -7811,6 +7868,7 @@ void hymn_repl(Hymn *H) {
         cursor = NULL;
 #endif
 
+        // input = hymn_string_append_char(input,'\n');
         input = hymn_string_append(input, line);
         hymn_string_trim(input);
         if (hymn_string_len(input) == 0) {

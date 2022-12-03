@@ -839,15 +839,7 @@ function current(C) {
   return C.scope.func.code
 }
 
-function beginningOfLine(source, i) {
-  while (true) {
-    if (i <= 0) return 0
-    if (source[i] === '\n') return i + 1
-    i--
-  }
-}
-
-function appendLine(source, begin, end) {
+function getLine(source, begin, end) {
   while (true) {
     if (source[end] === '\n') break
     end++
@@ -856,24 +848,27 @@ function appendLine(source, begin, end) {
   return source.substring(begin, end)
 }
 
-function appendPreviousLine(source, i) {
-  if (i < 1) return ''
-  i--
-  while (true) {
-    const begin = beginningOfLine(source, i - 1)
-    if (i - begin < 1) return ''
-    const line = source.substring(begin, i)
-    if (line.trim() !== '') return line
-    i = begin
-  }
-}
-
-function appendSecondPreviousLine(source, i) {
-  if (i < 1) return ''
-  i--
-  const begin = beginningOfLine(source, i - 1)
-  return appendPreviousLine(source, begin)
-}
+// function getPreviousLine(source, i) {
+//   if (i < 2) return source[i] === '\n' ? [i, ''] : [i, source[i]]
+//   i -= 2
+//   while (true) {
+//     if (i === 0) return source[0] === '\n' ? [0, ''] : [0, source[0]]
+//     if (source[i] !== '\n' && source[i] !== ' ') break
+//     i--
+//   }
+//   while (i > 0) {
+//     i--
+//     if (source[i] === '\n') {
+//       i++
+//       break
+//     }
+//   }
+//   let end = i + 1
+//   while (source[end] !== '\n') {
+//     end++
+//   }
+//   return [i, source.substring(i, end)]
+// }
 
 function spaceToLine(s) {
   let i = 0
@@ -888,33 +883,48 @@ function spaceToLine(s) {
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  let error = 'compiler: ' + format + '\n\n'
+  let error = 'compiler: ' + format + '\n'
 
   const source = C.source
-  const begin = beginningOfLine(source, token.start)
 
-  let a = appendLine(source, begin, token.start)
-  let b = appendPreviousLine(source, begin)
-  let c = appendSecondPreviousLine(source, begin)
+  let begin = token.start
+  while (true) {
+    if (begin <= 0) {
+      begin = 0
+      break
+    } else if (source[begin] === '\n') {
+      begin++
+      break
+    }
+    begin--
+  }
+
+  // const previous = getPreviousLine(source, begin)
+
+  let a = getLine(source, begin, token.start)
+  // let b = previous[1]
+  // let c = getPreviousLine(source, previous[0])[1]
 
   let min = Number.MAX_SAFE_INTEGER
 
   if (a !== '') min = spaceToLine(a)
-  if (b !== '') min = Math.min(min, spaceToLine(b))
-  if (c !== '') min = Math.min(min, spaceToLine(c))
+  // if (b !== '') min = Math.min(min, spaceToLine(b))
+  // if (c !== '') min = Math.min(min, spaceToLine(c))
 
   if (min !== 0 && min !== Number.MAX_SAFE_INTEGER) {
     a = a.substring(min)
-    b = b.substring(min)
-    c = c.substring(min)
+    // b = b.substring(min)
+    // c = c.substring(min)
   }
 
   if (a !== '') {
-    if (c !== '') error += '| ' + c + '\n'
-    if (b !== '') error += '| ' + b + '\n'
+    // if (c !== '') error += '| ' + c + '\n'
+    // if (b !== '') error += '| ' + b + '\n'
+    // error += '| ' + a
     error += '| ' + a
 
     if (token.length > 0) {
+      // error += '\n  '
       error += '\n  '
       const spaces = token.start - begin - min
       if (spaces > 0) {
@@ -1948,7 +1958,7 @@ function resolveLocal(C, token) {
     const local = scope.locals[i]
     if (name === local.name) {
       if (local.depth === -1) {
-        compileError(C, token, `local variable "${name}" referenced before assignment`)
+        compileError(C, token, `local variable '${name}' referenced before assignment`)
       }
       return i
     }
@@ -3055,7 +3065,7 @@ function hymnThrowExistingError(H, error) {
 }
 
 function hymnThrowError(H, error) {
-  error = 'error: ' + error + '\n\n' + hymnStacktrace(H)
+  error = 'error: ' + error + '\n' + hymnStacktrace(H)
   return hymnPushError(H, error)
 }
 
@@ -4015,7 +4025,7 @@ async function hymnRun(H) {
         const value = hymnPeek(H, 1)
         const previous = tablePut(H.globals, name, value)
         if (previous === null) {
-          frame = hymnThrowError(H, `undefined global variable '${name}'`)
+          frame = hymnThrowError(H, `undefined global '${name}'`)
           if (frame === null) return
           else break
         }
@@ -4025,7 +4035,7 @@ async function hymnRun(H) {
         const name = readConstant(frame).value
         const get = tableGet(H.globals, name)
         if (get === null) {
-          frame = hymnThrowError(H, `undefined global variable '${name}'`)
+          frame = hymnThrowError(H, `undefined global '${name}'`)
           if (frame === null) return
           else break
         }

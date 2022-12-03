@@ -3,7 +3,7 @@
 # simply {foo}
 # simply symbol ${foo}
 # multiplied 84
-# devide32test
+# divide32test
 # add two 5 numbers
 # table { "a": 1 } value
 # multiline 6 expression
@@ -18,7 +18,7 @@ echo "number format ${foo}"
 echo 'simply {foo}'
 echo 'simply symbol ${foo}'
 echo "multiplied ${foo * 2}"
-echo "devide${64/2}test"
+echo "divide${64/2}test"
 
 let x = 2
 let y = 3

@@ -1,4 +1,4 @@
-# undefined global variable 'foo'
+# undefined global 'foo'
 
 use "errors"
 

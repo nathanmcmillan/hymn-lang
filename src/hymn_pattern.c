@@ -151,7 +151,7 @@ static bool captured(Match *group, char *pattern, char *text) {
         while (--count >= 0) {
             Capture *capture = &group->capture[count];
             if (capture->size == -1) {
-                capture->size = text - capture->begin;
+                capture->size = (int)(text - capture->begin);
                 bool matching = match(group, pattern, text);
                 if (!matching) {
                     capture->size = -1;

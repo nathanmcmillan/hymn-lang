@@ -28,8 +28,8 @@
 // #define HYMN_NO_REPL
 // #define HYMN_NO_DYNAMIC_LIBS
 
-// #define HYMN_NO_OPTIMIZE
-// #define HYMN_NO_REGISTERS
+#define HYMN_NO_OPTIMIZE
+#define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER

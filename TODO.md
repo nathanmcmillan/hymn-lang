@@ -5,10 +5,10 @@
    - Can we assign the original byte index as a unique identifier
    - And only at the very end, iterate through and match them, then calculate the final difference?
 1. Native functions need a way to throw exceptions
-1. Consistent, descriptive error messages
 
 # Features
 
+1. Allow re-defining global variables
 1. Keep source code for functions, for better inspection and debugging
 1. Binary numbers prefixed with `0b`
 1. Hexadecimal numbers prefixed with `0x`
@@ -26,8 +26,6 @@
 1. Compile time constant evaluation
 1. Add built-in `destroy` function that looks for a custom clean up function pointer in object
 1. Transpile to C code and use a C compiler to generate a dynamic library at runtime
-1. Change string() to str()
-1. Change integer() to int()
 
 # Notes
 
