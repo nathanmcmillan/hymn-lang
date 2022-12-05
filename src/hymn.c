@@ -105,7 +105,7 @@ void hymn_string_trim(HymnString *string) {
         }
         HymnStringHead *head = hymn_string_head(string);
         head->length = size;
-        string[end] = '\0';
+        string[size] = '\0';
     }
 }
 
@@ -538,7 +538,6 @@ enum TokenType {
     TOKEN_LESS,
     TOKEN_LESS_EQUAL,
     TOKEN_LET,
-    TOKEN_LINE,
     TOKEN_MODULO,
     TOKEN_MULTIPLY,
     TOKEN_NONE,
@@ -981,7 +980,6 @@ Rule rules[] = {
     [TOKEN_LESS] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_LESS_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_LET] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_LINE] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_MODULO] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_MULTIPLY] = {NULL, compile_binary, PRECEDENCE_FACTOR},
     [TOKEN_NONE] = {compile_none, NULL, PRECEDENCE_NONE},
@@ -1422,43 +1420,6 @@ static HymnByteCode *current(Compiler *C) {
     return &C->scope->func->code;
 }
 
-static size_t beginning_of_line(const char *source, size_t i) {
-    while (true) {
-        if (i <= 0) return 0;
-        if (source[i] == '\n') return i + 1;
-        i--;
-    }
-}
-
-static size_t end_of_line(const char *source, size_t size, size_t i) {
-    while (true) {
-        if (i + 1 >= size) return i + 1;
-        if (source[i] == '\n') return i;
-        i++;
-    }
-}
-
-static HymnString *string_append_previous_line(const char *source, HymnString *string, size_t i) {
-    if (i < 2) {
-        return string;
-    }
-    i--;
-    size_t begin = beginning_of_line(source, i - 1);
-    if (i - begin < 2) {
-        return string;
-    }
-    return string_append_format(string, "%.*s\n", i - begin, &source[begin]);
-}
-
-static HymnString *string_append_second_previous_line(const char *source, HymnString *string, size_t i) {
-    if (i < 2) {
-        return string;
-    }
-    i--;
-    size_t begin = beginning_of_line(source, i - 1);
-    return string_append_previous_line(source, string, begin);
-}
-
 static void compile_error(Compiler *C, Token *token, const char *format, ...) {
     if (C->error != NULL) {
         return;
@@ -1484,23 +1445,45 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
 
     free(chars);
 
-    size_t begin = beginning_of_line(C->source, token->start);
-    size_t end = end_of_line(C->source, C->size, token->start);
+    if (token->type != TOKEN_EOF && token->length > 0) {
+        const char *source = C->source;
+        const size_t size = C->size;
+        const size_t start = token->start;
 
-    error = hymn_string_append(error, "\n| ");
-    // error = string_append_second_previous_line(C->source, error, begin);
-    // error = hymn_string_append(error, "| ");
-    // error = string_append_previous_line(C->source, error, begin);
-    // error = hymn_string_append(error, "| ");
-    error = string_append_format(error, "%.*s\n", end - begin, &C->source[begin]);
-    for (int i = 0; i < (int)(token->start - begin); i++) {
-        error = hymn_string_append_char(error, ' ');
+        size_t begin = start;
+        while (true) {
+            if (source[begin] == '\n') {
+                begin++;
+                break;
+            }
+            if (begin == 0) break;
+            begin--;
+        }
+
+        while (true) {
+            if (source[begin] != ' ' || begin == size) break;
+            begin++;
+        }
+
+        size_t end = start;
+        while (true) {
+            if (source[end] == '\n' || end == size) break;
+            end++;
+        }
+
+        if (begin < end) {
+            error = string_append_format(error, "\n| %.*s\n  ", end - begin, &source[begin]);
+            for (int i = 0; i < (int)(start - begin); i++) {
+                error = hymn_string_append_char(error, ' ');
+            }
+            error = hymn_string_append(error, ANSI_COLOR_RED);
+            for (int i = 0; i < token->length; i++) {
+                error = hymn_string_append_char(error, '^');
+            }
+            error = hymn_string_append(error, ANSI_COLOR_RESET);
+        }
     }
-    error = hymn_string_append(error, ANSI_COLOR_RED);
-    for (int i = 0; i < token->length; i++) {
-        error = hymn_string_append_char(error, '^');
-    }
-    error = hymn_string_append(error, ANSI_COLOR_RESET);
+
     error = string_append_format(error, "\nat %s:%d", C->script == NULL ? "script" : C->script, token->row);
 
     C->error = error;
@@ -3812,7 +3795,6 @@ static void optimize(Compiler *C) {
             if (slot_1 > parameters) {
                 if ((int)slot_1 + registers > UINT8_MAX) {
                     // FIXME: Pre-compute if optimization has enough registers to avoid this
-                    // FIXME: Test me!
                     fprintf(stderr, "out of locals due to registers");
                     exit(1);
                 }
@@ -5846,7 +5828,7 @@ dispatch:
         hymn_dereference(H, a);
         hymn_dereference(H, b);
         HYMN_DISPATCH;
-    bad_add:
+    bad_add:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
         hymn_dereference(H, a);
@@ -5898,7 +5880,7 @@ dispatch:
             goto bad_add_two;
         }
         HYMN_DISPATCH;
-    bad_add_two:
+    bad_add_two:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
         hymn_dereference(H, a);
@@ -5925,7 +5907,7 @@ dispatch:
         }
         hymn_dereference(H, a);
         HYMN_DISPATCH;
-    bad_increment:
+    bad_increment:;
         const char *is = hymn_value_type(a.is);
         hymn_dereference(H, a);
         THROW("can't increment %s", is)
@@ -5958,7 +5940,7 @@ dispatch:
             goto bad_subtract;
         }
         HYMN_DISPATCH;
-    bad_subtract:
+    bad_subtract:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
         hymn_dereference(H, a);
@@ -5993,7 +5975,7 @@ dispatch:
             goto bad_multiply;
         }
         HYMN_DISPATCH;
-    bad_multiply:
+    bad_multiply:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
         hymn_dereference(H, a);
@@ -6028,7 +6010,7 @@ dispatch:
             goto bad_divide;
         }
         HYMN_DISPATCH;
-    bad_divide:
+    bad_divide:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
         hymn_dereference(H, a);
@@ -6049,7 +6031,7 @@ dispatch:
             goto bad_modulo;
         }
         HYMN_DISPATCH;
-    bad_modulo:
+    bad_modulo:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
         hymn_dereference(H, a);
@@ -7868,8 +7850,12 @@ void hymn_repl(Hymn *H) {
         cursor = NULL;
 #endif
 
-        // input = hymn_string_append_char(input,'\n');
-        input = hymn_string_append(input, line);
+        if (line[0] != '\0') {
+            if (input[0] != '\0') {
+                input = hymn_string_append_char(input, '\n');
+            }
+            input = hymn_string_append(input, line);
+        }
         hymn_string_trim(input);
         if (hymn_string_len(input) == 0) {
             continue;

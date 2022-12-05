@@ -126,7 +126,6 @@ const (
 	TOKEN_LESS                             = 53
 	TOKEN_LESS_EQUAL                       = 54
 	TOKEN_LET                              = 55
-	TOKEN_LINE                             = 56
 	TOKEN_MODULO                           = 57
 	TOKEN_MULTIPLY                         = 58
 	TOKEN_NONE                             = 59
@@ -373,7 +372,6 @@ var rules = map[TokenType]Rule{
 	TOKEN_LESS:                   {nil, compileBinary, PRECEDENCE_COMPARE},
 	TOKEN_LESS_EQUAL:             {nil, compileBinary, PRECEDENCE_COMPARE},
 	TOKEN_LET:                    {nil, nil, PRECEDENCE_NONE},
-	TOKEN_LINE:                   {nil, nil, PRECEDENCE_NONE},
 	TOKEN_MODULO:                 {nil, compileBinary, PRECEDENCE_FACTOR},
 	TOKEN_MULTIPLY:               {nil, compileBinary, PRECEDENCE_FACTOR},
 	TOKEN_NONE:                   {compileNone, nil, PRECEDENCE_NONE},

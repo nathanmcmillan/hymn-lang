@@ -195,34 +195,33 @@ const TOKEN_LEN = 52
 const TOKEN_LESS = 53
 const TOKEN_LESS_EQUAL = 54
 const TOKEN_LET = 55
-const TOKEN_LINE = 56
-const TOKEN_MODULO = 57
-const TOKEN_MULTIPLY = 58
-const TOKEN_NONE = 59
-const TOKEN_NOT = 60
-const TOKEN_NOT_EQUAL = 61
-const TOKEN_OR = 62
-const TOKEN_POP = 63
-const TOKEN_PRINT = 64
-const TOKEN_PUSH = 65
-const TOKEN_RETURN = 66
-const TOKEN_RIGHT_CURLY = 67
-const TOKEN_RIGHT_PAREN = 68
-const TOKEN_RIGHT_SQUARE = 69
-const TOKEN_SEMICOLON = 70
-const TOKEN_STRING = 71
-const TOKEN_SUBTRACT = 72
-const TOKEN_THROW = 73
-const TOKEN_TO_FLOAT = 74
-const TOKEN_TO_INTEGER = 75
-const TOKEN_TO_STRING = 76
-const TOKEN_TRUE = 77
-const TOKEN_TRY = 78
-const TOKEN_TYPE_FUNC = 79
-const TOKEN_UNDEFINED = 80
-const TOKEN_USE = 81
-const TOKEN_VALUE = 82
-const TOKEN_WHILE = 83
+const TOKEN_MODULO = 56
+const TOKEN_MULTIPLY = 57
+const TOKEN_NONE = 58
+const TOKEN_NOT = 59
+const TOKEN_NOT_EQUAL = 60
+const TOKEN_OR = 61
+const TOKEN_POP = 62
+const TOKEN_PRINT = 63
+const TOKEN_PUSH = 64
+const TOKEN_RETURN = 65
+const TOKEN_RIGHT_CURLY = 66
+const TOKEN_RIGHT_PAREN = 67
+const TOKEN_RIGHT_SQUARE = 68
+const TOKEN_SEMICOLON = 69
+const TOKEN_STRING = 70
+const TOKEN_SUBTRACT = 71
+const TOKEN_THROW = 72
+const TOKEN_TO_FLOAT = 73
+const TOKEN_TO_INTEGER = 74
+const TOKEN_TO_STRING = 75
+const TOKEN_TRUE = 76
+const TOKEN_TRY = 77
+const TOKEN_TYPE_FUNC = 78
+const TOKEN_UNDEFINED = 79
+const TOKEN_USE = 80
+const TOKEN_VALUE = 81
+const TOKEN_WHILE = 82
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -450,7 +449,6 @@ rules[TOKEN_LEN] = new Rule(lenExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LESS] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
 rules[TOKEN_LESS_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
 rules[TOKEN_LET] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_LINE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_MODULO] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_MULTIPLY] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_NONE] = new Rule(compileNone, null, PRECEDENCE_NONE)
@@ -839,102 +837,40 @@ function current(C) {
   return C.scope.func.code
 }
 
-function getLine(source, begin, end) {
-  while (true) {
-    if (source[end] === '\n') break
-    end++
-    if (end >= source.length) break
-  }
-  return source.substring(begin, end)
-}
-
-// function getPreviousLine(source, i) {
-//   if (i < 2) return source[i] === '\n' ? [i, ''] : [i, source[i]]
-//   i -= 2
-//   while (true) {
-//     if (i === 0) return source[0] === '\n' ? [0, ''] : [0, source[0]]
-//     if (source[i] !== '\n' && source[i] !== ' ') break
-//     i--
-//   }
-//   while (i > 0) {
-//     i--
-//     if (source[i] === '\n') {
-//       i++
-//       break
-//     }
-//   }
-//   let end = i + 1
-//   while (source[end] !== '\n') {
-//     end++
-//   }
-//   return [i, source.substring(i, end)]
-// }
-
-function spaceToLine(s) {
-  let i = 0
-  while (true) {
-    if (s[i] !== ' ') {
-      return i
-    }
-    i++
-  }
-}
-
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  let error = 'compiler: ' + format + '\n'
+  let error = 'compiler: ' + format
 
-  const source = C.source
+  if (token.type !== TOKEN_EOF && token.length > 0) {
+    const source = C.source
 
-  let begin = token.start
-  while (true) {
-    if (begin <= 0) {
-      begin = 0
-      break
-    } else if (source[begin] === '\n') {
-      begin++
-      break
+    let begin = token.start
+    while (true) {
+      if (source[begin] === '\n') {
+        begin++
+        break
+      }
+      if (begin === 0) break
+      begin--
     }
-    begin--
-  }
 
-  // const previous = getPreviousLine(source, begin)
+    while (true) {
+      if (source[begin] !== ' ' || begin === source.length) break
+      begin++
+    }
 
-  let a = getLine(source, begin, token.start)
-  // let b = previous[1]
-  // let c = getPreviousLine(source, previous[0])[1]
+    let end = token.start
+    while (true) {
+      if (source[end] === '\n' || end === source.length) break
+      end++
+    }
 
-  let min = Number.MAX_SAFE_INTEGER
-
-  if (a !== '') min = spaceToLine(a)
-  // if (b !== '') min = Math.min(min, spaceToLine(b))
-  // if (c !== '') min = Math.min(min, spaceToLine(c))
-
-  if (min !== 0 && min !== Number.MAX_SAFE_INTEGER) {
-    a = a.substring(min)
-    // b = b.substring(min)
-    // c = c.substring(min)
-  }
-
-  if (a !== '') {
-    // if (c !== '') error += '| ' + c + '\n'
-    // if (b !== '') error += '| ' + b + '\n'
-    // error += '| ' + a
-    error += '| ' + a
-
-    if (token.length > 0) {
-      // error += '\n  '
-      error += '\n  '
-      const spaces = token.start - begin - min
-      if (spaces > 0) {
-        for (let i = 0; i < spaces; i++) {
-          error += ' '
-        }
-      }
-      for (let i = 0; i < token.length; i++) {
-        error += '^'
-      }
+    if (begin < end) {
+      error += '\n| ' + source.substring(begin, end) + '\n  '
+      const spaces = token.start - begin
+      if (spaces > 0) for (let i = 0; i < spaces; i++) error += ' '
+      for (let i = 0; i < token.length; i++) error += '^'
     }
   }
 
