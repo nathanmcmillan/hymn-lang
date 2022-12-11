@@ -101,11 +101,11 @@ async function test(file) {
   }
   if (expected.startsWith('@exception')) {
     if (error === null) {
-      result = indent(4, 'Expected an error') + '\n' + indent(4, 'But was:') + '\n' + indent(8, out)
+      result = indent(4, 'EXPECTED AN ERROR') + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
     } else {
       const except = expected.substring(11)
       if (!error.startsWith(except)) {
-        result = indent(4, 'Expected error:') + '\n' + indent(8, except) + '\n' + indent(4, 'But was:') + '\n' + indent(8, error)
+        result = indent(4, 'EXPECTED ERROR:') + '\n' + indent(8, except) + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, error)
       }
     }
   } else {
@@ -115,10 +115,10 @@ async function test(file) {
     } else if (expected.startsWith('@starts')) {
       const start = expected.substring(8)
       if (!out.startsWith(start)) {
-        result = indent(4, 'Expected:') + '\n' + indent(8, start) + '\n' + indent(4, 'But was:') + '\n' + indent(8, out)
+        result = indent(4, 'EXPECTED START:') + '\n' + indent(8, start) + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
       }
     } else if (out !== expected) {
-      result = indent(4, 'Expected:') + '\n' + indent(8, expected) + '\n' + indent(4, 'But was:') + '\n' + indent(8, out)
+      result = indent(4, 'EXPECTED:') + '\n' + indent(8, expected) + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
     }
   }
   return result

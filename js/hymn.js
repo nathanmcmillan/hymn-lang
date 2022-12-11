@@ -1111,11 +1111,8 @@ function parseString(C, start) {
           valueToken(C, TOKEN_STRING, start, end)
           while (true) {
             const c = nextChar(C)
-            if (c === '}' || c === '\0') {
-              break
-            }
+            if (c === '}' || c === '\0') return
           }
-          return
         } else {
           continue
         }
@@ -1716,21 +1713,12 @@ function parseStringLiteral(string, start, len) {
   let literal = ''
   for (let i = start; i < end; i++) {
     const c = string[i]
-    if (i + 1 < end) {
-      if (c === '\\') {
-        const e = escapeSequence(string[i + 1])
-        if (e !== null) {
-          literal += e
-          i++
-          continue
-        }
-      } else if (c === '{' && string[i + 1] === '{') {
-        literal += '{'
-        i++
-        continue
-      }
+    if (c === '\\' && i + 1 < end) {
+      literal += escapeSequence(string[i + 1])
+      i++
+    } else {
+      literal += c
     }
-    literal += c
   }
   return literal
 }
@@ -4594,7 +4582,7 @@ async function hymnRun(H) {
           frame = await hymnImport(H, file.value)
           if (frame === null) return
         } else {
-          frame = hymnThrowError(H, "import can't use integer (expected string)")
+          frame = hymnThrowError(H, `import can't use ${valueType(file.is)} (expected string)`)
           if (frame === null) return
           else break
         }

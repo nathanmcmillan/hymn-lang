@@ -166,7 +166,7 @@
     "escaped": {
       "patterns": [
         {
-          "match": "\\\\[abfnrtvz\\\\\"'\\n]",
+          "match": "\\\\[$abfnrtvz\\\\\"'\\n]",
           "name": "constant.character.escape.hymn"
         },
         {

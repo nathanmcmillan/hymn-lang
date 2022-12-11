@@ -6,6 +6,7 @@
 # divide32test
 # add two 5 numbers
 # table { "a": 1 } value
+# table inner foo value
 # multiline 6 expression
 # escape ${foo}
 # symbol $
@@ -26,6 +27,8 @@ let y = 3
 echo "add two ${x + y} numbers"
 
 echo "table ${ { a: 1 } } value"
+
+echo "table inner ${ { a: 'foo' }.a } value"
 
 echo "multiline ${
   2

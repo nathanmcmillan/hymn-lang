@@ -51,6 +51,36 @@ static void console(const char *format, ...) {
     free(chars);
 }
 
+HymnString *indent(HymnString *text) {
+    size_t len = hymn_string_len(text);
+    size_t newlines = 1;
+    for (size_t i = 0; i < len; i++) {
+        if (text[i] == '\n') {
+            newlines++;
+        }
+    }
+    HymnString *indented = hymn_new_string_with_capacity(len + newlines * 4);
+    size_t n = 0;
+    for (size_t s = 0; s < 4; s++) {
+        indented[n++] = ' ';
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (text[i] == '\n') {
+            indented[n++] = '\n';
+            for (size_t s = 0; s < 4; s++) {
+                indented[n++] = ' ';
+            }
+        } else {
+            indented[n++] = text[i];
+        }
+    }
+    hymn_string_delete(text);
+    HymnStringHead *head = hymn_string_head(indented);
+    head->length = head->capacity;
+    indented[n++] = '\0';
+    return indented;
+}
+
 static HymnString *parse_expected(HymnString *source) {
     HymnString *expected = hymn_new_string("");
     size_t size = hymn_string_len(source);
@@ -83,7 +113,7 @@ static HymnString *parse_expected(HymnString *source) {
 static HymnString *test_source(HymnString *script) {
     HymnString *source = hymn_read_file(script);
     if (source == NULL) {
-        printf("Test file not found: %s\n", script);
+        printf("TEST FILE NOT FOUND: %s\n", script);
         exit(1);
     }
     HymnString *expected = parse_expected(source);
@@ -95,32 +125,62 @@ static HymnString *test_source(HymnString *script) {
         hymn_string_zero(out);
         char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
-        if (hymn_string_equal(expected, "@exception")) {
+        if (error != NULL) {
+            size_t len = strlen(error);
+            if (len > 7 && memcmp(error, "error: ", 7) == 0) {
+                for (size_t s = 7; s <= len; s++) {
+                    error[s - 7] = error[s];
+                }
+            } else if (len > 10 && memcmp(error, "compiler: ", 10) == 0) {
+                for (size_t s = 10; s <= len; s++) {
+                    error[s - 10] = error[s];
+                }
+            }
+        }
+        if (hymn_string_starts_with(expected, "@exception")) {
             if (error == NULL) {
-                result = hymn_new_string("Expected an error.\n");
+                hymn_string_trim(out);
+                out = indent(out);
+                result = hymn_string_format("EXPECTED AN ERROR\nBUT WAS:\n%s", out);
             } else {
+                size_t slen = hymn_string_len(expected);
+                if (slen > 11) {
+                    HymnString *start = hymn_substring(expected, 11, slen);
+                    size_t len = strlen(error);
+                    if (len < slen - 11 || memcmp(error, start, slen - 11) != 0) {
+                        start = indent(start);
+                        HymnString *was = indent(hymn_new_string(error));
+                        result = hymn_string_format("EXPECTED ERROR:\n%s\n\nBUT WAS:\n%s", start, error);
+                        hymn_string_delete(was);
+                    }
+                    hymn_string_delete(start);
+                }
                 free(error);
             }
         } else {
             hymn_string_trim(out);
             if (error != NULL) {
                 result = hymn_new_string(error);
-                free(error);
                 hymn_string_trim(result);
+                free(error);
             } else if (hymn_string_starts_with(expected, "@starts")) {
                 HymnString *start = hymn_substring(expected, 8, hymn_string_len(expected));
                 if (!hymn_string_starts_with(out, start)) {
-                    result = hymn_string_format("Expected start:\n%s\n\nBut was:\n%s", start, out);
+                    start = indent(start);
+                    out = indent(out);
+                    result = hymn_string_format("EXPECTED START:\n%s\n\nBUT WAS:\n%s", start, out);
                 }
                 hymn_string_delete(start);
             } else if (!hymn_string_equal(out, expected)) {
-                result = hymn_string_format("Expected:\n%s\n\nBut was:\n%s", expected, out);
+                expected = indent(expected);
+                out = indent(out);
+                result = hymn_string_format("EXPECTED:\n%s\n\nBUT WAS:\n%s", expected, out);
             }
         }
     }
     hymn_string_delete(source);
     hymn_string_delete(expected);
-    return result;
+    return result != NULL ? indent(result) : NULL;
 }
 
 HymnValue fun_for_vm(Hymn *vm, int count, HymnValue *arguments) {
@@ -234,7 +294,19 @@ static void test_hymn(const char *filter) {
             continue;
         }
         tests_count++;
-        printf("%s\n", script);
+        size_t len = hymn_string_len(script);
+        if (len > 2) {
+            size_t index = len - 2;
+            while (true) {
+                if (index == 0 || script[index] == PATH_SEP) {
+                    printf("%s\n", &script[index + 1]);
+                    break;
+                }
+                index--;
+            }
+        } else {
+            printf("%s\n", script);
+        }
         HymnString *error = test_source(script);
         if (error != NULL) {
             printf("%s\n\n", error);

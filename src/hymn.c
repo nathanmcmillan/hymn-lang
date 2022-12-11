@@ -1589,7 +1589,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
         break;
     case 's':
-        if (size == 6) return ident_trie(ident, 1, "tring", TOKEN_TO_STRING);
+        if (size == 3) return ident_trie(ident, 1, "tr", TOKEN_TO_STRING);
         break;
     case 'k':
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
@@ -1671,11 +1671,49 @@ static void push_ident_token(Compiler *C, size_t start, size_t end) {
 }
 
 static bool is_digit(char c) {
-    return '0' <= c && c <= '9';
+    return c >= '0' && c <= '9';
 }
 
 static bool is_ident(char c) {
-    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+static enum StringStatus string_status(Compiler *C) {
+    size_t i = C->pos;
+    const char *source = C->source;
+    const size_t size = C->size;
+    bool expression = false;
+    int brackets = 1;
+    while (true) {
+        if (i >= size) return false;
+        switch (source[i]) {
+        case '}':
+            if (brackets > 1) {
+                expression = true;
+                i++;
+                brackets--;
+                continue;
+            }
+            return expression ? STRING_STATUS_BEGIN : STRING_STATUS_CONTINUE;
+        case '"':
+            return STRING_STATUS_NONE;
+        case ' ':
+        case '\t':
+        case '\r':
+        case '\n':
+            i++;
+            continue;
+        case '{':
+            expression = true;
+            i++;
+            brackets++;
+            continue;
+        default:
+            expression = true;
+            i++;
+            continue;
+        }
+    }
 }
 
 static void parse_string(Compiler *C, size_t start) {
@@ -1684,15 +1722,27 @@ static void parse_string(Compiler *C, size_t start) {
         if (c == '\\') {
             next_char(C);
             continue;
-        } else if (c == '{') {
+        } else if (c == '$') {
             if (peek_char(C) == '{') {
                 next_char(C);
-            } else {
-                C->string_format = 1;
-                C->string_status = STRING_STATUS_BEGIN;
-                size_t end = C->pos - 1;
-                value_token(C, TOKEN_STRING, start, end);
-                return;
+                enum StringStatus status = string_status(C);
+                if (status == STRING_STATUS_BEGIN) {
+                    C->string_format = 1;
+                    C->string_status = STRING_STATUS_BEGIN;
+                    size_t end = C->pos - 2;
+                    value_token(C, TOKEN_STRING, start, end);
+                    return;
+                } else if (status == STRING_STATUS_CONTINUE) {
+                    C->string_status = STRING_STATUS_CONTINUE;
+                    size_t end = C->pos - 2;
+                    value_token(C, TOKEN_STRING, start, end);
+                    while (true) {
+                        char c = next_char(C);
+                        if (c == '}' || c == '\0') return;
+                    }
+                } else {
+                    continue;
+                }
             }
         } else if (c == '"' || c == '\0') {
             break;
@@ -2428,7 +2478,7 @@ static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
     Rule *rule = token_rule(C->previous.type);
     void (*prefix)(Compiler *, bool) = rule->prefix;
     if (prefix == NULL) {
-        compile_error(C, &C->previous, "expected expression following '%.*s'", C->previous.length, &C->source[C->previous.start]);
+        compile_error(C, &C->previous, "expression expected near '%.*s'", C->previous.length, &C->source[C->previous.start]);
         return;
     }
     bool assign = precedence <= PRECEDENCE_ASSIGN;
@@ -2481,7 +2531,7 @@ static uint8_t arguments(Compiler *C) {
             count++;
         } while (match(C, TOKEN_COMMA));
     }
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' after function arguments");
+    consume(C, TOKEN_RIGHT_PAREN, "function has no closing ')'");
     return count;
 }
 
@@ -2494,7 +2544,7 @@ static void compile_call(Compiler *C, bool assign) {
 static void compile_group(Compiler *C, bool assign) {
     (void)assign;
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected ')' for parenthesis group");
+    consume(C, TOKEN_RIGHT_PAREN, "parenthesis group has no closing ')'");
 }
 
 static void compile_none(Compiler *C, bool assign) {
@@ -2550,21 +2600,13 @@ HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     HymnString *literal = hymn_new_string_with_capacity(len);
     for (size_t i = start; i < end; i++) {
         const char c = string[i];
-        if (i + 1 < end) {
-            if (c == '\\') {
-                const char e = escape_sequence(string[i + 1]);
-                if (e != '\0') {
-                    literal = hymn_string_append_char(literal, e);
-                    i++;
-                    continue;
-                }
-            } else if (c == '{' && string[i + 1] == '{') {
-                literal = hymn_string_append_char(literal, '{');
-                i++;
-                continue;
-            }
+        if (c == '\\' && i + 1 < end) {
+            const char e = escape_sequence(string[i + 1]);
+            literal = hymn_string_append_char(literal, e);
+            i++;
+        } else {
+            literal = hymn_string_append_char(literal, c);
         }
-        literal = hymn_string_append_char(literal, c);
     }
     return literal;
 }
@@ -2743,7 +2785,7 @@ static void type_declaration(Compiler *C) {
 }
 
 static void define_new_variable(Compiler *C) {
-    uint8_t global = variable(C, "expected variable name");
+    uint8_t global = variable(C, "expected a variable name");
     type_declaration(C);
     consume(C, TOKEN_ASSIGN, "expected '=' after variable");
     expression(C);
@@ -4391,7 +4433,7 @@ static void delete_expression(Compiler *C, bool assign) {
     expression(C);
     consume(C, TOKEN_COMMA, "not enough arguments in call to 'delete' (expected 2)");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'pop'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'delete'");
     emit(C, OP_DELETE);
 }
 
@@ -4405,9 +4447,9 @@ static void len_expression(Compiler *C, bool assign) {
 
 static void cast_integer_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'integer'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'int'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'integer'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'int'");
     emit(C, OP_INT);
 }
 
@@ -4421,9 +4463,9 @@ static void cast_float_expression(Compiler *C, bool assign) {
 
 static void cast_string_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'string'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'str'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'string'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'str'");
     emit(C, OP_STRING);
 }
 
@@ -5427,14 +5469,18 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else if (hymn_is_float(b)) {                                                            \
             push(H, hymn_new_bool(hymn_as_float(a) compare hymn_as_float(b)));                    \
         } else {                                                                                  \
+            const char *is_a = hymn_value_type(a.is);                                             \
+            const char *is_b = hymn_value_type(b.is);                                             \
             hymn_dereference(H, a);                                                               \
             hymn_dereference(H, b);                                                               \
-            THROW("Operands must be numbers")                                                     \
+            THROW("comparison '" #compare "' can't use %s and %s (expected numbers)", is_a, is_b) \
         }                                                                                         \
     } else {                                                                                      \
+        const char *is_a = hymn_value_type(a.is);                                                 \
+        const char *is_b = hymn_value_type(b.is);                                                 \
         hymn_dereference(H, a);                                                                   \
         hymn_dereference(H, b);                                                                   \
-        THROW("Operands must be numbers")                                                         \
+        THROW("comparison '" #compare "' can't use %s and %s (expected numbers)", is_a, is_b)     \
     }
 
 #define JUMP_COMPARE_OP(compare)                                         \
@@ -6349,10 +6395,11 @@ dispatch:
         HymnValue object = pop(H);
         if (hymn_is_array(object)) {
             if (!hymn_is_int(property)) {
+                const char *is = hymn_value_type(property.is);
                 hymn_dereference(H, value);
                 hymn_dereference(H, property);
                 hymn_dereference(H, object);
-                THROW("Dynamic Set: `Integer` required to set `Array` index")
+                THROW("array assignment index can't be %s (expected integer)", is)
             }
             HymnArray *array = hymn_as_array(object);
             HymnInt size = array->length;
@@ -6361,7 +6408,7 @@ dispatch:
                 hymn_dereference(H, value);
                 hymn_dereference(H, property);
                 hymn_dereference(H, object);
-                THROW("Dynamic Set: Array index out of bounds %d > %d.", index, size)
+                THROW("array assignment index out of bounds: %d > %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
@@ -6369,7 +6416,7 @@ dispatch:
                     hymn_dereference(H, value);
                     hymn_dereference(H, property);
                     hymn_dereference(H, object);
-                    THROW("Dynamic Set: Array index out of bounds %d.", index)
+                    THROW("negative array assignment index: %d", index)
                 }
             }
             if (index == size) {
@@ -6384,7 +6431,7 @@ dispatch:
                 hymn_dereference(H, value);
                 hymn_dereference(H, property);
                 hymn_dereference(H, object);
-                THROW("Dynamic Set: Requires `String` to set `Table` property, but was `%s`.", is)
+                THROW("table assignment key can't be %s (expected string)", is)
             }
             HymnTable *table = hymn_as_table(object);
             HymnObjectString *name = hymn_as_hymn_string(property);
@@ -6399,7 +6446,7 @@ dispatch:
             hymn_dereference(H, value);
             hymn_dereference(H, property);
             hymn_dereference(H, object);
-            THROW("Dynamic Set: 1st argument requires `Array` or `Table`, but was `%s`.", is)
+            THROW("can't assign value to %s (expected array or table)", is)
         }
         push(H, value);
         hymn_dereference(H, object);
@@ -6412,10 +6459,10 @@ dispatch:
         switch (v.is) {
         case HYMN_VALUE_STRING: {
             if (!hymn_is_int(i)) {
-                const char *is = hymn_value_type(v.is);
+                const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Get Dynamic: Requires `Integer` to get string character from index, but was `%s`", is)
+                THROW("string index can't be %s (expected integer)", is)
             }
             HymnString *string = hymn_as_string(v);
             HymnInt size = (HymnInt)hymn_string_len(string);
@@ -6423,14 +6470,14 @@ dispatch:
             if (index >= size) {
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("String index out of bounds %d >= %d", index, size)
+                THROW("string index out of bounds: %d >= %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
                     hymn_dereference(H, i);
                     hymn_dereference(H, v);
-                    THROW("String index out of bounds %d", index)
+                    THROW("negative string index: %d", index)
                 }
             }
             char c = string[index];
@@ -6440,9 +6487,10 @@ dispatch:
         }
         case HYMN_VALUE_ARRAY: {
             if (!hymn_is_int(i)) {
+                const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Integer required to get array index")
+                THROW("array index can't be %s (expected integer)", is)
             }
             HymnArray *array = hymn_as_array(v);
             HymnInt size = array->length;
@@ -6450,14 +6498,14 @@ dispatch:
             if (index >= size) {
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Array index out of bounds %d >= %d", index, size)
+                THROW("array index out of bounds: %d >= %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
                     hymn_dereference(H, i);
                     hymn_dereference(H, v);
-                    THROW("Array index out of bounds %d", index)
+                    THROW("negative array index: %d", index)
                 }
             }
             HymnValue g = hymn_array_get(array, index);
@@ -6471,7 +6519,7 @@ dispatch:
                 const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Dynamic Get: Expected 2nd argument to be `String`, but was `%s`.", is)
+                THROW("table key can't be %s (expected string)", is)
             }
             HymnTable *table = hymn_as_table(v);
             HymnObjectString *name = hymn_as_hymn_string(i);
@@ -6490,7 +6538,7 @@ dispatch:
             const char *is = hymn_value_type(v.is);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
-            THROW("Dynamic Get: 1st argument requires `Array` or `Table`, but was `%s`.", is)
+            THROW("can't get value from %s (expected array, table, or string)", is)
         }
         }
         HYMN_DISPATCH;
@@ -6513,9 +6561,11 @@ dispatch:
             push(H, hymn_new_int(len));
             break;
         }
-        default:
+        default: {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Len: Expected `Array` or `Table`")
+            THROW("call to 'len' can't use %s (expected array, string, or table)", is)
+        }
         }
         hymn_dereference(H, value);
         HYMN_DISPATCH;
@@ -6525,7 +6575,7 @@ dispatch:
         if (!hymn_is_array(a)) {
             const char *is = hymn_value_type(a.is);
             hymn_dereference(H, a);
-            THROW("Pop: Expected `Array` for 1st argument, but was `%s`.", is)
+            THROW("call to 'pop' can't use %s (expected array)", is)
         } else {
             HymnValue value = hymn_array_pop(hymn_as_array(a));
             push(H, value);
@@ -6540,7 +6590,7 @@ dispatch:
             const char *is = hymn_value_type(value.is);
             hymn_dereference(H, array);
             hymn_dereference(H, value);
-            THROW("Push: Expected `Array` for 1st argument, but was `%s`.", is)
+            THROW("call to 'push' can't use %s for 1st argument (expected array)", is)
         } else {
             hymn_array_push(hymn_as_array(array), value);
             push(H, value);
@@ -6559,7 +6609,7 @@ dispatch:
                 hymn_dereference(H, p);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Insert Function: Expected `Integer` for 2nd argument, but was `%s`.", is)
+                THROW("call to 'insert' can't use %s for 2nd argument (expected integer)", is)
             }
             HymnArray *array = hymn_as_array(v);
             HymnInt size = array->length;
@@ -6568,7 +6618,7 @@ dispatch:
                 hymn_dereference(H, p);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Insert Function: Array index out of bounds: %d > %d", index, size)
+                THROW("index out of bounds in call to 'insert': %d > %d", index, size)
             }
             if (index < 0) {
                 index = size + index;
@@ -6576,7 +6626,7 @@ dispatch:
                     hymn_dereference(H, p);
                     hymn_dereference(H, i);
                     hymn_dereference(H, v);
-                    THROW("Insert Function: Array index less than zero: %d", index)
+                    THROW("negative index in 'insert' call: %d", index)
                 }
             }
             if (index == size) {
@@ -6592,7 +6642,7 @@ dispatch:
             hymn_dereference(H, p);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
-            THROW("insert function expects 'array' for 1st argument but was '%s'", is)
+            THROW("call to 'insert' can't use %s for 1st argument (expected array)", is)
         }
         HYMN_DISPATCH;
     }
@@ -6601,9 +6651,10 @@ dispatch:
         HymnValue v = pop(H);
         if (hymn_is_array(v)) {
             if (!hymn_is_int(i)) {
+                const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Integer required to delete from array")
+                THROW("call to 'delete' can't use %s for 2nd argument (expected integer)", is)
             }
             HymnArray *array = hymn_as_array(v);
             HymnInt size = array->length;
@@ -6611,14 +6662,14 @@ dispatch:
             if (index >= size) {
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("Array index out of bounds %d > %d.", index, size)
+                THROW("index out of bounds in call to 'delete': %d >= %d.", index, size)
             }
             if (index < 0) {
                 index = size + index;
                 if (index < 0) {
                     hymn_dereference(H, i);
                     hymn_dereference(H, v);
-                    THROW("Array index out of bounds %d.", index)
+                    THROW("negative index in 'delete' call: %d", index)
                 }
             }
             HymnValue value = hymn_array_remove_index(array, index);
@@ -6626,9 +6677,10 @@ dispatch:
             hymn_dereference(H, v);
         } else if (hymn_is_table(v)) {
             if (!hymn_is_string(i)) {
+                const char *is = hymn_value_type(i.is);
                 hymn_dereference(H, i);
                 hymn_dereference(H, v);
-                THROW("String required to delete from table")
+                THROW("call to 'delete' can't use %s for 2nd argument (expected string)", is)
             }
             HymnTable *table = hymn_as_table(v);
             HymnObjectString *name = hymn_as_hymn_string(i);
@@ -6642,9 +6694,10 @@ dispatch:
             hymn_dereference(H, v);
             hymn_dereference_string(H, name);
         } else {
+            const char *is = hymn_value_type(v.is);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
-            THROW("Expected array or table for `delete` function")
+            THROW("call to 'delete' can't use %s for 1st argument (expected array or table)", is)
         }
         HYMN_DISPATCH;
     }
@@ -6686,17 +6739,18 @@ dispatch:
         HymnValue a = pop(H);
         HymnValue v = pop(H);
         if (!hymn_is_int(a)) {
+            const char *is = hymn_value_type(a.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
             hymn_dereference(H, v);
-            THROW("Integer required for slice expression")
+            THROW("slice can't use %s (expected integer)", is)
         }
         HymnInt start = hymn_as_int(a);
         if (start < 0) {
             hymn_dereference(H, a);
             hymn_dereference(H, b);
             hymn_dereference(H, v);
-            THROW("String index out of bounds %d", start)
+            THROW("negative slice start: %d", start)
         }
         if (hymn_is_string(v)) {
             HymnString *original = hymn_as_string(v);
@@ -6707,16 +6761,17 @@ dispatch:
             } else if (hymn_is_none(b)) {
                 end = size;
             } else {
+                const char *is = hymn_value_type(b.is);
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
                 hymn_dereference(H, v);
-                THROW("Integer required for slice expression")
+                THROW("slice can't use %s (expected integer)", is)
             }
             if (end > size) {
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
                 hymn_dereference(H, v);
-                THROW("String index out of bounds %d > %d", end, size)
+                THROW("slice out of bounds: %d > %d", end, size)
             }
             if (end < 0) {
                 end = size + end;
@@ -6724,14 +6779,14 @@ dispatch:
                     hymn_dereference(H, a);
                     hymn_dereference(H, b);
                     hymn_dereference(H, v);
-                    THROW("String index out of bounds %d", end)
+                    THROW("negative slice end: %d", end)
                 }
             }
             if (start >= end) {
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
                 hymn_dereference(H, v);
-                THROW("String start index %d > end index %d", start, end)
+                THROW("slice out of range: %d >= %d", start, end)
             }
             HymnString *sub = hymn_substring(original, (size_t)start, (size_t)end);
             push_string(H, sub);
@@ -6744,16 +6799,17 @@ dispatch:
             } else if (hymn_is_none(b)) {
                 end = size;
             } else {
+                const char *is = hymn_value_type(b.is);
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
                 hymn_dereference(H, v);
-                THROW("Integer required for slice expression")
+                THROW("slice can't use %s (expected integer)", is)
             }
             if (end > size) {
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
                 hymn_dereference(H, v);
-                THROW("Array index out of bounds %d > %d", end, size)
+                THROW("slice out of bounds: %d > %d", end, size)
             }
             if (end < 0) {
                 end = size + end;
@@ -6761,24 +6817,25 @@ dispatch:
                     hymn_dereference(H, a);
                     hymn_dereference(H, b);
                     hymn_dereference(H, v);
-                    THROW("Array index out of bounds %d", end)
+                    THROW("negative slice end: %d", end)
                 }
             }
             if (start >= end) {
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
                 hymn_dereference(H, v);
-                THROW("Array start index %d >= end index %d", start, end)
+                THROW("slice out of range: %d >= %d", start, end)
             }
             HymnArray *copy = new_array_slice(array, start, end);
             HymnValue new = hymn_new_array_value(copy);
             hymn_reference(new);
             push(H, new);
         } else {
+            const char *is = hymn_value_type(v.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
             hymn_dereference(H, v);
-            THROW("Expected string or array for `slice` function")
+            THROW("can't slice %s (expected string or array)", is)
         }
         hymn_dereference(H, v);
         HYMN_DISPATCH;
@@ -6823,8 +6880,9 @@ dispatch:
     case OP_KEYS: {
         HymnValue value = pop(H);
         if (!hymn_is_table(value)) {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Expected table for `keys` function")
+            THROW("call to 'keys' can't use %s (expected table)", is)
         } else {
             HymnTable *table = hymn_as_table(value);
             HymnArray *array = table_keys(table);
@@ -6841,9 +6899,10 @@ dispatch:
         switch (a.is) {
         case HYMN_VALUE_STRING: {
             if (!hymn_is_string(b)) {
+                const char *is = hymn_value_type(b.is);
                 hymn_dereference(H, a);
                 hymn_dereference(H, b);
-                THROW("Expected substring for 2nd argument of `index` function")
+                THROW("call to 'index' can't use %s for 2nd argument (expected string)", is)
             }
             size_t index = 0;
             bool found = string_find(hymn_as_string(a), hymn_as_string(b), &index);
@@ -6872,10 +6931,12 @@ dispatch:
             hymn_dereference(H, b);
             break;
         }
-        default:
+        default: {
+            const char *is = hymn_value_type(a.is);
             hymn_dereference(H, a);
             hymn_dereference(H, b);
-            THROW("index function expects a string, array, or table")
+            THROW("call to 'index' can't use %s for 1st argument (expected string, array, or table)", is)
+        }
         }
         HYMN_DISPATCH;
     }
@@ -6903,8 +6964,9 @@ dispatch:
             }
             hymn_dereference(H, value);
         } else {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Can't cast to an integer")
+            THROW("can't cast %s to integer", is)
         }
         HYMN_DISPATCH;
     }
@@ -6926,8 +6988,9 @@ dispatch:
             }
             hymn_dereference(H, value);
         } else {
+            const char *is = hymn_value_type(value.is);
             hymn_dereference(H, value);
-            THROW("Can't cast to a float")
+            THROW("can't cast %s to float", is)
         }
         HYMN_DISPATCH;
     }
@@ -6977,8 +7040,9 @@ dispatch:
             hymn_dereference(H, file);
             if (frame == NULL) return;
         } else {
+            const char *is = hymn_value_type(file.is);
             hymn_dereference(H, file);
-            THROW("expected 'string' argument for 'use' operator")
+            THROW("import can't use %s (expected string)", is)
         }
         HYMN_DISPATCH;
     }
