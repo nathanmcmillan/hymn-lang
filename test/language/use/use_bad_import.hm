@@ -1,0 +1,12 @@
+# unknown character: @
+# undefined global 'foo'
+# undefined global 'bar'
+# undefined global 'hello'
+# undefined global 'world'
+
+try { use "../errors/errors" } except e { echo e }
+try { use "bad_import" } except e { echo runtime(e) }
+try { echo foo(1, 2) } except e { echo runtime(e) }
+try { echo bar(1, 2) } except e { echo runtime(e) }
+try { echo hello } except e { echo runtime(e) }
+try { echo world } except e { echo runtime(e) }

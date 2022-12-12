@@ -2324,10 +2324,6 @@ static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
     }
 }
 
-static void value_pool_delete(HymnValuePool *this) {
-    free(this->values);
-}
-
 static void scope_init(Compiler *C, Scope *scope, enum FunctionType type) {
     scope->enclosing = C->scope;
     C->scope = scope;
@@ -2366,7 +2362,7 @@ static inline Compiler new_compiler(const char *script, const char *source, Hymn
 static void byte_code_delete(HymnByteCode *this) {
     free(this->instructions);
     free(this->lines);
-    value_pool_delete(&this->constants);
+    free(this->constants.values);
 }
 
 static uint8_t byte_code_new_constant(Compiler *C, HymnValue value) {
@@ -4552,14 +4548,27 @@ static CompileResult compile(Hymn *H, const char *script, const char *source, bo
     }
 
     HymnFunction *func = end_function(C);
-    char *error = NULL;
 
     if (C->error != NULL) {
-        error = string_to_chars(C->error);
+        char *error = string_to_chars(C->error);
         hymn_string_delete(C->error);
+
+        HymnValuePool *constants = &func->code.constants;
+        int count = constants->count;
+        HymnValue *values = constants->values;
+
+        for (int i = 0; i < count; i++) {
+            HymnValue value = values[i];
+            if (hymn_is_func(value)) {
+                function_delete(hymn_as_func(value));
+            }
+        }
+
+        function_delete(func);
+        return (CompileResult){.func = NULL, .error = error};
     }
 
-    return (CompileResult){.func = func, .error = error};
+    return (CompileResult){.func = func, .error = NULL};
 }
 
 HymnString *hymn_quote_string(HymnString *string) {
@@ -5227,16 +5236,14 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
 
     CompileResult result = compile(H, module->string, source, false);
 
-    HymnFunction *func = result.func;
-    char *error = result.error;
-
     hymn_string_delete(source);
 
+    char *error = result.error;
     if (error != NULL) {
-        function_delete(func);
         return throw_existing_error(H, error);
     }
 
+    HymnFunction *func = result.func;
     HymnValue function = hymn_new_func_value(func);
     hymn_reference(function);
 
@@ -6222,6 +6229,10 @@ dispatch:
         if (hymn_is_undefined(previous)) {
             hymn_reference_string(name);
         } else {
+            // TODO: This should probably be taken out
+            // To allow safer script reloading
+            // If using "let" then prevent overwriting
+            // Otherwise allow new/overwriting globals
             table_put(&H->globals, name, previous);
             hymn_dereference(H, value);
             THROW("multiple global definitions of '%s'", name->string)
@@ -6944,6 +6955,7 @@ dispatch:
         HymnValue value = pop(H);
         const char *is = hymn_value_type(value.is);
         push_string(H, hymn_new_string(is));
+        hymn_dereference(H, value);
         HYMN_DISPATCH;
     }
     case OP_INT: {
@@ -7360,8 +7372,10 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
     if (source == NULL) {
         code = hymn_read_file(script);
         if (code == NULL) {
-            printf("file not found: %s\n", script);
-            exit(1);
+            HymnString *format = hymn_string_format("file not found: %s\n", script);
+            char *error = string_to_chars(format);
+            hymn_string_delete(format);
+            return error;
         }
     } else {
         code = hymn_new_string(source);
@@ -7369,14 +7383,13 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
 
     CompileResult result = compile(H, script, code, false);
 
-    HymnFunction *main = result.func;
-
     char *error = result.error;
     if (error) {
-        function_delete(main);
         hymn_string_delete(code);
         return error;
     }
+
+    HymnFunction *main = result.func;
 
     disassemble_byte_code(&main->code, script);
 
@@ -7433,13 +7446,12 @@ char *hymn_call(Hymn *H, const char *name, int arguments) {
 char *hymn_run(Hymn *H, const char *script, const char *source) {
     CompileResult result = compile(H, script, source, false);
 
-    HymnFunction *func = result.func;
     char *error = result.error;
     if (error) {
-        function_delete(func);
         return error;
     }
 
+    HymnFunction *func = result.func;
     HymnValue function = hymn_new_func_value(func);
     hymn_reference(function);
 
@@ -7464,8 +7476,10 @@ char *hymn_do(Hymn *H, const char *source) {
 char *hymn_read(Hymn *H, const char *script) {
     HymnString *source = hymn_read_file(script);
     if (source == NULL) {
-        printf("file not found: %s\n", script);
-        exit(1);
+        HymnString *format = hymn_string_format("file not found: %s\n", script);
+        char *error = string_to_chars(format);
+        hymn_string_delete(format);
+        return error;
     }
     char *error = hymn_run(H, script, source);
     hymn_string_delete(source);
@@ -7926,10 +7940,8 @@ void hymn_repl(Hymn *H) {
         }
 
         CompileResult result = compile(H, NULL, input, true);
-        HymnFunction *func = result.func;
         char *error = result.error;
         if (error != NULL) {
-            function_delete(func);
             if (!hymn_string_equal(error, "<eof>")) {
                 hymn_string_zero(input);
                 fprintf(stderr, "%s\n", error);
@@ -7938,6 +7950,7 @@ void hymn_repl(Hymn *H) {
             }
             continue;
         }
+        HymnFunction *func = result.func;
 
         History *save = hymn_calloc(1, sizeof(History));
         save->input = hymn_new_string(input);
@@ -8002,10 +8015,8 @@ void hymn_server(Hymn *H) {
         }
 
         CompileResult result = compile(H, NULL, input, true);
-        HymnFunction *func = result.func;
         char *error = result.error;
         if (error != NULL) {
-            function_delete(func);
             if (!hymn_string_equal(error, "<eof>")) {
                 hymn_string_zero(input);
                 fprintf(stderr, "%s\n", error);
@@ -8014,6 +8025,7 @@ void hymn_server(Hymn *H) {
             }
             continue;
         }
+        HymnFunction *func = result.func;
 
         hymn_string_zero(input);
 

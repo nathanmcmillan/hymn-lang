@@ -150,7 +150,7 @@ static HymnString *test_source(HymnString *script) {
                     if (len < slen - 11 || memcmp(error, start, slen - 11) != 0) {
                         start = indent(start);
                         HymnString *was = indent(hymn_new_string(error));
-                        result = hymn_string_format("EXPECTED ERROR:\n%s\n\nBUT WAS:\n%s", start, error);
+                        result = hymn_string_format("EXPECTED ERROR:\n%s\n\nBUT WAS:\n%s", start, was);
                         hymn_string_delete(was);
                     }
                     hymn_string_delete(start);

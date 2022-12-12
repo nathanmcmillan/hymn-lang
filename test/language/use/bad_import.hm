@@ -1,0 +1,13 @@
+function foo(a, b) {
+  echo a + b
+}
+
+let hello = ["hello"]
+
+@
+
+function bar(a, b) {
+  echo a + b
+}
+
+let world = ["world"]

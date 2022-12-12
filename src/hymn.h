@@ -26,7 +26,7 @@
 // #define HYMN_DEBUG_MEMORY
 
 // #define HYMN_NO_REPL
-// #define HYMN_NO_DYNAMIC_LIBS
+#define HYMN_NO_DYNAMIC_LIBS
 
 #define HYMN_NO_OPTIMIZE
 #define HYMN_NO_REGISTERS
