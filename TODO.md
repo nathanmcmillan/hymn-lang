@@ -5,6 +5,10 @@
    - Can we assign the original byte index as a unique identifier
    - And only at the very end, iterate through and match them, then calculate the final difference?
 1. Native functions need a way to throw exceptions
+1. Finish patterns module
+1. Finish dynamic library support
+   - Export everything
+   - Build as a library
 
 # Features
 

@@ -5059,7 +5059,7 @@ static HymnFrame *throw_exception(Hymn *H, const char *name) {
     H->exception = NULL;
 
     HymnString *trace = stacktrace(H);
-    error = hymn_string_append(error, "\n\nat ");
+    error = hymn_string_append(error, "\nat ");
     error = hymn_string_append(error, name);
     HymnFrame *frame = &H->frames[H->frame_count - 1];
     HymnFunction *func = frame->func;

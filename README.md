@@ -7,11 +7,11 @@ A small byte-code interpreted language with a focus on simplicity. [Visit the we
 use "math"
 
 # tables hold key value pairs
-function new_node(value) {
+func new_node(value) {
   return { value: value, next: none }
 }
 
-function node_add(list, value) {
+func node_add(list, value) {
   let node = list
   while true {
     if node.next == none { break }

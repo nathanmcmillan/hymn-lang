@@ -1,51 +1,67 @@
 
-echo pattern.find("(foo)bar", "foobar")
-echo pattern.find("foo(bar)", "foobar")
-echo pattern.find("(foo(bar))", "foobar")
+echo "zoobar -> " + pattern.replace("foobar", "foo", "zoo")
 
-echo pattern.find("(%d?)foo", "foo")
-echo pattern.find("(%d?)foo", "4foo")
+# echo "========================================"
 
-echo pattern.find("(%d*)foo", "foo")
-echo pattern.find("(%d*)foo", "48foo")
+# echo '["bar"] -> ' + pattern.get("foobar", "bar")
+# echo '["foobar, "bar"] -> ' + pattern.get("foobar", "foo(bar)")
 
-# echo pattern.replace("(%d*)foo", "48foo", "%0")
+# echo "========================================"
 
-# echo " [true]"
+# echo "[3, 6] -> " + pattern.find("foobar", "bar")
+# echo "[0, 3] -> " + pattern.find("foobar", "foo")
 
-# echo " 1. " + pattern.find("bar", "foo bar", 0)
-# echo " 1. " + pattern.find("bar", "foo bar", 4)
-# echo " 1. " + pattern.find("bar", "foo bar", -1)
+# echo "========================================"
 
-# echo " 1. " + pattern.find("^foo.*bar$", "foo hello world bar")
-# echo " 1. " + pattern.find("^foo.-bar$", "foo hello world bar")
-# echo " 1. " + pattern.find("^foo.+bar$", "foo hello world bar")
+# echo "false -> " + pattern.match("foo", "foobar")
+# echo "false -> " + pattern.match("foo", "^foobar$")
+# echo "false -> " + pattern.match("bar", "foobar")
+# echo "true  -> " + pattern.match("foobar", "foobar")
+# echo "true  -> " + pattern.match("foobar", "^foobar$")
 
-# echo " 1. " + pattern.find("%a", "c")
-# echo " 1. " + pattern.find("%d", "1")
+# echo "true -> " + pattern.match("foobar", "(foo)bar")
+# echo "true -> " + pattern.match("foobar", "foo(bar)")
+# echo "true -> " + pattern.match("foobar", "(foo(bar))")
+# echo "true -> " + pattern.match("foo", "(%d?)foo")
+# echo "true -> " + pattern.match("4foo", "(%d?)foo")
+# echo "true -> " + pattern.match("foo", "(%d*)foo")
+# echo "true -> " + pattern.match("48foo", "(%d*)foo")
 
-# echo " 1. " + pattern.find("%l", "c")
-# echo " 1. " + pattern.find("%u", "C")
+# echo "========================================"
 
-# echo " 1. " + pattern.find("foo[%a%d]*bar", "foobar")
-# echo " 1. " + pattern.find("foo[%a%d]*bar", "foo2x4bar")
-# echo " 1. " + pattern.find("foo[%a%d]+bar", "foo2x4bar")
+# echo " 1. " + pattern.find("foo bar", "bar", 0)
+# echo " 1. " + pattern.find("foo bar", "bar", 4)
+# echo " 1. " + pattern.find("foo bar", "bar", -1)
+
+# echo " 1. " + pattern.find("foo hello world bar", "^foo.*bar$")
+# echo " 1. " + pattern.find("foo hello world bar", "^foo.-bar$")
+# echo " 1. " + pattern.find("foo hello world bar", "^foo.+bar$")
+
+# echo " 1. " + pattern.find("c", "%a")
+# echo " 1. " + pattern.find("1", "%d")
+
+# echo " 1. " + pattern.find("c", "%l")
+# echo " 1. " + pattern.find("C", "%u")
+
+# echo " 1. " + pattern.find("foobar", "foo[%a%d]*bar")
+# echo " 1. " + pattern.find("foo2x4bar", "foo[%a%d]*bar")
+# echo " 1. " + pattern.find("foo2x4bar", "foo[%a%d]+bar")
 
 # print(0, "\n [false]\n")
 
 # echo " 1. " + pattern.find("foo", "foo", 3)
 # echo " 1. " + pattern.find("foo", "foo", 4)
-# echo " 1. " + pattern.find("bar", "foo bar", 5)
+# echo " 1. " + pattern.find("foo bar", "bar", 5)
 
-# echo " 1. " + pattern.find("%a", "")
-# echo " 1. " + pattern.find("%d", "")
+# echo " 1. " + pattern.find("", "%a")
+# echo " 1. " + pattern.find("", "%d")
 
-# echo " 1. " + pattern.find("%a", "1")
-# echo " 1. " + pattern.find("%d", "c")
+# echo " 1. " + pattern.find("1", "%a")
+# echo " 1. " + pattern.find("c", "%d")
 
-# echo " 1. " + pattern.find("%l", "C")
-# echo " 1. " + pattern.find("%u", "c")
+# echo " 1. " + pattern.find("C", "%l")
+# echo " 1. " + pattern.find("c", "%u")
 
-# echo " 1. " + pattern.find("foo[%a%d]bar", "foo bar")
-# echo " 1. " + pattern.find("foo[%a%d]bar", "foo24bar")
-# echo " 1. " + pattern.find("foo[%a%d]bar", "fooxzbar")
+# echo " 1. " + pattern.find("foo bar", "foo[%a%d]bar")
+# echo " 1. " + pattern.find("foo24bar", "foo[%a%d]bar")
+# echo " 1. " + pattern.find("fooxzbar", "foo[%a%d]bar")
