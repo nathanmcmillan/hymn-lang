@@ -3,7 +3,7 @@
 # end
 
 let foo = {}
-foo.bar = function(h) {
+foo.bar = func(h) {
   return h
 }
 

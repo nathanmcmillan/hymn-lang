@@ -2,7 +2,7 @@
 # bar
 # end
 
-function foo() {
+func foo() {
   try {
     echo [2, 4, 8][3]
   } except _ {
@@ -10,7 +10,7 @@ function foo() {
   }
 }
 
-function bar() {
+func bar() {
   try {
     throw "bad"
   } except _ {

@@ -10,7 +10,7 @@
 # table
 # function
 
-function example() { return }
+func example() { return }
 
 echo type(0)
 echo type(-1)

@@ -13,7 +13,7 @@
 # 256
 
 # tail call
-function tail(i) {
+func tail(i) {
   if i < 0 { return 100 }
   return tail(i - 1)
 }

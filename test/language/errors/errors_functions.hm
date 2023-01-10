@@ -2,6 +2,6 @@
 
 use "errors"
 
-{ function foo() { return 8 } }
+{ func foo() { return 8 } }
 
 try { foo() } except e { echo runtime(e) }

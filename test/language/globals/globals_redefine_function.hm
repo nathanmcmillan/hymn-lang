@@ -1,7 +1,7 @@
 # 1
 # 2
 
-function foo() {
+func foo() {
   return 1
 }
 
@@ -9,7 +9,7 @@ echo foo()
 
 delete(GLOBALS, "foo")
 
-function foo() {
+func foo() {
   return 2
 }
 

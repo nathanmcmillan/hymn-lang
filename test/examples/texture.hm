@@ -1,4 +1,4 @@
-function load_texture(wad) {
+func load_texture(wad) {
     let name = wad_get(wad, "paint")
     let width = int(wad_get(wad, "columns"))
     let height = int(wad_get(wad, "rows"))

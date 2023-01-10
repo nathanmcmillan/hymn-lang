@@ -1,8 +1,8 @@
 # none
 # none
 
-function a() { return }
-function b() {}
+func a() { return }
+func b() {}
 
 echo a()
 echo b()

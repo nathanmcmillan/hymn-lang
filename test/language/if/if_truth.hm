@@ -12,7 +12,7 @@
 # length
 # size
 
-function example() {}
+func example() {}
 
 if true { echo "boolean" } else { echo "bad" }
 if 1 { echo "integer" } else { echo "bad" }

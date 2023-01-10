@@ -95,6 +95,7 @@ class HymnFunction {
     this.count = 0
     this.name = null
     this.script = null
+    this.source = null
     this.arity = 0
     this.code = null
     this.except = null
@@ -208,7 +209,6 @@ const TOKEN_RETURN = 65
 const TOKEN_RIGHT_CURLY = 66
 const TOKEN_RIGHT_PAREN = 67
 const TOKEN_RIGHT_SQUARE = 68
-const TOKEN_SEMICOLON = 69
 const TOKEN_STRING = 70
 const TOKEN_SUBTRACT = 71
 const TOKEN_THROW = 72
@@ -222,6 +222,8 @@ const TOKEN_UNDEFINED = 79
 const TOKEN_USE = 80
 const TOKEN_VALUE = 81
 const TOKEN_WHILE = 82
+const TOKEN_POINTER = 83
+const TOKEN_INSPECT = 84
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -305,6 +307,8 @@ const OP_FOR = 67
 const OP_FOR_LOOP = 68
 const OP_NEW_ARRAY = 69
 const OP_NEW_TABLE = 70
+const OP_SELF = 71
+const OP_INSPECT = 72
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -347,6 +351,7 @@ class Scope {
     this.enclosing = null
     this.func = null
     this.type = TYPE_FUNCTION
+    this.begin = 0
     this.locals = []
     this.localCount = 0
     this.depth = 0
@@ -455,6 +460,7 @@ rules[TOKEN_NONE] = new Rule(compileNone, null, PRECEDENCE_NONE)
 rules[TOKEN_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
 rules[TOKEN_NOT_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
 rules[TOKEN_OR] = new Rule(null, compileOr, PRECEDENCE_OR)
+rules[TOKEN_POINTER] = new Rule(null, compilePointer, PRECEDENCE_CALL)
 rules[TOKEN_POP] = new Rule(arrayPopExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_PRINT] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_PUSH] = new Rule(arrayPushExpression, null, PRECEDENCE_NONE)
@@ -475,7 +481,7 @@ rules[TOKEN_UNDEFINED] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_USE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_VALUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_WHILE] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_SEMICOLON] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_INSPECT] = new Rule(inspectExpression, null, PRECEDENCE_NONE)
 
 function valueType(type) {
   switch (type) {
@@ -992,6 +998,7 @@ function identKey(ident, size) {
       if (size === 3) return identTrie(ident, 1, 'nt', TOKEN_TO_INTEGER)
       if (size === 5) return identTrie(ident, 1, 'ndex', TOKEN_INDEX)
       if (size === 6) return identTrie(ident, 1, 'nsert', TOKEN_INSERT)
+      if (size === 7) return identTrie(ident, 1, 'nspect', TOKEN_INSPECT)
       if (size === 2) {
         if (ident[1] === 'f') return TOKEN_IF
         if (ident[1] === 'n') return TOKEN_IN
@@ -1024,7 +1031,7 @@ function identKey(ident, size) {
       break
     case 'f':
       if (size === 3) return identTrie(ident, 1, 'or', TOKEN_FOR)
-      if (size === 8) return identTrie(ident, 1, 'unction', TOKEN_FUNCTION)
+      if (size === 4) return identTrie(ident, 1, 'unc', TOKEN_FUNCTION)
       if (size === 5) {
         if (ident[1] === 'a') return identTrie(ident, 2, 'lse', TOKEN_FALSE)
         if (ident[1] === 'l') return identTrie(ident, 2, 'oat', TOKEN_TO_FLOAT)
@@ -1196,6 +1203,10 @@ function advance(C) {
           nextChar(C)
           tokenSpecial(C, TOKEN_ASSIGN_SUBTRACT, 2, 2)
           return
+        } else if (peekChar(C) === '>') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_POINTER, 2, 2)
+          return
         } else {
           token(C, TOKEN_SUBTRACT)
           return
@@ -1330,9 +1341,6 @@ function advance(C) {
       case ':':
         token(C, TOKEN_COLON)
         return
-      case ';':
-        token(C, TOKEN_SEMICOLON)
-        return
       case '\0':
         token(C, TOKEN_EOF)
         return
@@ -1464,7 +1472,7 @@ function scopeGetLocal(scope, index) {
   return local
 }
 
-function scopeInit(C, scope, type) {
+function scopeInit(C, scope, type, begin) {
   scope.enclosing = C.scope
   C.scope = scope
 
@@ -1472,6 +1480,7 @@ function scopeInit(C, scope, type) {
   scope.depth = 0
   scope.func = newFunction(C.script)
   scope.type = type
+  scope.begin = begin
 
   if (type === TYPE_FUNCTION) {
     scope.func.name = sourceSubstring(C, C.previous.length, C.previous.start)
@@ -1484,7 +1493,7 @@ function scopeInit(C, scope, type) {
 
 function newCompiler(script, source, H, scope) {
   const C = new Compiler(script, source, H)
-  scopeInit(C, scope, TYPE_SCRIPT)
+  scopeInit(C, scope, TYPE_SCRIPT, 0)
   return C
 }
 
@@ -2040,6 +2049,19 @@ function compileDot(C, assign) {
   }
 }
 
+function compilePointer(C) {
+  consume(C, TOKEN_IDENT, "expected table key after '->'")
+  const name = identConstant(C, C.previous)
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' after function name")
+  emitShort(C, OP_SELF, name)
+  const count = args(C)
+  if (count === UINT8_MAX) {
+    compileError(C, C.previous, 'too many function arguments')
+    return
+  }
+  emitShort(C, OP_CALL, count + 1)
+}
+
 function compileSquare(C, assign) {
   if (match(C, TOKEN_COLON)) {
     emitConstant(C, newInt(0))
@@ -2149,14 +2171,16 @@ function compileOr(C) {
 
 function endFunction(C) {
   emitShort(C, OP_NONE, OP_RETURN)
-  const func = C.scope.func
-  C.scope = C.scope.enclosing
+  const scope = C.scope
+  const func = scope.func
+  if (scope.type === TYPE_FUNCTION) func.source = C.source.substring(scope.begin, C.previous.start + C.previous.length)
+  C.scope = scope.enclosing
   return func
 }
 
-function compileFunction(C, type) {
+function compileFunction(C, type, begin) {
   const scope = new Scope()
-  scopeInit(C, scope, type)
+  scopeInit(C, scope, type, begin)
 
   beginScope(C)
 
@@ -2190,13 +2214,14 @@ function compileFunction(C, type) {
 }
 
 function functionExpression(C) {
-  compileFunction(C, TYPE_FUNCTION)
+  compileFunction(C, TYPE_FUNCTION, C.previous.start)
 }
 
 function declareFunction(C) {
+  const begin = C.previous.start
   const global = variable(C, 'expected function name')
   localInitialize(C)
-  compileFunction(C, TYPE_FUNCTION)
+  compileFunction(C, TYPE_FUNCTION, begin)
   finalizeVariable(C, global)
 }
 
@@ -2740,6 +2765,13 @@ function existsExpression(C) {
   emit(C, OP_EXISTS)
 }
 
+function inspectExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'inspect'`)
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'inspect'`)
+  emit(C, OP_INSPECT)
+}
+
 function expressionStatement(C) {
   expression(C)
   emit(C, OP_POP)
@@ -2875,13 +2907,9 @@ function valueToStringRecursive(value, set, quote) {
     }
     case HYMN_VALUE_FUNC: {
       const func = value.value
-      if (func.name) {
-        return func.name
-      }
-      if (func.script) {
-        return func.script
-      }
-      return 'Script'
+      if (func.name) return func.name
+      if (func.script) return func.script
+      return 'script'
     }
     case HYMN_VALUE_FUNC_NATIVE:
       return value.value.name
@@ -2889,6 +2917,14 @@ function valueToStringRecursive(value, set, quote) {
 }
 
 function valueToString(value) {
+  return valueToStringRecursive(value, null, false)
+}
+
+function valueToInspect(value) {
+  if (value.is === HYMN_VALUE_FUNC) {
+    const func = value.value
+    if (func.source) return func.source
+  }
   return valueToStringRecursive(value, null, false)
 }
 
@@ -3025,7 +3061,7 @@ function hymnCallValue(H, value, count) {
     case HYMN_VALUE_FUNC_NATIVE: {
       const func = value.value.func
       const result = func(H, count, H.stack[H.stackTop - count])
-      const top = H.stackTop - (count + 1)
+      const top = H.stackTop - count - 1
       H.stackTop = top
       hymnPush(H, result)
       return currentFrame(H)
@@ -3274,6 +3310,8 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_BIT_XOR', index)
     case OP_CALL:
       return debugByteInstruction(debug, 'OP_CALL', code, index)
+    case OP_SELF:
+      return debugConstantInstruction(debug, 'OP_SELF', code, index)
     case OP_CLEAR:
       return debugInstruction(debug, 'OP_CLEAR', index)
     case OP_CONSTANT:
@@ -3380,13 +3418,15 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_TYPE', index)
     case OP_USE:
       return debugInstruction(debug, 'OP_USE', index)
+    case OP_INSPECT:
+      return debugInstruction(debug, 'OP_INSPECT', index)
     default:
       return (debug[0] += 'UNKNOWN_OPCODE ' + instruction)
   }
 }
 
 function disassembleByteCode(code, name) {
-  console.debug(`\n-- ${name !== null ? name : 'NULL'} --`)
+  console.debug(`\n-- ${name !== null ? name : 'script'} --`)
   const debug = ['']
   let index = 0
   while (index < code.count) {
@@ -3448,6 +3488,19 @@ async function hymnRun(H) {
         const call = hymnPeek(H, count + 1)
         frame = hymnCallValue(H, call, count)
         if (frame === null) return
+        break
+      }
+      case OP_SELF: {
+        const table = hymnPeek(H, 1)
+        if (!isTable(table)) {
+          frame = hymnThrowError(H, `can't get property of ${valueType(table.is)} (expected table)`)
+          if (frame === null) return
+          else break
+        }
+        const name = readConstant(frame).value
+        const fun = tableGet(table.value, name)
+        copyValueToFrom(hymnStackGet(H, H.stackTop - 1), fun)
+        hymnPush(H, table)
         break
       }
       case OP_JUMP: {
@@ -3947,12 +4000,7 @@ async function hymnRun(H) {
       case OP_SET_GLOBAL: {
         const name = readConstant(frame).value
         const value = hymnPeek(H, 1)
-        const previous = tablePut(H.globals, name, value)
-        if (previous === null) {
-          frame = hymnThrowError(H, `undefined global '${name}'`)
-          if (frame === null) return
-          else break
-        }
+        tablePut(H.globals, name, value)
         break
       }
       case OP_GET_GLOBAL: {
@@ -4564,6 +4612,11 @@ async function hymnRun(H) {
         } else {
           H.printError(valueToString(value))
         }
+        break
+      }
+      case OP_INSPECT: {
+        const value = hymnPop(H)
+        hymnPush(H, newString(valueToInspect(value)))
         break
       }
       case OP_THROW: {

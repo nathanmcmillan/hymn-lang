@@ -19,7 +19,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.6.2"
+#define HYMN_VERSION "0.7.0"
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
@@ -28,7 +28,7 @@
 // #define HYMN_NO_REPL
 #define HYMN_NO_DYNAMIC_LIBS
 
-#define HYMN_NO_OPTIMIZE
+// #define HYMN_NO_OPTIMIZE
 #define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
@@ -208,6 +208,7 @@ struct HymnFunction {
     HymnObject object;
     HymnString *name;
     HymnString *script;
+    HymnString *source;
     int arity;
     int registers;
     HymnByteCode code;

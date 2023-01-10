@@ -1,10 +1,10 @@
-function assert(expected, actual) {
+func assert(expected, actual) {
   if expected != actual  {
     throw "assert equals: expected <" + expected + "> but was <" + actual + ">"
   }
 }
 
-function assert_not(expected, actual) {
+func assert_not(expected, actual) {
   if expected == actual {
     throw "assert not equals: <" + actual + ">"
   }

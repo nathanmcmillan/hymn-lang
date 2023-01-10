@@ -1,6 +1,6 @@
 # @exception too many function parameters
 
-function foobar(
+func foobar(
   arg1,
   arg2,
   arg3,

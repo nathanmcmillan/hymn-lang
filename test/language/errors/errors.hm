@@ -1,4 +1,4 @@
-function runtime(s) {
+func runtime(s) {
   let i = index(s, "\n")
   if i > 0 {
     let c = index(s, ":")

@@ -1,4 +1,4 @@
-function fun(raw) {
+func fun(raw) {
   echo "{ raw } -> { json.parse(raw) }"
 }
 

@@ -411,6 +411,7 @@ static HymnValue replace(Hymn *H, int count, HymnValue *arguments) {
     HymnString *original = hymn_as_string(source);
     HymnString *text = original;
     HymnString *pattern = hymn_as_string(expression);
+    HymnString *replacement = hymn_as_string(substitute);
     char *begin = NULL;
     char *end = NULL;
     Match group = {0};
@@ -445,6 +446,7 @@ static HymnValue replace(Hymn *H, int count, HymnValue *arguments) {
     //     append replacement string
     //     append substring from end to original string final end
     HymnString *updated = hymn_string_format("%.*s", end - begin, begin);
+    updated = hymn_string_append(updated, replacement);
     return hymn_new_string_value(hymn_intern_string(H, updated));
 }
 

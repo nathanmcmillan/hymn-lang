@@ -1,7 +1,7 @@
 # 1
 # done
 
-function process() {
+func process() {
   for v in [1, 2, 3] {
     if v == 2 { return }
     echo v
