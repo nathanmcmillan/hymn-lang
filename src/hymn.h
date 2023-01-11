@@ -29,7 +29,6 @@
 #define HYMN_NO_DYNAMIC_LIBS
 
 // #define HYMN_NO_OPTIMIZE
-#define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER
@@ -210,7 +209,6 @@ struct HymnFunction {
     HymnString *script;
     HymnString *source;
     int arity;
-    int registers;
     HymnByteCode code;
     HymnExceptList *except;
 };

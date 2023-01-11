@@ -3503,10 +3503,6 @@ static void optimize(Compiler *C) {
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
 
-    int locals = scope->local_count;
-    int parameters = func->arity;
-    int registers = 0;
-
     Optimizer optimizer = {0};
     optimizer.code = &func->code;
     optimizer.except = func->except;
@@ -3556,10 +3552,6 @@ static void optimize(Compiler *C) {
     }
 
     int one = 0;
-#ifndef HYMN_NO_REGISTERS
-    int zero = -1;
-    int minus = -1;
-#endif
 
     while (one < COUNT()) {
 
@@ -3804,74 +3796,9 @@ static void optimize(Compiler *C) {
             }
             break;
         }
-        case OP_JUMP_IF_GREATER:
-        case OP_JUMP_IF_GREATER_EQUAL: {
-#ifndef HYMN_NO_REGISTERS
-            uint8_t zed = SAFE_INSTRUCTION(zero);
-            uint8_t omega = SAFE_INSTRUCTION(minus);
-            if ((zed == OP_GET_LOCAL || zed == OP_GET_GLOBAL || zed == OP_CONSTANT) && (omega == OP_GET_LOCAL || omega == OP_GET_GLOBAL || omega == OP_CONSTANT)) {
-                if ((int)locals + (int)registers + 1 < UINT8_MAX) {
-                    ADD(one + 1, 2);
-                    if (first == OP_JUMP_IF_GREATER) {
-                        UPDATE(one, IR_JUMP_IF_GREATER);
-                    } else {
-                        UPDATE(one, IR_JUMP_IF_GREATER_EQUAL);
-                    }
-                    if (zed == OP_GET_LOCAL) {
-                        uint8_t value_b = INSTRUCTION(zero + 1);
-                        SET(one + 2, value_b);
-                        REMOVE(zero, 2);
-                        one -= 2;
-                    } else {
-                        uint8_t slot_2 = (uint8_t)(locals + (++registers));
-                        SET(one + 2, slot_2);
-                        SET(zero, (zed == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                        ADD(zero + 2, 1);
-                        SET(zero + 2, slot_2);
-                        one += 1;
-                    }
-                    if (omega == OP_GET_LOCAL) {
-                        uint8_t value_a = INSTRUCTION(minus + 1);
-                        SET(one + 1, value_a);
-                        REMOVE(minus, 2);
-                        one -= 2;
-                    } else {
-                        uint8_t slot_1 = (uint8_t)(locals + (++registers));
-                        SET(one + 1, slot_1);
-                        SET(minus, (omega == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                        ADD(minus + 2, 1);
-                        SET(minus + 2, slot_1);
-                        one += 1;
-                    }
-                    minus = -1;
-                    zero = -1;
-                    REPEAT;
-                }
-            }
-#endif
-            break;
-        }
-        case OP_MODULO: {
-#ifndef HYMN_NO_REGISTERS
-            uint8_t zed = SAFE_INSTRUCTION(zero);
-            if (zed == OP_GET_LOCALS) {
-                SET(zero, IR_MODULO);
-                REWRITE(0, 1);
-                one = zero;
-                minus = -1;
-                zero = -1;
-                REPEAT;
-            }
-#endif
-            break;
-        }
         }
 
     next:
-#ifndef HYMN_NO_REGISTERS
-        minus = zero;
-        zero = one;
-#endif
         one = two;
     }
 
@@ -3880,81 +3807,6 @@ static void optimize(Compiler *C) {
         Instruction *next = important->next;
         free(important);
         important = next;
-    }
-
-    if (registers == 0) {
-        return;
-    }
-
-    C->scope->func->registers = registers;
-
-    int x = 0;
-    while (x < COUNT()) {
-        uint8_t opcode = INSTRUCTION(x);
-        switch (opcode) {
-        case OP_ADD_LOCALS:
-        case OP_MODULO_LOCALS:
-        case OP_GET_LOCALS:
-        case IR_MODULO: {
-            uint8_t slot_1 = INSTRUCTION(x + 1);
-            uint8_t slot_2 = INSTRUCTION(x + 2);
-            if (slot_1 > parameters) {
-                if ((int)slot_1 + registers > UINT8_MAX) {
-                    // FIXME: Pre-compute if optimization has enough registers to avoid this
-                    fprintf(stderr, "out of locals due to registers");
-                    exit(1);
-                }
-                SET(x + 1, slot_1 + (uint8_t)registers);
-            }
-            if (slot_2 > parameters) {
-                if ((int)slot_2 + registers > UINT8_MAX) {
-                    fprintf(stderr, "out of locals due to registers");
-                    exit(1);
-                }
-                SET(x + 2, slot_2 + (uint8_t)registers);
-            }
-            break;
-        }
-        case OP_INCREMENT_LOCAL:
-        case OP_INCREMENT_LOCAL_AND_SET:
-        case OP_INCREMENT_LOOP:
-        case OP_GET_LOCAL:
-        case OP_FOR:
-        case OP_FOR_LOOP: {
-            uint8_t slot = INSTRUCTION(x + 1);
-            if (slot > parameters) {
-                if ((int)slot + registers > UINT8_MAX) {
-                    fprintf(stderr, "out of locals due to registers");
-                    exit(1);
-                }
-                SET(x + 1, slot + (uint8_t)registers);
-            }
-            break;
-        }
-        case IR_GLOBAL:
-        case IR_CONSTANT: {
-            uint8_t slot = INSTRUCTION(x + 2);
-            SET(x + 2, (uint8_t)((int)slot - locals + parameters));
-            break;
-        }
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
-            uint8_t slot_1 = INSTRUCTION(x + 1);
-            uint8_t slot_2 = INSTRUCTION(x + 2);
-            if (slot_1 > locals) {
-                SET(x + 1, (uint8_t)((int)slot_1 - locals + parameters));
-            } else if (slot_1 > parameters) {
-                SET(x + 1, slot_1 + (uint8_t)registers);
-            }
-            if (slot_2 > locals) {
-                SET(x + 2, (uint8_t)((int)slot_2 - locals + parameters));
-            } else if (slot_2 > parameters) {
-                SET(x + 2, slot_2 + (uint8_t)registers);
-            }
-            break;
-        }
-        }
-        x += next(opcode);
     }
 }
 
@@ -5191,10 +5043,6 @@ static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     frame->ip = func->code.instructions;
     frame->stack = H->stack_top - count - 1;
 
-    for (int r = 0; r < func->registers; r++) {
-        push(H, hymn_new_none());
-    }
-
     return frame;
 }
 
@@ -5734,9 +5582,6 @@ dispatch:
                 H->stack_top = start;
                 frame->func = func;
                 frame->ip = func->code.instructions;
-                for (int r = 0; r < func->registers; r++) {
-                    push(H, hymn_new_none());
-                }
             }
         }
         if (frame == NULL) return;
