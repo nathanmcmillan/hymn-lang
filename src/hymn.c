@@ -180,7 +180,7 @@ HymnString *hymn_string_append_char(HymnString *string, const char b) {
     return (HymnString *)s;
 }
 
-static HymnString *string_append_substring(HymnString *string, const char *b, size_t start, size_t end) {
+HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end) {
     HymnStringHead *head = HYMN_STRING_HEAD(string);
     size_t len_a = head->length;
     size_t len_b = end - start;
@@ -254,14 +254,14 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
             }
         }
         if (match) {
-            out = string_append_substring(out, string, p, i);
+            out = hymn_string_append_substring(out, string, p, i);
             out = hymn_string_append(out, replace);
             i += len_sub;
             p = i;
         }
     }
     if (p < len) {
-        out = string_append_substring(out, string, p, len);
+        out = hymn_string_append_substring(out, string, p, len);
     }
     return out;
 }

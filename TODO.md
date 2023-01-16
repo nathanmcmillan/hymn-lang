@@ -17,8 +17,6 @@
 1. Hexadecimal numbers prefixed with `0x`
 1. Scientific notation numbers `e+1` `e-1`
 1. UTF8 encode and decode strings and codes with `\u0000`
-1. Registers (avoids push / pop / references)
-   - To avoid too many OP codes, focus on local variable optimization
 1. Self referencing local functions
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`
 1. Add `finally` keyword for try blocks
@@ -34,6 +32,8 @@
 
 # Notes
 
+1. Registers greatly improve performance by avoiding additional push, pop, and referencing
+   - But requires quite a lot more complexity to implement
 1. Using a macro READ_BYTE instead of an inline functions improves performance
 1. Using an instruction pointer rather than an index improves performance
 1. Using computed goto instead of a switch **does not** always improve performance

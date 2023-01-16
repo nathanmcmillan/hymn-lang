@@ -1,5 +1,18 @@
 
-echo "zoobar -> " + pattern.replace("foobar", "foo", "zoo")
+echo "zoofoobar -> " + pattern.replace("foofoobar", "^foo", "zoo")
+echo "foo -> " + pattern.replace("foobar", "(f.+)bar", "%1")
+echo "ihgfedcbaj -> " + pattern.replace("abcdefghij", "(%a)(%a)(%a)(%a)(%a)(%a)(%a)(%a)(%a)", "%9%8%7%6%5%4%3%2%1")
+echo "% -> " + pattern.replace("foobar", "(foo)bar", "%%")
+echo "%1 -> " + pattern.replace("foobar", "(foo)bar", "%%1")
+echo "%0 -> " + pattern.replace("A", "(A)", "%0")
+echo "%a -> " + pattern.replace("B", "(B)", "%a")
+
+# echo "========================================"
+
+# echo "zoobar -> " + pattern.replace("foobar", "foo", "zoo")
+# echo "zoozoobar -> " + pattern.replace("foofoobar", "foo", "zoo")
+# echo "zooberzoober -> " + pattern.replace("goobergoober", "goo", "zoo")
+# echo "barzoo -> " + pattern.replace("barfoo", "foo", "zoo")
 
 # echo "========================================"
 
