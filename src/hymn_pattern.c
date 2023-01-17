@@ -6,7 +6,7 @@
 
 #include "hymn.h"
 
-#define MAX_CAPTURES 32
+#define MAX_CAPTURES 16
 
 typedef struct Capture Capture;
 typedef struct Match Match;
@@ -392,7 +392,7 @@ static HymnValue is_match(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_bool(begin != NULL && begin == original && end[0] == '\0');
 }
 
-static HymnString *replacer(HymnString *updated, Match *group, HymnString *replacement) {
+static HymnString *replacer(HymnString *updated, char *begin, char *end, Match *group, HymnString *replacement) {
     if (updated == NULL) {
         updated = hymn_new_string_with_capacity(hymn_string_len(replacement));
     }
@@ -404,12 +404,19 @@ static HymnString *replacer(HymnString *updated, Match *group, HymnString *repla
                 updated = hymn_string_append_char(updated, '%');
                 text += 2;
                 continue;
-            } else if (c >= '1' && c <= '9') {
-                int i = c - '0' - 1;
-                if (i < group->count) {
-                    updated = hymn_string_append_substring(updated, group->capture[i].begin, 0, group->capture[i].size);
+            } else if (c >= '0' && c <= '9') {
+                int i = c - '0';
+                if (i == 0) {
+                    updated = hymn_string_append_substring(updated, begin, 0, (size_t)(end - begin));
                     text += 2;
                     continue;
+                } else {
+                    i--;
+                    if (i < group->count) {
+                        updated = hymn_string_append_substring(updated, group->capture[i].begin, 0, group->capture[i].size);
+                        text += 2;
+                        continue;
+                    }
                 }
             }
         }
@@ -456,10 +463,10 @@ static HymnValue replace(Hymn *H, int count, HymnValue *arguments) {
             } else if (end != NULL) {
                 if (updated == NULL) {
                     if (text == original) {
-                        updated = replacer(updated, &group, replacement);
+                        updated = replacer(updated, text, end, &group, replacement);
                     } else {
                         updated = hymn_string_format("%.*s", text - original, original);
-                        updated = replacer(updated, &group, replacement);
+                        updated = replacer(updated, text, end, &group, replacement);
                     }
                 } else {
                     if (last != text) {
@@ -467,7 +474,7 @@ static HymnValue replace(Hymn *H, int count, HymnValue *arguments) {
                         updated = hymn_string_append(updated, behind);
                         hymn_string_delete(behind);
                     }
-                    updated = replacer(updated, &group, replacement);
+                    updated = replacer(updated, text, end, &group, replacement);
                 }
                 last = end;
                 if (end[0] == '\0') {
