@@ -320,6 +320,7 @@ class Token {
     this.column = 0
     this.start = 0
     this.length = 0
+    this.number = 0
   }
 }
 
@@ -934,6 +935,16 @@ function valueToken(C, type, start, end) {
   token.length = end - start
 }
 
+function numberToken(C, type, start, end, value) {
+  const token = C.current
+  token.type = type
+  token.row = C.row
+  token.column = C.column
+  token.start = start
+  token.length = end - start
+  token.number = value
+}
+
 function identTrie(ident, offset, rest, type) {
   for (let i = 0; i < rest.length; i++) {
     if (ident[offset + i] !== rest[i]) {
@@ -1367,23 +1378,67 @@ function advance(C) {
       default: {
         if (isDigit(c)) {
           const start = C.pos - 1
+          if (c === '0') {
+            const p = peekChar(C)
+            if (p === 'b') {
+              nextChar(C)
+              while (true) {
+                c = peekChar(C)
+                if (c !== '0' && c !== '1') {
+                  break
+                }
+                nextChar(C)
+              }
+              const end = C.pos
+              const value = sourceSubstring(C, end - start - 2, start + 2)
+              numberToken(C, TOKEN_INTEGER, start, end, parseInt(value, 2))
+              return
+            } else if (p === 'x') {
+              nextChar(C)
+              while (true) {
+                c = peekChar(C)
+                if (!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) {
+                  break
+                }
+                nextChar(C)
+              }
+              const end = C.pos
+              const value = sourceSubstring(C, end - start - 2, start + 2)
+              numberToken(C, TOKEN_INTEGER, start, end, parseInt(value, 16))
+              return
+            }
+          }
           while (isDigit(peekChar(C))) {
             nextChar(C)
           }
-          let discrete = true
-          if (peekChar(C) === '.') {
-            discrete = false
+          const p = peekChar(C)
+          if (p === '.') {
             nextChar(C)
+            while (isDigit(peekChar(C))) {
+              nextChar(C)
+            }
+            const n = peekChar(C)
+            if (n === 'e' || n === 'E') {
+              nextChar(C)
+              const e = peekChar(C)
+              if (e === '-' || e === '+') nextChar(C)
+              while (isDigit(peekChar(C))) {
+                nextChar(C)
+              }
+            }
+          } else if (p === 'e' || p === 'E') {
+            nextChar(C)
+            const n = peekChar(C)
+            if (n === '-' || n === '+') nextChar(C)
             while (isDigit(peekChar(C))) {
               nextChar(C)
             }
           }
           const end = C.pos
-          if (discrete) {
-            valueToken(C, TOKEN_INTEGER, start, end)
-          } else {
-            valueToken(C, TOKEN_FLOAT, start, end)
-          }
+          const value = sourceSubstring(C, end - start, start)
+          const number = Number(value)
+          if (Number.isSafeInteger(number)) numberToken(C, TOKEN_INTEGER, start, end, number)
+          else numberToken(C, TOKEN_FLOAT, start, end, number)
           return
         } else if (isIdent(c)) {
           const start = C.pos - 1
@@ -1687,15 +1742,11 @@ function compileFalse(C) {
 }
 
 function compileInteger(C) {
-  const previous = C.previous
-  const number = parseInt(sourceSubstring(C, previous.length, previous.start))
-  emitConstant(C, newInt(number))
+  emitConstant(C, newInt(C.current.number))
 }
 
 function compileFloat(C) {
-  const previous = C.previous
-  const number = parseFloat(sourceSubstring(C, previous.length, previous.start))
-  emitConstant(C, newFloat(number))
+  emitConstant(C, newFloat(C.current.number))
 }
 
 function escapeSequence(c) {

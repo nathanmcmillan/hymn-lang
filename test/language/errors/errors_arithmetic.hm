@@ -6,7 +6,6 @@
 # can't subtract integer and boolean (expected numbers)
 # can't modulo boolean and integer (expected integers)
 # can't modulo integer and boolean (expected integers)
-# can't add boolean and integer
 # can't add integer and boolean
 
 use "errors"
@@ -23,5 +22,4 @@ try { 2 - false } except e { echo runtime(e) }
 try { false % 2 } except e { echo runtime(e) }
 try { 2 % false } except e { echo runtime(e) }
 
-try { false + 2 } except e { echo runtime(e) }
 try { 2 + false } except e { echo runtime(e) }

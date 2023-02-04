@@ -4,18 +4,13 @@
 1. Fix and thoroughly test OP code optimizations
    - Can we assign the original byte index as a unique identifier
    - And only at the very end, iterate through and match them, then calculate the final difference?
-1. Finish patterns module
+1. Finish JSON module
 1. Finish dynamic library support
    - Export everything
    - Build as a library
 
 # Features
 
-## OP Codes
-
-1. Binary numbers prefixed with `0b`
-1. Hexadecimal numbers prefixed with `0x`
-1. Scientific notation numbers `e+1` `e-1`
 1. UTF8 encode and decode strings and codes with `\u0000`
 1. Self referencing local functions
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`

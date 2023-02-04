@@ -749,6 +749,8 @@ struct Token {
     int column;
     size_t start;
     int length;
+    HymnInt integer;
+    HymnFloat floating;
 };
 
 struct Local {
@@ -1560,6 +1562,26 @@ static void value_token(Compiler *C, enum TokenType type, size_t start, size_t e
     current->length = (int)(end - start);
 }
 
+static void int_token(Compiler *C, enum TokenType type, size_t start, size_t end, HymnInt integer) {
+    Token *current = &C->current;
+    current->type = type;
+    current->row = C->row;
+    current->column = C->column;
+    current->start = start;
+    current->length = (int)(end - start);
+    current->integer = integer;
+}
+
+static void float_token(Compiler *C, enum TokenType type, size_t start, size_t end, HymnFloat floating) {
+    Token *current = &C->current;
+    current->type = type;
+    current->row = C->row;
+    current->column = C->column;
+    current->start = start;
+    current->length = (int)(end - start);
+    current->floating = floating;
+}
+
 static enum TokenType ident_trie(const char *ident, int offset, const char *rest, enum TokenType type) {
     int i = 0;
     do {
@@ -1978,23 +2000,77 @@ static void advance(Compiler *C) {
         default: {
             if (is_digit(c)) {
                 size_t start = C->pos - 1;
+                if (c == '0') {
+                    const char p = peek_char(C);
+                    if (p == 'b') {
+                        next_char(C);
+                        while (true) {
+                            c = peek_char(C);
+                            if (c != '0' && c != '1') {
+                                break;
+                            }
+                            next_char(C);
+                        }
+                        size_t end = C->pos;
+                        long long number = (long long)strtoll(&C->source[start + 2], NULL, 2);
+                        int_token(C, TOKEN_INTEGER, start, end, number);
+                        return;
+                    } else if (p == 'x') {
+                        next_char(C);
+                        while (true) {
+                            c = peek_char(C);
+                            if (!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) {
+                                break;
+                            }
+                            next_char(C);
+                        }
+                        size_t end = C->pos;
+                        long long number = (long long)strtoll(&C->source[start + 2], NULL, 16);
+                        int_token(C, TOKEN_INTEGER, start, end, number);
+                        return;
+                    }
+                }
                 while (is_digit(peek_char(C))) {
                     next_char(C);
                 }
-                bool discrete = true;
-                if (peek_char(C) == '.') {
-                    discrete = false;
+                const char p = peek_char(C);
+                if (p == '.') {
                     next_char(C);
                     while (is_digit(peek_char(C))) {
                         next_char(C);
                     }
+                    const char n = peek_char(C);
+                    if (n == 'e' || n == 'E') {
+                        next_char(C);
+                        const char e = peek_char(C);
+                        if (e == '-' || e == '+') next_char(C);
+                        while (is_digit(peek_char(C))) {
+                            next_char(C);
+                        }
+                    }
+                    size_t end = C->pos;
+                    double number = atof(&C->source[start]);
+                    float_token(C, TOKEN_FLOAT, start, end, number);
+                    return;
+                } else if (p == 'e' || p == 'E') {
+                    next_char(C);
+                    const char n = peek_char(C);
+                    if (n == '-' || n == '+') next_char(C);
+                    while (is_digit(peek_char(C))) {
+                        next_char(C);
+                    }
+                    size_t end = C->pos;
+                    double number = atof(&C->source[start]);
+                    if (trunc(number) == number) {
+                        int_token(C, TOKEN_INTEGER, start, end, (long long)number);
+                    } else {
+                        float_token(C, TOKEN_FLOAT, start, end, number);
+                    }
+                    return;
                 }
                 size_t end = C->pos;
-                if (discrete) {
-                    value_token(C, TOKEN_INTEGER, start, end);
-                } else {
-                    value_token(C, TOKEN_FLOAT, start, end);
-                }
+                long long number = atoll(&C->source[start]);
+                int_token(C, TOKEN_INTEGER, start, end, number);
                 return;
             } else if (is_ident(c)) {
                 size_t start = C->pos - 1;
@@ -2574,16 +2650,12 @@ static void compile_false(Compiler *C, bool assign) {
 
 static void compile_integer(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &C->previous;
-    long long number = (long long)strtoll(&C->source[previous->start], NULL, 10);
-    emit_constant(C, hymn_new_int(number));
+    emit_constant(C, hymn_new_int(C->current.integer));
 }
 
 static void compile_float(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &C->previous;
-    double number = strtod(&C->source[previous->start], NULL);
-    emit_constant(C, hymn_new_float(number));
+    emit_constant(C, hymn_new_float(C->current.floating));
 }
 
 char escape_sequence(const char c) {
