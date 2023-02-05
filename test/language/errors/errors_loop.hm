@@ -1,0 +1,3 @@
+# @exception can't iterate over integer (expected array or table)
+
+for x in 24 { echo x }

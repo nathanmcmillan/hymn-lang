@@ -1,0 +1,22 @@
+# comparison '>' can't use boolean and integer (expected numbers)
+# comparison '>' can't use integer and boolean (expected numbers)
+# comparison '<' can't use boolean and integer (expected numbers)
+# comparison '<' can't use integer and boolean (expected numbers)
+# comparison '>=' can't use boolean and integer (expected numbers)
+# comparison '>=' can't use integer and boolean (expected numbers)
+# comparison '<=' can't use boolean and integer (expected numbers)
+# comparison '<=' can't use integer and boolean (expected numbers)
+
+use "errors"
+
+try { false > 2 } except e { echo runtime(e) }
+try { 2 > false } except e { echo runtime(e) }
+
+try { false < 2 } except e { echo runtime(e) }
+try { 2 < false } except e { echo runtime(e) }
+
+try { false >= 2 } except e { echo runtime(e) }
+try { 2 >= false } except e { echo runtime(e) }
+
+try { false <= 2 } except e { echo runtime(e) }
+try { 2 <= false } except e { echo runtime(e) }

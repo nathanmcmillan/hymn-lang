@@ -1,0 +1,15 @@
+let start = os.clock()
+
+let N = 90000000
+let sum = 0
+
+func foo(i) {
+  sum += i
+}
+
+for i = 1, i < N {
+  foo(i)
+}
+
+let seconds = os.clock() - start
+echo "elapsed: " + seconds + "s | " + sum

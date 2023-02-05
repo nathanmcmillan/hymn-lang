@@ -1,0 +1,19 @@
+# array index can't be string (expected integer)
+# array assignment index can't be string (expected integer)
+# array index out of bounds: 10 >= 1
+# array assignment index out of bounds: 10 > 1
+# negative array index: -3
+# negative array assignment index: -3
+
+use "errors"
+
+let array = [2]
+
+try { array["foo"] } except e { echo runtime(e) }
+try { array["foo"] = 0 } except e { echo runtime(e) }
+
+try { array[10] } except e { echo runtime(e) }
+try { array[10] = 0 } except e { echo runtime(e) }
+
+try { array[-4] } except e { echo runtime(e) }
+try { array[-4] = 0 } except e { echo runtime(e) }

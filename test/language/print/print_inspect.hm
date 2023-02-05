@@ -1,0 +1,20 @@
+# { "call": bar, "hello": func }
+# func bar(b) { return b }
+# func() {
+#   return 12
+# }
+
+func bar(b) { return b }
+
+let world = func() {
+  return 12
+}
+
+let foo = {
+  call: bar,
+  hello: world
+}
+
+echo inspect(foo)
+echo inspect(bar)
+echo inspect(world)

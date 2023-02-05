@@ -33,8 +33,8 @@ try { let mem = {} let arg = [] float(arg) } except _ { echo _ }
 try { let mem = {} do [] } except _ { echo _ }
 try { let mem = {} use [] } except _ { echo _ }
 
-function bad_function() { let a = [0, 2, 4] }
+func bad() { let a = [0, 2, 4] }
 
-try { let b = bad_function() b[0] = b[0] + 1 } except _ { echo _ }
+try { let b = bad() b[0] = b[0] + 1 } except _ { echo _ }
 
 echo "done!"

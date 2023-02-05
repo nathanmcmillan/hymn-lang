@@ -1,0 +1,16 @@
+# can't get property of integer (expected table)
+# can't set property of integer (expected table)
+# table key can't be integer (expected string)
+# table assignment key can't be integer (expected string)
+
+use "errors"
+
+let x = 48
+
+try { x.foo } except e { echo runtime(e) }
+try { x.foo = 64 } except e { echo runtime(e) }
+
+let table = {}
+
+try { table[2] } except e { echo runtime(e) }
+try { table[2] = 0 } except e { echo runtime(e) }

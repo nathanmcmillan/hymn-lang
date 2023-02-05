@@ -1,3 +1,3 @@
-# @Exception
+# @exception not enough arguments in call to 'insert' (expected 3)
 
-index(0)
+insert(0)

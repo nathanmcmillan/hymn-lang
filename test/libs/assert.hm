@@ -1,0 +1,37 @@
+func assert(expected, actual) {
+  if expected != actual  {
+    let t = type(expected)
+    if type(actual) == t {
+      if t == "array" {
+        let size = len(expected)
+        if len(actual) == size {
+          let i = 0
+          try {
+            while i < size {
+              assert(expected[i], actual[i])
+              i += 1
+            }
+          } except e {
+            throw "assert equals: expected <" + expected + "> but <" + actual + "> was different at index: " + i
+          }
+          return
+        }
+      }
+    }
+    throw "assert equals: expected <" + expected + "> but was <" + actual + ">"
+  }
+}
+
+func assert_not(expected, actual) {
+  try {
+    assert(expected, actual)
+  } except _ {
+    return
+  }
+  throw "assert not equals: <" + actual + ">"
+}
+
+func print_assert(expected, actual) {
+  assert(expected, actual)
+  echo actual
+}

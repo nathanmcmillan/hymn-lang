@@ -1,29 +1,26 @@
 # 8
-# undefined
 # 4
 # 12
+# 4
 
 {
-  function foo() {
+  func foo() {
     return 8
   }
   echo foo()
 }
 
-try {
-  foo()
-} except e {
-  echo e[0:9]
-}
-
-function foo() {
+func foo() {
   return 4
 }
+
 echo foo()
 
 {
-  function foo() {
+  func foo() {
     return 12
   }
   echo foo()
 }
+
+echo foo()

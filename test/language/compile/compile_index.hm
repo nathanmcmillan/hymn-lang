@@ -1,0 +1,3 @@
+# @exception expected opening '(' in call to 'index'
+
+index 0

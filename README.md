@@ -7,11 +7,11 @@ A small byte-code interpreted language with a focus on simplicity. [Visit the we
 use "math"
 
 # tables hold key value pairs
-function new_node(value) {
+func new_node(value) {
   return { value: value, next: none }
 }
 
-function node_add(list, value) {
+func node_add(list, value) {
   let node = list
   while true {
     if node.next == none { break }
@@ -49,21 +49,23 @@ echo list
 1. No classes
 1. No breaking changes after version 1.0
 
-## Progress
+## Status
 
-| Implementation | Status        | Description       |
-| -------------- | ------------- | ----------------- |
-| C              | Version 0.6.2 | Type declarations |
-| JavaScript     | Version 0.6.2 | Type declarations |
+| Implementation | Release       |
+| -------------- | ------------- |
+| C              | Version 0.6.3 |
+| JavaScript     | Version 0.6.3 |
+| Go             | In progress   |
+| Rust           | In progress   |
 
 # Performance
 
 AMD Ryzen 5 1600 6 core 3.2 GHz - Windows 10 using Ubuntu WSL
 
-| Test    | Factors | Fib   | List  | Loop  | Primes | Objects | Tail  |
-| ------- | ------- | ----- | ----- | ----- | ------ | ------- | ----- |
-| Hymn    | 1.64s   | 1.55s | 2.29s | 0.97s | 0.90s  | 3.70s   | 3.05s |
-| Lua     | 1.14s   | 1.16s | 1.98s | 0.72s | 0.81s  | 4.66s   | 1.81s |
-| Python  | 3.98s   | 2.27s | 2.63s | 1.28s | 2.59s  | 4.68s   | -     |
-| Node    | 0.69s   | 0.10s | 0.68s | 0.45s | 0.19s  | 1.77s   | -     |
-| Lua JIT | 0.08s   | 0.11s | 0.56s | 0.28s | 0.06s  | 1.20s   | 0.03s |
+| Test    | Factors | Fib   | List  | Loop  | Objects | Primes | Tail  |
+| ------- | ------- | ----- | ----- | ----- | ------- | ------ | ----- |
+| Hymn    | 1.64s   | 1.55s | 2.29s | 0.97s | 3.70s   | 0.90s  | 3.05s |
+| Lua     | 1.14s   | 1.16s | 1.98s | 0.72s | 4.66s   | 0.81s  | 1.81s |
+| Python  | 3.98s   | 2.27s | 2.63s | 1.28s | 4.68s   | 2.59s  | -     |
+| Node    | 0.69s   | 0.10s | 0.68s | 0.45s | 1.77s   | 0.19s  | -     |
+| Lua JIT | 0.08s   | 0.11s | 0.56s | 0.28s | 1.20s   | 0.06s  | 0.03s |

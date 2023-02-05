@@ -1,5 +1,4 @@
 # [2.1, 6.8]
-# 4.2
 # [2.1, 4.2, 6.8]
 # [0.1, 2.1, 4.2, 6.8]
 # [0.1, 2.1, 4.2, 6.8, 8.1]
@@ -7,8 +6,7 @@
 let array = [2.1, 6.8]
 echo array
 
-let top = insert(array, 1, 4.2)
-echo top
+insert(array, 1, 4.2)
 echo array
 
 insert(array, 0, 0.1)

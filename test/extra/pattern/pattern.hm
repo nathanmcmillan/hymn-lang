@@ -1,1 +1,80 @@
-echo pattern("^foo.*bar$", "foo hello world bar")
+use "test/libs/assert"
+
+print_assert("zoofoobar", pattern.replace("foofoobar", "^foo", "zoo"))
+print_assert("foo", pattern.replace("foobar", "(f.+)bar", "%1"))
+print_assert("ihgfedcbaj", pattern.replace("abcdefghij", "(%a)(%a)(%a)(%a)(%a)(%a)(%a)(%a)(%a)", "%9%8%7%6%5%4%3%2%1"))
+print_assert("%", pattern.replace("foobar", "(foo)bar", "%%"))
+print_assert("%1", pattern.replace("foobar", "(foo)bar", "%%1"))
+print_assert("a", pattern.replace("a", "(a)", "%0"))
+print_assert("%a", pattern.replace("B", "(B)", "%a"))
+print_assert("foobar/foo", pattern.replace("foobar", "(foo)bar", "%0/%1"))
+
+echo "========================================"
+
+print_assert("zoobar", pattern.replace("foobar", "foo", "zoo"))
+print_assert("zoozoobar", pattern.replace("foofoobar", "foo", "zoo"))
+print_assert("zooberzoober", pattern.replace("goobergoober", "goo", "zoo"))
+print_assert("barzoo", pattern.replace("barfoo", "foo", "zoo"))
+
+echo "========================================"
+
+print_assert(["bar"], pattern.get("foobar", "bar"))
+print_assert(["foobar", "bar"], pattern.get("foobar", "foo(bar)"))
+
+echo "========================================"
+
+print_assert([3, 6], pattern.find("foobar", "bar"))
+print_assert([0, 3], pattern.find("foobar", "foo"))
+
+echo "========================================"
+
+print_assert(false, pattern.match("foo", "foobar"))
+print_assert(false, pattern.match("foo", "^foobar$"))
+print_assert(false, pattern.match("bar", "foobar"))
+
+echo "========================================"
+
+print_assert(true, pattern.match("foobar", "foobar"))
+print_assert(true, pattern.match("foobar", "^foobar$"))
+print_assert(true, pattern.match("foobar", "(foo)bar"))
+print_assert(true, pattern.match("foobar", "foo(bar)"))
+print_assert(true, pattern.match("foobar", "(foo(bar))"))
+print_assert(true, pattern.match("foo", "(%d?)foo"))
+print_assert(true, pattern.match("4foo", "(%d?)foo"))
+print_assert(true, pattern.match("foo", "(%d*)foo"))
+print_assert(true, pattern.match("48foo", "(%d*)foo"))
+
+echo "========================================"
+
+print_assert([4, 7], pattern.find("foo bar", "bar", 0))
+print_assert([4, 7], pattern.find("foo bar", "bar", 4))
+print_assert([4, 7], pattern.find("foo bar", "bar", -1))
+print_assert([0, 19], pattern.find("foo hello world bar", "^foo.*bar$"))
+print_assert([0, 19], pattern.find("foo hello world bar", "^foo.-bar$"))
+print_assert([0, 19], pattern.find("foo hello world bar", "^foo.+bar$"))
+print_assert([0, 1], pattern.find("c", "%a"))
+print_assert([0, 1], pattern.find("1", "%d"))
+print_assert([0, 1], pattern.find("c", "%l"))
+print_assert([0, 1], pattern.find("C", "%u"))
+print_assert([0, 6], pattern.find("foobar", "foo[%a%d]*bar"))
+print_assert([0, 9], pattern.find("foo2x4bar", "foo[%a%d]*bar"))
+print_assert([0, 9], pattern.find("foo2x4bar", "foo[%a%d]+bar"))
+
+echo "========================================"
+
+print_assert(none, pattern.find("foo", "foo", 3))
+print_assert(none, pattern.find("foo", "foo", 4))
+print_assert(none, pattern.find("foo bar", "bar", 5))
+print_assert(none, pattern.find("", "%a"))
+print_assert(none, pattern.find("", "%d"))
+print_assert(none, pattern.find("1", "%a"))
+print_assert(none, pattern.find("c", "%d"))
+print_assert(none, pattern.find("C", "%l"))
+print_assert(none, pattern.find("c", "%u"))
+print_assert(none, pattern.find("foo bar", "foo[%a%d]bar"))
+print_assert(none, pattern.find("foo24bar", "foo[%a%d]bar"))
+print_assert(none, pattern.find("fooxzbar", "foo[%a%d]bar"))
+
+echo "========================================"
+
+echo "tests pass!"

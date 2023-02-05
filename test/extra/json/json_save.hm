@@ -1,4 +1,4 @@
-function fun(value) {
+func fun(value) {
   echo "{ value } -> { json.save(value) }"
 }
 

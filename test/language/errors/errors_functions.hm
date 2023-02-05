@@ -1,0 +1,7 @@
+# undefined global 'foo'
+
+use "errors"
+
+{ func foo() { return 8 } }
+
+try { foo() } except e { echo runtime(e) }

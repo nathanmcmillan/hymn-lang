@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -19,17 +20,16 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.6.2"
-
-// #define HYMN_NO_REPL
-// #define HYMN_NO_DYNAMIC_LIBS
+#define HYMN_VERSION "0.7.0"
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
 // #define HYMN_DEBUG_MEMORY
 
+// #define HYMN_NO_REPL
+#define HYMN_NO_DYNAMIC_LIBS
+
 // #define HYMN_NO_OPTIMIZE
-// #define HYMN_NO_REGISTERS
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER
@@ -208,8 +208,8 @@ struct HymnFunction {
     HymnObject object;
     HymnString *name;
     HymnString *script;
+    HymnString *source;
     int arity;
-    int registers;
     HymnByteCode code;
     HymnExceptList *except;
 };
@@ -239,6 +239,7 @@ struct Hymn {
     HymnArray *paths;
     HymnTable *imports;
     HymnString *error;
+    HymnString *exception;
 #ifndef HYMN_NO_DYNAMIC_LIBS
     HymnLibList *libraries;
 #endif
@@ -269,10 +270,11 @@ size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
 bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
-HymnString *hymn_string_append_char(HymnString *this, const char b);
+HymnString *hymn_string_append_char(HymnString *string, const char b);
+HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end);
 bool hymn_string_starts_with(HymnString *s, const char *using);
 HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace);
-HymnString *hymn_string_append(HymnString *this, const char *b);
+HymnString *hymn_string_append(HymnString *string, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
 void hymn_string_trim(HymnString *string);
@@ -340,6 +342,8 @@ bool hymn_value_false(HymnValue value);
 bool hymn_values_equal(HymnValue a, HymnValue b);
 bool hymn_match_values(HymnValue a, HymnValue b);
 
+const char *hymn_value_type(enum HymnValueType type);
+
 void hymn_reference_string(HymnObjectString *string);
 void hymn_reference(HymnValue value);
 void hymn_dereference_string(Hymn *H, HymnObjectString *string);
@@ -347,6 +351,10 @@ void hymn_dereference(Hymn *H, HymnValue value);
 
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
 void hymn_set_property_const(Hymn *H, HymnTable *table, const char *name, HymnValue value);
+
+HymnValue hymn_new_exception(Hymn *H, char *error);
+HymnValue hymn_arity_exception(Hymn *H, int expected, int actual);
+HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnValueType actual);
 
 Hymn *new_hymn();
 

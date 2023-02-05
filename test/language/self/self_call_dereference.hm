@@ -1,0 +1,33 @@
+# 4
+# none
+# 8
+# none
+# none
+
+func foo(me, more) {
+  me.call = none
+  return me.value + more
+}
+
+let bar = {
+  call: foo,
+  value: 2
+}
+
+echo bar->call(2)
+echo bar.call
+
+let unnamed = func(me, more) {
+  me.call = none
+  unnamed = none
+  return me.value + more
+}
+
+bar = {
+  call: unnamed,
+  value: 4
+}
+
+echo bar->call(4)
+echo bar.call
+echo unnamed

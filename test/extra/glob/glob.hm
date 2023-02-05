@@ -30,8 +30,7 @@ echo "19. " + glob("hello*world*foo*bar", "hello_//_world_//_foo_//_bar")
 
 echo "20. " + glob("hello?world?foo?bar", "hello_world_foo_bar")
 
-echo ""
-echo " [false]"
+print(0, "\n [false]\n")
 
 echo " 1. " + glob("?oo", "not")
 echo " 2. " + glob("fooba?", "fooba")

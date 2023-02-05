@@ -1,19 +1,19 @@
 # My cat is Mittens and says Meow!
 # My dog is Cookies and says Bork!
 
-function meow() {
+func meow() {
   return "Meow!"
 }
 
-function bork() {
+func bork() {
   return "Bork!"
 }
 
-function cat(name) {
+func cat(name) {
   return { name: name, says: meow }
 }
 
-function dog(name) {
+func dog(name) {
   return { name: name, says: bork }
 }
 

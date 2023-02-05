@@ -10,17 +10,17 @@
 # 2
 # 4
 
-function a() { return none }
-function b() { return true }
-function c() { return false }
-function d() { return 1 }
-function e() { return 0.01 }
-function f() { return "" }
-function g() { return [1] }
-function h() { return { hello: "world" } }
+func a() { return none }
+func b() { return true }
+func c() { return false }
+func d() { return 1 }
+func e() { return 0.01 }
+func f() { return "" }
+func g() { return [1] }
+func h() { return { hello: "world" } }
 
-function bar() { return 2 }
-function foo() { return bar }
+func bar() { return 2 }
+func foo() { return bar }
 
 echo a()
 echo b()
@@ -34,7 +34,7 @@ echo h()
 echo foo()
 echo foo()()
 
-function min(a, b) {
+func min(a, b) {
   if a < b { return a }
   return b
 }

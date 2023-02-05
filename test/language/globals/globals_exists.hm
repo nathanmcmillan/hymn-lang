@@ -5,13 +5,13 @@
 
 let foo = 1
 
-if __globals.foo {
+if GLOBALS.foo {
   echo "A"
 } else {
   echo "No"
 }
 
-if __globals.bar {
+if GLOBALS.bar {
   echo "No"
 } else {
   echo "B"
@@ -19,13 +19,13 @@ if __globals.bar {
 
 let hello = none
 
-if exists(__globals, "hello") {
+if exists(GLOBALS, "hello") {
   echo "C"
 } else {
   echo "No"
 }
 
-if exists(__globals, "world") {
+if exists(GLOBALS, "world") {
   echo "No"
 } else {
   echo "D"

@@ -1,0 +1,5 @@
+# can't call boolean (expected function)
+
+use "errors"
+
+try { true() } except e { echo runtime(e) }

@@ -1,0 +1,21 @@
+# xy
+# x
+# y
+#
+#
+# xy
+# x
+# y
+#
+
+echo "x${}y"
+echo "x${}"
+echo "${}y"
+echo "${}"
+echo "${
+
+}"
+echo "x${ }y"
+echo "x${ }"
+echo "${ }y"
+echo "${ }"

@@ -1,0 +1,26 @@
+# call to 'keys' can't use integer (expected table)
+# call to 'len' can't use integer (expected array, string, or table)
+# call to 'pop' can't use integer (expected array)
+# call to 'index' can't use integer for 1st argument (expected string, array, or table)
+# call to 'index' can't use integer for 2nd argument (expected string)
+# call to 'exists' can't use integer for 1st argument (expected table)
+# call to 'exists' can't use integer for 2nd argument (expected string)
+# call to 'push' can't use integer for 1st argument (expected array)
+# call to 'insert' can't use integer for 1st argument (expected array)
+# call to 'delete' can't use integer for 1st argument (expected array or table)
+
+use "errors"
+
+try { keys(2) } except e { echo runtime(e) }
+try { len(2) } except e { echo runtime(e) }
+try { pop(2) } except e { echo runtime(e) }
+
+try { index(2, 0) } except e { echo runtime(e) }
+try { index("foo", 0) } except e { echo runtime(e) }
+
+try { exists(0, 0) } except e { echo runtime(e) }
+try { exists({ foo: 0 }, 0) } except e { echo runtime(e) }
+
+try { push(2, 2) } except e { echo runtime(e) }
+try { insert(2, 2, 2) } except e { echo runtime(e) }
+try { delete(2, 2) } except e { echo runtime(e) }

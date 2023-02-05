@@ -1,7 +1,20 @@
-# @Exception
+# not enough arguments in call to 'foo' (expected 1)
+# too many arguments in call to 'foo' (expected 1)
+# not enough arguments in call to 'func' (expected 2)
+# too many arguments in call to 'func' (expected 2)
 
-function foo(x) {
+use "../errors/errors"
+
+func foo(x) {
   echo x
 }
 
-echo foo(2, 3)
+try { foo() } except e { echo runtime(e) }
+try { foo(2, 3) } except e { echo runtime(e) }
+
+let hidden = func(x, y) {
+  echo x + y
+}
+
+try { hidden(1) } except e { echo runtime(e) }
+try { hidden(1, 2, 3) } except e { echo runtime(e) }

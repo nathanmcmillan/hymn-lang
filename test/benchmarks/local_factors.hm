@@ -1,0 +1,15 @@
+{
+  let start = os.clock()
+
+  let N = 50000000
+  let factors = []
+
+  for i = 1, i <= N {
+    if N % i == 0 {
+      push(factors, i)
+    }
+  }
+
+  let seconds = os.clock() - start
+  echo "elapsed: " + seconds + "s | " + factors[-1]
+}

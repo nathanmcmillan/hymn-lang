@@ -3,14 +3,14 @@
 
 let anon = none
 {
-  anon = function() {
+  anon = func() {
     echo "> be me"
   }
 }
 
 anon()
 
-let unnamed = function() {
+let unnamed = func() {
   echo "> be global"
 }
 

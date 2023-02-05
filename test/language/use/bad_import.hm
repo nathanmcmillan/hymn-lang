@@ -1,0 +1,13 @@
+func foo(a, b) {
+  echo a + b
+}
+
+let hello = ["hello"]
+
+@
+
+func bar(a, b) {
+  echo a + b
+}
+
+let world = ["world"]

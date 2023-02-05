@@ -1,4 +1,8 @@
-# @Exception
+# [2, 4]
+# [6, 8]
 
-a = 2
+a = [2, 4]
+echo a
+
+a = [6, 8]
 echo a

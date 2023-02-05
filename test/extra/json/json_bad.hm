@@ -1,4 +1,4 @@
-function fun(raw) {
+func fun(raw) {
   print(stdout, "raw: { raw } -- ")
   let parsed = json.parse(raw)
   print(stdout, "exception: { parsed }\n")

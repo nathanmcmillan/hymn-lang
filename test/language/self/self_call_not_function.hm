@@ -1,0 +1,5 @@
+# @exception can't call array (expected function)
+
+let bar = { call: [1, 2] }
+
+echo bar->call(4)

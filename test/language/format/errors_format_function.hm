@@ -1,0 +1,3 @@
+# @exception expression expected near ')'
+
+echo "${ index() }"

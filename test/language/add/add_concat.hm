@@ -12,16 +12,16 @@
 # table: { "foo": "bar" }
 
 echo "256" + 0
-echo string(256) + 0
+echo str(256) + 0
 
 echo 1 + "256"
-echo 1 + string(256)
+echo 1 + str(256)
 
 echo "256.1" + 0
-echo string(256.1) + 0
+echo str(256.1) + 0
 
 echo "256.1" + 0.1
-echo string(256.1) + 0.1
+echo str(256.1) + 0.1
 
 echo "null: " + none
 echo "boolean: " + true

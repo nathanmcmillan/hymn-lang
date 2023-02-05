@@ -2,19 +2,17 @@
 
 1. Memory leaks when file not found
 1. Fix and thoroughly test OP code optimizations
-1. Native functions need a way to throw exceptions
-1. Consistent, descriptive error messages
+   - Can we assign the original byte index as a unique identifier
+   - And only at the very end, iterate through and match them, then calculate the final difference?
+1. Finish JSON module
+1. Finish dynamic library support
+   - Export everything
+   - Build as a library
 
 # Features
 
-1. `OP_TABLE` & `OP_ARRAY` to avoid if statement in `OP_CONSTANT` instruction
-1. Optimizations
-   - Registers to avoid push / pop / references
-   - If we have two number only instructions in a row
-   - We can take out the type check for the second instruction
-   - We know an exception will be thrown from the first instruction if the types are not allowed
+1. UTF8 encode and decode strings and codes with `\u0000`
 1. Self referencing local functions
-1. Keep source code for functions, for better inspection and debugging
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`
 1. Add `finally` keyword for try blocks
 1. Refactor string related handling to reduce copying
@@ -24,11 +22,13 @@
 1. Insert into table collision linked lists in sorted order
 1. Macro system
 1. Compile time constant evaluation
-1. Add built-in `destroy` function that looks for a custom clean up function pointer in object
 1. Transpile to C code and use a C compiler to generate a dynamic library at runtime
+1. Cache byte code in a `.hymn_cache` directory
 
 # Notes
 
+1. Registers greatly improve performance by avoiding additional push, pop, and referencing
+   - But requires quite a lot more complexity to implement
 1. Using a macro READ_BYTE instead of an inline functions improves performance
 1. Using an instruction pointer rather than an index improves performance
 1. Using computed goto instead of a switch **does not** always improve performance

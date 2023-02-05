@@ -1,0 +1,31 @@
+# can't slice integer (expected string or array)
+# slice can't use boolean (expected integer)
+# slice can't use float (expected integer)
+# slice out of range: 4 >= 3
+# slice out of range: 2 >= 1
+# slice out of bounds: 4 > 3
+# negative slice start: -2
+# negative slice end: -1
+# slice out of range: 4 >= 3
+# slice out of range: 2 >= 1
+# slice out of bounds: 4 > 3
+# negative slice start: -2
+# negative slice end: -1
+
+use "errors"
+
+try { 1[2:] } except e { echo runtime(e) }
+try { [][true:] } except e { echo runtime(e) }
+try { [][1:2.5] } except e { echo runtime(e) }
+
+try { "abc"[4:] } except e { echo runtime(e) }
+try { "abc"[2:1] } except e { echo runtime(e) }
+try { "abc"[:4] } except e { echo runtime(e) }
+try { "abc"[-2:] } except e { echo runtime(e) }
+try { "abc"[:-4] } except e { echo runtime(e) }
+
+try { [1,2,3][4:] } except e { echo runtime(e) }
+try { [1,2,3][2:1] } except e { echo runtime(e) }
+try { [1,2,3][:4] } except e { echo runtime(e) }
+try { [1,2,3][-2:] } except e { echo runtime(e) }
+try { [1,2,3][:-4] } except e { echo runtime(e) }

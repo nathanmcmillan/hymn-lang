@@ -1,0 +1,14 @@
+# string index can't be boolean (expected integer)
+# string index out of bounds: 10 >= 3
+# negative string index: -1
+# can't get value from boolean (expected array, table, or string)
+
+use "errors"
+
+let foo = "bar"
+
+try { foo[true] } except e { echo runtime(e) }
+try { foo[10] } except e { echo runtime(e) }
+try { foo[-4] } except e { echo runtime(e) }
+
+try { true[1] } except e { echo runtime(e) }

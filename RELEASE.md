@@ -1,3 +1,24 @@
+# Release 0.7.0
+
+- No exception thrown when defining or redefining a global variable without using `let`
+- Refactored compile and runtime exception messages
+- Numbers now allowed in variable names
+- New instructions `OP_NEW_ARRAY` and `OP_NEW_TABLE` for performance
+- Renamed global variables
+  - `__globals` -> `GLOBALS`
+  - `__paths` -> `PATHS`
+  - `__imports__` -> `IMPORTS`
+- Renamed functions
+  - `string` -> `str`
+- Renamed keywords
+  - `function` -> `func`
+- String formatting now uses `"${}"` style syntax
+- New syntax `->` for self calls on table functions
+- New standard library functions
+  - pattern: `get`, `find`, `match`, and `replace`
+- Support for binary `0b`, hexadecimal `0x`, and scientific notation numbers
+- New function `inspect` prints a given function's source code
+
 # Release 0.6.2
 
 - Various optimized OP codes for common instruction sequences
@@ -13,10 +34,10 @@
 - Removed OP code optimizations from JavaScript version to keep it simple
 - Added new command line arguments for `help`, `version`, and `interactive` support
 - New standard library functions
-  - IO `readlines`, `write`, `append`, and `move`
-  - OS `exec`
-  - Text `leftstrip`, `rightsrip`, and `join`
-  - JSON `save` and `parse`
+  - io: `readlines`, `write`, `append`, and `move`
+  - os: `exec`
+  - text: `leftstrip`, `rightsrip`, and `join`
+  - json: `save` and `parse`
 
 # Release 0.5.1
 
