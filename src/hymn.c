@@ -6289,10 +6289,6 @@ dispatch:
         if (hymn_is_undefined(previous)) {
             hymn_reference_string(name);
         } else {
-            // TODO: This should probably be taken out
-            // To allow safer script reloading
-            // If using "let" then prevent overwriting
-            // Otherwise allow new/overwriting globals
             table_put(&H->globals, name, previous);
             hymn_dereference(H, value);
             THROW("multiple global definitions of '%s'", name->string)

@@ -326,7 +326,6 @@ static HymnValue find(Hymn *H, int count, HymnValue *arguments) {
             }
             text++;
         }
-        original += start;
     }
     if (group.error != NULL) {
         return hymn_new_exception(H, group.error);
