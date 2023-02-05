@@ -676,11 +676,6 @@ enum OpCode {
     OP_FOR,
     OP_FOR_LOOP,
     OP_VOID,
-    IR_GLOBAL,
-    IR_CONSTANT,
-    IR_JUMP_IF_GREATER,
-    IR_JUMP_IF_GREATER_EQUAL,
-    IR_MODULO,
 };
 
 enum FunctionType {
@@ -3145,15 +3140,10 @@ static int next(uint8_t instruction) {
     case OP_LOOP:
     case OP_INCREMENT_LOCAL_AND_SET:
     case OP_INCREMENT_LOCAL:
-    case IR_GLOBAL:
-    case IR_CONSTANT:
-    case IR_MODULO:
         return 3;
     case OP_FOR:
     case OP_FOR_LOOP:
         return 4;
-    case IR_JUMP_IF_GREATER:
-    case IR_JUMP_IF_GREATER_EQUAL:
     case OP_JUMP_IF_GREATER_LOCALS:
     case OP_INCREMENT_LOOP:
         return 5;
@@ -3211,9 +3201,7 @@ static bool adjustable(Optimizer *optimizer, int target) {
         case OP_FOR: {
             IS_ADJUSTABLE(instructions, i, 4, <, target, +);
         }
-        case OP_JUMP_IF_GREATER_LOCALS:
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
+        case OP_JUMP_IF_GREATER_LOCALS: {
             IS_ADJUSTABLE(instructions, i, 5, <, target, +);
         }
         case OP_LOOP: {
@@ -3259,9 +3247,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             }
             break;
         }
-        case OP_JUMP_IF_GREATER_LOCALS:
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
+        case OP_JUMP_IF_GREATER_LOCALS: {
             if (i < start) {
                 uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
@@ -3390,9 +3376,7 @@ static void extend(Optimizer *optimizer, int start, int shift) {
             }
             break;
         }
-        case OP_JUMP_IF_GREATER_LOCALS:
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
+        case OP_JUMP_IF_GREATER_LOCALS: {
             if (i + 5 < start) {
                 uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
@@ -5429,11 +5413,6 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_TRUE: return debug_instruction(debug, "OP_TRUE", index);
     case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
     case OP_USE: return debug_instruction(debug, "OP_USE", index);
-    case IR_GLOBAL: return debug_constant_and_slot_instruction(debug, "IR_GLOBAL", code, index);
-    case IR_CONSTANT: return debug_constant_and_slot_instruction(debug, "IR_CONSTANT", code, index);
-    case IR_JUMP_IF_GREATER: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER", 1, code, index);
-    case IR_JUMP_IF_GREATER_EQUAL: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER_EQUAL", 1, code, index);
-    case IR_MODULO: return debug_three_byte_instruction(debug, "IR_MODULO", code, index);
     default: *debug = string_append_format(*debug, "UNKNOWN_OPCODE %d\n", instruction); return index + 1;
     }
 }
@@ -7144,111 +7123,6 @@ dispatch:
             const char *is = hymn_value_type(file.is);
             hymn_dereference(H, file);
             THROW("import can't use %s (expected string)", is)
-        }
-        HYMN_DISPATCH;
-    }
-    case IR_GLOBAL: {
-        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        uint8_t slot = READ_BYTE(frame);
-        HymnValue get = table_get(&H->globals, name);
-        if (hymn_is_undefined(get)) {
-            THROW("undefined global '%s'", name->string)
-        }
-        hymn_dereference(H, frame->stack[slot]);
-        frame->stack[slot] = get;
-        hymn_reference(get);
-        HYMN_DISPATCH;
-    }
-    case IR_CONSTANT: {
-        HymnValue constant = READ_CONSTANT(frame);
-        uint8_t slot = READ_BYTE(frame);
-        switch (constant.is) {
-        case HYMN_VALUE_ARRAY: {
-            constant = hymn_new_array_value(hymn_new_array(0));
-            break;
-        }
-        case HYMN_VALUE_TABLE: {
-            constant = hymn_new_table_value(hymn_new_table());
-            break;
-        }
-        default:
-            break;
-        }
-        hymn_dereference(H, frame->stack[slot]);
-        frame->stack[slot] = constant;
-        hymn_reference(constant);
-        HYMN_DISPATCH;
-    }
-    case IR_JUMP_IF_GREATER: {
-        HymnValue a = frame->stack[READ_BYTE(frame)];
-        HymnValue b = frame->stack[READ_BYTE(frame)];
-        uint16_t jump = READ_SHORT(frame);
-        bool answer;
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_int(a) > hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = (HymnFloat)hymn_as_int(a) > hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else if (hymn_is_float(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_float(a) > (HymnFloat)hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = hymn_as_float(a) > hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else {
-            THROW("Comparison: Operands must be numbers")
-        }
-        if (answer) {
-            frame->ip += jump;
-        }
-        HYMN_DISPATCH;
-    }
-    case IR_JUMP_IF_GREATER_EQUAL: {
-        HymnValue a = frame->stack[READ_BYTE(frame)];
-        HymnValue b = frame->stack[READ_BYTE(frame)];
-        uint16_t jump = READ_SHORT(frame);
-        bool answer;
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_int(a) >= hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = (HymnFloat)hymn_as_int(a) >= hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else if (hymn_is_float(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_float(a) >= (HymnFloat)hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = hymn_as_float(a) >= hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else {
-            THROW("Comparison: Operands must be numbers")
-        }
-        if (answer) {
-            frame->ip += jump;
-        }
-        HYMN_DISPATCH;
-    }
-    case IR_MODULO: {
-        HymnValue a = frame->stack[READ_BYTE(frame)];
-        HymnValue b = frame->stack[READ_BYTE(frame)];
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i %= b.as.i;
-                push(H, a);
-            } else {
-                THROW("Modulo Error: 2nd value must be `Integer`")
-            }
-        } else {
-            THROW("Modulo Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }

@@ -1,4 +1,4 @@
-# Release 0.7.0 (In progress)
+# Release 0.7.0
 
 - No exception thrown when defining or redefining a global variable without using `let`
 - Refactored compile and runtime exception messages
@@ -16,6 +16,8 @@
 - New syntax `->` for self calls on table functions
 - New standard library functions
   - pattern: `get`, `find`, `match`, and `replace`
+- Support for binary `0b`, hexadecimal `0x`, and scientific notation numbers
+- New function `inspect` prints a given function's source code
 
 # Release 0.6.2
 

@@ -127,7 +127,23 @@
       }
     },
     {
-      "match": "\\b([0-9]+(?:\\.[0-9]+)?)\\b",
+      "match": "\\b([0-9]+(?:\\.[0-9]+)?(?:(?:e|E)(?:\\+|-)?\\d+)?)\\b",
+      "captures": {
+        "1": {
+          "name": "constant.numeric.decimal.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(0b[01]+)\\b",
+      "captures": {
+        "1": {
+          "name": "constant.numeric.decimal.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b(0x[0-9a-f]+)\\b",
       "captures": {
         "1": {
           "name": "constant.numeric.decimal.hymn"
