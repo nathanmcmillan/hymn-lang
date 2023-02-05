@@ -51,12 +51,12 @@ echo list
 
 ## Status
 
-| Implementation | Release       |
-| -------------- | ------------- |
-| C              | Version 0.6.3 |
-| JavaScript     | Version 0.6.3 |
-| Go             | In progress   |
-| Rust           | In progress   |
+| Implementation | Release     |
+| -------------- | ----------- |
+| C              | Version 0.7 |
+| JavaScript     | Version 0.7 |
+| Go             | In progress |
+| Rust           | In progress |
 
 # Performance
 
