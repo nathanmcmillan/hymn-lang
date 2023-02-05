@@ -1,0 +1,9 @@
+# @exception can't get property of array (expected table)
+
+func foo(me, more) {
+  return me.value + more
+}
+
+let bar = [foo]
+
+echo bar->call(4)

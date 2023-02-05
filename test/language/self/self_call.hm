@@ -1,0 +1,12 @@
+# 7
+
+func foo(me, more) {
+  return me.value + more
+}
+
+let bar = {
+  call: foo,
+  value: 3
+}
+
+echo bar->call(4)

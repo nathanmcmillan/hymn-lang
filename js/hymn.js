@@ -95,6 +95,7 @@ class HymnFunction {
     this.count = 0
     this.name = null
     this.script = null
+    this.source = null
     this.arity = 0
     this.code = null
     this.except = null
@@ -186,42 +187,43 @@ const TOKEN_IF = 43
 const TOKEN_IN = 44
 const TOKEN_INDEX = 45
 const TOKEN_INSERT = 46
-const TOKEN_INTEGER = 47
-const TOKEN_KEYS = 48
-const TOKEN_LEFT_CURLY = 49
-const TOKEN_LEFT_PAREN = 50
-const TOKEN_LEFT_SQUARE = 51
-const TOKEN_LEN = 52
-const TOKEN_LESS = 53
-const TOKEN_LESS_EQUAL = 54
-const TOKEN_LET = 55
-const TOKEN_MODULO = 56
-const TOKEN_MULTIPLY = 57
-const TOKEN_NONE = 58
-const TOKEN_NOT = 59
-const TOKEN_NOT_EQUAL = 60
-const TOKEN_OR = 61
-const TOKEN_POP = 62
-const TOKEN_PRINT = 63
-const TOKEN_PUSH = 64
-const TOKEN_RETURN = 65
-const TOKEN_RIGHT_CURLY = 66
-const TOKEN_RIGHT_PAREN = 67
-const TOKEN_RIGHT_SQUARE = 68
-const TOKEN_SEMICOLON = 69
-const TOKEN_STRING = 70
-const TOKEN_SUBTRACT = 71
-const TOKEN_THROW = 72
-const TOKEN_TO_FLOAT = 73
-const TOKEN_TO_INTEGER = 74
-const TOKEN_TO_STRING = 75
-const TOKEN_TRUE = 76
-const TOKEN_TRY = 77
-const TOKEN_TYPE_FUNC = 78
-const TOKEN_UNDEFINED = 79
-const TOKEN_USE = 80
-const TOKEN_VALUE = 81
-const TOKEN_WHILE = 82
+const TOKEN_INSPECT = 47
+const TOKEN_INTEGER = 48
+const TOKEN_KEYS = 49
+const TOKEN_LEFT_CURLY = 50
+const TOKEN_LEFT_PAREN = 51
+const TOKEN_LEFT_SQUARE = 52
+const TOKEN_LEN = 53
+const TOKEN_LESS = 54
+const TOKEN_LESS_EQUAL = 55
+const TOKEN_LET = 56
+const TOKEN_MODULO = 57
+const TOKEN_MULTIPLY = 58
+const TOKEN_NONE = 59
+const TOKEN_NOT = 60
+const TOKEN_NOT_EQUAL = 61
+const TOKEN_OR = 62
+const TOKEN_POINTER = 63
+const TOKEN_POP = 64
+const TOKEN_PRINT = 65
+const TOKEN_PUSH = 66
+const TOKEN_RETURN = 67
+const TOKEN_RIGHT_CURLY = 68
+const TOKEN_RIGHT_PAREN = 69
+const TOKEN_RIGHT_SQUARE = 70
+const TOKEN_STRING = 71
+const TOKEN_SUBTRACT = 72
+const TOKEN_THROW = 73
+const TOKEN_TO_FLOAT = 74
+const TOKEN_TO_INTEGER = 75
+const TOKEN_TO_STRING = 76
+const TOKEN_TRUE = 77
+const TOKEN_TRY = 78
+const TOKEN_TYPE_FUNC = 79
+const TOKEN_UNDEFINED = 80
+const TOKEN_USE = 81
+const TOKEN_VALUE = 82
+const TOKEN_WHILE = 83
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -242,69 +244,71 @@ const STRING_STATUS_CLOSE = 3
 const STRING_STATUS_CONTINUE = 4
 
 const OP_ADD = 0
-const OP_ARRAY_INSERT = 2
-const OP_ARRAY_POP = 3
-const OP_ARRAY_PUSH = 4
-const OP_BIT_AND = 5
-const OP_BIT_LEFT_SHIFT = 6
-const OP_BIT_NOT = 7
-const OP_BIT_OR = 8
-const OP_BIT_RIGHT_SHIFT = 9
-const OP_BIT_XOR = 10
-const OP_CALL = 11
-const OP_CLEAR = 12
-const OP_CONSTANT = 13
-const OP_COPY = 14
-const OP_DEFINE_GLOBAL = 15
-const OP_DELETE = 16
-const OP_DIVIDE = 17
-const OP_DUPLICATE = 18
-const OP_ECHO = 19
-const OP_EQUAL = 20
-const OP_EXISTS = 21
-const OP_FALSE = 22
-const OP_GET_DYNAMIC = 23
-const OP_GET_GLOBAL = 24
-const OP_GET_LOCAL = 25
-const OP_GET_PROPERTY = 26
-const OP_GREATER = 27
-const OP_GREATER_EQUAL = 28
-const OP_INDEX = 29
-const OP_JUMP = 30
-const OP_JUMP_IF_FALSE = 37
-const OP_JUMP_IF_TRUE = 38
-const OP_KEYS = 39
-const OP_LEN = 40
-const OP_LESS = 41
-const OP_LESS_EQUAL = 42
-const OP_LOOP = 43
-const OP_MODULO = 44
-const OP_MULTIPLY = 45
-const OP_NEGATE = 46
-const OP_NONE = 47
-const OP_NOT = 48
-const OP_NOT_EQUAL = 49
-const OP_POP = 50
-const OP_PRINT = 51
-const OP_RETURN = 52
-const OP_SET_DYNAMIC = 53
-const OP_SET_GLOBAL = 54
-const OP_SET_LOCAL = 55
-const OP_INCREMENT_LOCAL_AND_SET = 56
-const OP_SET_PROPERTY = 57
-const OP_SLICE = 58
-const OP_SUBTRACT = 59
-const OP_THROW = 60
-const OP_FLOAT = 61
-const OP_INT = 62
-const OP_STRING = 63
-const OP_TRUE = 64
-const OP_TYPE = 65
-const OP_USE = 66
-const OP_FOR = 67
-const OP_FOR_LOOP = 68
-const OP_NEW_ARRAY = 69
-const OP_NEW_TABLE = 70
+const OP_ARRAY_INSERT = 1
+const OP_ARRAY_POP = 2
+const OP_ARRAY_PUSH = 3
+const OP_BIT_AND = 4
+const OP_BIT_LEFT_SHIFT = 5
+const OP_BIT_NOT = 6
+const OP_BIT_OR = 7
+const OP_BIT_RIGHT_SHIFT = 8
+const OP_BIT_XOR = 9
+const OP_CALL = 10
+const OP_CLEAR = 11
+const OP_CONSTANT = 12
+const OP_COPY = 13
+const OP_DEFINE_GLOBAL = 14
+const OP_DELETE = 15
+const OP_DIVIDE = 16
+const OP_DUPLICATE = 17
+const OP_ECHO = 18
+const OP_EQUAL = 19
+const OP_EXISTS = 20
+const OP_FALSE = 21
+const OP_FLOAT = 22
+const OP_FOR = 23
+const OP_FOR_LOOP = 24
+const OP_GET_DYNAMIC = 25
+const OP_GET_GLOBAL = 26
+const OP_GET_LOCAL = 27
+const OP_GET_PROPERTY = 28
+const OP_GREATER = 29
+const OP_GREATER_EQUAL = 30
+const OP_INCREMENT_LOCAL_AND_SET = 31
+const OP_INDEX = 32
+const OP_INSPECT = 33
+const OP_INT = 34
+const OP_JUMP = 35
+const OP_JUMP_IF_FALSE = 36
+const OP_JUMP_IF_TRUE = 37
+const OP_KEYS = 38
+const OP_LEN = 39
+const OP_LESS = 40
+const OP_LESS_EQUAL = 41
+const OP_LOOP = 42
+const OP_MODULO = 43
+const OP_MULTIPLY = 44
+const OP_NEGATE = 45
+const OP_NEW_ARRAY = 46
+const OP_NEW_TABLE = 47
+const OP_NONE = 48
+const OP_NOT = 49
+const OP_NOT_EQUAL = 50
+const OP_POP = 51
+const OP_PRINT = 52
+const OP_RETURN = 53
+const OP_SELF = 54
+const OP_SET_DYNAMIC = 55
+const OP_SET_GLOBAL = 56
+const OP_SET_LOCAL = 57
+const OP_SET_PROPERTY = 58
+const OP_SLICE = 59
+const OP_STRING = 60
+const OP_SUBTRACT = 61
+const OP_THROW = 62
+const OP_TRUE = 63
+const OP_TYPE = 64
+const OP_USE = 65
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -316,6 +320,7 @@ class Token {
     this.column = 0
     this.start = 0
     this.length = 0
+    this.number = 0
   }
 }
 
@@ -347,6 +352,7 @@ class Scope {
     this.enclosing = null
     this.func = null
     this.type = TYPE_FUNCTION
+    this.begin = 0
     this.locals = []
     this.localCount = 0
     this.depth = 0
@@ -413,8 +419,8 @@ rules[TOKEN_BIT_OR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_RIGHT_SHIFT] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BIT_XOR] = new Rule(null, compileBinary, PRECEDENCE_BITS)
 rules[TOKEN_BREAK] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CLEAR] = new Rule(clearExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
@@ -440,6 +446,7 @@ rules[TOKEN_IF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_IN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_INDEX] = new Rule(indexExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INSERT] = new Rule(arrayInsertExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_INSPECT] = new Rule(inspectExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INTEGER] = new Rule(compileInteger, null, PRECEDENCE_NONE)
 rules[TOKEN_KEYS] = new Rule(keysExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LEFT_CURLY] = new Rule(compileTable, null, PRECEDENCE_NONE)
@@ -455,6 +462,7 @@ rules[TOKEN_NONE] = new Rule(compileNone, null, PRECEDENCE_NONE)
 rules[TOKEN_NOT] = new Rule(compileUnary, null, PRECEDENCE_NONE)
 rules[TOKEN_NOT_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_EQUALITY)
 rules[TOKEN_OR] = new Rule(null, compileOr, PRECEDENCE_OR)
+rules[TOKEN_POINTER] = new Rule(null, compilePointer, PRECEDENCE_CALL)
 rules[TOKEN_POP] = new Rule(arrayPopExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_PRINT] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_PUSH] = new Rule(arrayPushExpression, null, PRECEDENCE_NONE)
@@ -464,18 +472,17 @@ rules[TOKEN_RIGHT_PAREN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_RIGHT_SQUARE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_STRING] = new Rule(compileString, null, PRECEDENCE_NONE)
 rules[TOKEN_SUBTRACT] = new Rule(compileUnary, compileBinary, PRECEDENCE_TERM)
+rules[TOKEN_THROW] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_TO_FLOAT] = new Rule(castFloatExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_TO_INTEGER] = new Rule(castIntegerExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_TO_STRING] = new Rule(castStringExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_TRUE] = new Rule(compileTrue, null, PRECEDENCE_NONE)
 rules[TOKEN_TRY] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_THROW] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_TYPE_FUNC] = new Rule(typeExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_UNDEFINED] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_USE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_VALUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_WHILE] = new Rule(null, null, PRECEDENCE_NONE)
-rules[TOKEN_SEMICOLON] = new Rule(null, null, PRECEDENCE_NONE)
 
 function valueType(type) {
   switch (type) {
@@ -928,6 +935,16 @@ function valueToken(C, type, start, end) {
   token.length = end - start
 }
 
+function numberToken(C, type, start, end, value) {
+  const token = C.current
+  token.type = type
+  token.row = C.row
+  token.column = C.column
+  token.start = start
+  token.length = end - start
+  token.number = value
+}
+
 function identTrie(ident, offset, rest, type) {
   for (let i = 0; i < rest.length; i++) {
     if (ident[offset + i] !== rest[i]) {
@@ -992,6 +1009,7 @@ function identKey(ident, size) {
       if (size === 3) return identTrie(ident, 1, 'nt', TOKEN_TO_INTEGER)
       if (size === 5) return identTrie(ident, 1, 'ndex', TOKEN_INDEX)
       if (size === 6) return identTrie(ident, 1, 'nsert', TOKEN_INSERT)
+      if (size === 7) return identTrie(ident, 1, 'nspect', TOKEN_INSPECT)
       if (size === 2) {
         if (ident[1] === 'f') return TOKEN_IF
         if (ident[1] === 'n') return TOKEN_IN
@@ -1024,7 +1042,7 @@ function identKey(ident, size) {
       break
     case 'f':
       if (size === 3) return identTrie(ident, 1, 'or', TOKEN_FOR)
-      if (size === 8) return identTrie(ident, 1, 'unction', TOKEN_FUNCTION)
+      if (size === 4) return identTrie(ident, 1, 'unc', TOKEN_FUNCTION)
       if (size === 5) {
         if (ident[1] === 'a') return identTrie(ident, 2, 'lse', TOKEN_FALSE)
         if (ident[1] === 'l') return identTrie(ident, 2, 'oat', TOKEN_TO_FLOAT)
@@ -1196,6 +1214,10 @@ function advance(C) {
           nextChar(C)
           tokenSpecial(C, TOKEN_ASSIGN_SUBTRACT, 2, 2)
           return
+        } else if (peekChar(C) === '>') {
+          nextChar(C)
+          tokenSpecial(C, TOKEN_POINTER, 2, 2)
+          return
         } else {
           token(C, TOKEN_SUBTRACT)
           return
@@ -1330,9 +1352,6 @@ function advance(C) {
       case ':':
         token(C, TOKEN_COLON)
         return
-      case ';':
-        token(C, TOKEN_SEMICOLON)
-        return
       case '\0':
         token(C, TOKEN_EOF)
         return
@@ -1359,23 +1378,67 @@ function advance(C) {
       default: {
         if (isDigit(c)) {
           const start = C.pos - 1
+          if (c === '0') {
+            const p = peekChar(C)
+            if (p === 'b') {
+              nextChar(C)
+              while (true) {
+                c = peekChar(C)
+                if (c !== '0' && c !== '1') {
+                  break
+                }
+                nextChar(C)
+              }
+              const end = C.pos
+              const value = sourceSubstring(C, end - start - 2, start + 2)
+              numberToken(C, TOKEN_INTEGER, start, end, parseInt(value, 2))
+              return
+            } else if (p === 'x') {
+              nextChar(C)
+              while (true) {
+                c = peekChar(C)
+                if (!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) {
+                  break
+                }
+                nextChar(C)
+              }
+              const end = C.pos
+              const value = sourceSubstring(C, end - start - 2, start + 2)
+              numberToken(C, TOKEN_INTEGER, start, end, parseInt(value, 16))
+              return
+            }
+          }
           while (isDigit(peekChar(C))) {
             nextChar(C)
           }
-          let discrete = true
-          if (peekChar(C) === '.') {
-            discrete = false
+          const p = peekChar(C)
+          if (p === '.') {
             nextChar(C)
+            while (isDigit(peekChar(C))) {
+              nextChar(C)
+            }
+            const n = peekChar(C)
+            if (n === 'e' || n === 'E') {
+              nextChar(C)
+              const e = peekChar(C)
+              if (e === '-' || e === '+') nextChar(C)
+              while (isDigit(peekChar(C))) {
+                nextChar(C)
+              }
+            }
+          } else if (p === 'e' || p === 'E') {
+            nextChar(C)
+            const n = peekChar(C)
+            if (n === '-' || n === '+') nextChar(C)
             while (isDigit(peekChar(C))) {
               nextChar(C)
             }
           }
           const end = C.pos
-          if (discrete) {
-            valueToken(C, TOKEN_INTEGER, start, end)
-          } else {
-            valueToken(C, TOKEN_FLOAT, start, end)
-          }
+          const value = sourceSubstring(C, end - start, start)
+          const number = Number(value)
+          if (Number.isSafeInteger(number)) numberToken(C, TOKEN_INTEGER, start, end, number)
+          else numberToken(C, TOKEN_FLOAT, start, end, number)
           return
         } else if (isIdent(c)) {
           const start = C.pos - 1
@@ -1464,7 +1527,7 @@ function scopeGetLocal(scope, index) {
   return local
 }
 
-function scopeInit(C, scope, type) {
+function scopeInit(C, scope, type, begin) {
   scope.enclosing = C.scope
   C.scope = scope
 
@@ -1472,6 +1535,7 @@ function scopeInit(C, scope, type) {
   scope.depth = 0
   scope.func = newFunction(C.script)
   scope.type = type
+  scope.begin = begin
 
   if (type === TYPE_FUNCTION) {
     scope.func.name = sourceSubstring(C, C.previous.length, C.previous.start)
@@ -1484,7 +1548,7 @@ function scopeInit(C, scope, type) {
 
 function newCompiler(script, source, H, scope) {
   const C = new Compiler(script, source, H)
-  scopeInit(C, scope, TYPE_SCRIPT)
+  scopeInit(C, scope, TYPE_SCRIPT, 0)
   return C
 }
 
@@ -1678,15 +1742,11 @@ function compileFalse(C) {
 }
 
 function compileInteger(C) {
-  const previous = C.previous
-  const number = parseInt(sourceSubstring(C, previous.length, previous.start))
-  emitConstant(C, newInt(number))
+  emitConstant(C, newInt(C.current.number))
 }
 
 function compileFloat(C) {
-  const previous = C.previous
-  const number = parseFloat(sourceSubstring(C, previous.length, previous.start))
-  emitConstant(C, newFloat(number))
+  emitConstant(C, newFloat(C.current.number))
 }
 
 function escapeSequence(c) {
@@ -2040,6 +2100,19 @@ function compileDot(C, assign) {
   }
 }
 
+function compilePointer(C) {
+  consume(C, TOKEN_IDENT, "expected table key after '->'")
+  const name = identConstant(C, C.previous)
+  consume(C, TOKEN_LEFT_PAREN, "expected '(' after function name")
+  emitShort(C, OP_SELF, name)
+  const count = args(C)
+  if (count === UINT8_MAX) {
+    compileError(C, C.previous, 'too many function arguments')
+    return
+  }
+  emitShort(C, OP_CALL, count + 1)
+}
+
 function compileSquare(C, assign) {
   if (match(C, TOKEN_COLON)) {
     emitConstant(C, newInt(0))
@@ -2149,14 +2222,16 @@ function compileOr(C) {
 
 function endFunction(C) {
   emitShort(C, OP_NONE, OP_RETURN)
-  const func = C.scope.func
-  C.scope = C.scope.enclosing
+  const scope = C.scope
+  const func = scope.func
+  if (scope.type === TYPE_FUNCTION) func.source = C.source.substring(scope.begin, C.previous.start + C.previous.length)
+  C.scope = scope.enclosing
   return func
 }
 
-function compileFunction(C, type) {
+function compileFunction(C, type, begin) {
   const scope = new Scope()
-  scopeInit(C, scope, type)
+  scopeInit(C, scope, type, begin)
 
   beginScope(C)
 
@@ -2190,13 +2265,14 @@ function compileFunction(C, type) {
 }
 
 function functionExpression(C) {
-  compileFunction(C, TYPE_FUNCTION)
+  compileFunction(C, TYPE_FUNCTION, C.previous.start)
 }
 
 function declareFunction(C) {
+  const begin = C.previous.start
   const global = variable(C, 'expected function name')
   localInitialize(C)
-  compileFunction(C, TYPE_FUNCTION)
+  compileFunction(C, TYPE_FUNCTION, begin)
   finalizeVariable(C, global)
 }
 
@@ -2740,6 +2816,13 @@ function existsExpression(C) {
   emit(C, OP_EXISTS)
 }
 
+function inspectExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'inspect'`)
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'inspect'`)
+  emit(C, OP_INSPECT)
+}
+
 function expressionStatement(C) {
   expression(C)
   emit(C, OP_POP)
@@ -2875,13 +2958,9 @@ function valueToStringRecursive(value, set, quote) {
     }
     case HYMN_VALUE_FUNC: {
       const func = value.value
-      if (func.name) {
-        return func.name
-      }
-      if (func.script) {
-        return func.script
-      }
-      return 'Script'
+      if (func.name) return func.name
+      if (func.script) return func.script
+      return 'script'
     }
     case HYMN_VALUE_FUNC_NATIVE:
       return value.value.name
@@ -2889,6 +2968,14 @@ function valueToStringRecursive(value, set, quote) {
 }
 
 function valueToString(value) {
+  return valueToStringRecursive(value, null, false)
+}
+
+function valueToInspect(value) {
+  if (value.is === HYMN_VALUE_FUNC) {
+    const func = value.value
+    if (func.source) return func.source
+  }
   return valueToStringRecursive(value, null, false)
 }
 
@@ -3025,7 +3112,7 @@ function hymnCallValue(H, value, count) {
     case HYMN_VALUE_FUNC_NATIVE: {
       const func = value.value.func
       const result = func(H, count, H.stack[H.stackTop - count])
-      const top = H.stackTop - (count + 1)
+      const top = H.stackTop - count - 1
       H.stackTop = top
       hymnPush(H, result)
       return currentFrame(H)
@@ -3274,6 +3361,8 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_BIT_XOR', index)
     case OP_CALL:
       return debugByteInstruction(debug, 'OP_CALL', code, index)
+    case OP_SELF:
+      return debugConstantInstruction(debug, 'OP_SELF', code, index)
     case OP_CLEAR:
       return debugInstruction(debug, 'OP_CLEAR', index)
     case OP_CONSTANT:
@@ -3380,13 +3469,15 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_TYPE', index)
     case OP_USE:
       return debugInstruction(debug, 'OP_USE', index)
+    case OP_INSPECT:
+      return debugInstruction(debug, 'OP_INSPECT', index)
     default:
       return (debug[0] += 'UNKNOWN_OPCODE ' + instruction)
   }
 }
 
 function disassembleByteCode(code, name) {
-  console.debug(`\n-- ${name !== null ? name : 'NULL'} --`)
+  console.debug(`\n-- ${name !== null ? name : 'script'} --`)
   const debug = ['']
   let index = 0
   while (index < code.count) {
@@ -3448,6 +3539,19 @@ async function hymnRun(H) {
         const call = hymnPeek(H, count + 1)
         frame = hymnCallValue(H, call, count)
         if (frame === null) return
+        break
+      }
+      case OP_SELF: {
+        const table = hymnPeek(H, 1)
+        if (!isTable(table)) {
+          frame = hymnThrowError(H, `can't get property of ${valueType(table.is)} (expected table)`)
+          if (frame === null) return
+          else break
+        }
+        const name = readConstant(frame).value
+        const fun = tableGet(table.value, name)
+        copyValueToFrom(hymnStackGet(H, H.stackTop - 1), fun)
+        hymnPush(H, table)
         break
       }
       case OP_JUMP: {
@@ -3947,12 +4051,7 @@ async function hymnRun(H) {
       case OP_SET_GLOBAL: {
         const name = readConstant(frame).value
         const value = hymnPeek(H, 1)
-        const previous = tablePut(H.globals, name, value)
-        if (previous === null) {
-          frame = hymnThrowError(H, `undefined global '${name}'`)
-          if (frame === null) return
-          else break
-        }
+        tablePut(H.globals, name, value)
         break
       }
       case OP_GET_GLOBAL: {
@@ -4564,6 +4663,11 @@ async function hymnRun(H) {
         } else {
           H.printError(valueToString(value))
         }
+        break
+      }
+      case OP_INSPECT: {
+        const value = hymnPop(H)
+        hymnPush(H, newString(valueToInspect(value)))
         break
       }
       case OP_THROW: {

@@ -1,6 +1,6 @@
 # 123
 
-function foo(bar: int) {
+func foo(bar: int) {
   return bar
 }
 

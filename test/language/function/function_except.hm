@@ -1,6 +1,6 @@
 # @exception array index out of bounds: 3 >= 3
 
-function foo() {
+func foo() {
   return [2, 4, 8][3]
 }
 

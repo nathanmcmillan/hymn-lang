@@ -1,9 +1,9 @@
 # @exception multiple global definitions of 'foo'
 
-function foo() {
+func foo() {
   return 1
 }
 
-function foo() {
+func foo() {
   return 2
 }

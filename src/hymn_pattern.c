@@ -6,7 +6,7 @@
 
 #include "hymn.h"
 
-#define MAX_CAPTURES 32
+#define MAX_CAPTURES 16
 
 typedef struct Capture Capture;
 typedef struct Match Match;
@@ -326,6 +326,7 @@ static HymnValue find(Hymn *H, int count, HymnValue *arguments) {
             }
             text++;
         }
+        original += start;
     }
     if (group.error != NULL) {
         return hymn_new_exception(H, group.error);
@@ -392,6 +393,40 @@ static HymnValue is_match(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_bool(begin != NULL && begin == original && end[0] == '\0');
 }
 
+static HymnString *replacer(HymnString *updated, char *begin, char *end, Match *group, HymnString *replacement) {
+    if (updated == NULL) {
+        updated = hymn_new_string_with_capacity(hymn_string_len(replacement));
+    }
+    HymnString *text = replacement;
+    while (text[0] != '\0') {
+        if (text[0] == '%') {
+            char c = text[1];
+            if (c == '%') {
+                updated = hymn_string_append_char(updated, '%');
+                text += 2;
+                continue;
+            } else if (c >= '0' && c <= '9') {
+                int i = c - '0';
+                if (i == 0) {
+                    updated = hymn_string_append_substring(updated, begin, 0, (size_t)(end - begin));
+                    text += 2;
+                    continue;
+                } else {
+                    i--;
+                    if (i < group->count) {
+                        updated = hymn_string_append_substring(updated, group->capture[i].begin, 0, group->capture[i].size);
+                        text += 2;
+                        continue;
+                    }
+                }
+            }
+        }
+        updated = hymn_string_append_char(updated, text[0]);
+        text++;
+    }
+    return updated;
+}
+
 static HymnValue replace(Hymn *H, int count, HymnValue *arguments) {
     if (count < 3) {
         return hymn_arity_exception(H, 3, count);
@@ -411,40 +446,61 @@ static HymnValue replace(Hymn *H, int count, HymnValue *arguments) {
     HymnString *original = hymn_as_string(source);
     HymnString *text = original;
     HymnString *pattern = hymn_as_string(expression);
-    char *begin = NULL;
-    char *end = NULL;
+    HymnString *replacement = hymn_as_string(substitute);
+    HymnString *updated = NULL;
+    char *last = NULL;
     Match group = {0};
     if (pattern[0] == '^') {
-        end = match(&group, pattern + 1, text);
-        if (end != NULL) {
-            begin = text;
+        char *end = match(&group, pattern + 1, text);
+        if (group.error == NULL && end != NULL) {
+            updated = hymn_string_copy(replacement);
+            last = end;
         }
     } else {
         while (true) {
-            end = match(&group, pattern, text);
-            if (end != NULL) {
-                begin = text;
+            char *end = match(&group, pattern, text);
+            if (group.error != NULL) {
                 break;
-            } else if (group.error != NULL || text[0] == '\0') {
-                break;
+            } else if (end != NULL) {
+                if (updated == NULL) {
+                    if (text == original) {
+                        updated = replacer(updated, text, end, &group, replacement);
+                    } else {
+                        updated = hymn_string_format("%.*s", text - original, original);
+                        updated = replacer(updated, text, end, &group, replacement);
+                    }
+                } else {
+                    if (last != text) {
+                        HymnString *behind = hymn_string_format("%.*s", text - last, last);
+                        updated = hymn_string_append(updated, behind);
+                        hymn_string_delete(behind);
+                    }
+                    updated = replacer(updated, text, end, &group, replacement);
+                }
+                last = end;
+                if (end[0] == '\0') {
+                    break;
+                }
+                text = end;
+            } else {
+                text++;
+                if (text[0] == '\0') {
+                    break;
+                }
             }
-            text++;
         }
     }
     if (group.error != NULL) {
+        if (updated != NULL) {
+            hymn_string_delete(updated);
+        }
         return hymn_new_exception(H, group.error);
-    } else if (begin == NULL || (begin == original && end[0] == '\0')) {
-        return expression;
     }
-    for (int i = 0; i < group.count; i++) {
-        printf("replace: [%.*s]\n", group.capture[i].size, group.capture[i].begin);
+    if (updated == NULL) {
+        return source;
+    } else if (last != NULL) {
+        updated = hymn_string_append(updated, last);
     }
-    // FIXME: not done yet!
-    // TODO: new string
-    //     append substring from 0 to begin
-    //     append replacement string
-    //     append substring from end to original string final end
-    HymnString *updated = hymn_string_format("%.*s", end - begin, begin);
     return hymn_new_string_value(hymn_intern_string(H, updated));
 }
 

@@ -139,7 +139,6 @@ const (
 	TOKEN_RIGHT_CURLY                      = 67
 	TOKEN_RIGHT_PAREN                      = 68
 	TOKEN_RIGHT_SQUARE                     = 69
-	TOKEN_SEMICOLON                        = 70
 	TOKEN_STRING                           = 71
 	TOKEN_SUBTRACT                         = 72
 	TOKEN_THROW                            = 73
@@ -398,7 +397,6 @@ var rules = map[TokenType]Rule{
 	TOKEN_USE:                    {nil, nil, PRECEDENCE_NONE},
 	TOKEN_VALUE:                  {nil, nil, PRECEDENCE_NONE},
 	TOKEN_WHILE:                  {nil, nil, PRECEDENCE_NONE},
-	TOKEN_SEMICOLON:              {nil, nil, PRECEDENCE_NONE},
 }
 
 func valueType(t ValueType) string {

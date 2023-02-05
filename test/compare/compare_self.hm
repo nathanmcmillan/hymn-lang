@@ -1,0 +1,49 @@
+{
+  let start = os.clock()
+
+  let N = 20000000
+  let sum = 0
+
+  func foo(me) {
+    return me.value
+  }
+
+  object = {}
+
+  for i = 1, i < N {
+    object = {
+      call: foo,
+      value: i
+    }
+    sum += object->call()
+  }
+
+  let seconds = os.clock() - start
+  echo "elapsed: " + seconds + "s | " + sum
+}
+
+echo "----------------------------------------"
+
+{
+  let start = os.clock()
+
+  let N = 20000000
+  let sum = 0
+
+  func foo(me) {
+    return me.value
+  }
+
+  object = {}
+
+  for i = 1, i < N {
+    object = {
+      call: foo,
+      value: i
+    }
+    sum += object.call(object)
+  }
+
+  let seconds = os.clock() - start
+  echo "elapsed: " + seconds + "s | " + sum
+}

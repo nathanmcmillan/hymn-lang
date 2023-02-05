@@ -9,7 +9,7 @@
 # int
 # float
 
-function foo(): int {
+func foo(): int {
   return 0
 }
 

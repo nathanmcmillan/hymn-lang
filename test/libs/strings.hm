@@ -1,6 +1,6 @@
 
 # trim returns a string with spaces removed from the head and tail
-function trim(s) {
+func trim(s) {
   if len(s) == 0 {
       return s
   }

@@ -1,6 +1,6 @@
 use "strings"
 
-function _wad_skip(s, i) {
+func _wad_skip(s, i) {
   i += 1
   let c = s[i]
   if c != '\n' and c != ' ' {
@@ -19,7 +19,7 @@ function _wad_skip(s, i) {
   }
 }
 
-function load_wad(s) {
+func load_wad(s) {
   let wad = {}
   let stack = [wad]
   let key = ""

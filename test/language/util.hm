@@ -1,5 +1,5 @@
 
 # clamp returns n clamped between a and b.
-function clamp(n, a, b) {
+func clamp(n, a, b) {
   return min(max(n, a), b)
 }

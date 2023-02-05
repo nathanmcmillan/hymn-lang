@@ -180,7 +180,7 @@ HymnString *hymn_string_append_char(HymnString *string, const char b) {
     return (HymnString *)s;
 }
 
-static HymnString *string_append_substring(HymnString *string, const char *b, size_t start, size_t end) {
+HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end) {
     HymnStringHead *head = HYMN_STRING_HEAD(string);
     size_t len_a = head->length;
     size_t len_b = end - start;
@@ -254,14 +254,14 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
             }
         }
         if (match) {
-            out = string_append_substring(out, string, p, i);
+            out = hymn_string_append_substring(out, string, p, i);
             out = hymn_string_append(out, replace);
             i += len_sub;
             p = i;
         }
     }
     if (p < len) {
-        out = string_append_substring(out, string, p, len);
+        out = hymn_string_append_substring(out, string, p, len);
     }
     return out;
 }
@@ -529,6 +529,7 @@ enum TokenType {
     TOKEN_IN,
     TOKEN_INDEX,
     TOKEN_INSERT,
+    TOKEN_INSPECT,
     TOKEN_INTEGER,
     TOKEN_KEYS,
     TOKEN_LEFT_CURLY,
@@ -544,6 +545,7 @@ enum TokenType {
     TOKEN_NOT,
     TOKEN_NOT_EQUAL,
     TOKEN_OR,
+    TOKEN_POINTER,
     TOKEN_POP,
     TOKEN_PRINT,
     TOKEN_PUSH,
@@ -551,7 +553,6 @@ enum TokenType {
     TOKEN_RIGHT_CURLY,
     TOKEN_RIGHT_PAREN,
     TOKEN_RIGHT_SQUARE,
-    TOKEN_SEMICOLON,
     TOKEN_STRING,
     TOKEN_SUBTRACT,
     TOKEN_THROW,
@@ -591,11 +592,12 @@ enum StringStatus {
 
 enum OpCode {
     OP_ADD,
-    OP_ADD_TWO_LOCAL,
+    OP_ADD_LOCALS,
     OP_INCREMENT,
     OP_ARRAY_INSERT,
     OP_ARRAY_POP,
     OP_ARRAY_PUSH,
+    OP_ARRAY_PUSH_LOCALS,
     OP_BIT_AND,
     OP_BIT_LEFT_SHIFT,
     OP_BIT_NOT,
@@ -604,6 +606,7 @@ enum OpCode {
     OP_BIT_XOR,
     OP_CALL,
     OP_TAIL_CALL,
+    OP_SELF,
     OP_CLEAR,
     OP_CONSTANT,
     OP_COPY,
@@ -619,16 +622,18 @@ enum OpCode {
     OP_GET_GLOBAL,
     OP_GET_GLOBAL_PROPERTY,
     OP_GET_LOCAL,
-    OP_GET_TWO_LOCAL,
+    OP_GET_LOCALS,
     OP_GET_PROPERTY,
     OP_GREATER,
     OP_GREATER_EQUAL,
     OP_INDEX,
+    OP_INSPECT,
     OP_JUMP,
     OP_JUMP_IF_EQUAL,
     OP_JUMP_IF_NOT_EQUAL,
     OP_JUMP_IF_LESS,
     OP_JUMP_IF_GREATER,
+    OP_JUMP_IF_GREATER_LOCALS,
     OP_JUMP_IF_LESS_EQUAL,
     OP_JUMP_IF_GREATER_EQUAL,
     OP_JUMP_IF_FALSE,
@@ -639,6 +644,7 @@ enum OpCode {
     OP_LESS_EQUAL,
     OP_LOOP,
     OP_MODULO,
+    OP_MODULO_LOCALS,
     OP_MULTIPLY,
     OP_NEGATE,
     OP_NEW_ARRAY,
@@ -669,11 +675,7 @@ enum OpCode {
     OP_USE,
     OP_FOR,
     OP_FOR_LOOP,
-    IR_GLOBAL,
-    IR_CONSTANT,
-    IR_JUMP_IF_GREATER,
-    IR_JUMP_IF_GREATER_EQUAL,
-    IR_MODULO,
+    OP_VOID,
 };
 
 enum FunctionType {
@@ -696,11 +698,10 @@ static void compile_variable(Compiler *C, bool assign);
 static void compile_unary(Compiler *C, bool assign);
 static void compile_binary(Compiler *C, bool assign);
 static void compile_dot(Compiler *C, bool assign);
+static void compile_pointer(Compiler *C, bool assign);
 static void compile_square(Compiler *C, bool assign);
 static void compile_and(Compiler *C, bool assign);
 static void compile_or(Compiler *C, bool assign);
-static void array_push_expression(Compiler *C, bool assign);
-static void array_insert_expression(Compiler *C, bool assign);
 static void array_pop_expression(Compiler *C, bool assign);
 static void delete_expression(Compiler *C, bool assign);
 static void len_expression(Compiler *C, bool assign);
@@ -713,6 +714,7 @@ static void index_expression(Compiler *C, bool assign);
 static void keys_expression(Compiler *C, bool assign);
 static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
+static void inspect_expression(Compiler *C, bool assign);
 static void function_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
@@ -742,6 +744,8 @@ struct Token {
     int column;
     size_t start;
     int length;
+    HymnInt integer;
+    HymnFloat floating;
 };
 
 struct Local {
@@ -759,6 +763,7 @@ struct Scope {
     struct Scope *enclosing;
     HymnFunction *func;
     enum FunctionType type;
+    size_t begin;
     Local locals[HYMN_UINT8_COUNT];
     int local_count;
     int depth;
@@ -967,10 +972,11 @@ Rule rules[] = {
     [TOKEN_GREATER] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_GREATER_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE},
     [TOKEN_IDENT] = {compile_variable, NULL, PRECEDENCE_NONE},
+    [TOKEN_INSPECT] = {inspect_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_IF] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_IN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_INDEX] = {index_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_INSERT] = {array_insert_expression, NULL, PRECEDENCE_NONE},
+    [TOKEN_INSERT] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_INTEGER] = {compile_integer, NULL, PRECEDENCE_NONE},
     [TOKEN_KEYS] = {keys_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_LEFT_CURLY] = {compile_table, NULL, PRECEDENCE_NONE},
@@ -986,14 +992,14 @@ Rule rules[] = {
     [TOKEN_NOT] = {compile_unary, NULL, PRECEDENCE_NONE},
     [TOKEN_NOT_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY},
     [TOKEN_OR] = {NULL, compile_or, PRECEDENCE_OR},
+    [TOKEN_POINTER] = {NULL, compile_pointer, PRECEDENCE_CALL},
     [TOKEN_POP] = {array_pop_expression, NULL, PRECEDENCE_NONE},
     [TOKEN_PRINT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_PUSH] = {array_push_expression, NULL, PRECEDENCE_NONE},
+    [TOKEN_PUSH] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_RETURN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_RIGHT_CURLY] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_RIGHT_SQUARE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_SEMICOLON] = {NULL, NULL, PRECEDENCE_NONE},
     [TOKEN_STRING] = {compile_string, NULL, PRECEDENCE_NONE},
     [TOKEN_SUBTRACT] = {compile_unary, compile_binary, PRECEDENCE_TERM},
     [TOKEN_THROW] = {NULL, NULL, PRECEDENCE_NONE},
@@ -1551,6 +1557,26 @@ static void value_token(Compiler *C, enum TokenType type, size_t start, size_t e
     current->length = (int)(end - start);
 }
 
+static void int_token(Compiler *C, enum TokenType type, size_t start, size_t end, HymnInt integer) {
+    Token *current = &C->current;
+    current->type = type;
+    current->row = C->row;
+    current->column = C->column;
+    current->start = start;
+    current->length = (int)(end - start);
+    current->integer = integer;
+}
+
+static void float_token(Compiler *C, enum TokenType type, size_t start, size_t end, HymnFloat floating) {
+    Token *current = &C->current;
+    current->type = type;
+    current->row = C->row;
+    current->column = C->column;
+    current->start = start;
+    current->length = (int)(end - start);
+    current->floating = floating;
+}
+
 static enum TokenType ident_trie(const char *ident, int offset, const char *rest, enum TokenType type) {
     int i = 0;
     do {
@@ -1617,6 +1643,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 3) return ident_trie(ident, 1, "nt", TOKEN_TO_INTEGER);
         if (size == 5) return ident_trie(ident, 1, "ndex", TOKEN_INDEX);
         if (size == 6) return ident_trie(ident, 1, "nsert", TOKEN_INSERT);
+        if (size == 7) return ident_trie(ident, 1, "nspect", TOKEN_INSPECT);
         if (size == 2) {
             if (ident[1] == 'f') return TOKEN_IF;
             if (ident[1] == 'n') return TOKEN_IN;
@@ -1649,7 +1676,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         break;
     case 'f':
         if (size == 3) return ident_trie(ident, 1, "or", TOKEN_FOR);
-        if (size == 8) return ident_trie(ident, 1, "unction", TOKEN_FUNCTION);
+        if (size == 4) return ident_trie(ident, 1, "unc", TOKEN_FUNCTION);
         if (size == 5) {
             if (ident[1] == 'a') return ident_trie(ident, 2, "lse", TOKEN_FALSE);
             if (ident[1] == 'l') return ident_trie(ident, 2, "oat", TOKEN_TO_FLOAT);
@@ -1822,6 +1849,10 @@ static void advance(Compiler *C) {
                 next_char(C);
                 token_special(C, TOKEN_ASSIGN_SUBTRACT, 2, 2);
                 return;
+            } else if (peek_char(C) == '>') {
+                next_char(C);
+                token_special(C, TOKEN_POINTER, 2, 2);
+                return;
             } else {
                 token(C, TOKEN_SUBTRACT);
                 return;
@@ -1940,7 +1971,6 @@ static void advance(Compiler *C) {
             token(C, TOKEN_RIGHT_CURLY);
             return;
         case ':': token(C, TOKEN_COLON); return;
-        case ';': token(C, TOKEN_SEMICOLON); return;
         case '\0': token(C, TOKEN_EOF); return;
         case '"': {
             size_t start = C->pos;
@@ -1965,23 +1995,77 @@ static void advance(Compiler *C) {
         default: {
             if (is_digit(c)) {
                 size_t start = C->pos - 1;
+                if (c == '0') {
+                    const char p = peek_char(C);
+                    if (p == 'b') {
+                        next_char(C);
+                        while (true) {
+                            c = peek_char(C);
+                            if (c != '0' && c != '1') {
+                                break;
+                            }
+                            next_char(C);
+                        }
+                        size_t end = C->pos;
+                        long long number = (long long)strtoll(&C->source[start + 2], NULL, 2);
+                        int_token(C, TOKEN_INTEGER, start, end, number);
+                        return;
+                    } else if (p == 'x') {
+                        next_char(C);
+                        while (true) {
+                            c = peek_char(C);
+                            if (!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) {
+                                break;
+                            }
+                            next_char(C);
+                        }
+                        size_t end = C->pos;
+                        long long number = (long long)strtoll(&C->source[start + 2], NULL, 16);
+                        int_token(C, TOKEN_INTEGER, start, end, number);
+                        return;
+                    }
+                }
                 while (is_digit(peek_char(C))) {
                     next_char(C);
                 }
-                bool discrete = true;
-                if (peek_char(C) == '.') {
-                    discrete = false;
+                const char p = peek_char(C);
+                if (p == '.') {
                     next_char(C);
                     while (is_digit(peek_char(C))) {
                         next_char(C);
                     }
+                    const char n = peek_char(C);
+                    if (n == 'e' || n == 'E') {
+                        next_char(C);
+                        const char e = peek_char(C);
+                        if (e == '-' || e == '+') next_char(C);
+                        while (is_digit(peek_char(C))) {
+                            next_char(C);
+                        }
+                    }
+                    size_t end = C->pos;
+                    double number = atof(&C->source[start]);
+                    float_token(C, TOKEN_FLOAT, start, end, number);
+                    return;
+                } else if (p == 'e' || p == 'E') {
+                    next_char(C);
+                    const char n = peek_char(C);
+                    if (n == '-' || n == '+') next_char(C);
+                    while (is_digit(peek_char(C))) {
+                        next_char(C);
+                    }
+                    size_t end = C->pos;
+                    double number = atof(&C->source[start]);
+                    if (trunc(number) == number) {
+                        int_token(C, TOKEN_INTEGER, start, end, (long long)number);
+                    } else {
+                        float_token(C, TOKEN_FLOAT, start, end, number);
+                    }
+                    return;
                 }
                 size_t end = C->pos;
-                if (discrete) {
-                    value_token(C, TOKEN_INTEGER, start, end);
-                } else {
-                    value_token(C, TOKEN_FLOAT, start, end);
-                }
+                long long number = atoll(&C->source[start]);
+                int_token(C, TOKEN_INTEGER, start, end, number);
                 return;
             } else if (is_ident(c)) {
                 size_t start = C->pos - 1;
@@ -2324,7 +2408,7 @@ static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
     }
 }
 
-static void scope_init(Compiler *C, Scope *scope, enum FunctionType type) {
+static void scope_init(Compiler *C, Scope *scope, enum FunctionType type, size_t begin) {
     scope->enclosing = C->scope;
     C->scope = scope;
 
@@ -2332,6 +2416,7 @@ static void scope_init(Compiler *C, Scope *scope, enum FunctionType type) {
     scope->depth = 0;
     scope->func = new_function(C->script);
     scope->type = type;
+    scope->begin = begin;
 
     if (type == TYPE_FUNCTION) {
         scope->func->name = hymn_substring(C->source, C->previous.start, C->previous.start + C->previous.length);
@@ -2355,7 +2440,7 @@ static inline Compiler new_compiler(const char *script, const char *source, Hymn
     C.current.type = TOKEN_UNDEFINED;
     C.string_status = STRING_STATUS_NONE;
     C.H = H;
-    scope_init(&C, scope, TYPE_SCRIPT);
+    scope_init(&C, scope, TYPE_SCRIPT, 0);
     return C;
 }
 
@@ -2560,16 +2645,12 @@ static void compile_false(Compiler *C, bool assign) {
 
 static void compile_integer(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &C->previous;
-    long long number = (long long)strtoll(&C->source[previous->start], NULL, 10);
-    emit_constant(C, hymn_new_int(number));
+    emit_constant(C, hymn_new_int(C->current.integer));
 }
 
 static void compile_float(Compiler *C, bool assign) {
     (void)assign;
-    Token *previous = &C->previous;
-    double number = strtod(&C->source[previous->start], NULL);
-    emit_constant(C, hymn_new_float(number));
+    emit_constant(C, hymn_new_float(C->current.floating));
 }
 
 char escape_sequence(const char c) {
@@ -2656,7 +2737,7 @@ static void compile_array(Compiler *C, bool assign) {
     while (!check(C, TOKEN_RIGHT_SQUARE) && !check(C, TOKEN_EOF)) {
         emit(C, OP_DUPLICATE);
         expression(C);
-        emit_short(C, OP_ARRAY_PUSH, OP_POP);
+        emit(C, OP_ARRAY_PUSH);
         if (!check(C, TOKEN_RIGHT_SQUARE)) {
             consume(C, TOKEN_COMMA, "expected ',' between array elements");
         }
@@ -2696,6 +2777,7 @@ static void function_delete(HymnFunction *this) {
     byte_code_delete(&this->code);
     hymn_string_delete(this->name);
     hymn_string_delete(this->script);
+    hymn_string_delete(this->source);
     HymnExceptList *except = this->except;
     while (except != NULL) {
         HymnExceptList *next = except->next;
@@ -2893,6 +2975,20 @@ static void compile_dot(Compiler *C, bool assign) {
     }
 }
 
+static void compile_pointer(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_IDENT, "expected table key after '->'");
+    uint8_t name = ident_constant(C, &C->previous);
+    consume(C, TOKEN_LEFT_PAREN, "expected '(' after function name");
+    emit_short(C, OP_SELF, name);
+    uint8_t count = arguments(C);
+    if (count == UINT8_MAX) {
+        compile_error(C, &C->previous, "too many function arguments");
+        return;
+    }
+    emit_short(C, OP_CALL, count + 1);
+}
+
 static void compile_square(Compiler *C, bool assign) {
     if (match(C, TOKEN_COLON)) {
         emit_constant(C, hymn_new_int(0));
@@ -3018,6 +3114,7 @@ static int next(uint8_t instruction) {
     case OP_INCREMENT:
     case OP_CALL:
     case OP_TAIL_CALL:
+    case OP_SELF:
     case OP_CONSTANT:
     case OP_DEFINE_GLOBAL:
     case OP_GET_GLOBAL:
@@ -3026,9 +3123,11 @@ static int next(uint8_t instruction) {
     case OP_EXISTS:
     case OP_PRINT:
         return 2;
+    case OP_ARRAY_PUSH_LOCALS:
     case OP_GET_GLOBAL_PROPERTY:
-    case OP_GET_TWO_LOCAL:
-    case OP_ADD_TWO_LOCAL:
+    case OP_GET_LOCALS:
+    case OP_ADD_LOCALS:
+    case OP_MODULO_LOCALS:
     case OP_JUMP:
     case OP_JUMP_IF_FALSE:
     case OP_JUMP_IF_TRUE:
@@ -3041,15 +3140,11 @@ static int next(uint8_t instruction) {
     case OP_LOOP:
     case OP_INCREMENT_LOCAL_AND_SET:
     case OP_INCREMENT_LOCAL:
-    case IR_GLOBAL:
-    case IR_CONSTANT:
-    case IR_MODULO:
         return 3;
     case OP_FOR:
     case OP_FOR_LOOP:
         return 4;
-    case IR_JUMP_IF_GREATER:
-    case IR_JUMP_IF_GREATER_EQUAL:
+    case OP_JUMP_IF_GREATER_LOCALS:
     case OP_INCREMENT_LOOP:
         return 5;
     default:
@@ -3106,8 +3201,7 @@ static bool adjustable(Optimizer *optimizer, int target) {
         case OP_FOR: {
             IS_ADJUSTABLE(instructions, i, 4, <, target, +);
         }
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
+        case OP_JUMP_IF_GREATER_LOCALS: {
             IS_ADJUSTABLE(instructions, i, 5, <, target, +);
         }
         case OP_LOOP: {
@@ -3153,8 +3247,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             }
             break;
         }
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
+        case OP_JUMP_IF_GREATER_LOCALS: {
             if (i < start) {
                 uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
@@ -3283,8 +3376,7 @@ static void extend(Optimizer *optimizer, int start, int shift) {
             }
             break;
         }
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
+        case OP_JUMP_IF_GREATER_LOCALS: {
             if (i + 5 < start) {
                 uint16_t jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
@@ -3438,6 +3530,7 @@ static void interest(Optimizer *optimizer) {
         case OP_JUMP_IF_NOT_EQUAL:
         case OP_JUMP_IF_LESS:
         case OP_JUMP_IF_GREATER:
+        case OP_JUMP_IF_GREATER_LOCALS:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL:
         case OP_FOR:
@@ -3465,10 +3558,6 @@ static void optimize(Compiler *C) {
 
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
-
-    int locals = scope->local_count;
-    int parameters = func->arity;
-    int registers = 0;
 
     Optimizer optimizer = {0};
     optimizer.code = &func->code;
@@ -3519,10 +3608,6 @@ static void optimize(Compiler *C) {
     }
 
     int one = 0;
-#ifndef HYMN_NO_REGISTERS
-    int zero = -1;
-    int minus = -1;
-#endif
 
     while (one < COUNT()) {
 
@@ -3550,7 +3635,33 @@ static void optimize(Compiler *C) {
         }
         }
 
-        if (!adjustable(&optimizer, one) || !adjustable(&optimizer, two)) {
+        if (!adjustable(&optimizer, two)) {
+            goto next;
+        }
+
+        switch (first) {
+        case OP_GET_LOCAL: {
+            if (second == OP_GET_LOCAL) {
+                SET(one, OP_GET_LOCALS);
+                REWRITE(2, 1);
+                REPEAT;
+            }
+            break;
+        }
+        case OP_GET_LOCALS: {
+            if (second == OP_LESS_EQUAL) {
+                int three = two + next(second);
+                uint8_t third = three < COUNT() ? INSTRUCTION(three) : UINT8_MAX;
+                if (third == OP_JUMP_IF_FALSE) {
+                    move(&optimizer, three, OP_JUMP_IF_GREATER_LOCALS, one);
+                    rewrite(&optimizer, two, 2);
+                    REPEAT;
+                }
+            }
+        }
+        }
+
+        if (!adjustable(&optimizer, one)) {
             goto next;
         }
 
@@ -3598,11 +3709,7 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_GET_LOCAL: {
-            if (second == OP_GET_LOCAL) {
-                SET(one, OP_GET_TWO_LOCAL);
-                REWRITE(2, 1);
-                REPEAT;
-            } else if (second == OP_CONSTANT) {
+            if (second == OP_CONSTANT) {
                 int three = two + next(second);
                 uint8_t third = three < COUNT() ? INSTRUCTION(three) : UINT8_MAX;
                 if (third == OP_ADD) {
@@ -3622,9 +3729,17 @@ static void optimize(Compiler *C) {
             }
             break;
         }
-        case OP_GET_TWO_LOCAL: {
+        case OP_GET_LOCALS: {
             if (second == OP_ADD) {
-                SET(one, OP_ADD_TWO_LOCAL);
+                SET(one, OP_ADD_LOCALS);
+                REWRITE(3, 1);
+                REPEAT;
+            } else if (second == OP_MODULO) {
+                SET(one, OP_MODULO_LOCALS);
+                REWRITE(3, 1);
+                REPEAT;
+            } else if (second == OP_ARRAY_PUSH) {
+                SET(one, OP_ARRAY_PUSH_LOCALS);
                 REWRITE(3, 1);
                 REPEAT;
             }
@@ -3737,74 +3852,9 @@ static void optimize(Compiler *C) {
             }
             break;
         }
-        case OP_JUMP_IF_GREATER:
-        case OP_JUMP_IF_GREATER_EQUAL: {
-#ifndef HYMN_NO_REGISTERS
-            uint8_t zed = SAFE_INSTRUCTION(zero);
-            uint8_t omega = SAFE_INSTRUCTION(minus);
-            if ((zed == OP_GET_LOCAL || zed == OP_GET_GLOBAL || zed == OP_CONSTANT) && (omega == OP_GET_LOCAL || omega == OP_GET_GLOBAL || omega == OP_CONSTANT)) {
-                if ((int)locals + (int)registers + 1 < UINT8_MAX) {
-                    ADD(one + 1, 2);
-                    if (first == OP_JUMP_IF_GREATER) {
-                        UPDATE(one, IR_JUMP_IF_GREATER);
-                    } else {
-                        UPDATE(one, IR_JUMP_IF_GREATER_EQUAL);
-                    }
-                    if (zed == OP_GET_LOCAL) {
-                        uint8_t value_b = INSTRUCTION(zero + 1);
-                        SET(one + 2, value_b);
-                        REMOVE(zero, 2);
-                        one -= 2;
-                    } else {
-                        uint8_t slot_2 = (uint8_t)(locals + (++registers));
-                        SET(one + 2, slot_2);
-                        SET(zero, (zed == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                        ADD(zero + 2, 1);
-                        SET(zero + 2, slot_2);
-                        one += 1;
-                    }
-                    if (omega == OP_GET_LOCAL) {
-                        uint8_t value_a = INSTRUCTION(minus + 1);
-                        SET(one + 1, value_a);
-                        REMOVE(minus, 2);
-                        one -= 2;
-                    } else {
-                        uint8_t slot_1 = (uint8_t)(locals + (++registers));
-                        SET(one + 1, slot_1);
-                        SET(minus, (omega == OP_GET_GLOBAL) ? IR_GLOBAL : IR_CONSTANT);
-                        ADD(minus + 2, 1);
-                        SET(minus + 2, slot_1);
-                        one += 1;
-                    }
-                    minus = -1;
-                    zero = -1;
-                    REPEAT;
-                }
-            }
-#endif
-            break;
-        }
-        case OP_MODULO: {
-#ifndef HYMN_NO_REGISTERS
-            uint8_t zed = SAFE_INSTRUCTION(zero);
-            if (zed == OP_GET_TWO_LOCAL) {
-                SET(zero, IR_MODULO);
-                REWRITE(0, 1);
-                one = zero;
-                minus = -1;
-                zero = -1;
-                REPEAT;
-            }
-#endif
-            break;
-        }
         }
 
     next:
-#ifndef HYMN_NO_REGISTERS
-        minus = zero;
-        zero = one;
-#endif
         one = two;
     }
 
@@ -3814,96 +3864,23 @@ static void optimize(Compiler *C) {
         free(important);
         important = next;
     }
-
-    if (registers == 0) {
-        return;
-    }
-
-    C->scope->func->registers = registers;
-
-    int x = 0;
-    while (x < COUNT()) {
-        uint8_t opcode = INSTRUCTION(x);
-        switch (opcode) {
-        case OP_ADD_TWO_LOCAL:
-        case OP_GET_TWO_LOCAL:
-        case IR_MODULO: {
-            uint8_t slot_1 = INSTRUCTION(x + 1);
-            uint8_t slot_2 = INSTRUCTION(x + 2);
-            if (slot_1 > parameters) {
-                if ((int)slot_1 + registers > UINT8_MAX) {
-                    // FIXME: Pre-compute if optimization has enough registers to avoid this
-                    fprintf(stderr, "out of locals due to registers");
-                    exit(1);
-                }
-                SET(x + 1, slot_1 + (uint8_t)registers);
-            }
-            if (slot_2 > parameters) {
-                if ((int)slot_2 + registers > UINT8_MAX) {
-                    fprintf(stderr, "out of locals due to registers");
-                    exit(1);
-                }
-                SET(x + 2, slot_2 + (uint8_t)registers);
-            }
-            break;
-        }
-        case OP_INCREMENT_LOCAL:
-        case OP_INCREMENT_LOCAL_AND_SET:
-        case OP_INCREMENT_LOOP:
-        case OP_GET_LOCAL:
-        case OP_FOR:
-        case OP_FOR_LOOP: {
-            uint8_t slot = INSTRUCTION(x + 1);
-            if (slot > parameters) {
-                if ((int)slot + registers > UINT8_MAX) {
-                    fprintf(stderr, "out of locals due to registers");
-                    exit(1);
-                }
-                SET(x + 1, slot + (uint8_t)registers);
-            }
-            break;
-        }
-        case IR_GLOBAL:
-        case IR_CONSTANT: {
-            uint8_t slot = INSTRUCTION(x + 2);
-            SET(x + 2, (uint8_t)((int)slot - locals + parameters));
-            break;
-        }
-        case IR_JUMP_IF_GREATER:
-        case IR_JUMP_IF_GREATER_EQUAL: {
-            uint8_t slot_1 = INSTRUCTION(x + 1);
-            uint8_t slot_2 = INSTRUCTION(x + 2);
-            if (slot_1 > locals) {
-                SET(x + 1, (uint8_t)((int)slot_1 - locals + parameters));
-            } else if (slot_1 > parameters) {
-                SET(x + 1, slot_1 + (uint8_t)registers);
-            }
-            if (slot_2 > locals) {
-                SET(x + 2, (uint8_t)((int)slot_2 - locals + parameters));
-            } else if (slot_2 > parameters) {
-                SET(x + 2, slot_2 + (uint8_t)registers);
-            }
-            break;
-        }
-        }
-        x += next(opcode);
-    }
 }
 
 static HymnFunction *end_function(Compiler *C) {
-    emit(C, OP_NONE);
-    emit(C, OP_RETURN);
+    emit(C, OP_VOID);
 #ifndef HYMN_NO_OPTIMIZE
     optimize(C);
 #endif
-    HymnFunction *func = C->scope->func;
-    C->scope = C->scope->enclosing;
+    Scope *scope = C->scope;
+    HymnFunction *func = scope->func;
+    if (scope->type == TYPE_FUNCTION) func->source = hymn_substring(C->source, scope->begin, C->previous.start + C->previous.length);
+    C->scope = scope->enclosing;
     return func;
 }
 
-static void compile_function(Compiler *C, enum FunctionType type) {
+static void compile_function(Compiler *C, enum FunctionType type, size_t begin) {
     Scope scope = {0};
-    scope_init(C, &scope, type);
+    scope_init(C, &scope, type, begin);
 
     begin_scope(C);
 
@@ -3939,13 +3916,14 @@ static void compile_function(Compiler *C, enum FunctionType type) {
 
 static void function_expression(Compiler *C, bool assign) {
     (void)assign;
-    compile_function(C, TYPE_FUNCTION);
+    compile_function(C, TYPE_FUNCTION, C->previous.start);
 }
 
 static void declare_function(Compiler *C) {
+    size_t begin = C->previous.start;
     uint8_t global = variable(C, "expected function name");
     local_initialize(C);
-    compile_function(C, TYPE_FUNCTION);
+    compile_function(C, TYPE_FUNCTION, begin);
     finalize_variable(C, global);
 }
 
@@ -4251,11 +4229,11 @@ static void return_statement(Compiler *C) {
         compile_error(C, &C->previous, "return statement outside of function");
     }
     if (check(C, TOKEN_RIGHT_CURLY)) {
-        emit(C, OP_NONE);
+        emit(C, OP_VOID);
     } else {
         expression(C);
+        emit(C, OP_RETURN);
     }
-    emit(C, OP_RETURN);
 }
 
 static void pop_stack_loop(Compiler *C) {
@@ -4352,6 +4330,26 @@ static void print_statement(Compiler *C) {
     emit(C, OP_PRINT);
 }
 
+static void push_statement(Compiler *C) {
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'push'");
+    expression(C);
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'push' (expected 2)");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'push'");
+    emit(C, OP_ARRAY_PUSH);
+}
+
+static void insert_statement(Compiler *C) {
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'insert'");
+    expression(C);
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
+    expression(C);
+    consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'insert'");
+    emit(C, OP_ARRAY_INSERT);
+}
+
 static void use_statement(Compiler *C) {
     expression(C);
     emit(C, OP_USE);
@@ -4367,6 +4365,10 @@ static void statement(Compiler *C) {
         echo_statement(C);
     } else if (match(C, TOKEN_PRINT)) {
         print_statement(C);
+    } else if (match(C, TOKEN_PUSH)) {
+        push_statement(C);
+    } else if (match(C, TOKEN_INSERT)) {
+        insert_statement(C);
     } else if (match(C, TOKEN_USE)) {
         use_statement(C);
     } else if (match(C, TOKEN_IF)) {
@@ -4391,28 +4393,6 @@ static void statement(Compiler *C) {
     } else {
         expression_statement(C);
     }
-}
-
-static void array_push_expression(Compiler *C, bool assign) {
-    (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'push'");
-    expression(C);
-    consume(C, TOKEN_COMMA, "not enough arguments in call to 'push' (expected 2)");
-    expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'push'");
-    emit(C, OP_ARRAY_PUSH);
-}
-
-static void array_insert_expression(Compiler *C, bool assign) {
-    (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'insert'");
-    expression(C);
-    consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
-    expression(C);
-    consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
-    expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'insert'");
-    emit(C, OP_ARRAY_INSERT);
 }
 
 static void array_pop_expression(Compiler *C, bool assign) {
@@ -4515,6 +4495,14 @@ static void exists_expression(Compiler *C, bool assign) {
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'exists'");
     emit(C, OP_EXISTS);
+}
+
+static void inspect_expression(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'inspect'");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'inspect'");
+    emit(C, OP_INSPECT);
 }
 
 static void expression_statement(Compiler *C) {
@@ -4741,6 +4729,14 @@ HymnString *hymn_value_to_string(HymnValue value) {
     return string;
 }
 
+HymnString *hymn_value_to_inspect(HymnValue value) {
+    if (hymn_is_func(value)) {
+        HymnFunction *func = hymn_as_func(value);
+        if (func->source) return hymn_string_copy(func->source);
+    }
+    return hymn_value_to_string(value);
+}
+
 static HymnString *value_concat(HymnValue a, HymnValue b) {
     HymnString *string = hymn_value_to_string(a);
     HymnString *second = hymn_value_to_string(b);
@@ -4760,12 +4756,6 @@ static void debug_value(HymnValue value) {
     HymnString *string = debug_value_to_string(value);
     printf("%s", string);
     hymn_string_delete(string);
-}
-
-static void debug_value_message(const char *prefix, HymnValue value) {
-    printf("%s", prefix);
-    debug_value(value);
-    printf("\n");
 }
 
 static void reset_stack(Hymn *H) {
@@ -5109,10 +5099,6 @@ static HymnFrame *call(Hymn *H, HymnFunction *func, int count) {
     frame->ip = func->code.instructions;
     frame->stack = H->stack_top - count - 1;
 
-    for (int r = 0; r < func->registers; r++) {
-        push(H, hymn_new_none());
-    }
-
     return frame;
 }
 
@@ -5124,7 +5110,7 @@ static HymnFrame *call_value(Hymn *H, HymnValue value, int count) {
         HymnNativeFunction *native = hymn_as_native(value);
         HymnNativeCall func = native->func;
         HymnValue result = func(H, count, H->stack_top - count);
-        HymnValue *top = H->stack_top - (count + 1);
+        HymnValue *top = H->stack_top - count - 1;
         while (H->stack_top != top) {
             hymn_dereference(H, pop(H));
         }
@@ -5343,10 +5329,11 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     uint8_t instruction = code->instructions[index];
     switch (instruction) {
     case OP_ADD: return debug_instruction(debug, "OP_ADD", index);
-    case OP_ADD_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_ADD_TWO_LOCAL", code, index);
+    case OP_ADD_LOCALS: return debug_three_byte_instruction(debug, "OP_ADD_LOCALS", code, index);
     case OP_ARRAY_INSERT: return debug_instruction(debug, "OP_ARRAY_INSERT", index);
     case OP_ARRAY_POP: return debug_instruction(debug, "OP_ARRAY_POP", index);
     case OP_ARRAY_PUSH: return debug_instruction(debug, "OP_ARRAY_PUSH", index);
+    case OP_ARRAY_PUSH_LOCALS: return debug_three_byte_instruction(debug, "OP_ARRAY_PUSH_LOCALS", code, index);
     case OP_BIT_AND: return debug_instruction(debug, "OP_BIT_AND", index);
     case OP_BIT_LEFT_SHIFT: return debug_instruction(debug, "OP_BIT_LEFT_SHIFT", index);
     case OP_BIT_NOT: return debug_instruction(debug, "OP_BIT_NOT", index);
@@ -5354,6 +5341,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_BIT_RIGHT_SHIFT: return debug_instruction(debug, "OP_BIT_RIGHT_SHIFT", index);
     case OP_BIT_XOR: return debug_instruction(debug, "OP_BIT_XOR", index);
     case OP_CALL: return debug_byte_instruction(debug, "OP_CALL", code, index);
+    case OP_SELF: return debug_constant_instruction(debug, "OP_SELF", code, index);
     case OP_CLEAR: return debug_instruction(debug, "OP_CLEAR", index);
     case OP_CONSTANT: return debug_constant_instruction(debug, "OP_CONSTANT", code, index);
     case OP_NEW_ARRAY: return debug_instruction(debug, "OP_NEW_ARRAY", index);
@@ -5374,7 +5362,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_GET_GLOBAL_PROPERTY: return debug_two_constant_instruction(debug, "OP_GET_GLOBAL_PROPERTY", code, index);
     case OP_GET_LOCAL: return debug_byte_instruction(debug, "OP_GET_LOCAL", code, index);
     case OP_GET_PROPERTY: return debug_constant_instruction(debug, "OP_GET_PROPERTY", code, index);
-    case OP_GET_TWO_LOCAL: return debug_three_byte_instruction(debug, "OP_GET_TWO_LOCAL", code, index);
+    case OP_GET_LOCALS: return debug_three_byte_instruction(debug, "OP_GET_LOCALS", code, index);
     case OP_GREATER: return debug_instruction(debug, "OP_GREATER", index);
     case OP_GREATER_EQUAL: return debug_instruction(debug, "OP_GREATER_EQUAL", index);
     case OP_INCREMENT: return debug_byte_instruction(debug, "OP_INCREMENT", code, index);
@@ -5382,10 +5370,12 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_INCREMENT_LOCAL_AND_SET: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL_AND_SET", code, index);
     case OP_INCREMENT_LOOP: return debug_increment_loop_instruction(debug, "OP_INCREMENT_LOOP", code, index);
     case OP_INDEX: return debug_instruction(debug, "OP_INDEX", index);
+    case OP_INSPECT: return debug_instruction(debug, "OP_INSPECT", index);
     case OP_JUMP: return debug_jump_instruction(debug, "OP_JUMP", 1, code, index);
     case OP_JUMP_IF_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_EQUAL", 1, code, index);
     case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, code, index);
     case OP_JUMP_IF_GREATER: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER", 1, code, index);
+    case OP_JUMP_IF_GREATER_LOCALS: return debug_register_jump_instruction(debug, "OP_JUMP_IF_GREATER_LOCALS", 1, code, index);
     case OP_JUMP_IF_GREATER_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER_EQUAL", 1, code, index);
     case OP_JUMP_IF_LESS: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS", 1, code, index);
     case OP_JUMP_IF_LESS_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS_EQUAL", 1, code, index);
@@ -5397,6 +5387,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_LESS_EQUAL: return debug_instruction(debug, "OP_LESS_EQUAL", index);
     case OP_LOOP: return debug_jump_instruction(debug, "OP_LOOP", -1, code, index);
     case OP_MODULO: return debug_instruction(debug, "OP_MODULO", index);
+    case OP_MODULO_LOCALS: return debug_three_byte_instruction(debug, "OP_MODULO_LOCALS", code, index);
     case OP_MULTIPLY: return debug_instruction(debug, "OP_MULTIPLY", index);
     case OP_NEGATE: return debug_instruction(debug, "OP_NEGATE", index);
     case OP_NONE: return debug_instruction(debug, "OP_NONE", index);
@@ -5407,6 +5398,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_POP_TWO: return debug_instruction(debug, "OP_POP_TWO", index);
     case OP_PRINT: return debug_instruction(debug, "OP_PRINT", index);
     case OP_RETURN: return debug_instruction(debug, "OP_RETURN", index);
+    case OP_VOID: return debug_instruction(debug, "OP_VOID", index);
     case OP_SET_DYNAMIC: return debug_instruction(debug, "OP_SET_DYNAMIC", index);
     case OP_SET_GLOBAL: return debug_constant_instruction(debug, "OP_SET_GLOBAL", code, index);
     case OP_SET_LOCAL: return debug_byte_instruction(debug, "OP_SET_LOCAL", code, index);
@@ -5421,17 +5413,12 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_TRUE: return debug_instruction(debug, "OP_TRUE", index);
     case OP_TYPE: return debug_instruction(debug, "OP_TYPE", index);
     case OP_USE: return debug_instruction(debug, "OP_USE", index);
-    case IR_GLOBAL: return debug_constant_and_slot_instruction(debug, "IR_GLOBAL", code, index);
-    case IR_CONSTANT: return debug_constant_and_slot_instruction(debug, "IR_CONSTANT", code, index);
-    case IR_JUMP_IF_GREATER: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER", 1, code, index);
-    case IR_JUMP_IF_GREATER_EQUAL: return debug_register_jump_instruction(debug, "IR_JUMP_IF_GREATER_EQUAL", 1, code, index);
-    case IR_MODULO: return debug_three_byte_instruction(debug, "IR_MODULO", code, index);
     default: *debug = string_append_format(*debug, "UNKNOWN_OPCODE %d\n", instruction); return index + 1;
     }
 }
 
 void disassemble_byte_code(HymnByteCode *code, const char *name) {
-    printf("\n-- %s --\n", name != NULL ? name : "NULL");
+    printf("\n-- %s --\n", name != NULL ? name : "script");
     HymnString *debug = hymn_new_string("");
     size_t offset = 0;
     while (offset < (size_t)code->count) {
@@ -5553,6 +5540,18 @@ dispatch:
     }
 #endif
     switch (READ_BYTE(frame)) {
+    case OP_VOID:
+        H->frame_count--;
+        bool done = H->frame_count == 0 || frame->func->name == NULL;
+        while (H->stack_top != frame->stack) {
+            hymn_dereference(H, pop(H));
+        }
+        if (done) {
+            return;
+        }
+        push(H, hymn_new_none());
+        frame = current_frame(H);
+        HYMN_DISPATCH;
     case OP_RETURN: {
         HymnValue result = pop(H);
         H->frame_count--;
@@ -5610,34 +5609,47 @@ dispatch:
         } else {
             HymnFunction *func = hymn_as_func(value);
             if (count != func->arity) {
-                frame = throw_error(H, "unexpected number of function arguments: %d != %d", count, func->arity);
+                if (count < func->arity) frame = throw_error(H, "not enough arguments in call to '%s' (expected %d)", func->name, func->arity);
+                frame = throw_error(H, "too many arguments in call to '%s' (expected %d)", func->name, func->arity);
+                if (frame == NULL) return;
             } else {
                 HymnValue *top = H->stack_top;
-                HymnValue *start = top - (count + 1);
+                HymnValue *start = top - count - 1;
                 HymnValue *bottom = frame->stack;
-                HymnValue *shift = start;
+                HymnValue *move = start;
                 while (bottom != start) {
                     hymn_dereference(H, *bottom);
-                    if (shift != top) {
-                        *bottom = *shift;
-                        shift++;
+                    if (move != top) {
+                        *bottom = *move;
+                        move++;
                     }
                     bottom++;
                 }
-                while (shift != top) {
-                    *bottom = *shift;
-                    shift++;
+                while (move != top) {
+                    *bottom = *move;
+                    move++;
                     bottom++;
                 }
                 H->stack_top = start;
                 frame->func = func;
                 frame->ip = func->code.instructions;
-                for (int r = 0; r < func->registers; r++) {
-                    push(H, hymn_new_none());
-                }
             }
         }
         if (frame == NULL) return;
+        HYMN_DISPATCH;
+    }
+    case OP_SELF: {
+        HymnValue table = peek(H, 1);
+        if (!hymn_is_table(table)) {
+            const char *is = hymn_value_type(table.is);
+            THROW("can't get property of %s (expected table)", is)
+        }
+        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
+        HymnValue fun = table_get(hymn_as_table(table), name);
+        *(H->stack_top - 1) = fun;
+        hymn_reference(fun);
+        *H->stack_top = table;
+        H->stack_top++;
         HYMN_DISPATCH;
     }
     case OP_JUMP: {
@@ -5695,6 +5707,35 @@ dispatch:
     }
     case OP_JUMP_IF_GREATER: {
         JUMP_COMPARE_OP(>);
+        HYMN_DISPATCH;
+    }
+    case OP_JUMP_IF_GREATER_LOCALS: {
+        HymnValue a = frame->stack[READ_BYTE(frame)];
+        HymnValue b = frame->stack[READ_BYTE(frame)];
+        uint16_t jump = READ_SHORT(frame);
+        bool answer;
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                answer = hymn_as_int(a) > hymn_as_int(b);
+            } else if (hymn_is_float(b)) {
+                answer = (HymnFloat)hymn_as_int(a) > hymn_as_float(b);
+            } else {
+                THROW("Comparison: Operands must be numbers")
+            }
+        } else if (hymn_is_float(a)) {
+            if (hymn_is_int(b)) {
+                answer = hymn_as_float(a) > (HymnFloat)hymn_as_int(b);
+            } else if (hymn_is_float(b)) {
+                answer = hymn_as_float(a) > hymn_as_float(b);
+            } else {
+                THROW("Comparison: Operands must be numbers")
+            }
+        } else {
+            THROW("Comparison: Operands must be numbers")
+        }
+        if (answer) {
+            frame->ip += jump;
+        }
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_GREATER_EQUAL: {
@@ -5888,7 +5929,7 @@ dispatch:
         hymn_dereference(H, b);
         THROW("can't add %s and %s", is_a, is_b)
     }
-    case OP_ADD_TWO_LOCAL: {
+    case OP_ADD_LOCALS: {
         HymnValue a = frame->stack[READ_BYTE(frame)];
         HymnValue b = frame->stack[READ_BYTE(frame)];
         if (hymn_is_none(a)) {
@@ -6091,6 +6132,25 @@ dispatch:
         hymn_dereference(H, b);
         THROW("can't modulo %s and %s (expected integers)", is_a, is_b)
     }
+    case OP_MODULO_LOCALS: {
+        HymnValue a = frame->stack[READ_BYTE(frame)];
+        HymnValue b = frame->stack[READ_BYTE(frame)];
+        if (hymn_is_int(a)) {
+            if (hymn_is_int(b)) {
+                a.as.i %= b.as.i;
+                push(H, a);
+            } else {
+                goto bad_modulo_locals;
+            }
+        } else {
+            goto bad_modulo_locals;
+        }
+        HYMN_DISPATCH;
+    bad_modulo_locals:;
+        const char *is_a = hymn_value_type(a.is);
+        const char *is_b = hymn_value_type(b.is);
+        THROW("can't modulo %s and %s (expected integers)", is_a, is_b)
+    }
     case OP_BIT_NOT: {
         HymnValue value = pop(H);
         if (hymn_is_int(value)) {
@@ -6244,8 +6304,7 @@ dispatch:
         HymnValue value = peek(H, 1);
         HymnValue previous = table_put(&H->globals, name, value);
         if (hymn_is_undefined(previous)) {
-            table_put(&H->globals, name, hymn_new_undefined());
-            THROW("undefined global '%s'", name->string)
+            hymn_reference_string(name);
         } else {
             hymn_dereference(H, previous);
         }
@@ -6297,7 +6356,7 @@ dispatch:
         push(H, value);
         HYMN_DISPATCH;
     }
-    case OP_GET_TWO_LOCAL: {
+    case OP_GET_LOCALS: {
         uint8_t slot_a = READ_BYTE(frame);
         uint8_t slot_b = READ_BYTE(frame);
         HymnValue value_a = frame->stack[slot_a];
@@ -6598,15 +6657,24 @@ dispatch:
         HymnValue value = pop(H);
         HymnValue array = pop(H);
         if (!hymn_is_array(array)) {
-            const char *is = hymn_value_type(value.is);
+            const char *is = hymn_value_type(array.is);
             hymn_dereference(H, array);
             hymn_dereference(H, value);
             THROW("call to 'push' can't use %s for 1st argument (expected array)", is)
         } else {
             hymn_array_push(hymn_as_array(array), value);
-            push(H, value);
-            hymn_reference(value);
             hymn_dereference(H, array);
+        }
+        HYMN_DISPATCH;
+    }
+    case OP_ARRAY_PUSH_LOCALS: {
+        HymnValue array = frame->stack[READ_BYTE(frame)];
+        if (!hymn_is_array(array)) {
+            const char *is = hymn_value_type(array.is);
+            THROW("call to 'push' can't use %s for 1st argument (expected array)", is)
+        } else {
+            HymnValue value = frame->stack[READ_BYTE(frame)];
+            hymn_array_push(hymn_as_array(array), value);
         }
         HYMN_DISPATCH;
     }
@@ -6645,8 +6713,6 @@ dispatch:
             } else {
                 hymn_array_insert(array, index, p);
             }
-            push(H, p);
-            hymn_reference(p);
             hymn_dereference(H, v);
         } else {
             const char *is = hymn_value_type(v.is);
@@ -7034,6 +7100,12 @@ dispatch:
         hymn_dereference(H, route);
         HYMN_DISPATCH;
     }
+    case OP_INSPECT: {
+        HymnValue value = pop(H);
+        push_string(H, hymn_value_to_inspect(value));
+        hymn_dereference(H, value);
+        HYMN_DISPATCH;
+    }
     case OP_THROW: {
         frame = exception(H);
         if (frame == NULL) return;
@@ -7055,117 +7127,6 @@ dispatch:
             const char *is = hymn_value_type(file.is);
             hymn_dereference(H, file);
             THROW("import can't use %s (expected string)", is)
-        }
-        HYMN_DISPATCH;
-    }
-    case IR_GLOBAL: {
-        HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
-        uint8_t slot = READ_BYTE(frame);
-        HymnValue get = table_get(&H->globals, name);
-        if (hymn_is_undefined(get)) {
-            THROW("undefined global '%s'", name->string)
-        }
-        hymn_dereference(H, frame->stack[slot]);
-        frame->stack[slot] = get;
-        hymn_reference(get);
-        HYMN_DISPATCH;
-    }
-    case IR_CONSTANT: {
-        HymnValue constant = READ_CONSTANT(frame);
-        uint8_t slot = READ_BYTE(frame);
-        switch (constant.is) {
-        case HYMN_VALUE_ARRAY: {
-            constant = hymn_new_array_value(hymn_new_array(0));
-            break;
-        }
-        case HYMN_VALUE_TABLE: {
-            constant = hymn_new_table_value(hymn_new_table());
-            break;
-        }
-        default:
-            break;
-        }
-        hymn_dereference(H, frame->stack[slot]);
-        frame->stack[slot] = constant;
-        hymn_reference(constant);
-        HYMN_DISPATCH;
-    }
-    case IR_JUMP_IF_GREATER: {
-        uint8_t data_a = READ_BYTE(frame);
-        uint8_t data_b = READ_BYTE(frame);
-        uint16_t jump = READ_SHORT(frame);
-        HymnValue a = frame->stack[data_a];
-        HymnValue b = frame->stack[data_b];
-        bool answer;
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_int(a) > hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = (HymnFloat)hymn_as_int(a) > hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else if (hymn_is_float(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_float(a) > (HymnFloat)hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = hymn_as_float(a) > hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else {
-            THROW("Comparison: Operands must be numbers")
-        }
-        if (answer) {
-            frame->ip += jump;
-        }
-        HYMN_DISPATCH;
-    }
-    case IR_JUMP_IF_GREATER_EQUAL: {
-        uint8_t data_a = READ_BYTE(frame);
-        uint8_t data_b = READ_BYTE(frame);
-        uint16_t jump = READ_SHORT(frame);
-        HymnValue a = frame->stack[data_a];
-        HymnValue b = frame->stack[data_b];
-        bool answer;
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_int(a) >= hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = (HymnFloat)hymn_as_int(a) >= hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else if (hymn_is_float(a)) {
-            if (hymn_is_int(b)) {
-                answer = hymn_as_float(a) >= (HymnFloat)hymn_as_int(b);
-            } else if (hymn_is_float(b)) {
-                answer = hymn_as_float(a) >= hymn_as_float(b);
-            } else {
-                THROW("Comparison: Operands must be numbers")
-            }
-        } else {
-            THROW("Comparison: Operands must be numbers")
-        }
-        if (answer) {
-            frame->ip += jump;
-        }
-        HYMN_DISPATCH;
-    }
-    case IR_MODULO: {
-        uint8_t data_a = READ_BYTE(frame);
-        uint8_t data_b = READ_BYTE(frame);
-        HymnValue a = frame->stack[data_a];
-        HymnValue b = frame->stack[data_b];
-        if (hymn_is_int(a)) {
-            if (hymn_is_int(b)) {
-                a.as.i %= b.as.i;
-                push(H, a);
-            } else {
-                THROW("Modulo Error: 2nd value must be `Integer`")
-            }
-        } else {
-            THROW("Modulo Error: 1st and 2nd values must be `Integer`")
         }
         HYMN_DISPATCH;
     }
@@ -7596,10 +7557,10 @@ static void reset_terminal() {
 
 static void echo_if_none(HymnByteCode *code) {
     int count = code->count;
-    if (count > 3) {
+    if (count > 2) {
         uint8_t *instructions = code->instructions;
-        if (instructions[count - 3] == OP_POP && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
-            instructions[count - 3] = OP_ECHO;
+        if (instructions[count - 2] == OP_POP && instructions[count - 1] == OP_VOID) {
+            instructions[count - 2] = OP_ECHO;
         }
     }
 }

@@ -1,5 +1,5 @@
 {
-  function reverse(a) {
+  func reverse(a) {
     let size = len(a)
     let max = int(math.floor(size / 2))
     for i = 0, i < max {

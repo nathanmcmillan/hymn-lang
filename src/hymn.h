@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -19,7 +20,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.6.2"
+#define HYMN_VERSION "0.7.0"
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
@@ -28,8 +29,7 @@
 // #define HYMN_NO_REPL
 #define HYMN_NO_DYNAMIC_LIBS
 
-#define HYMN_NO_OPTIMIZE
-#define HYMN_NO_REGISTERS
+// #define HYMN_NO_OPTIMIZE
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER
@@ -208,8 +208,8 @@ struct HymnFunction {
     HymnObject object;
     HymnString *name;
     HymnString *script;
+    HymnString *source;
     int arity;
-    int registers;
     HymnByteCode code;
     HymnExceptList *except;
 };
@@ -270,10 +270,11 @@ size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
 bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
-HymnString *hymn_string_append_char(HymnString *this, const char b);
+HymnString *hymn_string_append_char(HymnString *string, const char b);
+HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end);
 bool hymn_string_starts_with(HymnString *s, const char *using);
 HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace);
-HymnString *hymn_string_append(HymnString *this, const char *b);
+HymnString *hymn_string_append(HymnString *string, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);
 void hymn_string_trim(HymnString *string);

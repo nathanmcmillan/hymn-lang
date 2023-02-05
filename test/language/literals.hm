@@ -1,3 +1,4 @@
+# integers
 # 0
 # 1
 # 2
@@ -5,13 +6,48 @@
 # -1
 # -2
 # -9007199254740991
+# decimals
 # 0.001
 # 123.456
 # -123.456
-# foobar
+# scientific notation
+# 20000
+# 0.0002
+# -20000
+# -0.0002
+# 28000
+# 28000
+# 0.00028
+# -28000
+# -0.00028
+# 40000
+# 60000
+# 80000
+# binary
+# 0
+# 1
+# 2
+# 3
+# hexadecimal
+# 0
+# 9
+# 10
+# 11
+# 12
+# 13
+# 14
+# 15
+# 162
+# 255
+# booleans
 # true
 # false
 # none
+# none
+
+use "../libs/assert"
+
+echo "integers"
 
 echo 0
 echo 1
@@ -22,13 +58,57 @@ echo -1
 echo -2
 echo -9007199254740991
 
+echo "decimals"
+
 echo 0.001
 echo 123.456
 echo -123.456
 
-echo "foobar"
+echo "scientific notation"
+
+echo 2e4
+echo 2e-4
+echo -2e4
+echo -2e-4
+
+echo 2.8e4
+echo 2.8e+4
+echo 2.8e-4
+echo -2.8e4
+echo -2.8e-4
+
+echo 4E4
+echo 6E+4
+echo 8e+4
+
+assert("float", type(2e-4))
+assert("integer", type(8e+4))
+
+echo "binary"
+
+echo 0b0
+echo 0b1
+echo 0b10
+echo 0b11
+
+echo "hexadecimal"
+
+echo 0x0
+echo 0x9
+echo 0xa
+echo 0xb
+echo 0xc
+echo 0xd
+echo 0xe
+echo 0xf
+echo 0xa2
+echo 0xff
+
+echo "booleans"
 
 echo true
 echo false
+
+echo "none"
 
 echo none

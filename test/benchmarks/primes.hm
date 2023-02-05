@@ -1,5 +1,5 @@
 {
-  function is_prime(n) {
+  func is_prime(n) {
     if n < 2 { return false }
     let minus = n - 1
     for i = 2, i < minus {

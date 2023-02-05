@@ -4,20 +4,20 @@
 # 4
 
 {
-  function foo() {
+  func foo() {
     return 8
   }
   echo foo()
 }
 
-function foo() {
+func foo() {
   return 4
 }
 
 echo foo()
 
 {
-  function foo() {
+  func foo() {
     return 12
   }
   echo foo()

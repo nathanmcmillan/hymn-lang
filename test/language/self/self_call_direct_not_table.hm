@@ -1,0 +1,7 @@
+# @exception can't get property of array (expected table)
+
+func foo(me, more) {
+  return me.value + more
+}
+
+[foo]->call(4)

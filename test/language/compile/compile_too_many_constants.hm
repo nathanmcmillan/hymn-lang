@@ -1,6 +1,6 @@
 # @exception too many constants
 
-function foobar(a, b) {
+func foobar(a, b) {
   echo a + b
 }
 

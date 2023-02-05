@@ -1,7 +1,7 @@
 use "util"
 
 # last_index returns the index of the last instance of v in a, or -1 if not found.
-function last_index(a, v) {
+func last_index(a, v) {
   let size = len(a)
   let i = size - 1
   while i >= 0 {
@@ -14,7 +14,7 @@ function last_index(a, v) {
 }
 
 # upper returns s with letters mapped to their upper case.
-function upper(s) {
+func upper(s) {
   let new = ""
   let size = len(s)
   for i = 0, i < size {
@@ -29,25 +29,25 @@ function upper(s) {
 }
 
 # abs returns the absolute value of n.
-function abs(n) {
+func abs(n) {
   if n < 0 { return -n }
   return n
 }
 
 # min returns the smaller value of a or b.
-function min(a, b) {
+func min(a, b) {
   if a < b { return a }
   return b
 }
 
 # max returns the larger value of a or b.
-function max(a, b) {
+func max(a, b) {
   if a > b { return a }
   return b
 }
 
 # string_comparator returns the alphabetical integer difference comparing a to b.
-function string_comparator(a, b) {
+func string_comparator(a, b) {
   let to = min(len(a), len(b))
   for i = 0, i < to {
     let char = int(a[i]) - int(b[i])
@@ -57,7 +57,7 @@ function string_comparator(a, b) {
 }
 
 # sort returns a new array with elements sorted using the comparator function.
-function sort(a, comparator) {
+func sort(a, comparator) {
   let n = []
   let total = 0
   for v in a {
@@ -79,6 +79,6 @@ function sort(a, comparator) {
 }
 
 # sort_strings returns a new array with sorted strings.
-function sort_strings(a) {
+func sort_strings(a) {
   return sort(a, string_comparator)
 }
