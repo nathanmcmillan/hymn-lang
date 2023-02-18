@@ -22,16 +22,16 @@ func assert(expected, actual) {
   }
 }
 
-func assert_not(expected, actual) {
+func assert-not(expected, actual) {
   try {
     assert(expected, actual)
-  } except _ {
+  } except e {
     return
   }
   throw "assert not equals: <" + actual + ">"
 }
 
-func print_assert(expected, actual) {
+func print-assert(expected, actual) {
   assert(expected, actual)
   echo actual
 }

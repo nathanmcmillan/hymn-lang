@@ -48,7 +48,7 @@
       ]
     },
     {
-      "begin": "\\b(func)\\s*(?:\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*)?(\\()",
+      "begin": "\\b(func)\\s*(?:\\s+([a-zA-Z][a-zA-Z0-9-]*)\\s*)?(\\()",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.hymn"
@@ -69,7 +69,7 @@
       "name": "meta.function.hymn",
       "patterns": [
         {
-          "match": "[a-zA-Z_][a-zA-Z0-9_]*",
+          "match": "[a-zA-Z][a-zA-Z0-9-]*",
           "name": "variable.parameter.hymn"
         },
         {
@@ -103,15 +103,7 @@
       }
     },
     {
-      "match": "([a-zA-Z_][a-zA-Z0-9_]*) *(?=\\()",
-      "captures": {
-        "1": {
-          "name": "entity.name.function.hymn"
-        }
-      }
-    },
-    {
-      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|inspect)\\b",
+      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|inspect)(?:\\s|\\(|$)",
       "captures": {
         "1": {
           "name": "support.function.hymn"
@@ -123,6 +115,22 @@
       "captures": {
         "1": {
           "name": "constant.language.hymn"
+        }
+      }
+    },
+    {
+      "match": "([a-zA-Z][a-zA-Z0-9-]*) *(?=\\()",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.hymn"
+        }
+      }
+    },
+    {
+      "match": "\\b([a-zA-Z][a-zA-Z0-9-]*(?:\\.[a-zA-Z][a-zA-Z0-9-]*)*)\\b",
+      "captures": {
+        "1": {
+          "name": "variable.hymn"
         }
       }
     },
@@ -151,7 +159,7 @@
       }
     },
     {
-      "match": "(?<= |\\b)(\\+|-|\\*|\\/|%|&|\\||\\^|~|<<|>>|->)(?= |\\b)",
+      "match": "(?<= |\\b)(\\+|-|\\*|\\/|%|&|\\||\\^|~|<<|>>|->|=)(?= |\\b)",
       "captures": {
         "1": {
           "name": "keyword.operator.hymn"
@@ -163,17 +171,6 @@
       "captures": {
         "1": {
           "name": "keyword.operator.comparison.hymn"
-        }
-      }
-    },
-    {
-      "match": "([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*) *(=)\\b",
-      "captures": {
-        "1": {
-          "name": "variable.other.assignment.hymn"
-        },
-        "2": {
-          "name": "keyword.operator.assignment.hymn"
         }
       }
     }

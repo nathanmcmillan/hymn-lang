@@ -4,7 +4,7 @@
 
 #include <ctype.h>
 
-#include "hymn.h"
+#include "hymn_pattern.h"
 
 #define MAX_CAPTURES 16
 
@@ -13,12 +13,13 @@ typedef struct Match Match;
 
 struct Capture {
     const char *begin;
-    int size;
+    size_t size;
 };
 
 struct Match {
-    char *error;
+    const char *error;
     int count;
+    char padding[4];
     Capture capture[MAX_CAPTURES];
 };
 
@@ -138,7 +139,7 @@ static char *capturing(Match *group, char *pattern, char *text) {
         return false;
     }
     group->capture[count].begin = text;
-    group->capture[count].size = -1;
+    group->capture[count].size = SIZE_MAX;
     group->count = count + 1;
     char *stop = match(group, pattern, text);
     if (stop == NULL) {
@@ -152,11 +153,11 @@ static char *captured(Match *group, char *pattern, char *text) {
     if (count > 0) {
         while (--count >= 0) {
             Capture *capture = &group->capture[count];
-            if (capture->size == -1) {
-                capture->size = (int)(text - capture->begin);
+            if (capture->size == SIZE_MAX) {
+                capture->size = (size_t)(text - capture->begin);
                 char *stop = match(group, pattern, text);
                 if (stop == NULL) {
-                    capture->size = -1;
+                    capture->size = SIZE_MAX;
                 }
                 return stop;
             }
@@ -180,6 +181,8 @@ init:
             return text[0] == '\0' ? text : NULL;
         }
     }
+    default:
+        break;
     }
     char *end = possible(group, pattern);
     if (group->error != NULL) {
@@ -335,6 +338,11 @@ static HymnValue find(Hymn *H, int count, HymnValue *arguments) {
     HymnArray *array = hymn_new_array(0);
     hymn_array_push(array, hymn_new_int((HymnInt)(begin - original)));
     hymn_array_push(array, hymn_new_int((HymnInt)(end - original)));
+    for (int i = 0; i < group.count; i++) {
+        HymnInt start = (HymnInt)(group.capture[i].begin - original);
+        hymn_array_push(array, hymn_new_int(start));
+        hymn_array_push(array, hymn_new_int(start + (HymnInt)group.capture[i].size));
+    }
     return hymn_new_array_value(array);
 }
 

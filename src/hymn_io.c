@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "hymn.h"
+#include "hymn_io.h"
 
 #ifdef _MSC_VER
 #define IS_DIRECTORY(F) (((F)&S_IFMT) == S_IFDIR)
@@ -41,7 +41,7 @@ static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_string_value(object);
 }
 
-static HymnValue io_readlines(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue io_read_lines(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     HymnString *string = hymn_read_file(path);
     if (string == NULL) {
@@ -129,7 +129,7 @@ static HymnValue io_stats(Hymn *H, int count, HymnValue *arguments) {
     HymnTable *table = hymn_new_table();
     hymn_set_property_const(H, table, "directory", hymn_new_bool(IS_DIRECTORY(b.st_mode)));
     hymn_set_property_const(H, table, "mode", hymn_new_int(b.st_mode));
-    hymn_set_property_const(H, table, "nlink", hymn_new_int(b.st_nlink));
+    hymn_set_property_const(H, table, "nlink", hymn_new_int((HymnInt)b.st_nlink));
     hymn_set_property_const(H, table, "uid", hymn_new_int(b.st_uid));
     hymn_set_property_const(H, table, "gid", hymn_new_int(b.st_gid));
     hymn_set_property_const(H, table, "size", hymn_new_int(b.st_size));
@@ -179,7 +179,7 @@ void hymn_use_io(Hymn *H) {
     HymnTable *io = hymn_new_table();
     hymn_add_function_to_table(H, io, "size", io_size);
     hymn_add_function_to_table(H, io, "read", io_read);
-    hymn_add_function_to_table(H, io, "readlines", io_readlines);
+    hymn_add_function_to_table(H, io, "read-lines", io_read_lines);
     hymn_add_function_to_table(H, io, "write", io_write);
     hymn_add_function_to_table(H, io, "append", io_append);
     hymn_add_function_to_table(H, io, "exists", io_exists);

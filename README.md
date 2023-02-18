@@ -7,22 +7,22 @@ A small byte-code interpreted language with a focus on simplicity. [Visit the we
 use "math"
 
 # tables hold key value pairs
-func new_node(value) {
+func new-node(value) {
   return { value: value, next: none }
 }
 
-func node_add(list, value) {
+func node-add(list, value) {
   let node = list
   while true {
     if node.next == none { break }
     node = node.next
   }
-  node.next = new_node(value)
+  node.next = new-node(value)
 }
 
 # objects are passed by reference
-let list = new_node("hello")
-node_add(list, "world")
+let list = new-node("hello")
+node-add(list, "world")
 
 # print statements will show all nested values in an object
 echo list
@@ -48,15 +48,6 @@ echo list
 1. No namespaces
 1. No classes
 1. No breaking changes after version 1.0
-
-## Status
-
-| Implementation | Release     |
-| -------------- | ----------- |
-| C              | Version 0.7 |
-| JavaScript     | Version 0.7 |
-| Go             | In progress |
-| Rust           | In progress |
 
 # Performance
 

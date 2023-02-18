@@ -1,7 +1,7 @@
 use "util"
 
-# last_index returns the index of the last instance of v in a, or -1 if not found.
-func last_index(a, v) {
+# last-index returns the index of the last instance of v in a, or -1 if not found.
+func last-index(a, v) {
   let size = len(a)
   let i = size - 1
   while i >= 0 {
@@ -46,8 +46,8 @@ func max(a, b) {
   return b
 }
 
-# string_comparator returns the alphabetical integer difference comparing a to b.
-func string_comparator(a, b) {
+# string-comparator returns the alphabetical integer difference comparing a to b.
+func string-comparator(a, b) {
   let to = min(len(a), len(b))
   for i = 0, i < to {
     let char = int(a[i]) - int(b[i])
@@ -78,7 +78,7 @@ func sort(a, comparator) {
   return n
 }
 
-# sort_strings returns a new array with sorted strings.
-func sort_strings(a) {
-  return sort(a, string_comparator)
+# sort-strings returns a new array with sorted strings.
+func sort-strings(a) {
+  return sort(a, string-comparator)
 }

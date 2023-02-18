@@ -1,3 +1,10 @@
+# Release 0.8.0
+
+- Hyphens now allowed in variable names
+- Underscores no longer allowed in variable names
+- Library `pattern` function `find` now returns start and end positions for groups
+- Bug fixes and additional GCC warning fixes
+
 # Release 0.7.0
 
 - No exception thrown when defining or redefining a global variable without using `let`

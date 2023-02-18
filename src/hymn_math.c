@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#include "hymn.h"
+#include "hymn_math.h"
 
 #define PI 3.14159265358979323846
 

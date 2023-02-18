@@ -1,1 +1,5 @@
-echo text.replace('zoobie goobie', 'ie', 'er')
+use "test/libs/assert"
+
+print-assert("zoober goober", text.replace('zoobie goobie', 'ie', 'er'))
+
+print-assert("&gt;&gt;&gt;", text.replace('>>>', '>', '&gt;'))

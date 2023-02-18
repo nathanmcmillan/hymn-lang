@@ -18,7 +18,7 @@ static void signal_handle(int signum) {
     }
 }
 
-static void help() {
+static void help(void) {
     printf("Hymn Script\n\n"
            "  -c  Run command\n"
            "  -i  Open interactive mode\n"

@@ -5,7 +5,13 @@
 ### Debug
 
 ```
-$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymn -lm -ldl
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -o hymn -lm -ldl -rdynamic
+```
+
+### Safety
+
+```
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -Wpadded -g -o hymn -lm -ldl -rdynamic
 ```
 
 ### Testing

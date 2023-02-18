@@ -13,8 +13,8 @@ void *hymn_malloc(size_t size) {
     exit(1);
 }
 
-void *hymn_calloc(size_t members, size_t member_size) {
-    void *mem = calloc(members, member_size);
+void *hymn_calloc(size_t count, size_t size) {
+    void *mem = calloc(count, size);
     if (mem) {
         return mem;
     }
@@ -29,6 +29,53 @@ void *hymn_realloc(void *mem, size_t size) {
     }
     fprintf(stderr, "realloc failed.\n");
     exit(1);
+}
+
+void *hymn_malloc_count(int count, size_t size) {
+    if (count < 0) {
+        fprintf(stderr, "malloc negative count.\n");
+        exit(1);
+    }
+    void *mem = malloc((size_t)count * size);
+    if (mem) {
+        return mem;
+    }
+    fprintf(stderr, "malloc failed.\n");
+    exit(1);
+}
+
+void *hymn_calloc_count(int count, size_t size) {
+    if (count < 0) {
+        fprintf(stderr, "calloc negative count.\n");
+        exit(1);
+    }
+    void *mem = calloc((size_t)count, size);
+    if (mem) {
+        return mem;
+    }
+    fprintf(stderr, "calloc failed.\n");
+    exit(1);
+}
+
+void *hymn_realloc_count(void *mem, int count, size_t size) {
+    if (count < 0) {
+        fprintf(stderr, "realloc negative count.\n");
+        exit(1);
+    }
+    mem = realloc(mem, (size_t)count * size);
+    if (mem) {
+        return mem;
+    }
+    fprintf(stderr, "realloc failed.\n");
+    exit(1);
+}
+
+static void hymn_mem_copy(void *dest, void *src, int count, size_t size) {
+    if (count < 0) {
+        fprintf(stderr, "memcpy negative count.\n");
+        exit(1);
+    }
+    memcpy(dest, src, (size_t)count * size);
 }
 
 static HymnStringHead *string_head_init(size_t length, size_t capacity) {
@@ -130,15 +177,6 @@ void hymn_string_delete(HymnString *string) {
     free((char *)string - sizeof(HymnStringHead));
 }
 
-static HymnString *substring(HymnString *string, size_t start, size_t end) {
-    size_t len = end - start;
-    HymnStringHead *head = string_head_init(len, len);
-    char *s = (char *)(head + 1);
-    memcpy(s, string + start, len);
-    s[len] = '\0';
-    return (HymnString *)s;
-}
-
 void hymn_string_zero(HymnString *string) {
     HymnStringHead *head = HYMN_STRING_HEAD(string);
     head->length = 0;
@@ -237,14 +275,12 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
     HymnStringHead *head = HYMN_STRING_HEAD(string);
     size_t len = head->length;
     size_t len_sub = strlen(find);
-    if (len_sub > len) {
-        return hymn_new_string("");
-    } else if (len == 0) {
+    if (len == 0 || len_sub > len) {
         return hymn_new_string("");
     }
     HymnString *out = hymn_new_string_with_capacity(len);
     size_t end = len - len_sub + 1;
-    size_t p = 0;
+    size_t pos = 0;
     for (size_t i = 0; i < end; i++) {
         bool match = true;
         for (size_t k = 0; k < len_sub; k++) {
@@ -254,14 +290,15 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
             }
         }
         if (match) {
-            out = hymn_string_append_substring(out, string, p, i);
+            out = hymn_string_append_substring(out, string, pos, i);
             out = hymn_string_append(out, replace);
             i += len_sub;
-            p = i;
+            pos = i;
+            i--;
         }
     }
-    if (p < len) {
-        out = hymn_string_append_substring(out, string, p, len);
+    if (pos < len) {
+        out = hymn_string_append_substring(out, string, pos, len);
     }
     return out;
 }
@@ -273,7 +310,7 @@ static HymnString *char_to_string(char ch) {
 }
 
 HymnString *hymn_int_to_string(HymnInt number) {
-    int len = snprintf(NULL, 0, "%" PRId64, number);
+    size_t len = (size_t)snprintf(NULL, 0, "%" PRId64, number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%" PRId64, number);
     HymnString *s = hymn_new_string_with_length(str, len);
@@ -282,7 +319,7 @@ HymnString *hymn_int_to_string(HymnInt number) {
 }
 
 HymnString *hymn_float_to_string(HymnFloat number) {
-    int len = snprintf(NULL, 0, "%g", number);
+    size_t len = (size_t)snprintf(NULL, 0, "%g", number);
     char *str = hymn_malloc(len + 1);
     snprintf(str, len + 1, "%g", number);
     HymnString *s = hymn_new_string_with_length(str, len);
@@ -302,11 +339,11 @@ HymnString *hymn_string_format(const char *format, ...) {
     va_list args;
 
     va_start(args, format);
-    int len = vsnprintf(NULL, 0, format, args);
+    size_t len = (size_t)vsnprintf(NULL, 0, format, args);
     va_end(args);
     char *chars = hymn_malloc((len + 1) * sizeof(char));
     va_start(args, format);
-    len = vsnprintf(chars, len + 1, format, args);
+    len = (size_t)vsnprintf(chars, len + 1, format, args);
     va_end(args);
     HymnString *str = hymn_new_string_with_length(chars, len);
     free(chars);
@@ -317,18 +354,18 @@ static HymnString *string_append_format(HymnString *this, const char *format, ..
     va_list args;
 
     va_start(args, format);
-    int len = vsnprintf(NULL, 0, format, args);
+    size_t len = (size_t)vsnprintf(NULL, 0, format, args);
     va_end(args);
     char *chars = hymn_malloc((len + 1) * sizeof(char));
     va_start(args, format);
-    len = vsnprintf(chars, len + 1, format, args);
+    len = (size_t)vsnprintf(chars, len + 1, format, args);
     va_end(args);
     this = hymn_string_append(this, chars);
     free(chars);
     return this;
 }
 
-HymnString *hymn_working_directory() {
+HymnString *hymn_working_directory(void) {
     char path[PATH_MAX];
     if (getcwd(path, sizeof(path)) != NULL) {
         return hymn_new_string(path);
@@ -478,8 +515,8 @@ typedef struct Instruction Instruction;
 typedef struct Optimizer Optimizer;
 
 static const float LOAD_FACTOR = 0.80f;
-static const unsigned int INITIAL_BINS = 1 << 3;
-static const unsigned int MAXIMUM_BINS = 1 << 30;
+static const size_t INITIAL_BINS = 1 << 3;
+static const size_t MAXIMUM_BINS = 1 << 30;
 
 enum TokenType {
     TOKEN_ADD,
@@ -734,53 +771,46 @@ struct LoopList {
     int start;
     int depth;
     HymnByteCode *code;
-    bool is_for;
     LoopList *next;
+    bool is_for;
+    char padding[7];
 };
 
 struct Token {
-    enum TokenType type;
+    HymnInt integer;
+    HymnFloat floating;
     int row;
     int column;
     size_t start;
-    int length;
-    HymnInt integer;
-    HymnFloat floating;
+    unsigned int length;
+    enum TokenType type;
 };
 
 struct Local {
     Token name;
     int depth;
+    char padding[4];
 };
 
 struct Rule {
     void (*prefix)(Compiler *, bool);
     void (*infix)(Compiler *, bool);
     enum Precedence precedence;
+    char padding[4];
 };
 
 struct Scope {
     struct Scope *enclosing;
     HymnFunction *func;
-    enum FunctionType type;
     size_t begin;
     Local locals[HYMN_UINT8_COUNT];
     int local_count;
     int depth;
+    enum FunctionType type;
+    char padding[4];
 };
 
 struct Compiler {
-    size_t pos;
-    int row;
-    int column;
-    const char *script;
-    const char *source;
-    bool interactive;
-    size_t size;
-    Token previous;
-    Token current;
-    int string_format;
-    enum StringStatus string_status;
     Hymn *H;
     Scope *scope;
     LoopList *loop;
@@ -789,6 +819,18 @@ struct Compiler {
     JumpList *jump_and;
     JumpList *jump_for;
     HymnString *error;
+    const char *script;
+    const char *source;
+    size_t pos;
+    size_t size;
+    int row;
+    int column;
+    Token previous;
+    Token current;
+    int string_format;
+    enum StringStatus string_status;
+    bool interactive;
+    char padding[7];
 };
 
 struct CompileResult {
@@ -796,11 +838,11 @@ struct CompileResult {
     char *error;
 };
 
-HymnValue hymn_new_undefined() {
+HymnValue hymn_new_undefined(void) {
     return (HymnValue){.is = HYMN_VALUE_UNDEFINED, .as = {.i = 0}};
 }
 
-HymnValue hymn_new_none() {
+HymnValue hymn_new_none(void) {
     return (HymnValue){.is = HYMN_VALUE_NONE, .as = {.i = 0}};
 }
 
@@ -929,90 +971,90 @@ bool hymn_is_func(HymnValue v) {
 }
 
 Rule rules[] = {
-    [TOKEN_ADD] = {NULL, compile_binary, PRECEDENCE_TERM},
-    [TOKEN_AND] = {NULL, compile_and, PRECEDENCE_AND},
-    [TOKEN_ASSIGN] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_ADD] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_BIT_AND] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_BIT_LEFT_SHIFT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_BIT_OR] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_BIT_RIGHT_SHIFT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_BIT_XOR] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_DIVIDE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_MODULO] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_MULTIPLY] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ASSIGN_SUBTRACT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_BIT_AND] = {NULL, compile_binary, PRECEDENCE_BITS},
-    [TOKEN_BIT_LEFT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
-    [TOKEN_BIT_NOT] = {compile_unary, NULL, PRECEDENCE_NONE},
-    [TOKEN_BIT_OR] = {NULL, compile_binary, PRECEDENCE_BITS},
-    [TOKEN_BIT_RIGHT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS},
-    [TOKEN_BIT_XOR] = {NULL, compile_binary, PRECEDENCE_BITS},
-    [TOKEN_BREAK] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_CLEAR] = {clear_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR},
-    [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL},
-    [TOKEN_ECHO] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ELIF] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_ELSE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_EOF] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY},
-    [TOKEN_ERROR] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_EXCEPT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_EXISTS] = {exists_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_FALSE] = {compile_false, NULL, PRECEDENCE_NONE},
-    [TOKEN_FLOAT] = {compile_float, NULL, PRECEDENCE_NONE},
-    [TOKEN_FOR] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_FUNCTION] = {function_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_GREATER] = {NULL, compile_binary, PRECEDENCE_COMPARE},
-    [TOKEN_GREATER_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE},
-    [TOKEN_IDENT] = {compile_variable, NULL, PRECEDENCE_NONE},
-    [TOKEN_INSPECT] = {inspect_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_IF] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_IN] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_INDEX] = {index_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_INSERT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_INTEGER] = {compile_integer, NULL, PRECEDENCE_NONE},
-    [TOKEN_KEYS] = {keys_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_LEFT_CURLY] = {compile_table, NULL, PRECEDENCE_NONE},
-    [TOKEN_LEFT_PAREN] = {compile_group, compile_call, PRECEDENCE_CALL},
-    [TOKEN_LEFT_SQUARE] = {compile_array, compile_square, PRECEDENCE_CALL},
-    [TOKEN_LEN] = {len_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_LESS] = {NULL, compile_binary, PRECEDENCE_COMPARE},
-    [TOKEN_LESS_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE},
-    [TOKEN_LET] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_MODULO] = {NULL, compile_binary, PRECEDENCE_FACTOR},
-    [TOKEN_MULTIPLY] = {NULL, compile_binary, PRECEDENCE_FACTOR},
-    [TOKEN_NONE] = {compile_none, NULL, PRECEDENCE_NONE},
-    [TOKEN_NOT] = {compile_unary, NULL, PRECEDENCE_NONE},
-    [TOKEN_NOT_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY},
-    [TOKEN_OR] = {NULL, compile_or, PRECEDENCE_OR},
-    [TOKEN_POINTER] = {NULL, compile_pointer, PRECEDENCE_CALL},
-    [TOKEN_POP] = {array_pop_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_PRINT] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_PUSH] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_RETURN] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_RIGHT_CURLY] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_RIGHT_PAREN] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_RIGHT_SQUARE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_STRING] = {compile_string, NULL, PRECEDENCE_NONE},
-    [TOKEN_SUBTRACT] = {compile_unary, compile_binary, PRECEDENCE_TERM},
-    [TOKEN_THROW] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_TO_FLOAT] = {cast_float_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_TO_INTEGER] = {cast_integer_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_TO_STRING] = {cast_string_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_TRUE] = {compile_true, NULL, PRECEDENCE_NONE},
-    [TOKEN_TRY] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_TYPE_FUNC] = {type_expression, NULL, PRECEDENCE_NONE},
-    [TOKEN_UNDEFINED] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_USE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_VALUE] = {NULL, NULL, PRECEDENCE_NONE},
-    [TOKEN_WHILE] = {NULL, NULL, PRECEDENCE_NONE},
+    [TOKEN_ADD] = {NULL, compile_binary, PRECEDENCE_TERM, {0}},
+    [TOKEN_AND] = {NULL, compile_and, PRECEDENCE_AND, {0}},
+    [TOKEN_ASSIGN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_ADD] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_BIT_AND] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_BIT_LEFT_SHIFT] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_BIT_OR] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_BIT_RIGHT_SHIFT] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_BIT_XOR] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_DIVIDE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_MODULO] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_MULTIPLY] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ASSIGN_SUBTRACT] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_BIT_AND] = {NULL, compile_binary, PRECEDENCE_BITS, {0}},
+    [TOKEN_BIT_LEFT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS, {0}},
+    [TOKEN_BIT_NOT] = {compile_unary, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_BIT_OR] = {NULL, compile_binary, PRECEDENCE_BITS, {0}},
+    [TOKEN_BIT_RIGHT_SHIFT] = {NULL, compile_binary, PRECEDENCE_BITS, {0}},
+    [TOKEN_BIT_XOR] = {NULL, compile_binary, PRECEDENCE_BITS, {0}},
+    [TOKEN_BREAK] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_CLEAR] = {clear_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_COLON] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
+    [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL, {0}},
+    [TOKEN_ECHO] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ELIF] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_ELSE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_EOF] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY, {0}},
+    [TOKEN_ERROR] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_EXCEPT] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_EXISTS] = {exists_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_FALSE] = {compile_false, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_FLOAT] = {compile_float, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_FOR] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_FUNCTION] = {function_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_GREATER] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
+    [TOKEN_GREATER_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
+    [TOKEN_IDENT] = {compile_variable, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_INSPECT] = {inspect_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_IF] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_IN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_INDEX] = {index_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_INSERT] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_INTEGER] = {compile_integer, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_KEYS] = {keys_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_LEFT_CURLY] = {compile_table, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_LEFT_PAREN] = {compile_group, compile_call, PRECEDENCE_CALL, {0}},
+    [TOKEN_LEFT_SQUARE] = {compile_array, compile_square, PRECEDENCE_CALL, {0}},
+    [TOKEN_LEN] = {len_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_LESS] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
+    [TOKEN_LESS_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
+    [TOKEN_LET] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_MODULO] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
+    [TOKEN_MULTIPLY] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
+    [TOKEN_NONE] = {compile_none, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_NOT] = {compile_unary, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_NOT_EQUAL] = {NULL, compile_binary, PRECEDENCE_EQUALITY, {0}},
+    [TOKEN_OR] = {NULL, compile_or, PRECEDENCE_OR, {0}},
+    [TOKEN_POINTER] = {NULL, compile_pointer, PRECEDENCE_CALL, {0}},
+    [TOKEN_POP] = {array_pop_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_PRINT] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_PUSH] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_RETURN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_RIGHT_CURLY] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_RIGHT_PAREN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_RIGHT_SQUARE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_STRING] = {compile_string, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_SUBTRACT] = {compile_unary, compile_binary, PRECEDENCE_TERM, {0}},
+    [TOKEN_THROW] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_TO_FLOAT] = {cast_float_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_TO_INTEGER] = {cast_integer_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_TO_STRING] = {cast_string_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_TRUE] = {compile_true, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_TRY] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_TYPE_FUNC] = {type_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_UNDEFINED] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_USE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_VALUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_WHILE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
 };
 
 const char *hymn_value_type(enum HymnValueType type) {
@@ -1067,13 +1109,13 @@ static void table_init(HymnTable *this) {
     this->items = hymn_calloc(this->bins, sizeof(HymnTableItem *));
 }
 
-static unsigned int table_get_bin(HymnTable *this, size_t hash) {
+static size_t table_get_bin(HymnTable *this, size_t hash) {
     return (this->bins - 1) & hash;
 }
 
 static void table_resize(HymnTable *this) {
-    unsigned int old_bins = this->bins;
-    unsigned int bins = old_bins << 1;
+    size_t old_bins = this->bins;
+    size_t bins = old_bins << 1;
 
     if (bins > MAXIMUM_BINS) {
         return;
@@ -1082,7 +1124,7 @@ static void table_resize(HymnTable *this) {
     HymnTableItem **old_items = this->items;
     HymnTableItem **items = hymn_calloc(bins, sizeof(HymnTableItem *));
 
-    for (unsigned int i = 0; i < old_bins; i++) {
+    for (size_t i = 0; i < old_bins; i++) {
         HymnTableItem *item = old_items[i];
         if (item == NULL) {
             continue;
@@ -1132,7 +1174,7 @@ static void table_resize(HymnTable *this) {
 }
 
 static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue value) {
-    unsigned int bin = table_get_bin(this, key->hash);
+    size_t bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
     while (item != NULL) {
@@ -1154,14 +1196,14 @@ static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue val
         previous->next = item;
     }
     this->size++;
-    if (this->size >= this->bins * LOAD_FACTOR) {
+    if (this->size >= (float)this->bins * LOAD_FACTOR) {
         table_resize(this);
     }
     return hymn_new_undefined();
 }
 
 static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
-    unsigned int bin = table_get_bin(this, key->hash);
+    size_t bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     while (item != NULL) {
         if (key == item->key) {
@@ -1174,7 +1216,7 @@ static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
 
 HymnValue hymn_table_get(HymnTable *this, const char *key) {
     size_t hash = string_mix_code_const(key);
-    unsigned int bin = table_get_bin(this, hash);
+    size_t bin = table_get_bin(this, hash);
     HymnTableItem *item = this->items[bin];
     while (item != NULL) {
         if (hymn_string_equal(key, item->key->string)) {
@@ -1186,9 +1228,9 @@ HymnValue hymn_table_get(HymnTable *this, const char *key) {
 }
 
 static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
-    unsigned int bins = this->bins;
+    size_t bins = this->bins;
     if (key == NULL) {
-        for (unsigned int i = 0; i < bins; i++) {
+        for (size_t i = 0; i < bins; i++) {
             HymnTableItem *item = this->items[i];
             if (item != NULL) {
                 return item;
@@ -1196,7 +1238,7 @@ static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
         }
         return NULL;
     }
-    unsigned int bin = table_get_bin(this, key->hash);
+    size_t bin = table_get_bin(this, key->hash);
     {
         HymnTableItem *item = this->items[bin];
         while (item != NULL) {
@@ -1209,7 +1251,7 @@ static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
             item = next;
         }
     }
-    for (unsigned int i = bin + 1; i < bins; i++) {
+    for (size_t i = bin + 1; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         if (item != NULL) {
             return item;
@@ -1219,7 +1261,7 @@ static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
 }
 
 static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
-    unsigned int bin = table_get_bin(this, key->hash);
+    size_t bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
     while (item != NULL) {
@@ -1242,7 +1284,7 @@ static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
 
 static void table_clear(Hymn *H, HymnTable *this) {
     this->size = 0;
-    unsigned int bins = this->bins;
+    size_t bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
@@ -1287,13 +1329,13 @@ static void set_init(HymnSet *this) {
     this->items = hymn_calloc(this->bins, sizeof(HymnSetItem *));
 }
 
-static unsigned int set_get_bin(HymnSet *this, size_t hash) {
+static size_t set_get_bin(HymnSet *this, size_t hash) {
     return (this->bins - 1) & hash;
 }
 
 static void set_resize(HymnSet *this) {
-    unsigned int old_bins = this->bins;
-    unsigned int bins = old_bins << 1;
+    size_t old_bins = this->bins;
+    size_t bins = old_bins << 1;
 
     if (bins > MAXIMUM_BINS) {
         return;
@@ -1302,7 +1344,7 @@ static void set_resize(HymnSet *this) {
     HymnSetItem **old_items = this->items;
     HymnSetItem **items = hymn_calloc(bins, sizeof(HymnSetItem *));
 
-    for (unsigned int i = 0; i < old_bins; i++) {
+    for (size_t i = 0; i < old_bins; i++) {
         HymnSetItem *item = old_items[i];
         if (item == NULL) {
             continue;
@@ -1353,7 +1395,7 @@ static void set_resize(HymnSet *this) {
 
 static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
     size_t hash = string_mix_code(add);
-    unsigned int bin = set_get_bin(this, hash);
+    size_t bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
     while (item != NULL) {
@@ -1373,7 +1415,7 @@ static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
         previous->next = item;
     }
     this->size++;
-    if (this->size >= this->bins * LOAD_FACTOR) {
+    if (this->size >= (float)this->bins * LOAD_FACTOR) {
         set_resize(this);
     }
     return new;
@@ -1381,7 +1423,7 @@ static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
 
 static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
     size_t hash = string_mix_code(remove);
-    unsigned int bin = set_get_bin(this, hash);
+    size_t bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
     while (item != NULL) {
@@ -1402,26 +1444,6 @@ static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
     return NULL;
 }
 
-static void set_clear(Hymn *H, HymnSet *this) {
-    unsigned int bins = this->bins;
-    for (unsigned int i = 0; i < bins; i++) {
-        HymnSetItem *item = this->items[i];
-        while (item != NULL) {
-            HymnSetItem *next = item->next;
-            hymn_dereference_string(H, item->string);
-            free(item);
-            item = next;
-        }
-        this->items[i] = NULL;
-    }
-    this->size = 0;
-}
-
-static void set_release(Hymn *H, HymnSet *set) {
-    set_clear(H, set);
-    free(set->items);
-}
-
 static HymnByteCode *current(Compiler *C) {
     return &C->scope->func->code;
 }
@@ -1438,11 +1460,11 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
 
     va_list ap;
     va_start(ap, format);
-    int len = vsnprintf(NULL, 0, format, ap);
+    size_t len = (size_t)vsnprintf(NULL, 0, format, ap);
     va_end(ap);
     char *chars = hymn_malloc((len + 1) * sizeof(char));
     va_start(ap, format);
-    len = vsnprintf(chars, len + 1, format, ap);
+    len = (size_t)vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
 
     HymnString *error = hymn_new_string_with_capacity(len + 128);
@@ -1483,7 +1505,7 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
                 error = hymn_string_append_char(error, ' ');
             }
             error = hymn_string_append(error, ANSI_COLOR_RED);
-            for (int i = 0; i < token->length; i++) {
+            for (unsigned int i = 0; i < token->length; i++) {
                 error = hymn_string_append_char(error, '^');
             }
             error = hymn_string_append(error, ANSI_COLOR_RESET);
@@ -1522,6 +1544,13 @@ static char peek_char(Compiler *C) {
     return C->source[C->pos];
 }
 
+static char peek_two_char(Compiler *C) {
+    if (C->pos + 1 >= C->size) {
+        return '\0';
+    }
+    return C->source[C->pos + 1];
+}
+
 static void token(Compiler *C, enum TokenType type) {
     Token *current = &C->current;
     current->type = type;
@@ -1545,7 +1574,7 @@ static void token_special(Compiler *C, enum TokenType type, size_t offset, size_
     } else {
         current->start = C->pos - offset;
     }
-    current->length = (int)length;
+    current->length = (unsigned int)length;
 }
 
 static void value_token(Compiler *C, enum TokenType type, size_t start, size_t end) {
@@ -1554,7 +1583,7 @@ static void value_token(Compiler *C, enum TokenType type, size_t start, size_t e
     current->row = C->row;
     current->column = C->column;
     current->start = start;
-    current->length = (int)(end - start);
+    current->length = (unsigned int)(end - start);
 }
 
 static void int_token(Compiler *C, enum TokenType type, size_t start, size_t end, HymnInt integer) {
@@ -1563,7 +1592,7 @@ static void int_token(Compiler *C, enum TokenType type, size_t start, size_t end
     current->row = C->row;
     current->column = C->column;
     current->start = start;
-    current->length = (int)(end - start);
+    current->length = (unsigned int)(end - start);
     current->integer = integer;
 }
 
@@ -1573,7 +1602,7 @@ static void float_token(Compiler *C, enum TokenType type, size_t start, size_t e
     current->row = C->row;
     current->column = C->column;
     current->start = start;
-    current->length = (int)(end - start);
+    current->length = (unsigned int)(end - start);
     current->floating = floating;
 }
 
@@ -1682,6 +1711,8 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 'l') return ident_trie(ident, 2, "oat", TOKEN_TO_FLOAT);
         }
         break;
+    default:
+        break;
     }
     return TOKEN_UNDEFINED;
 }
@@ -1702,7 +1733,7 @@ static bool is_digit(char c) {
 }
 
 static bool is_ident(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
 }
 
 static enum StringStatus string_status(Compiler *C) {
@@ -1764,7 +1795,7 @@ static void parse_string(Compiler *C, size_t start) {
                     size_t end = C->pos - 2;
                     value_token(C, TOKEN_STRING, start, end);
                     while (true) {
-                        char c = next_char(C);
+                        c = next_char(C);
                         if (c == '}' || c == '\0') return;
                     }
                 } else {
@@ -2067,18 +2098,27 @@ static void advance(Compiler *C) {
                 long long number = atoll(&C->source[start]);
                 int_token(C, TOKEN_INTEGER, start, end, number);
                 return;
-            } else if (is_ident(c)) {
+            } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
                 size_t start = C->pos - 1;
                 while (true) {
-                    if (!is_ident(peek_char(C))) {
-                        break;
+                    c = peek_char(C);
+                    if (is_ident(c)) {
+                        next_char(C);
+                        continue;
+                    } else if (c == '-') {
+                        if (is_ident(peek_two_char(C))) {
+                            next_char(C);
+                            next_char(C);
+                            continue;
+                        }
                     }
-                    next_char(C);
+                    break;
                 }
                 size_t end = C->pos;
                 push_ident_token(C, start, end);
                 return;
             } else {
+                token(C, TOKEN_ERROR);
                 compile_error(C, &C->current, "unknown character: %c", c);
             }
         }
@@ -2146,8 +2186,9 @@ bool hymn_match_values(HymnValue a, HymnValue b) {
     case HYMN_VALUE_FUNC_NATIVE:
         return hymn_as_object(a) == hymn_as_object(b);
     case HYMN_VALUE_POINTER: return hymn_as_pointer(a) == hymn_as_pointer(b);
+    default:
+        return false;
     }
-    return false;
 }
 
 static void value_pool_init(HymnValuePool *this) {
@@ -2163,9 +2204,9 @@ static int value_pool_add(HymnValuePool *this, HymnValue value) {
             return c;
         }
     }
-    if (count + 1 > this->capacity) {
+    if (count >= this->capacity) {
         this->capacity *= 2;
-        this->values = hymn_realloc(this->values, this->capacity * sizeof(HymnValue));
+        this->values = hymn_realloc_count(this->values, this->capacity, sizeof(HymnValue));
     }
     this->values[count] = value;
     this->count = count + 1;
@@ -2205,10 +2246,6 @@ static void array_init_with_capacity(HymnArray *this, HymnInt length, HymnInt ca
     }
     this->length = length;
     this->capacity = capacity;
-}
-
-static void array_init(HymnArray *this, HymnInt length) {
-    array_init_with_capacity(this, length, length);
 }
 
 static HymnArray *new_array_with_capacity(HymnInt length, HymnInt capacity) {
@@ -2321,7 +2358,7 @@ void hymn_array_delete(Hymn *H, HymnArray *this) {
     free(this);
 }
 
-HymnTable *hymn_new_table() {
+HymnTable *hymn_new_table(void) {
     HymnTable *this = hymn_calloc(1, sizeof(HymnTable));
     table_init(this);
     return this;
@@ -2329,8 +2366,8 @@ HymnTable *hymn_new_table() {
 
 static HymnTable *new_table_copy(HymnTable *from) {
     HymnTable *this = hymn_new_table();
-    unsigned int bins = from->bins;
-    for (unsigned int i = 0; i < bins; i++) {
+    size_t bins = from->bins;
+    for (size_t i = 0; i < bins; i++) {
         HymnTableItem *item = from->items[i];
         while (item != NULL) {
             table_put(this, item->key, item->value);
@@ -2343,22 +2380,27 @@ static HymnTable *new_table_copy(HymnTable *from) {
 }
 
 static HymnArray *table_keys(HymnTable *this) {
-    unsigned int size = this->size;
-    HymnArray *array = new_array_with_capacity(size, size);
+    size_t size = this->size;
+    if (size > UINT64_MAX) {
+        // is this really a good idea
+        fprintf(stderr, "table size too large\n");
+        exit(1);
+    }
+    HymnArray *array = hymn_new_array((HymnInt)size);
     if (size == 0) {
         return array;
     }
     HymnValue *keys = array->items;
-    unsigned int total = 0;
-    unsigned int bins = this->bins;
-    for (unsigned int i = 0; i < bins; i++) {
+    size_t total = 0;
+    size_t bins = this->bins;
+    for (size_t i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
             HymnString *string = item->key->string;
-            unsigned int insert = 0;
+            size_t insert = 0;
             while (insert != total) {
                 if (strcmp(string, hymn_as_string(keys[insert])) < 0) {
-                    for (unsigned int swap = total; swap > insert; swap--) {
+                    for (size_t swap = total; swap > insert; swap--) {
                         keys[swap] = keys[swap - 1];
                     }
                     break;
@@ -2376,11 +2418,11 @@ static HymnArray *table_keys(HymnTable *this) {
 }
 
 static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
-    unsigned int bin = 0;
+    size_t bin = 0;
     HymnTableItem *item = NULL;
 
-    unsigned int bins = this->bins;
-    for (unsigned int i = 0; i < bins; i++) {
+    size_t bins = this->bins;
+    for (size_t i = 0; i < bins; i++) {
         HymnTableItem *start = this->items[i];
         if (start) {
             bin = i;
@@ -2462,10 +2504,10 @@ static uint8_t byte_code_new_constant(Compiler *C, HymnValue value) {
 
 static void write_byte(HymnByteCode *code, uint8_t b, int row) {
     int count = code->count;
-    if (count + 1 > code->capacity) {
+    if (count >= code->capacity) {
         code->capacity *= 2;
-        code->instructions = hymn_realloc(code->instructions, code->capacity * sizeof(uint8_t));
-        code->lines = hymn_realloc(code->lines, code->capacity * sizeof(int));
+        code->instructions = hymn_realloc_count(code->instructions, code->capacity, sizeof(uint8_t));
+        code->lines = hymn_realloc_count(code->lines, code->capacity, sizeof(int));
     }
     code->instructions[count] = b;
     code->lines[count] = row;
@@ -2653,7 +2695,7 @@ static void compile_float(Compiler *C, bool assign) {
     emit_constant(C, hymn_new_float(C->current.floating));
 }
 
-char escape_sequence(const char c) {
+static char escape_sequence(const char c) {
     switch (c) {
     case 'b':
         return '\b';
@@ -2672,7 +2714,7 @@ char escape_sequence(const char c) {
     }
 }
 
-HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
+static HymnString *parse_string_literal(const char *string, size_t start, size_t len) {
     const size_t end = start + len;
     HymnString *literal = hymn_new_string_with_capacity(len);
     for (size_t i = start; i < end; i++) {
@@ -2986,7 +3028,7 @@ static void compile_pointer(Compiler *C, bool assign) {
         compile_error(C, &C->previous, "too many function arguments");
         return;
     }
-    emit_short(C, OP_CALL, count + 1);
+    emit_short(C, OP_CALL, (uint8_t)(count + 1));
 }
 
 static void compile_square(Compiler *C, bool assign) {
@@ -3038,8 +3080,8 @@ static void patch_jump(Compiler *C, int jump) {
         compile_error(C, &C->previous, "jump offset too large");
         return;
     }
-    code->instructions[jump] = (offset >> 8) & UINT8_MAX;
-    code->instructions[jump + 1] = offset & UINT8_MAX;
+    code->instructions[jump] = (uint8_t)((offset >> 8) & UINT8_MAX);
+    code->instructions[jump + 1] = (uint8_t)(offset & UINT8_MAX);
 }
 
 static JumpList *add_jump(Compiler *C, JumpList *list, enum OpCode instruction) {
@@ -3153,9 +3195,10 @@ static int next(uint8_t instruction) {
 }
 
 struct Instruction {
+    Instruction *next;
     int index;
     uint8_t instruction;
-    Instruction *next;
+    char padding[3];
 };
 
 struct Optimizer {
@@ -3164,21 +3207,21 @@ struct Optimizer {
     HymnExceptList *except;
 };
 
-#define IS_ADJUSTABLE(instructions, index, off, compare, T, operator)                           \
-    if (index compare target) {                                                                 \
-        int offset = index + off;                                                               \
-        uint16_t jump = (uint16_t)((instructions[offset - 2] << 8) | instructions[offset - 1]); \
-        if (offset operator jump == target) {                                                   \
-            return false;                                                                       \
-        }                                                                                       \
-    }                                                                                           \
+#define IS_ADJUSTABLE(instructions, index, off, compare, T, operator)                    \
+    if (index compare target) {                                                          \
+        int offset = index + off;                                                        \
+        int jump = ((int)instructions[offset - 2] << 8) | (int)instructions[offset - 1]; \
+        if (offset operator jump == target) {                                            \
+            return false;                                                                \
+        }                                                                                \
+    }                                                                                    \
     break;
 
-#define GET_JUMP(instructions, index, x, y) (uint16_t)((instructions[index + x] << 8) | instructions[index + y])
+#define GET_JUMP(instructions, index, x, y) (((int)instructions[index + x] << 8) | (int)instructions[index + y])
 
-#define UPDATE_JUMP(instructions, index, x, y, jump)   \
-    instructions[index + x] = (jump >> 8) & UINT8_MAX; \
-    instructions[index + y] = jump & UINT8_MAX;
+#define UPDATE_JUMP(instructions, index, x, y, jump)              \
+    instructions[index + x] = (uint8_t)((jump >> 8) & UINT8_MAX); \
+    instructions[index + y] = (uint8_t)(jump & UINT8_MAX);
 
 static bool adjustable(Optimizer *optimizer, int target) {
     Instruction *view = optimizer->important;
@@ -3213,6 +3256,8 @@ static bool adjustable(Optimizer *optimizer, int target) {
         case OP_INCREMENT_LOOP: {
             IS_ADJUSTABLE(instructions, i, 5, >=, target, -);
         }
+        default:
+            break;
         }
         view = view->next;
     }
@@ -3235,13 +3280,13 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
             if (i < start) {
-                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
-                int destination = i + 3 + (int)jump;
+                int jump = GET_JUMP(instructions, i, 1, 2);
+                int destination = i + 3 + jump;
                 if (destination > start) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
                 } else if (destination >= start && destination <= start + shift) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
                 }
             }
@@ -3249,13 +3294,13 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         }
         case OP_JUMP_IF_GREATER_LOCALS: {
             if (i < start) {
-                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
+                int jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
                 if (destination > start) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 } else if (destination >= start && destination <= start + shift) {
-                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
+                    jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 }
             }
@@ -3263,10 +3308,10 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         }
         case OP_FOR: {
             if (i < start) {
-                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
+                int jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 4 + jump;
                 if (destination > start) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
                 }
             }
@@ -3274,13 +3319,13 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         }
         case OP_LOOP: {
             if (i >= start) {
-                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
+                int jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 - jump;
                 if (destination < start) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
                 } else if (destination >= start && destination <= start + shift) {
-                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
+                    jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
                 }
             }
@@ -3288,13 +3333,13 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         }
         case OP_FOR_LOOP: {
             if (i >= start) {
-                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
+                int jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 3 - jump;
                 if (destination < start) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
                 } else if (destination >= start && destination <= start + shift) {
-                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
+                    jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
                 }
             }
@@ -3302,19 +3347,20 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
         }
         case OP_INCREMENT_LOOP: {
             if (i >= start) {
-                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
+                int jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 - jump;
                 if (destination < start) {
-                    jump -= (uint16_t)shift;
+                    jump -= shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 } else if (destination >= start && destination <= start + shift) {
                     assert(destination < 0);
-                    jump -= (uint16_t)next(optimizer->code->instructions[destination]);
+                    jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 }
             }
             break;
         }
+        default: break;
         }
         if (i >= start) {
             view->index = i - shift;
@@ -3338,125 +3384,6 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             except->end -= shift;
         } else if (start < except->end) {
             except->end -= shift;
-        }
-        except = except->next;
-    }
-}
-
-static void extend(Optimizer *optimizer, int start, int shift) {
-    for (int i = 0; i < shift; i++) {
-        write_byte(optimizer->code, 0, 0);
-    }
-    uint8_t *instructions = optimizer->code->instructions;
-    Instruction *view = optimizer->important;
-    while (view != NULL) {
-        int i = view->index;
-        uint8_t instruction = view->instruction;
-        switch (instruction) {
-        case OP_JUMP:
-        case OP_JUMP_IF_FALSE:
-        case OP_JUMP_IF_TRUE:
-        case OP_JUMP_IF_EQUAL:
-        case OP_JUMP_IF_NOT_EQUAL:
-        case OP_JUMP_IF_LESS:
-        case OP_JUMP_IF_GREATER:
-        case OP_JUMP_IF_LESS_EQUAL:
-        case OP_JUMP_IF_GREATER_EQUAL: {
-            if (i + 2 < start) {
-                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
-                int destination = i + 3 + jump;
-                if (destination > start) {
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 1, 2, jump);
-                } else if (destination >= start && destination <= start + shift) {
-                    // Not sure about this
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 1, 2, jump);
-                }
-            }
-            break;
-        }
-        case OP_JUMP_IF_GREATER_LOCALS: {
-            if (i + 5 < start) {
-                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
-                int destination = i + 5 + jump;
-                if (destination > start) {
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 3, 4, jump);
-                } else if (destination >= start && destination <= start + shift) {
-                    // Not sure about this
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 3, 4, jump);
-                }
-            }
-            break;
-        }
-        case OP_FOR: {
-            if (i + 3 < start) {
-                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
-                if (i + 3 + jump > start) {
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 2, 3, jump);
-                }
-            }
-            break;
-        }
-        case OP_LOOP: {
-            if (i + 2 >= start) {
-                uint16_t jump = GET_JUMP(instructions, i, 1, 2);
-                if (i + 3 - jump < start) {
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 1, 2, jump);
-                }
-            }
-            break;
-        }
-        case OP_FOR_LOOP: {
-            if (i + 3 >= start) {
-                uint16_t jump = GET_JUMP(instructions, i, 2, 3);
-                if (i + 3 - jump < start) {
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 2, 3, jump);
-                }
-            }
-            break;
-        }
-        case OP_INCREMENT_LOOP: {
-            if (i + 5 >= start) {
-                uint16_t jump = GET_JUMP(instructions, i, 3, 4);
-                if (i + 5 - jump < start) {
-                    jump += (uint16_t)shift;
-                    UPDATE_JUMP(instructions, i, 3, 4, jump);
-                }
-            }
-            break;
-        }
-        }
-        if (i >= start) {
-            view->index = i + shift;
-        }
-        view = view->next;
-    }
-
-    int *lines = optimizer->code->lines;
-    int c = optimizer->code->count - 1;
-    while (true) {
-        int p = c - shift;
-        if (p < start) {
-            break;
-        }
-        instructions[c] = instructions[p];
-        lines[c] = lines[p];
-        c--;
-    }
-
-    HymnExceptList *except = optimizer->except;
-    while (except != NULL) {
-        if (start < except->start) {
-            except->start += shift;
-            except->end += shift;
-        } else if (start < except->end) {
-            except->end += shift;
         }
         except = except->next;
     }
@@ -3548,6 +3475,8 @@ static void interest(Optimizer *optimizer) {
             tail = important;
             break;
         }
+        default:
+            break;
         }
         i += next(instruction);
     }
@@ -3590,21 +3519,15 @@ static void optimize(Compiler *C) {
 #define SAFE_INSTRUCTION(I) (I >= 0 ? optimizer.code->instructions[I] : UINT8_MAX)
 #define CONSTANT(I) optimizer.code->constants.values[optimizer.code->instructions[I]]
 #define SET(I, O) optimizer.code->instructions[I] = O
-#define LINE(I, O) optimizer.code->lines[I] = optimizer.code->lines[O]
-#define UPDATE(I, O) update(&optimizer, I, O)
-#define REWRITE(S, X) rewrite(&optimizer, one + S, X)
-#define REMOVE(A, X) rewrite(&optimizer, A, X)
-#define ADD(A, X) extend(&optimizer, A, X)
-#define REPEAT continue
 #define JUMP_IF(T, F)                        \
     if (second == OP_JUMP_IF_TRUE) {         \
-        REWRITE(0, 1);                       \
-        UPDATE(one, T);                      \
-        REPEAT;                              \
+        rewrite(&optimizer, one, 1);         \
+        update(&optimizer, one, T);          \
+        continue;                            \
     } else if (second == OP_JUMP_IF_FALSE) { \
-        REWRITE(0, 1);                       \
-        UPDATE(one, F);                      \
-        REPEAT;                              \
+        rewrite(&optimizer, one, 1);         \
+        update(&optimizer, one, F);          \
+        continue;                            \
     }
 
     int one = 0;
@@ -3627,12 +3550,14 @@ static void optimize(Compiler *C) {
                 rewrite(&optimizer, two, 1);
                 // subtract 1 to account for one less byte to jump after deleting instruction
                 uint8_t *instructions = optimizer.code->instructions;
-                uint16_t jump = GET_JUMP(instructions, one, 3, 4) - 1;
+                int jump = GET_JUMP(instructions, one, 3, 4) - 1;
                 UPDATE_JUMP(instructions, one, 3, 4, jump);
-                REPEAT;
+                continue;
             }
             break;
         }
+        default:
+            break;
         }
 
         if (!adjustable(&optimizer, two)) {
@@ -3643,8 +3568,8 @@ static void optimize(Compiler *C) {
         case OP_GET_LOCAL: {
             if (second == OP_GET_LOCAL) {
                 SET(one, OP_GET_LOCALS);
-                REWRITE(2, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 2, 1);
+                continue;
             }
             break;
         }
@@ -3655,10 +3580,12 @@ static void optimize(Compiler *C) {
                 if (third == OP_JUMP_IF_FALSE) {
                     move(&optimizer, three, OP_JUMP_IF_GREATER_LOCALS, one);
                     rewrite(&optimizer, two, 2);
-                    REPEAT;
+                    continue;
                 }
             }
         }
+        default:
+            break;
         }
 
         if (!adjustable(&optimizer, one)) {
@@ -3669,15 +3596,15 @@ static void optimize(Compiler *C) {
         case OP_CALL: {
             if (second == OP_RETURN) {
                 SET(one, OP_TAIL_CALL);
-                REPEAT;
+                continue;
             }
             break;
         }
         case OP_POP: {
             if (second == OP_POP) {
-                REWRITE(0, 1);
+                rewrite(&optimizer, one, 1);
                 SET(one, OP_POP_TWO);
-                REPEAT;
+                continue;
             }
             break;
         }
@@ -3685,7 +3612,7 @@ static void optimize(Compiler *C) {
             if (second == OP_POP) {
                 SET(one, OP_POP_N);
                 SET(one + 1, 3);
-                REPEAT;
+                continue;
             }
             break;
         }
@@ -3693,9 +3620,9 @@ static void optimize(Compiler *C) {
             if (second == OP_POP) {
                 uint8_t pop = INSTRUCTION(one + 1);
                 if (pop < UINT8_MAX - 1) {
-                    REWRITE(1, 1);
-                    SET(one + 1, pop + 1);
-                    REPEAT;
+                    rewrite(&optimizer, one + 1, 1);
+                    SET(one + 1, (uint8_t)(pop + 1));
+                    continue;
                 }
             }
             break;
@@ -3703,8 +3630,8 @@ static void optimize(Compiler *C) {
         case OP_GET_GLOBAL: {
             if (second == OP_GET_PROPERTY) {
                 SET(one, OP_GET_GLOBAL_PROPERTY);
-                REWRITE(2, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 2, 1);
+                continue;
             }
             break;
         }
@@ -3718,11 +3645,11 @@ static void optimize(Compiler *C) {
                         HymnInt add = hymn_as_int(value);
                         if (add >= 0 && add <= UINT8_MAX) {
                             uint8_t local = INSTRUCTION(one + 1);
-                            REWRITE(0, 2);
+                            rewrite(&optimizer, one, 2);
                             SET(one, OP_INCREMENT_LOCAL);
                             SET(one + 1, local);
                             SET(one + 2, (uint8_t)add);
-                            REPEAT;
+                            continue;
                         }
                     }
                 }
@@ -3732,16 +3659,16 @@ static void optimize(Compiler *C) {
         case OP_GET_LOCALS: {
             if (second == OP_ADD) {
                 SET(one, OP_ADD_LOCALS);
-                REWRITE(3, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 3, 1);
+                continue;
             } else if (second == OP_MODULO) {
                 SET(one, OP_MODULO_LOCALS);
-                REWRITE(3, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 3, 1);
+                continue;
             } else if (second == OP_ARRAY_PUSH) {
                 SET(one, OP_ARRAY_PUSH_LOCALS);
-                REWRITE(3, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 3, 1);
+                continue;
             }
             break;
         }
@@ -3749,8 +3676,8 @@ static void optimize(Compiler *C) {
             if (second == OP_SET_LOCAL) {
                 if (INSTRUCTION(one + 1) == INSTRUCTION(one + 4)) {
                     SET(one, OP_INCREMENT_LOCAL_AND_SET);
-                    REWRITE(3, 2);
-                    REPEAT;
+                    rewrite(&optimizer, one + 3, 2);
+                    continue;
                 }
             }
             break;
@@ -3761,8 +3688,8 @@ static void optimize(Compiler *C) {
                 // What if there's multiple OP_POP
                 // Or OP_POP2 and it's not removed
                 // Should move this to check immediately after OP_INCREMENT_LOCAL_AND_SET is first created?
-                REWRITE(3, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 3, 1);
+                continue;
             }
             break;
         }
@@ -3776,8 +3703,8 @@ static void optimize(Compiler *C) {
                 }
                 uint8_t constant = byte_code_new_constant(C, value);
                 SET(one + 1, constant);
-                REWRITE(2, 1);
-                REPEAT;
+                rewrite(&optimizer, one + 2, 1);
+                continue;
             } else if (second == OP_ADD) {
                 HymnValue value = CONSTANT(one + 1);
                 if (hymn_is_int(value)) {
@@ -3785,8 +3712,8 @@ static void optimize(Compiler *C) {
                     if (add >= 0 && add <= UINT8_MAX) {
                         SET(one, OP_INCREMENT);
                         SET(one + 1, (uint8_t)add);
-                        REWRITE(2, 1);
-                        REPEAT;
+                        rewrite(&optimizer, one + 2, 1);
+                        continue;
                     }
                 }
             }
@@ -3818,40 +3745,42 @@ static void optimize(Compiler *C) {
         }
         case OP_TRUE: {
             if (second == OP_JUMP_IF_TRUE) {
-                REWRITE(0, 1);
-                UPDATE(one, OP_JUMP);
-                REPEAT;
+                rewrite(&optimizer, one, 1);
+                update(&optimizer, one, OP_JUMP);
+                continue;
             } else if (second == OP_JUMP_IF_FALSE) {
                 deletion(&optimizer, two);
-                REWRITE(0, 4);
-                REPEAT;
+                rewrite(&optimizer, one, 4);
+                continue;
             }
             break;
         }
         case OP_FALSE: {
             if (second == OP_JUMP_IF_TRUE) {
                 deletion(&optimizer, two);
-                REWRITE(0, 4);
-                REPEAT;
+                rewrite(&optimizer, one, 4);
+                continue;
             } else if (second == OP_JUMP_IF_FALSE) {
-                REWRITE(0, 1);
-                UPDATE(one, OP_JUMP);
-                REPEAT;
+                rewrite(&optimizer, one, 1);
+                update(&optimizer, one, OP_JUMP);
+                continue;
             }
             break;
         }
         case OP_NOT: {
             if (second == OP_JUMP_IF_TRUE) {
-                REWRITE(0, 1);
-                UPDATE(one, OP_JUMP_IF_FALSE);
-                REPEAT;
+                rewrite(&optimizer, one, 1);
+                update(&optimizer, one, OP_JUMP_IF_FALSE);
+                continue;
             } else if (second == OP_JUMP_IF_FALSE) {
-                REWRITE(0, 1);
-                UPDATE(one, OP_JUMP_IF_TRUE);
-                REPEAT;
+                rewrite(&optimizer, one, 1);
+                update(&optimizer, one, OP_JUMP_IF_TRUE);
+                continue;
             }
             break;
         }
+        default:
+            break;
         }
 
     next:
@@ -4012,7 +3941,7 @@ static void emit_loop(Compiler *C, int start) {
     if (offset > UINT16_MAX) {
         compile_error(C, &C->previous, "loop is too large");
     }
-    emit_short(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
+    emit_short(C, (uint8_t)((offset >> 8) & UINT8_MAX), (uint8_t)(offset & UINT8_MAX));
 }
 
 static void patch_jump_list(Compiler *C) {
@@ -4054,10 +3983,15 @@ static void patch_jump_for_list(Compiler *C) {
 static void iterator_statement(Compiler *C, bool pair) {
     local_initialize(C);
 
-    uint8_t index = (uint8_t)C->scope->local_count;
-    uint8_t value = index + 1;
+    int index = C->scope->local_count;
 
-    uint8_t object = index - 1;
+    if (index <= 0 || index >= UINT8_MAX) {
+        compile_error(C, &C->current, "too many local variables in iterator");
+        return;
+    }
+
+    uint8_t value = (uint8_t)(index + 1);
+    uint8_t object = (uint8_t)(index - 1);
 
     push_hidden_local(C);
 
@@ -4100,7 +4034,7 @@ static void iterator_statement(Compiler *C, bool pair) {
     if (offset > UINT16_MAX) {
         compile_error(C, &C->previous, "loop is too large");
     }
-    emit_short(C, (offset >> 8) & UINT8_MAX, offset & UINT8_MAX);
+    emit_short(C, (uint8_t)((offset >> 8) & UINT8_MAX), (uint8_t)(offset & UINT8_MAX));
 
     // END
 
@@ -4162,10 +4096,10 @@ static void for_statement(Compiler *C) {
     HymnByteCode *code = current(C);
 
     int count = code->count - increment;
-    uint8_t *instructions = hymn_malloc(count * sizeof(uint8_t));
-    int *lines = hymn_malloc(count * sizeof(int));
-    memcpy(instructions, &code->instructions[increment], count * sizeof(uint8_t));
-    memcpy(lines, &code->lines[increment], count * sizeof(int));
+    uint8_t *instructions = hymn_malloc_count(count, sizeof(uint8_t));
+    int *lines = hymn_malloc_count(count, sizeof(int));
+    hymn_mem_copy(instructions, &code->instructions[increment], count, sizeof(uint8_t));
+    hymn_mem_copy(lines, &code->lines[increment], count, sizeof(int));
     code->count = increment;
 
     // BODY
@@ -4179,11 +4113,11 @@ static void for_statement(Compiler *C) {
 
     while (code->count + count > code->capacity) {
         code->capacity *= 2;
-        code->instructions = hymn_realloc(code->instructions, code->capacity * sizeof(uint8_t));
-        code->lines = hymn_realloc(code->lines, code->capacity * sizeof(int));
+        code->instructions = hymn_realloc_count(code->instructions, code->capacity, sizeof(uint8_t));
+        code->lines = hymn_realloc_count(code->lines, code->capacity, sizeof(int));
     }
-    memcpy(&code->instructions[code->count], instructions, count * sizeof(uint8_t));
-    memcpy(&code->lines[code->count], lines, count * sizeof(int));
+    hymn_mem_copy(&code->instructions[code->count], instructions, count, sizeof(uint8_t));
+    hymn_mem_copy(&code->lines[code->count], lines, count, sizeof(int));
     code->count += count;
     free(instructions);
     free(lines);
@@ -4612,9 +4546,9 @@ static bool pointer_set_has(struct PointerSet *set, void *pointer) {
 static void pointer_set_add(struct PointerSet *set, void *pointer) {
     if (set->items) {
         int count = set->count;
-        if (count + 1 > set->capacity) {
+        if (count >= set->capacity) {
             set->capacity *= 2;
-            set->items = hymn_realloc(set->items, set->capacity * sizeof(void *));
+            set->items = hymn_realloc_count(set->items, set->capacity, sizeof(void *));
         }
         set->items[count] = pointer;
         set->count = count + 1;
@@ -4668,18 +4602,18 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         } else {
             pointer_set_add(set, table);
         }
-        unsigned int size = table->size;
+        size_t size = table->size;
         HymnObjectString **keys = hymn_malloc(size * sizeof(HymnObjectString *));
-        unsigned int total = 0;
-        unsigned int bins = table->bins;
-        for (unsigned int i = 0; i < bins; i++) {
+        size_t total = 0;
+        size_t bins = table->bins;
+        for (size_t i = 0; i < bins; i++) {
             HymnTableItem *item = table->items[i];
             while (item != NULL) {
                 HymnString *string = item->key->string;
-                unsigned int insert = 0;
+                size_t insert = 0;
                 while (insert != total) {
                     if (strcmp(string, keys[insert]->string) < 0) {
-                        for (unsigned int swap = total; swap > insert; swap--) {
+                        for (size_t swap = total; swap > insert; swap--) {
                             keys[swap] = keys[swap - 1];
                         }
                         break;
@@ -4692,7 +4626,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             }
         }
         HymnString *string = hymn_new_string("{ ");
-        for (unsigned int i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             if (i != 0) {
                 string = hymn_string_append(string, ", ");
             }
@@ -4718,6 +4652,8 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
     }
     case HYMN_VALUE_FUNC_NATIVE: return hymn_string_copy(hymn_as_native(value)->name->string);
     case HYMN_VALUE_POINTER: return hymn_string_format("%p", hymn_as_pointer(value));
+    default:
+        break;
     }
     return hymn_new_string("?");
 }
@@ -4727,14 +4663,6 @@ HymnString *hymn_value_to_string(HymnValue value) {
     HymnString *string = value_to_string_recusive(value, &set, false);
     free(set.items);
     return string;
-}
-
-HymnString *hymn_value_to_inspect(HymnValue value) {
-    if (hymn_is_func(value)) {
-        HymnFunction *func = hymn_as_func(value);
-        if (func->source) return hymn_string_copy(func->source);
-    }
-    return hymn_value_to_string(value);
 }
 
 static HymnString *value_concat(HymnValue a, HymnValue b) {
@@ -4750,12 +4678,6 @@ static HymnString *debug_value_to_string(HymnValue value) {
     HymnString *format = hymn_string_format("%s: %s", hymn_value_type(value.is), string);
     hymn_string_delete(string);
     return format;
-}
-
-static void debug_value(HymnValue value) {
-    HymnString *string = debug_value_to_string(value);
-    printf("%s", string);
-    hymn_string_delete(string);
 }
 
 static void reset_stack(Hymn *H) {
@@ -4777,6 +4699,12 @@ static bool is_object(HymnValue value) {
 }
 
 #ifdef HYMN_DEBUG_MEMORY
+static void debug_value(HymnValue value) {
+    HymnString *string = debug_value_to_string(value);
+    printf("%s", string);
+    hymn_string_delete(string);
+}
+
 static void debug_reference(HymnValue value) {
     if (is_object(value)) {
         HymnObject *object = hymn_as_object(value);
@@ -4993,14 +4921,14 @@ static HymnString *stacktrace(Hymn *H) {
         int row = func->code.lines[frame->ip - func->code.instructions - 1];
         if (func->name == NULL) {
             if (func->script == NULL) {
-                trace = string_append_format(trace, "at script:%d", row);
+                trace = string_append_format(trace, "  at script:%d", row);
             } else {
-                trace = string_append_format(trace, "at %s:%d", func->script, row);
+                trace = string_append_format(trace, "  at %s:%d", func->script, row);
             }
         } else if (func->script == NULL) {
-            trace = string_append_format(trace, "at %s script:%d", func->name, row);
+            trace = string_append_format(trace, "  at %s script:%d", func->name, row);
         } else {
-            trace = string_append_format(trace, "at %s %s:%d", func->name, func->script, row);
+            trace = string_append_format(trace, "  at %s %s:%d", func->name, func->script, row);
         }
         if (i > 0) trace = hymn_string_append_char(trace, '\n');
     }
@@ -5023,11 +4951,11 @@ static HymnFrame *throw_existing_error(Hymn *H, char *error) {
 static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
     va_list ap;
     va_start(ap, format);
-    int len = vsnprintf(NULL, 0, format, ap);
+    size_t len = (size_t)vsnprintf(NULL, 0, format, ap);
     va_end(ap);
     char *chars = hymn_malloc((len + 1) * sizeof(char));
     va_start(ap, format);
-    len = vsnprintf(chars, len + 1, format, ap);
+    len = (size_t)vsnprintf(chars, len + 1, format, ap);
     va_end(ap);
 
     HymnString *error = hymn_new_string_with_capacity(len + 128);
@@ -5071,7 +4999,7 @@ static HymnFrame *throw_error_string(Hymn *H, HymnString *string) {
     return frame;
 }
 
-HymnValue hymn_new_exception(Hymn *H, char *error) {
+HymnValue hymn_new_exception(Hymn *H, const char *error) {
     H->exception = hymn_new_string(error);
     return hymn_new_none();
 }
@@ -5252,15 +5180,6 @@ static size_t debug_constant_instruction(HymnString **debug, const char *name, H
     return index + 2;
 }
 
-static size_t debug_constant_and_slot_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
-    uint8_t constant = code->instructions[index + 1];
-    uint8_t slot = code->instructions[index + 2];
-    HymnString *value = debug_value_to_string(code->constants.values[constant]);
-    *debug = string_append_format(*debug, "%s: [%d] [%s] -> [%d]", name, constant, value, slot);
-    hymn_string_delete(value);
-    return index + 3;
-}
-
 static size_t debug_two_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
     uint8_t constant = code->instructions[index + 1];
     HymnString *value = debug_value_to_string(code->constants.values[constant]);
@@ -5279,16 +5198,16 @@ static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnB
 }
 
 static size_t debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
-    uint16_t jump = (uint16_t)(code->instructions[index + 1] << 8) | (uint16_t)code->instructions[index + 2];
-    *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, index + 3 + sign * jump);
+    unsigned int jump = ((unsigned int)code->instructions[index + 1] << 8u) | (unsigned int)code->instructions[index + 2];
+    *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, sign < 0 ? index + 3 - jump : index + 3 + jump);
     return index + 3;
 }
 
-static size_t debug_register_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
+static size_t debug_register_jump_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
     uint8_t slot_a = code->instructions[index + 1];
     uint8_t slot_b = code->instructions[index + 2];
-    uint16_t jump = (uint16_t)(code->instructions[index + 3] << 8) | (uint16_t)code->instructions[index + 4];
-    *debug = string_append_format(*debug, "%s: [%d] [%d] ? [%zu] -> [%zu]", name, slot_a, slot_b, index, index + 5 + sign * jump);
+    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8u) | (unsigned int)code->instructions[index + 4];
+    *debug = string_append_format(*debug, "%s: [%d] [%d] ? [%zu] -> [%zu]", name, slot_a, slot_b, index, index + 5 + jump);
     return index + 5;
 }
 
@@ -5301,15 +5220,15 @@ static size_t debug_three_byte_instruction(HymnString **debug, const char *name,
 
 static size_t debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
     uint8_t slot = code->instructions[index + 1];
-    uint16_t jump = (uint16_t)(code->instructions[index + 2] << 8) | (uint16_t)code->instructions[index + 3];
-    *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, slot, index, index + 4 + sign * jump);
+    unsigned int jump = ((unsigned int)code->instructions[index + 2] << 8u) | (unsigned int)code->instructions[index + 3];
+    *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, slot, index, sign < 0 ? index + 4 - jump : index + 4 + jump);
     return index + 4;
 }
 
 static size_t debug_increment_loop_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
     uint8_t slot = code->instructions[index + 1];
     uint8_t increment = code->instructions[index + 2];
-    uint16_t jump = (uint16_t)(code->instructions[index + 3] << 8) | (uint16_t)code->instructions[index + 4];
+    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8u) | (unsigned int)code->instructions[index + 4];
     *debug = string_append_format(*debug, "%s: [%d] [%d] & [%zu] -> [%zu]", name, slot, increment, index, index + 5 - jump);
     return index + 5;
 }
@@ -5375,7 +5294,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_JUMP_IF_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_EQUAL", 1, code, index);
     case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, code, index);
     case OP_JUMP_IF_GREATER: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER", 1, code, index);
-    case OP_JUMP_IF_GREATER_LOCALS: return debug_register_jump_instruction(debug, "OP_JUMP_IF_GREATER_LOCALS", 1, code, index);
+    case OP_JUMP_IF_GREATER_LOCALS: return debug_register_jump_instruction(debug, "OP_JUMP_IF_GREATER_LOCALS", code, index);
     case OP_JUMP_IF_GREATER_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_GREATER_EQUAL", 1, code, index);
     case OP_JUMP_IF_LESS: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS", 1, code, index);
     case OP_JUMP_IF_LESS_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_LESS_EQUAL", 1, code, index);
@@ -5417,7 +5336,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     }
 }
 
-void disassemble_byte_code(HymnByteCode *code, const char *name) {
+static void disassemble_byte_code(HymnByteCode *code, const char *name) {
     printf("\n-- %s --\n", name != NULL ? name : "script");
     HymnString *debug = hymn_new_string("");
     size_t offset = 0;
@@ -5431,7 +5350,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
 
 #define READ_BYTE(F) (*F->ip++)
 
-#define READ_SHORT(F) (F->ip += 2, (uint16_t)((F->ip[-2] << 8) | F->ip[-1]))
+#define READ_SHORT(F) (F->ip += 2, (((int)F->ip[-2] << 8) | (int)F->ip[-1]))
 
 #define GET_CONSTANT(F, B) (F->func->code.constants.values[B])
 
@@ -5506,7 +5425,7 @@ void disassemble_byte_code(HymnByteCode *code, const char *name) {
         hymn_dereference(H, b);                                          \
         THROW("Comparison: Operands must be numbers")                    \
     }                                                                    \
-    uint16_t jump = READ_SHORT(frame);                                   \
+    int jump = READ_SHORT(frame);                                        \
     if (answer) {                                                        \
         frame->ip += jump;                                               \
     }
@@ -5540,7 +5459,7 @@ dispatch:
     }
 #endif
     switch (READ_BYTE(frame)) {
-    case OP_VOID:
+    case OP_VOID: {
         H->frame_count--;
         bool done = H->frame_count == 0 || frame->func->name == NULL;
         while (H->stack_top != frame->stack) {
@@ -5552,6 +5471,7 @@ dispatch:
         push(H, hymn_new_none());
         frame = current_frame(H);
         HYMN_DISPATCH;
+    }
     case OP_RETURN: {
         HymnValue result = pop(H);
         H->frame_count--;
@@ -5653,13 +5573,13 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_JUMP: {
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         frame->ip += jump;
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_FALSE: {
         HymnValue a = pop(H);
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         if (hymn_value_false(a)) {
             frame->ip += jump;
         }
@@ -5668,7 +5588,7 @@ dispatch:
     }
     case OP_JUMP_IF_TRUE: {
         HymnValue a = pop(H);
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         if (!hymn_value_false(a)) {
             frame->ip += jump;
         }
@@ -5678,7 +5598,7 @@ dispatch:
     case OP_JUMP_IF_EQUAL: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         if (hymn_values_equal(a, b)) {
             frame->ip += jump;
         }
@@ -5689,7 +5609,7 @@ dispatch:
     case OP_JUMP_IF_NOT_EQUAL: {
         HymnValue b = pop(H);
         HymnValue a = pop(H);
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         if (!hymn_values_equal(a, b)) {
             frame->ip += jump;
         }
@@ -5712,7 +5632,7 @@ dispatch:
     case OP_JUMP_IF_GREATER_LOCALS: {
         HymnValue a = frame->stack[READ_BYTE(frame)];
         HymnValue b = frame->stack[READ_BYTE(frame)];
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         bool answer;
         if (hymn_is_int(a)) {
             if (hymn_is_int(b)) {
@@ -5743,14 +5663,14 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_LOOP: {
-        uint16_t jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         frame->ip -= jump;
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOOP: {
-        uint8_t slot = READ_BYTE(frame);
-        uint8_t increment = READ_BYTE(frame);
-        uint16_t jump = READ_SHORT(frame);
+        int slot = READ_BYTE(frame);
+        int increment = READ_BYTE(frame);
+        int jump = READ_SHORT(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
             value.as.i += (HymnInt)increment;
@@ -5765,7 +5685,7 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_FOR: {
-        uint8_t slot = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
         HymnValue object = frame->stack[slot];
         H->stack_top += 2;
         if (hymn_is_table(object)) {
@@ -5774,7 +5694,7 @@ dispatch:
             if (next == NULL) {
                 frame->stack[slot + 1] = hymn_new_none();
                 frame->stack[slot + 2] = hymn_new_none();
-                uint16_t jump = READ_SHORT(frame);
+                int jump = READ_SHORT(frame);
                 frame->ip += jump;
             } else {
                 frame->stack[slot + 1] = hymn_new_string_value(next->key);
@@ -5788,7 +5708,7 @@ dispatch:
             if (array->length == 0) {
                 frame->stack[slot + 1] = hymn_new_none();
                 frame->stack[slot + 2] = hymn_new_none();
-                uint16_t jump = READ_SHORT(frame);
+                int jump = READ_SHORT(frame);
                 frame->ip += jump;
             } else {
                 HymnValue item = array->items[0];
@@ -5806,10 +5726,10 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_FOR_LOOP: {
-        uint8_t slot = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
         HymnValue object = frame->stack[slot];
-        uint8_t index = slot + 1;
-        uint8_t value = slot + 2;
+        int index = slot + 1;
+        int value = slot + 2;
         if (hymn_is_table(object)) {
             HymnTable *table = hymn_as_table(object);
             HymnObjectString *key = hymn_as_hymn_string(frame->stack[index]);
@@ -5823,7 +5743,7 @@ dispatch:
                 frame->stack[value] = next->value;
                 hymn_reference_string(next->key);
                 hymn_reference(next->value);
-                uint16_t jump = READ_SHORT(frame);
+                int jump = READ_SHORT(frame);
                 frame->ip -= jump;
             }
         } else {
@@ -5837,7 +5757,7 @@ dispatch:
                 frame->stack[index].as.i++;
                 frame->stack[value] = item;
                 hymn_reference(item);
-                uint16_t jump = READ_SHORT(frame);
+                int jump = READ_SHORT(frame);
                 frame->ip -= jump;
             }
         }
@@ -5895,7 +5815,7 @@ dispatch:
                 a.as.i += b.as.i;
                 push(H, a);
             } else if (hymn_is_float(b)) {
-                b.as.f += a.as.i;
+                b.as.f += (HymnFloat)a.as.i;
                 push(H, a);
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
@@ -5904,7 +5824,7 @@ dispatch:
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
-                a.as.f += b.as.i;
+                a.as.f += (HymnFloat)b.as.i;
                 push(H, a);
             } else if (hymn_is_float(b)) {
                 a.as.f += b.as.f;
@@ -5949,7 +5869,7 @@ dispatch:
                 a.as.i += b.as.i;
                 push(H, a);
             } else if (hymn_is_float(b)) {
-                b.as.f += a.as.i;
+                b.as.f += (HymnFloat)a.as.i;
                 push(H, a);
             } else if (hymn_is_string(b)) {
                 push_string(H, value_concat(a, b));
@@ -5958,7 +5878,7 @@ dispatch:
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
-                a.as.f += b.as.i;
+                a.as.f += (HymnFloat)b.as.i;
                 push(H, a);
             } else if (hymn_is_float(b)) {
                 a.as.f += b.as.f;
@@ -5983,19 +5903,19 @@ dispatch:
     }
     case OP_INCREMENT: {
         HymnValue a = pop(H);
-        uint8_t increment = READ_BYTE(frame);
+        HymnInt increment = READ_BYTE(frame);
         if (hymn_is_none(a)) {
             goto bad_increment;
         } else if (hymn_is_bool(a)) {
             goto bad_increment;
         } else if (hymn_is_int(a)) {
-            a.as.i += (HymnInt)increment;
+            a.as.i += increment;
             push(H, a);
         } else if (hymn_is_float(a)) {
             a.as.f += (HymnFloat)increment;
             push(H, a);
         } else if (hymn_is_string(a)) {
-            push_string(H, value_concat(a, hymn_new_int((HymnInt)increment)));
+            push_string(H, value_concat(a, hymn_new_int(increment)));
         } else {
             goto bad_increment;
         }
@@ -6338,7 +6258,7 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_SET_LOCAL: {
-        uint8_t slot = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
         HymnValue value = peek(H, 1);
         hymn_dereference(H, frame->stack[slot]);
         frame->stack[slot] = value;
@@ -6346,15 +6266,15 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_GET_LOCAL: {
-        uint8_t slot = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         hymn_reference(value);
         push(H, value);
         HYMN_DISPATCH;
     }
     case OP_GET_LOCALS: {
-        uint8_t slot_a = READ_BYTE(frame);
-        uint8_t slot_b = READ_BYTE(frame);
+        int slot_a = READ_BYTE(frame);
+        int slot_b = READ_BYTE(frame);
         HymnValue value_a = frame->stack[slot_a];
         HymnValue value_b = frame->stack[slot_b];
         hymn_reference(value_a);
@@ -6364,8 +6284,8 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOCAL: {
-        uint8_t slot = READ_BYTE(frame);
-        uint8_t increment = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
+        int increment = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
             value.as.i += (HymnInt)increment;
@@ -6379,8 +6299,8 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOCAL_AND_SET: {
-        uint8_t slot = READ_BYTE(frame);
-        uint8_t increment = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
+        int increment = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
             value.as.i += (HymnInt)increment;
@@ -6947,6 +6867,8 @@ dispatch:
         case HYMN_VALUE_POINTER:
             push(H, hymn_new_none());
             break;
+        default:
+            break;
         }
         HYMN_DISPATCH;
     }
@@ -7098,7 +7020,13 @@ dispatch:
     }
     case OP_INSPECT: {
         HymnValue value = pop(H);
-        push_string(H, hymn_value_to_inspect(value));
+        HymnString *inspect = NULL;
+        if (hymn_is_func(value)) {
+            HymnFunction *func = hymn_as_func(value);
+            if (func->source != NULL) inspect = hymn_string_copy(func->source);
+        }
+        if (inspect == NULL) inspect = hymn_value_to_string(value);
+        push_string(H, inspect);
         hymn_dereference(H, value);
         HYMN_DISPATCH;
     }
@@ -7158,7 +7086,7 @@ static void print_stderr(const char *format, ...) {
     va_end(args);
 }
 
-Hymn *new_hymn() {
+Hymn *new_hymn(void) {
     Hymn *H = hymn_calloc(1, sizeof(Hymn));
     reset_stack(H);
 
@@ -7240,8 +7168,8 @@ void hymn_delete(Hymn *H) {
 
     HymnSet *strings = &H->strings;
     {
-        unsigned int bins = strings->bins;
-        for (unsigned int i = 0; i < bins; i++) {
+        size_t bins = strings->bins;
+        for (size_t i = 0; i < bins; i++) {
             HymnSetItem *item = strings->items[i];
             while (item != NULL) {
                 HymnSetItem *next = item->next;
@@ -7252,8 +7180,8 @@ void hymn_delete(Hymn *H) {
     }
 #ifdef HYMN_DEBUG_MEMORY
     {
-        unsigned int bins = strings->bins;
-        for (unsigned int i = 0; i < bins; i++) {
+        size_t bins = strings->bins;
+        for (size_t i = 0; i < bins; i++) {
             HymnSetItem *item = strings->items[i];
             while (item != NULL) {
                 fprintf(stderr, "ENDING STRING REFERENCE: %s\n", item->string->string);
@@ -7488,10 +7416,10 @@ static char letters[] =
 
 static struct termios save_termios;
 
-static int read_key() {
+static int read_key(void) {
     do {
         char c;
-        int e = read(STDIN_FILENO, &c, 1);
+        ssize_t e = read(STDIN_FILENO, &c, 1);
         if (e == 1) {
             if (c == '\x1b') {
                 char sequence[3];
@@ -7515,6 +7443,7 @@ static int read_key() {
                             case '6': return PAGE_DOWN;
                             case '7': return HOME_KEY;
                             case '8': return END_KEY;
+                            default: break;
                             }
                         }
                     } else {
@@ -7525,12 +7454,14 @@ static int read_key() {
                         case 'C': return ARROW_RIGHT;
                         case 'H': return HOME_KEY;
                         case 'F': return END_KEY;
+                        default: break;
                         }
                     }
                 } else if (sequence[0] == 'O') {
                     switch (sequence[1]) {
                     case 'H': return HOME_KEY;
                     case 'F': return END_KEY;
+                    default: break;
                     }
                 }
                 return '\x1b';
@@ -7544,7 +7475,7 @@ static int read_key() {
     } while (true);
 }
 
-static void reset_terminal() {
+static void reset_terminal(void) {
     if (tcsetattr(STDIN_FILENO, TCSANOW, &save_termios) == -1) {
         perror("tcsetattr");
     }
@@ -7602,7 +7533,7 @@ void hymn_repl(Hymn *H) {
         return;
     }
     struct termios new_term = save_termios;
-    new_term.c_lflag &= ~(ECHO | ICANON);
+    new_term.c_lflag &= ~(0u | ECHO | ICANON);
     new_term.c_cc[VMIN] = 1;
     new_term.c_cc[VTIME] = 0;
     if (tcsetattr(STDIN_FILENO, TCSANOW, &new_term) == -1) {
@@ -7781,7 +7712,7 @@ void hymn_repl(Hymn *H) {
                 continue;
             } else if (hymn_string_equal(line, ".debug")) {
                 HymnTable *globals = &H->globals;
-                unsigned int bins = globals->bins;
+                size_t bins = globals->bins;
                 for (unsigned int i = 0; i < bins; i++) {
                     HymnTableItem *item = globals->items[i];
                     while (item != NULL) {

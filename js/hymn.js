@@ -908,6 +908,11 @@ function peekChar(C) {
   return C.source[C.pos]
 }
 
+function peekTwoChar(C) {
+  if (C.pos + 1 >= C.source.length) return '\0'
+  return C.source[C.pos + 1]
+}
+
 function token(C, type) {
   const token = C.current
   token.type = type
@@ -1067,7 +1072,7 @@ function isDigit(c) {
 }
 
 function isIdent(c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c === '_'
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
 function stringStatus(C) {
@@ -1440,15 +1445,27 @@ function advance(C) {
           if (Number.isSafeInteger(number)) numberToken(C, TOKEN_INTEGER, start, end, number)
           else numberToken(C, TOKEN_FLOAT, start, end, number)
           return
-        } else if (isIdent(c)) {
+        } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
           const start = C.pos - 1
-          while (isIdent(peekChar(C))) {
-            nextChar(C)
+          while (true) {
+            c = peekChar(C)
+            if (isIdent(c)) {
+              nextChar(C)
+              continue
+            } else if (c === '-') {
+              if (isIdent(peekTwoChar(C))) {
+                nextChar(C)
+                nextChar(C)
+                continue
+              }
+            }
+            break
           }
           const end = C.pos
           pushIdentToken(C, start, end)
           return
         } else {
+          token(C, TOKEN_ERROR)
           compileError(C, C.current, 'unknown character: ' + c)
         }
       }

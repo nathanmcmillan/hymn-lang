@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "hymn.h"
+#include "hymn_os.h"
 
 #ifdef _MSC_VER
 #define HYMN_POPEN_SUPPORTED

@@ -6,13 +6,13 @@
 
 static void file_list_add(struct HymnPathFileList *list, HymnString *file) {
     int count = list->count;
-    if (count + 1 > list->capacity) {
+    if (count >= list->capacity) {
         if (list->capacity == 0) {
             list->capacity = 1;
             list->files = hymn_malloc(sizeof(HymnString *));
         } else {
             list->capacity *= 2;
-            list->files = hymn_realloc(list->files, list->capacity * sizeof(HymnString *));
+            list->files = hymn_realloc_count(list->files, list->capacity, sizeof(HymnString *));
         }
     }
     list->files[count] = file;

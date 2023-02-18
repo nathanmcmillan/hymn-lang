@@ -1,1 +1,1 @@
-echo '|' + text.rightstrip('  foobar  ') + '|'
+echo '|' + text.right-strip('  foobar  ') + '|'
