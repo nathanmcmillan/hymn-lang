@@ -5,8 +5,10 @@
 ### Debug
 
 ```
-$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wpadded -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -g -o hymn -lm -ldl -rdynamic
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wpadded -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -g -o hymn -lm -ldl
 ```
+
+Include `-rdynamic` for dynamic library support
 
 ### Testing
 
