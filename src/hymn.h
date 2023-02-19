@@ -33,8 +33,8 @@
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER
+#include <Windows.h>
 #include <direct.h>
-#include <windows.h>
 #define getcwd _getcwd
 #define PATH_MAX FILENAME_MAX
 #define PATH_SEP '\\'
@@ -74,7 +74,7 @@
 
 #define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
 
-typedef int64_t HymnInt;
+typedef long long HymnInt;
 typedef double HymnFloat;
 
 enum HymnValueType {
@@ -112,7 +112,6 @@ void *hymn_calloc_int(int count, size_t size);
 void *hymn_realloc_int(void *mem, int count, size_t size);
 
 typedef struct HymnValue HymnValue;
-typedef struct HymnObject HymnObject;
 typedef struct HymnObjectString HymnObjectString;
 typedef struct HymnArray HymnArray;
 typedef struct HymnTable HymnTable;
@@ -134,26 +133,22 @@ struct HymnValue {
         bool b;
         HymnInt i;
         HymnFloat f;
-        HymnObject *o;
+        void *o;
         void *p;
     } as;
     enum HymnValueType is;
     char padding[4];
 };
 
-struct HymnObject {
-    int count;
-    char padding[4]; // get rid of HymnObject?
-};
-
 struct HymnObjectString {
-    HymnObject object;
-    HymnString *string;
+    int count;
     unsigned int hash;
+    HymnString *string;
 };
 
 struct HymnArray {
-    HymnObject object;
+    int count;
+    char padding[4];
     HymnValue *items;
     HymnInt length;
     HymnInt capacity;
@@ -166,9 +161,10 @@ struct HymnTableItem {
 };
 
 struct HymnTable {
-    HymnObject object;
+    int count;
     int size;
     unsigned int bins;
+    char padding[4];
     HymnTableItem **items;
 };
 
@@ -184,7 +180,8 @@ struct HymnSet {
 };
 
 struct HymnNativeFunction {
-    HymnObject object;
+    int count;
+    char padding[4];
     HymnObjectString *name;
     HymnNativeCall func;
 };
@@ -212,14 +209,13 @@ struct HymnExceptList {
 };
 
 struct HymnFunction {
-    HymnObject object;
+    int count;
+    int arity;
     HymnString *name;
     HymnString *script;
     HymnString *source;
     HymnExceptList *except;
     HymnByteCode code;
-    int arity;
-    char padding[4];
 };
 
 struct HymnFrame {
@@ -328,7 +324,7 @@ HymnInt hymn_as_int(HymnValue v);
 HymnFloat hymn_as_float(HymnValue v);
 HymnNativeFunction *hymn_as_native(HymnValue v);
 void *hymn_as_pointer(HymnValue v);
-HymnObject *hymn_as_object(HymnValue v);
+void *hymn_as_object(HymnValue v);
 HymnObjectString *hymn_as_hymn_string(HymnValue v);
 HymnString *hymn_as_string(HymnValue v);
 HymnArray *hymn_as_array(HymnValue v);

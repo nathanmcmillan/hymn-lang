@@ -5,7 +5,7 @@
 ### Debug
 
 ```
-$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -Wpadded -g -o hymn -lm -ldl -rdynamic
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wpadded -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -g -o hymn -lm -ldl -rdynamic
 ```
 
 ### Testing
@@ -77,25 +77,25 @@ $ gcc -shared -lc -o dlib.so dlib.o
 ### Debug
 
 ```
-> clang src/*.c -Isrc -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -o HYMN.exe
+> clang src/*.c -Isrc -std=c11 -Wall -Wextra -Weverything -Werror -pedantic -Wduplicate-decl-specifier -Wdeprecated-register -Wempty-body -Wnull-dereference -Wparentheses -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -Wno-float-equal -Wno-bad-function-cast -Wno-switch-enum -Wno-covered-switch-default -Wno-format-nonliteral -o HYMN.exe
 ```
 
 ### Testing
 
 ```
-> clang test/*.c src/*.c -Isrc -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -DHYMN_TESTING -o HYMNTEST.exe
+> clang test/*.c src/*.c -Isrc -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -DHYMN_TESTING -o HYMNTEST.exe
 ```
 
 ### Release
 
 ```
-> clang -O2 src/*.c -Isrc -Wno-deprecated-declarations -std=c11 -o HYMN.exe
+> clang -O2 src/*.c -Isrc -std=c11 -Wno-deprecated-declarations -o HYMN.exe
 ```
 
 ### Formatter
 
 ```
-> clang format/*.c -Wall -Wextra -Werror -pedantic -std=c11 -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -o HYMNFMT.exe
+> clang format/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -Wno-deprecated-declarations -Wno-gnu-zero-variadic-macro-arguments -Wno-language-extension-token -o HYMNFMT.exe
 ```
 
 ## Node

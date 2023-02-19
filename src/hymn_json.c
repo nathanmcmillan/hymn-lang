@@ -47,9 +47,7 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
     case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
     case HYMN_VALUE_INTEGER: return hymn_int_to_string(hymn_as_int(value));
     case HYMN_VALUE_FLOAT: return hymn_float_to_string(hymn_as_float(value));
-    case HYMN_VALUE_STRING: {
-        return hymn_quote_string(hymn_as_string(value));
-    }
+    case HYMN_VALUE_STRING: return hymn_quote_string(hymn_as_string(value));
     case HYMN_VALUE_ARRAY: {
         HymnArray *array = hymn_as_array(value);
         if (array == NULL || array->length == 0 || pointer_set_has(set, array)) {

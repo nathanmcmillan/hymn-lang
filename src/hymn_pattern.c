@@ -180,6 +180,7 @@ init:
         if (pattern[1] == '\0') {
             return text[0] == '\0' ? text : NULL;
         }
+        break;
     }
     default:
         break;

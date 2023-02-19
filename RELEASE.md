@@ -3,7 +3,7 @@
 - Hyphens now allowed in variable names
 - Underscores no longer allowed in variable names
 - Library `pattern` function `find` now returns start and end positions for groups
-- Bug fixes and additional GCC warning fixes
+- Bug fixes and additional GCC / Clang warning fixes
 
 # Release 0.7.0
 

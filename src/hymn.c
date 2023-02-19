@@ -310,9 +310,9 @@ static HymnString *char_to_string(char ch) {
 }
 
 HymnString *hymn_int_to_string(HymnInt number) {
-    size_t len = (size_t)snprintf(NULL, 0, "%" PRId64, number);
+    size_t len = (size_t)snprintf(NULL, 0, "%lld", number);
     char *str = hymn_malloc(len + 1);
-    snprintf(str, len + 1, "%" PRId64, number);
+    snprintf(str, len + 1, "%lld", number);
     HymnString *s = hymn_new_string_with_length(str, len);
     free(str);
     return s;
@@ -859,7 +859,7 @@ HymnValue hymn_new_float(HymnFloat v) {
 }
 
 HymnValue hymn_new_native(HymnNativeFunction *v) {
-    return (HymnValue){.is = HYMN_VALUE_FUNC_NATIVE, .as = {.o = (HymnObject *)v}};
+    return (HymnValue){.is = HYMN_VALUE_FUNC_NATIVE, .as = {.o = (void *)v}};
 }
 
 HymnValue hymn_new_pointer(void *v) {
@@ -867,19 +867,19 @@ HymnValue hymn_new_pointer(void *v) {
 }
 
 HymnValue hymn_new_string_value(HymnObjectString *v) {
-    return (HymnValue){.is = HYMN_VALUE_STRING, .as = {.o = (HymnObject *)v}};
+    return (HymnValue){.is = HYMN_VALUE_STRING, .as = {.o = (void *)v}};
 }
 
 HymnValue hymn_new_array_value(HymnArray *v) {
-    return (HymnValue){.is = HYMN_VALUE_ARRAY, .as = {.o = (HymnObject *)v}};
+    return (HymnValue){.is = HYMN_VALUE_ARRAY, .as = {.o = (void *)v}};
 }
 
 HymnValue hymn_new_table_value(HymnTable *v) {
-    return (HymnValue){.is = HYMN_VALUE_TABLE, .as = {.o = (HymnObject *)v}};
+    return (HymnValue){.is = HYMN_VALUE_TABLE, .as = {.o = (void *)v}};
 }
 
 HymnValue hymn_new_func_value(HymnFunction *v) {
-    return (HymnValue){.is = HYMN_VALUE_FUNC, .as = {.o = (HymnObject *)v}};
+    return (HymnValue){.is = HYMN_VALUE_FUNC, .as = {.o = (void *)v}};
 }
 
 bool hymn_as_bool(HymnValue v) {
@@ -902,8 +902,8 @@ void *hymn_as_pointer(HymnValue v) {
     return (v).as.p;
 }
 
-HymnObject *hymn_as_object(HymnValue v) {
-    return (HymnObject *)(v).as.o;
+void *hymn_as_object(HymnValue v) {
+    return (void *)(v).as.o;
 }
 
 HymnObjectString *hymn_as_hymn_string(HymnValue v) {
@@ -970,7 +970,7 @@ bool hymn_is_func(HymnValue v) {
     return (v).is == HYMN_VALUE_FUNC;
 }
 
-Rule rules[] = {
+static Rule rules[] = {
     [TOKEN_ADD] = {NULL, compile_binary, PRECEDENCE_TERM, {0}},
     [TOKEN_AND] = {NULL, compile_and, PRECEDENCE_AND, {0}},
     [TOKEN_ASSIGN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
@@ -1197,7 +1197,7 @@ static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue val
         previous->next = item;
     }
     this->size++;
-    if (this->size >= (float)this->bins * LOAD_FACTOR) {
+    if (this->size >= (int)((float)this->bins * LOAD_FACTOR)) {
         table_resize(this);
     }
     return hymn_new_undefined();
@@ -1417,7 +1417,7 @@ static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
         previous->next = item;
     }
     this->size++;
-    if (this->size >= (float)this->bins * LOAD_FACTOR) {
+    if (this->size >= (int)((float)this->bins * LOAD_FACTOR)) {
         set_resize(this);
     }
     return new;
@@ -3083,7 +3083,7 @@ static void patch_jump(Compiler *C, int jump) {
 
 static JumpList *add_jump(Compiler *C, JumpList *list, enum OpCode instruction) {
     JumpList *jump = hymn_calloc(1, sizeof(JumpList));
-    jump->jump = emit_jump(C, instruction);
+    jump->jump = emit_jump(C, (uint8_t)instruction);
     jump->depth = C->scope->depth;
     jump->code = current(C);
     jump->next = list;
@@ -3236,22 +3236,22 @@ static bool adjustable(Optimizer *optimizer, int target) {
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            IS_ADJUSTABLE(instructions, i, 3, <, target, +);
+            IS_ADJUSTABLE(instructions, i, 3, <, target, +)
         }
         case OP_FOR: {
-            IS_ADJUSTABLE(instructions, i, 4, <, target, +);
+            IS_ADJUSTABLE(instructions, i, 4, <, target, +)
         }
         case OP_JUMP_IF_GREATER_LOCALS: {
-            IS_ADJUSTABLE(instructions, i, 5, <, target, +);
+            IS_ADJUSTABLE(instructions, i, 5, <, target, +)
         }
         case OP_LOOP: {
-            IS_ADJUSTABLE(instructions, i, 3, >=, target, -);
+            IS_ADJUSTABLE(instructions, i, 3, >=, target, -)
         }
         case OP_FOR_LOOP: {
-            IS_ADJUSTABLE(instructions, i, 4, >=, target, -);
+            IS_ADJUSTABLE(instructions, i, 4, >=, target, -)
         }
         case OP_INCREMENT_LOOP: {
-            IS_ADJUSTABLE(instructions, i, 5, >=, target, -);
+            IS_ADJUSTABLE(instructions, i, 5, >=, target, -)
         }
         default:
             break;
@@ -3513,7 +3513,6 @@ static void optimize(Compiler *C) {
 
 #define COUNT() optimizer.code->count
 #define INSTRUCTION(I) optimizer.code->instructions[I]
-#define SAFE_INSTRUCTION(I) (I >= 0 ? optimizer.code->instructions[I] : UINT8_MAX)
 #define CONSTANT(I) optimizer.code->constants.values[optimizer.code->instructions[I]]
 #define SET(I, O) optimizer.code->instructions[I] = O
 #define JUMP_IF(T, F)                        \
@@ -3548,7 +3547,7 @@ static void optimize(Compiler *C) {
                 // subtract 1 to account for one less byte to jump after deleting instruction
                 uint8_t *instructions = optimizer.code->instructions;
                 int jump = GET_JUMP(instructions, one, 3, 4) - 1;
-                UPDATE_JUMP(instructions, one, 3, 4, jump);
+                UPDATE_JUMP(instructions, one, 3, 4, jump)
                 continue;
             }
             break;
@@ -3580,6 +3579,7 @@ static void optimize(Compiler *C) {
                     continue;
                 }
             }
+            break;
         }
         default:
             break;
@@ -4682,19 +4682,6 @@ static void reset_stack(Hymn *H) {
     H->frame_count = 0;
 }
 
-static bool is_object(HymnValue value) {
-    switch (value.is) {
-    case HYMN_VALUE_STRING:
-    case HYMN_VALUE_ARRAY:
-    case HYMN_VALUE_TABLE:
-    case HYMN_VALUE_FUNC:
-    case HYMN_VALUE_FUNC_NATIVE:
-        return true;
-    default:
-        return false;
-    }
-}
-
 #ifdef HYMN_DEBUG_MEMORY
 static void debug_value(HymnValue value) {
     HymnString *string = debug_value_to_string(value);
@@ -4703,35 +4690,68 @@ static void debug_value(HymnValue value) {
 }
 
 static void debug_reference(HymnValue value) {
-    if (is_object(value)) {
-        HymnObject *object = hymn_as_object(value);
-        int count = object->count;
-        printf("REF     | [%p] [", (void *)object);
-        debug_value(value);
-        printf("] [%d]\n", count);
-        assert(count >= 0);
+    int count;
+    switch (value.is) {
+    case HYMN_VALUE_STRING:
+        count = hymn_as_hymn_string(value)->count;
+        break;
+    case HYMN_VALUE_ARRAY:
+        count = hymn_as_array(value)->count;
+        break;
+    case HYMN_VALUE_TABLE:
+        count = hymn_as_table(value)->count;
+        break;
+    case HYMN_VALUE_FUNC:
+        count = hymn_as_func(value)->count;
+        break;
+    case HYMN_VALUE_FUNC_NATIVE:
+        count = hymn_as_native(value)->count;
+        break;
+    default:
+        return;
     }
+    printf("REF     | [%p] [", (void *)value.as.o);
+    debug_value(value);
+    printf("] [%d]\n", count);
+    assert(count >= 0);
 }
 
 static void debug_dereference(HymnValue value) {
-    if (is_object(value)) {
-        HymnObject *object = hymn_as_object(value);
-        int count = object->count - 1;
-        if (count == 0) {
-            printf("FREE    | [%p] [", (void *)object);
-            debug_value(value);
-            printf("]\n");
-        } else if (count < 0) {
-            printf("BAD     | [%p] [", (void *)object);
-            debug_value(value);
-            printf("]\n");
-        } else {
-            printf("DEREF   | [%p] [", (void *)object);
-            debug_value(value);
-            printf("] [%d]\n", count);
-        }
-        assert(count >= 0);
+    int count;
+    switch (value.is) {
+    case HYMN_VALUE_STRING:
+        count = hymn_as_hymn_string(value)->count;
+        break;
+    case HYMN_VALUE_ARRAY:
+        count = hymn_as_array(value)->count;
+        break;
+    case HYMN_VALUE_TABLE:
+        count = hymn_as_table(value)->count;
+        break;
+    case HYMN_VALUE_FUNC:
+        count = hymn_as_func(value)->count;
+        break;
+    case HYMN_VALUE_FUNC_NATIVE:
+        count = hymn_as_native(value)->count;
+        break;
+    default:
+        return;
     }
+    count--;
+    if (count == 0) {
+        printf("FREE    | [%p] [", (void *)object);
+        debug_value(value);
+        printf("]\n");
+    } else if (count < 0) {
+        printf("BAD     | [%p] [", (void *)object);
+        debug_value(value);
+        printf("]\n");
+    } else {
+        printf("DEREF   | [%p] [", (void *)object);
+        debug_value(value);
+        printf("] [%d]\n", count);
+    }
+    assert(count >= 0);
 }
 #endif
 
@@ -4741,7 +4761,7 @@ void hymn_reference_string(HymnObjectString *string) {
 }
 #else
 void hymn_reference_string(HymnObjectString *string) {
-    string->object.count++;
+    string->count++;
 #ifdef HYMN_DEBUG_MEMORY
     debug_reference(hymn_new_string_value(string));
 #endif
@@ -4754,11 +4774,39 @@ void hymn_reference(HymnValue value) {
 }
 #else
 void hymn_reference(HymnValue value) {
-    if (is_object(value)) {
-        hymn_as_object(value)->count++;
+    switch (value.is) {
+    case HYMN_VALUE_STRING:
+        hymn_as_hymn_string(value)->count++;
 #ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
+        return;
+    case HYMN_VALUE_ARRAY:
+        hymn_as_array(value)->count++;
+#ifdef HYMN_DEBUG_MEMORY
+        debug_reference(value);
+#endif
+        return;
+    case HYMN_VALUE_TABLE:
+        hymn_as_table(value)->count++;
+#ifdef HYMN_DEBUG_MEMORY
+        debug_reference(value);
+#endif
+        return;
+    case HYMN_VALUE_FUNC:
+        hymn_as_func(value)->count++;
+#ifdef HYMN_DEBUG_MEMORY
+        debug_reference(value);
+#endif
+        return;
+    case HYMN_VALUE_FUNC_NATIVE:
+        hymn_as_native(value)->count++;
+#ifdef HYMN_DEBUG_MEMORY
+        debug_reference(value);
+#endif
+        return;
+    default:
+        return;
     }
 }
 #endif
@@ -4773,7 +4821,7 @@ void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
 #ifdef HYMN_DEBUG_MEMORY
     debug_dereference(hymn_new_string_value(string));
 #endif
-    int count = --(string->object.count);
+    int count = --string->count;
     assert(count >= 0);
     if (count == 0) {
         set_remove(&H->strings, string->string);
@@ -4801,7 +4849,7 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         debug_dereference(value);
 #endif
         HymnArray *array = hymn_as_array(value);
-        int count = --(array->object.count);
+        int count = --array->count;
         assert(count >= 0);
         if (count == 0) {
             hymn_array_delete(H, array);
@@ -4813,7 +4861,7 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         debug_dereference(value);
 #endif
         HymnTable *table = hymn_as_table(value);
-        int count = --(table->object.count);
+        int count = --table->count;
         assert(count >= 0);
         if (count == 0) {
             table_delete(H, table);
@@ -4825,7 +4873,7 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         debug_dereference(value);
 #endif
         HymnFunction *func = hymn_as_func(value);
-        int count = --(func->object.count);
+        int count = --func->count;
         assert(count >= 0);
         if (count == 0) {
             function_delete(func);
@@ -4837,7 +4885,7 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         debug_dereference(value);
 #endif
         HymnNativeFunction *func = hymn_as_native(value);
-        int count = --(func->object.count);
+        int count = --func->count;
         assert(count >= 0);
         if (count == 0) {
             native_function_delete(H, func);
@@ -5615,15 +5663,15 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_LESS: {
-        JUMP_COMPARE_OP(<);
+        JUMP_COMPARE_OP(<)
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_LESS_EQUAL: {
-        JUMP_COMPARE_OP(<=);
+        JUMP_COMPARE_OP(<=)
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_GREATER: {
-        JUMP_COMPARE_OP(>);
+        JUMP_COMPARE_OP(>)
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_GREATER_LOCALS: {
@@ -5656,7 +5704,7 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_JUMP_IF_GREATER_EQUAL: {
-        JUMP_COMPARE_OP(>=);
+        JUMP_COMPARE_OP(>=)
         HYMN_DISPATCH;
     }
     case OP_LOOP: {
@@ -5777,19 +5825,19 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_LESS: {
-        COMPARE_OP(<);
+        COMPARE_OP(<)
         HYMN_DISPATCH;
     }
     case OP_LESS_EQUAL: {
-        COMPARE_OP(<=);
+        COMPARE_OP(<=)
         HYMN_DISPATCH;
     }
     case OP_GREATER: {
-        COMPARE_OP(>);
+        COMPARE_OP(>)
         HYMN_DISPATCH;
     }
     case OP_GREATER_EQUAL: {
-        COMPARE_OP(>=);
+        COMPARE_OP(>=)
         HYMN_DISPATCH;
     }
     case OP_ADD: {
@@ -6840,7 +6888,7 @@ dispatch:
             push(H, hymn_new_int(0));
             break;
         case HYMN_VALUE_FLOAT:
-            push(H, hymn_new_float(0.0f));
+            push(H, hymn_new_float(0.0));
             break;
         case HYMN_VALUE_STRING:
             push_string(H, hymn_new_string(""));
@@ -7373,7 +7421,6 @@ char *hymn_read(Hymn *H, const char *script) {
 #include <ctype.h>
 
 #define INPUT_LIMIT 256
-#define CONTROL_KEY(c) ((c)&0x1f)
 
 typedef struct History History;
 
@@ -7566,6 +7613,8 @@ void hymn_repl(Hymn *H) {
         }
         remove_newline(line);
 #else
+#define CONTROL_KEY(c) ((c)&0x1f)
+
         index = 0;
         count = 0;
 
