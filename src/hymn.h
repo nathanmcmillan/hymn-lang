@@ -107,9 +107,9 @@ void *hymn_malloc(size_t size);
 void *hymn_calloc(size_t count, size_t size);
 void *hymn_realloc(void *mem, size_t size);
 
-void *hymn_malloc_count(int count, size_t size);
-void *hymn_calloc_count(int count, size_t size);
-void *hymn_realloc_count(void *mem, int count, size_t size);
+void *hymn_malloc_int(int count, size_t size);
+void *hymn_calloc_int(int count, size_t size);
+void *hymn_realloc_int(void *mem, int count, size_t size);
 
 typedef struct HymnValue HymnValue;
 typedef struct HymnObject HymnObject;
@@ -143,13 +143,13 @@ struct HymnValue {
 
 struct HymnObject {
     int count;
-    char padding[4];
+    char padding[4]; // get rid of HymnObject?
 };
 
 struct HymnObjectString {
     HymnObject object;
     HymnString *string;
-    size_t hash;
+    unsigned int hash;
 };
 
 struct HymnArray {
@@ -167,8 +167,8 @@ struct HymnTableItem {
 
 struct HymnTable {
     HymnObject object;
-    size_t size;
-    size_t bins;
+    int size;
+    unsigned int bins;
     HymnTableItem **items;
 };
 
@@ -178,8 +178,8 @@ struct HymnSetItem {
 };
 
 struct HymnSet {
-    size_t size;
-    size_t bins;
+    int size;
+    unsigned int bins;
     HymnSetItem **items;
 };
 

@@ -31,7 +31,7 @@ void *hymn_realloc(void *mem, size_t size) {
     exit(1);
 }
 
-void *hymn_malloc_count(int count, size_t size) {
+void *hymn_malloc_int(int count, size_t size) {
     if (count < 0) {
         fprintf(stderr, "malloc negative count.\n");
         exit(1);
@@ -44,7 +44,7 @@ void *hymn_malloc_count(int count, size_t size) {
     exit(1);
 }
 
-void *hymn_calloc_count(int count, size_t size) {
+void *hymn_calloc_int(int count, size_t size) {
     if (count < 0) {
         fprintf(stderr, "calloc negative count.\n");
         exit(1);
@@ -57,7 +57,7 @@ void *hymn_calloc_count(int count, size_t size) {
     exit(1);
 }
 
-void *hymn_realloc_count(void *mem, int count, size_t size) {
+void *hymn_realloc_int(void *mem, int count, size_t size) {
     if (count < 0) {
         fprintf(stderr, "realloc negative count.\n");
         exit(1);
@@ -515,8 +515,8 @@ typedef struct Instruction Instruction;
 typedef struct Optimizer Optimizer;
 
 static const float LOAD_FACTOR = 0.80f;
-static const size_t INITIAL_BINS = 1 << 3;
-static const size_t MAXIMUM_BINS = 1 << 30;
+static const unsigned int INITIAL_BINS = 1 << 3;
+static const unsigned int MAXIMUM_BINS = 1 << 30;
 
 enum TokenType {
     TOKEN_ADD,
@@ -1074,25 +1074,25 @@ const char *hymn_value_type(enum HymnValueType type) {
     }
 }
 
-static size_t string_mix_code(HymnString *key) {
+static unsigned int string_mix_code(HymnString *key) {
     size_t length = hymn_string_len(key);
-    size_t hash = 0;
+    unsigned int hash = 0;
     for (size_t i = 0; i < length; i++) {
-        hash = 31 * hash + (size_t)key[i];
+        hash = 31 * hash + (unsigned int)key[i];
     }
     return hash ^ (hash >> 16);
 }
 
-static size_t string_mix_code_const(const char *key) {
+static unsigned int string_mix_code_const(const char *key) {
     size_t length = strlen(key);
-    size_t hash = 0;
+    unsigned int hash = 0;
     for (size_t i = 0; i < length; i++) {
-        hash = 31 * hash + (size_t)key[i];
+        hash = 31 * hash + (unsigned int)key[i];
     }
     return hash ^ (hash >> 16);
 }
 
-static HymnObjectString *new_hymn_string_with_hash(HymnString *string, size_t hash) {
+static HymnObjectString *new_hymn_string_with_hash(HymnString *string, unsigned int hash) {
     HymnObjectString *object = hymn_calloc(1, sizeof(HymnObjectString));
     object->string = string;
     object->hash = hash;
@@ -1109,22 +1109,23 @@ static void table_init(HymnTable *this) {
     this->items = hymn_calloc(this->bins, sizeof(HymnTableItem *));
 }
 
-static size_t table_get_bin(HymnTable *this, size_t hash) {
-    return (this->bins - 1) & hash;
+static unsigned int table_get_bin(HymnTable *this, unsigned int hash) {
+    return (this->bins - 1U) & hash;
 }
 
 static void table_resize(HymnTable *this) {
-    size_t old_bins = this->bins;
-    size_t bins = old_bins << 1;
+    unsigned int old_bins = this->bins;
 
-    if (bins > MAXIMUM_BINS) {
+    if (old_bins >= MAXIMUM_BINS) {
         return;
     }
+
+    unsigned int bins = old_bins << 1U;
 
     HymnTableItem **old_items = this->items;
     HymnTableItem **items = hymn_calloc(bins, sizeof(HymnTableItem *));
 
-    for (size_t i = 0; i < old_bins; i++) {
+    for (unsigned int i = 0; i < old_bins; i++) {
         HymnTableItem *item = old_items[i];
         if (item == NULL) {
             continue;
@@ -1174,7 +1175,7 @@ static void table_resize(HymnTable *this) {
 }
 
 static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue value) {
-    size_t bin = table_get_bin(this, key->hash);
+    unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
     while (item != NULL) {
@@ -1203,7 +1204,7 @@ static HymnValue table_put(HymnTable *this, HymnObjectString *key, HymnValue val
 }
 
 static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
-    size_t bin = table_get_bin(this, key->hash);
+    unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     while (item != NULL) {
         if (key == item->key) {
@@ -1215,8 +1216,8 @@ static HymnValue table_get(HymnTable *this, HymnObjectString *key) {
 }
 
 HymnValue hymn_table_get(HymnTable *this, const char *key) {
-    size_t hash = string_mix_code_const(key);
-    size_t bin = table_get_bin(this, hash);
+    unsigned int hash = string_mix_code_const(key);
+    unsigned int bin = table_get_bin(this, hash);
     HymnTableItem *item = this->items[bin];
     while (item != NULL) {
         if (hymn_string_equal(key, item->key->string)) {
@@ -1228,7 +1229,7 @@ HymnValue hymn_table_get(HymnTable *this, const char *key) {
 }
 
 static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
-    size_t bins = this->bins;
+    unsigned int bins = this->bins;
     if (key == NULL) {
         for (size_t i = 0; i < bins; i++) {
             HymnTableItem *item = this->items[i];
@@ -1238,7 +1239,7 @@ static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
         }
         return NULL;
     }
-    size_t bin = table_get_bin(this, key->hash);
+    unsigned int bin = table_get_bin(this, key->hash);
     {
         HymnTableItem *item = this->items[bin];
         while (item != NULL) {
@@ -1251,7 +1252,7 @@ static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
             item = next;
         }
     }
-    for (size_t i = bin + 1; i < bins; i++) {
+    for (unsigned int i = bin + 1; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         if (item != NULL) {
             return item;
@@ -1261,7 +1262,7 @@ static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
 }
 
 static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
-    size_t bin = table_get_bin(this, key->hash);
+    unsigned int bin = table_get_bin(this, key->hash);
     HymnTableItem *item = this->items[bin];
     HymnTableItem *previous = NULL;
     while (item != NULL) {
@@ -1284,7 +1285,7 @@ static HymnValue table_remove(HymnTable *this, HymnObjectString *key) {
 
 static void table_clear(Hymn *H, HymnTable *this) {
     this->size = 0;
-    size_t bins = this->bins;
+    unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
@@ -1329,17 +1330,18 @@ static void set_init(HymnSet *this) {
     this->items = hymn_calloc(this->bins, sizeof(HymnSetItem *));
 }
 
-static size_t set_get_bin(HymnSet *this, size_t hash) {
-    return (this->bins - 1) & hash;
+static unsigned int set_get_bin(HymnSet *this, unsigned int hash) {
+    return (this->bins - 1U) & hash;
 }
 
 static void set_resize(HymnSet *this) {
-    size_t old_bins = this->bins;
-    size_t bins = old_bins << 1;
+    unsigned int old_bins = this->bins;
 
-    if (bins > MAXIMUM_BINS) {
+    if (old_bins >= MAXIMUM_BINS) {
         return;
     }
+
+    unsigned int bins = old_bins << 1U;
 
     HymnSetItem **old_items = this->items;
     HymnSetItem **items = hymn_calloc(bins, sizeof(HymnSetItem *));
@@ -1394,8 +1396,8 @@ static void set_resize(HymnSet *this) {
 }
 
 static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
-    size_t hash = string_mix_code(add);
-    size_t bin = set_get_bin(this, hash);
+    unsigned int hash = string_mix_code(add);
+    unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
     while (item != NULL) {
@@ -1422,8 +1424,8 @@ static HymnObjectString *set_add_or_get(HymnSet *this, HymnString *add) {
 }
 
 static HymnObjectString *set_remove(HymnSet *this, HymnString *remove) {
-    size_t hash = string_mix_code(remove);
-    size_t bin = set_get_bin(this, hash);
+    unsigned int hash = string_mix_code(remove);
+    unsigned int bin = set_get_bin(this, hash);
     HymnSetItem *item = this->items[bin];
     HymnSetItem *previous = NULL;
     while (item != NULL) {
@@ -2206,7 +2208,7 @@ static int value_pool_add(HymnValuePool *this, HymnValue value) {
     }
     if (count >= this->capacity) {
         this->capacity *= 2;
-        this->values = hymn_realloc_count(this->values, this->capacity, sizeof(HymnValue));
+        this->values = hymn_realloc_int(this->values, this->capacity, sizeof(HymnValue));
     }
     this->values[count] = value;
     this->count = count + 1;
@@ -2380,20 +2382,15 @@ static HymnTable *new_table_copy(HymnTable *from) {
 }
 
 static HymnArray *table_keys(HymnTable *this) {
-    size_t size = this->size;
-    if (size > UINT64_MAX) {
-        // is this really a good idea
-        fprintf(stderr, "table size too large\n");
-        exit(1);
-    }
+    int size = this->size;
     HymnArray *array = hymn_new_array((HymnInt)size);
     if (size == 0) {
         return array;
     }
     HymnValue *keys = array->items;
     size_t total = 0;
-    size_t bins = this->bins;
-    for (size_t i = 0; i < bins; i++) {
+    unsigned int bins = this->bins;
+    for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
             HymnString *string = item->key->string;
@@ -2418,11 +2415,11 @@ static HymnArray *table_keys(HymnTable *this) {
 }
 
 static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
-    size_t bin = 0;
+    unsigned int bin = 0;
     HymnTableItem *item = NULL;
 
-    size_t bins = this->bins;
-    for (size_t i = 0; i < bins; i++) {
+    unsigned int bins = this->bins;
+    for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *start = this->items[i];
         if (start) {
             bin = i;
@@ -2506,8 +2503,8 @@ static void write_byte(HymnByteCode *code, uint8_t b, int row) {
     int count = code->count;
     if (count >= code->capacity) {
         code->capacity *= 2;
-        code->instructions = hymn_realloc_count(code->instructions, code->capacity, sizeof(uint8_t));
-        code->lines = hymn_realloc_count(code->lines, code->capacity, sizeof(int));
+        code->instructions = hymn_realloc_int(code->instructions, code->capacity, sizeof(uint8_t));
+        code->lines = hymn_realloc_int(code->lines, code->capacity, sizeof(int));
     }
     code->instructions[count] = b;
     code->lines[count] = row;
@@ -4096,8 +4093,8 @@ static void for_statement(Compiler *C) {
     HymnByteCode *code = current(C);
 
     int count = code->count - increment;
-    uint8_t *instructions = hymn_malloc_count(count, sizeof(uint8_t));
-    int *lines = hymn_malloc_count(count, sizeof(int));
+    uint8_t *instructions = hymn_malloc_int(count, sizeof(uint8_t));
+    int *lines = hymn_malloc_int(count, sizeof(int));
     hymn_mem_copy(instructions, &code->instructions[increment], count, sizeof(uint8_t));
     hymn_mem_copy(lines, &code->lines[increment], count, sizeof(int));
     code->count = increment;
@@ -4113,8 +4110,8 @@ static void for_statement(Compiler *C) {
 
     while (code->count + count > code->capacity) {
         code->capacity *= 2;
-        code->instructions = hymn_realloc_count(code->instructions, code->capacity, sizeof(uint8_t));
-        code->lines = hymn_realloc_count(code->lines, code->capacity, sizeof(int));
+        code->instructions = hymn_realloc_int(code->instructions, code->capacity, sizeof(uint8_t));
+        code->lines = hymn_realloc_int(code->lines, code->capacity, sizeof(int));
     }
     hymn_mem_copy(&code->instructions[code->count], instructions, count, sizeof(uint8_t));
     hymn_mem_copy(&code->lines[code->count], lines, count, sizeof(int));
@@ -4548,7 +4545,7 @@ static void pointer_set_add(struct PointerSet *set, void *pointer) {
         int count = set->count;
         if (count >= set->capacity) {
             set->capacity *= 2;
-            set->items = hymn_realloc_count(set->items, set->capacity, sizeof(void *));
+            set->items = hymn_realloc_int(set->items, set->capacity, sizeof(void *));
         }
         set->items[count] = pointer;
         set->count = count + 1;
@@ -4602,11 +4599,11 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         } else {
             pointer_set_add(set, table);
         }
-        size_t size = table->size;
-        HymnObjectString **keys = hymn_malloc(size * sizeof(HymnObjectString *));
+        int size = table->size;
+        HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
         size_t total = 0;
-        size_t bins = table->bins;
-        for (size_t i = 0; i < bins; i++) {
+        unsigned int bins = table->bins;
+        for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = table->items[i];
             while (item != NULL) {
                 HymnString *string = item->key->string;
@@ -4626,7 +4623,7 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
             }
         }
         HymnString *string = hymn_new_string("{ ");
-        for (size_t i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             if (i != 0) {
                 string = hymn_string_append(string, ", ");
             }
@@ -5198,7 +5195,7 @@ static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnB
 }
 
 static size_t debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
-    unsigned int jump = ((unsigned int)code->instructions[index + 1] << 8u) | (unsigned int)code->instructions[index + 2];
+    unsigned int jump = ((unsigned int)code->instructions[index + 1] << 8U) | (unsigned int)code->instructions[index + 2];
     *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, sign < 0 ? index + 3 - jump : index + 3 + jump);
     return index + 3;
 }
@@ -5206,7 +5203,7 @@ static size_t debug_jump_instruction(HymnString **debug, const char *name, int s
 static size_t debug_register_jump_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
     uint8_t slot_a = code->instructions[index + 1];
     uint8_t slot_b = code->instructions[index + 2];
-    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8u) | (unsigned int)code->instructions[index + 4];
+    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8U) | (unsigned int)code->instructions[index + 4];
     *debug = string_append_format(*debug, "%s: [%d] [%d] ? [%zu] -> [%zu]", name, slot_a, slot_b, index, index + 5 + jump);
     return index + 5;
 }
@@ -5220,7 +5217,7 @@ static size_t debug_three_byte_instruction(HymnString **debug, const char *name,
 
 static size_t debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
     uint8_t slot = code->instructions[index + 1];
-    unsigned int jump = ((unsigned int)code->instructions[index + 2] << 8u) | (unsigned int)code->instructions[index + 3];
+    unsigned int jump = ((unsigned int)code->instructions[index + 2] << 8U) | (unsigned int)code->instructions[index + 3];
     *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, slot, index, sign < 0 ? index + 4 - jump : index + 4 + jump);
     return index + 4;
 }
@@ -5228,7 +5225,7 @@ static size_t debug_for_loop_instruction(HymnString **debug, const char *name, i
 static size_t debug_increment_loop_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
     uint8_t slot = code->instructions[index + 1];
     uint8_t increment = code->instructions[index + 2];
-    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8u) | (unsigned int)code->instructions[index + 4];
+    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8U) | (unsigned int)code->instructions[index + 4];
     *debug = string_append_format(*debug, "%s: [%d] [%d] & [%zu] -> [%zu]", name, slot, increment, index, index + 5 - jump);
     return index + 5;
 }
@@ -7533,7 +7530,7 @@ void hymn_repl(Hymn *H) {
         return;
     }
     struct termios new_term = save_termios;
-    new_term.c_lflag &= ~(0u | ECHO | ICANON);
+    new_term.c_lflag &= ~(0U | ECHO | ICANON);
     new_term.c_cc[VMIN] = 1;
     new_term.c_cc[VTIME] = 0;
     if (tcsetattr(STDIN_FILENO, TCSANOW, &new_term) == -1) {

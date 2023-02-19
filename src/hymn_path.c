@@ -12,7 +12,7 @@ static void file_list_add(struct HymnPathFileList *list, HymnString *file) {
             list->files = hymn_malloc(sizeof(HymnString *));
         } else {
             list->capacity *= 2;
-            list->files = hymn_realloc_count(list->files, list->capacity, sizeof(HymnString *));
+            list->files = hymn_realloc_int(list->files, list->capacity, sizeof(HymnString *));
         }
     }
     list->files[count] = file;

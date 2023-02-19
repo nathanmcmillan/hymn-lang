@@ -28,7 +28,7 @@ static void pointer_set_add(struct PointerSet *set, void *pointer) {
         int count = set->count;
         if (count >= set->capacity) {
             set->capacity *= 2;
-            set->items = hymn_realloc_count(set->items, set->capacity, sizeof(void *));
+            set->items = hymn_realloc_int(set->items, set->capacity, sizeof(void *));
         }
         set->items[count] = pointer;
         set->count = count + 1;
@@ -76,11 +76,11 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
         } else {
             pointer_set_add(set, table);
         }
-        size_t size = table->size;
-        HymnObjectString **keys = hymn_malloc(size * sizeof(HymnObjectString *));
+        int size = table->size;
+        HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
         size_t total = 0;
-        size_t bins = table->bins;
-        for (size_t i = 0; i < bins; i++) {
+        unsigned int bins = table->bins;
+        for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = table->items[i];
             while (item != NULL) {
                 HymnString *string = item->key->string;
@@ -100,7 +100,7 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
             }
         }
         HymnString *string = hymn_new_string("{ ");
-        for (size_t i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             if (i != 0) {
                 string = hymn_string_append(string, ", ");
             }
