@@ -1231,7 +1231,7 @@ HymnValue hymn_table_get(HymnTable *this, const char *key) {
 static HymnTableItem *table_next(HymnTable *this, HymnObjectString *key) {
     unsigned int bins = this->bins;
     if (key == NULL) {
-        for (size_t i = 0; i < bins; i++) {
+        for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = this->items[i];
             if (item != NULL) {
                 return item;
@@ -1346,7 +1346,7 @@ static void set_resize(HymnSet *this) {
     HymnSetItem **old_items = this->items;
     HymnSetItem **items = hymn_calloc(bins, sizeof(HymnSetItem *));
 
-    for (size_t i = 0; i < old_bins; i++) {
+    for (unsigned int i = 0; i < old_bins; i++) {
         HymnSetItem *item = old_items[i];
         if (item == NULL) {
             continue;
@@ -2368,8 +2368,8 @@ HymnTable *hymn_new_table(void) {
 
 static HymnTable *new_table_copy(HymnTable *from) {
     HymnTable *this = hymn_new_table();
-    size_t bins = from->bins;
-    for (size_t i = 0; i < bins; i++) {
+    unsigned int bins = from->bins;
+    for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = from->items[i];
         while (item != NULL) {
             table_put(this, item->key, item->value);
@@ -2388,16 +2388,16 @@ static HymnArray *table_keys(HymnTable *this) {
         return array;
     }
     HymnValue *keys = array->items;
-    size_t total = 0;
+    unsigned int total = 0;
     unsigned int bins = this->bins;
     for (unsigned int i = 0; i < bins; i++) {
         HymnTableItem *item = this->items[i];
         while (item != NULL) {
             HymnString *string = item->key->string;
-            size_t insert = 0;
+            unsigned int insert = 0;
             while (insert != total) {
                 if (strcmp(string, hymn_as_string(keys[insert])) < 0) {
-                    for (size_t swap = total; swap > insert; swap--) {
+                    for (unsigned int swap = total; swap > insert; swap--) {
                         keys[swap] = keys[swap - 1];
                     }
                     break;
@@ -4601,16 +4601,16 @@ static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *
         }
         int size = table->size;
         HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
-        size_t total = 0;
+        unsigned int total = 0;
         unsigned int bins = table->bins;
         for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = table->items[i];
             while (item != NULL) {
                 HymnString *string = item->key->string;
-                size_t insert = 0;
+                unsigned int insert = 0;
                 while (insert != total) {
                     if (strcmp(string, keys[insert]->string) < 0) {
-                        for (size_t swap = total; swap > insert; swap--) {
+                        for (unsigned int swap = total; swap > insert; swap--) {
                             keys[swap] = keys[swap - 1];
                         }
                         break;
@@ -7213,8 +7213,8 @@ void hymn_delete(Hymn *H) {
 
     HymnSet *strings = &H->strings;
     {
-        size_t bins = strings->bins;
-        for (size_t i = 0; i < bins; i++) {
+        unsigned int bins = strings->bins;
+        for (unsigned int i = 0; i < bins; i++) {
             HymnSetItem *item = strings->items[i];
             while (item != NULL) {
                 HymnSetItem *next = item->next;
@@ -7225,8 +7225,8 @@ void hymn_delete(Hymn *H) {
     }
 #ifdef HYMN_DEBUG_MEMORY
     {
-        size_t bins = strings->bins;
-        for (size_t i = 0; i < bins; i++) {
+        unsigned int bins = strings->bins;
+        for (unsigned int i = 0; i < bins; i++) {
             HymnSetItem *item = strings->items[i];
             while (item != NULL) {
                 fprintf(stderr, "ENDING STRING REFERENCE: %s\n", item->string->string);
@@ -7758,7 +7758,7 @@ void hymn_repl(Hymn *H) {
                 continue;
             } else if (hymn_string_equal(line, ".debug")) {
                 HymnTable *globals = &H->globals;
-                size_t bins = globals->bins;
+                unsigned int bins = globals->bins;
                 for (unsigned int i = 0; i < bins; i++) {
                     HymnTableItem *item = globals->items[i];
                     while (item != NULL) {

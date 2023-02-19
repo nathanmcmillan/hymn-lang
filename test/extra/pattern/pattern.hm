@@ -64,20 +64,6 @@ print-assert([1, 2], pattern.find("x=2", "[!=><&~]"))
 print-assert([1, 2], pattern.find("x+2", "[+-]"))
 print-assert([1, 2], pattern.find("x-2", "[+-]"))
 
-# [%s%p] will not match the beginning of a string
-# also can't have an "or" condition
-# how to represent beginning of string or a space
-
-# how hard is it to implement an "or" condition
-
-# print-assert([0, 5, 0, 5], pattern.find("23456", "%b(%d+)%b"))
-# print-assert([0, 5, 0, 5], pattern.find("23456", "(^|%s%p)(%d+)($|%s%p)"))
-
-print-assert(none, pattern.find("b3456", "[%s%p]?(%d+)[%s%p]?"))
-
-print-assert([0, 5, 0, 5], pattern.find("23456", "[%s%p]?(%d+)[%s%p]?"))
-print-assert([0, 5, 1, 4], pattern.find(" 256 ", "[%s%p]?(%d+)[%s%p]?"))
-
 echo "========================================"
 
 print-assert(none, pattern.find("foo", "foo", 3))

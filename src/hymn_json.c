@@ -76,16 +76,16 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
         }
         int size = table->size;
         HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
-        size_t total = 0;
+        unsigned int total = 0;
         unsigned int bins = table->bins;
         for (unsigned int i = 0; i < bins; i++) {
             HymnTableItem *item = table->items[i];
             while (item != NULL) {
                 HymnString *string = item->key->string;
-                size_t insert = 0;
+                unsigned int insert = 0;
                 while (insert != total) {
                     if (strcmp(string, keys[insert]->string) < 0) {
-                        for (size_t swap = total; swap > insert; swap--) {
+                        for (unsigned int swap = total; swap > insert; swap--) {
                             keys[swap] = keys[swap - 1];
                         }
                         break;

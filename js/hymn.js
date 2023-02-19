@@ -1445,7 +1445,7 @@ function advance(C) {
           if (Number.isSafeInteger(number)) numberToken(C, TOKEN_INTEGER, start, end, number)
           else numberToken(C, TOKEN_FLOAT, start, end, number)
           return
-        } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+        } else if (isIdent(c)) {
           const start = C.pos - 1
           while (true) {
             c = peekChar(C)
