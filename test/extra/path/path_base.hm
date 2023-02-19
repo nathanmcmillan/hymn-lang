@@ -9,10 +9,10 @@ assert("hello.world", path.base("foo/bar/hello.world"))
 
 try { path.base() } except e { echo e }
 
-func drop_the() {
+func drop-the() {
   path.base(4)
 }
 
-try { drop_the() } except e { echo e }
+try { drop-the() } except e { echo e }
 
 echo "..."

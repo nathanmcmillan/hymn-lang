@@ -17,4 +17,6 @@ struct HymnPathFileList hymn_walk(const char *path, bool recursive);
 
 void hymn_delete_file_list(struct HymnPathFileList *files);
 
+void hymn_use_path(Hymn *H);
+
 #endif

@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.7.0"
+#define HYMN_VERSION "0.8.0"
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
@@ -33,8 +33,8 @@
 // #define HYMN_NO_MEMORY_MANAGE
 
 #ifdef _MSC_VER
+#include <Windows.h>
 #include <direct.h>
-#include <windows.h>
 #define getcwd _getcwd
 #define PATH_MAX FILENAME_MAX
 #define PATH_SEP '\\'
@@ -74,7 +74,7 @@
 
 #define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
 
-typedef int64_t HymnInt;
+typedef long long HymnInt;
 typedef double HymnFloat;
 
 enum HymnValueType {
@@ -104,11 +104,14 @@ PACK(struct HymnStringHead {
 #undef PACK
 
 void *hymn_malloc(size_t size);
-void *hymn_calloc(size_t members, size_t member_size);
+void *hymn_calloc(size_t count, size_t size);
 void *hymn_realloc(void *mem, size_t size);
 
+void *hymn_malloc_int(int count, size_t size);
+void *hymn_calloc_int(int count, size_t size);
+void *hymn_realloc_int(void *mem, int count, size_t size);
+
 typedef struct HymnValue HymnValue;
-typedef struct HymnObject HymnObject;
 typedef struct HymnObjectString HymnObjectString;
 typedef struct HymnArray HymnArray;
 typedef struct HymnTable HymnTable;
@@ -126,28 +129,26 @@ typedef struct Hymn Hymn;
 typedef struct HymnValue (*HymnNativeCall)(Hymn *this, int count, HymnValue *arguments);
 
 struct HymnValue {
-    enum HymnValueType is;
     union {
         bool b;
         HymnInt i;
         HymnFloat f;
-        HymnObject *o;
+        void *o;
         void *p;
     } as;
-};
-
-struct HymnObject {
-    int count;
+    enum HymnValueType is;
+    char padding[4];
 };
 
 struct HymnObjectString {
-    HymnObject object;
+    int count;
+    unsigned int hash;
     HymnString *string;
-    size_t hash;
 };
 
 struct HymnArray {
-    HymnObject object;
+    int count;
+    char padding[4];
     HymnValue *items;
     HymnInt length;
     HymnInt capacity;
@@ -160,9 +161,10 @@ struct HymnTableItem {
 };
 
 struct HymnTable {
-    HymnObject object;
-    unsigned int size;
+    int count;
+    int size;
     unsigned int bins;
+    char padding[4];
     HymnTableItem **items;
 };
 
@@ -172,13 +174,14 @@ struct HymnSetItem {
 };
 
 struct HymnSet {
-    unsigned int size;
+    int size;
     unsigned int bins;
     HymnSetItem **items;
 };
 
 struct HymnNativeFunction {
-    HymnObject object;
+    int count;
+    char padding[4];
     HymnObjectString *name;
     HymnNativeCall func;
 };
@@ -198,20 +201,21 @@ struct HymnByteCode {
 };
 
 struct HymnExceptList {
+    struct HymnExceptList *next;
     int start;
     int end;
     int locals;
-    struct HymnExceptList *next;
+    char padding[4];
 };
 
 struct HymnFunction {
-    HymnObject object;
+    int count;
+    int arity;
     HymnString *name;
     HymnString *script;
     HymnString *source;
-    int arity;
-    HymnByteCode code;
     HymnExceptList *except;
+    HymnByteCode code;
 };
 
 struct HymnFrame {
@@ -234,6 +238,7 @@ struct Hymn {
     HymnValue *stack_top;
     HymnFrame frames[HYMN_FRAMES_MAX];
     int frame_count;
+    char padding[4];
     HymnSet strings;
     HymnTable globals;
     HymnArray *paths;
@@ -247,7 +252,7 @@ struct Hymn {
     void (*print_error)(const char *format, ...);
 };
 
-HymnString *hymn_working_directory();
+HymnString *hymn_working_directory(void);
 HymnString *hymn_path_convert(HymnString *path);
 HymnString *hymn_path_normalize(HymnString *path);
 HymnString *hymn_path_parent(HymnString *path);
@@ -294,12 +299,12 @@ HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index);
 void hymn_array_clear(Hymn *H, HymnArray *this);
 void hymn_array_delete(Hymn *H, HymnArray *this);
 
-export HymnTable *hymn_new_table();
+export HymnTable *hymn_new_table(void);
 
 HymnValue hymn_table_get(HymnTable *this, const char *key);
 
-HymnValue hymn_new_undefined();
-HymnValue hymn_new_none();
+HymnValue hymn_new_undefined(void);
+HymnValue hymn_new_none(void);
 HymnValue hymn_new_bool(bool v);
 export HymnValue hymn_new_int(HymnInt v);
 HymnValue hymn_new_float(HymnFloat v);
@@ -319,7 +324,7 @@ HymnInt hymn_as_int(HymnValue v);
 HymnFloat hymn_as_float(HymnValue v);
 HymnNativeFunction *hymn_as_native(HymnValue v);
 void *hymn_as_pointer(HymnValue v);
-HymnObject *hymn_as_object(HymnValue v);
+void *hymn_as_object(HymnValue v);
 HymnObjectString *hymn_as_hymn_string(HymnValue v);
 HymnString *hymn_as_string(HymnValue v);
 HymnArray *hymn_as_array(HymnValue v);
@@ -352,11 +357,11 @@ void hymn_dereference(Hymn *H, HymnValue value);
 void hymn_set_property(Hymn *H, HymnTable *table, HymnObjectString *name, HymnValue value);
 void hymn_set_property_const(Hymn *H, HymnTable *table, const char *name, HymnValue value);
 
-HymnValue hymn_new_exception(Hymn *H, char *error);
+HymnValue hymn_new_exception(Hymn *H, const char *error);
 HymnValue hymn_arity_exception(Hymn *H, int expected, int actual);
 HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnValueType actual);
 
-Hymn *new_hymn();
+Hymn *new_hymn(void);
 
 char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_call(Hymn *H, const char *name, int arguments);

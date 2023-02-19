@@ -82,7 +82,7 @@ static HymnValue text_trim(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-static HymnValue text_leftstrip(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue text_left_strip(Hymn *H, int count, HymnValue *arguments) {
     if (count >= 1) {
         HymnValue value = arguments[0];
         if (hymn_is_string(value)) {
@@ -116,7 +116,7 @@ static HymnValue text_leftstrip(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-static HymnValue text_rightstrip(Hymn *H, int count, HymnValue *arguments) {
+static HymnValue text_right_strip(Hymn *H, int count, HymnValue *arguments) {
     if (count >= 1) {
         HymnValue value = arguments[0];
         if (hymn_is_string(value)) {
@@ -192,14 +192,14 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-void hymn_use_string(Hymn *H) {
+void hymn_use_text(Hymn *H) {
     HymnTable *text = hymn_new_table();
     hymn_add_function_to_table(H, text, "ends", text_ends);
     hymn_add_function_to_table(H, text, "starts", text_starts);
     hymn_add_function_to_table(H, text, "replace", text_replace);
     hymn_add_function_to_table(H, text, "trim", text_trim);
-    hymn_add_function_to_table(H, text, "leftstrip", text_leftstrip);
-    hymn_add_function_to_table(H, text, "rightstrip", text_rightstrip);
+    hymn_add_function_to_table(H, text, "left-strip", text_left_strip);
+    hymn_add_function_to_table(H, text, "right-strip", text_right_strip);
     hymn_add_function_to_table(H, text, "join", text_join);
     hymn_add_table(H, "text", text);
 }

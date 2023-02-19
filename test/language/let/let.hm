@@ -1,11 +1,11 @@
 # letter
-# underscore
 # digits
+# hyphen
 
 let foo = "letter"
-let _foo_ = "underscore"
 let foo32 = "digits"
+let foo-32 = "hyphen"
 
 echo foo
-echo _foo_
 echo foo32
+echo foo-32

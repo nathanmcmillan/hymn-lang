@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#include "hymn.h"
+#include "hymn_json.h"
 
 struct PointerSet {
     int count;
@@ -26,9 +26,9 @@ static bool pointer_set_has(struct PointerSet *set, void *pointer) {
 static void pointer_set_add(struct PointerSet *set, void *pointer) {
     if (set->items) {
         int count = set->count;
-        if (count + 1 > set->capacity) {
+        if (count >= set->capacity) {
             set->capacity *= 2;
-            set->items = hymn_realloc(set->items, set->capacity * sizeof(void *));
+            set->items = hymn_realloc_int(set->items, set->capacity, sizeof(void *));
         }
         set->items[count] = pointer;
         set->count = count + 1;
@@ -47,9 +47,7 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
     case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
     case HYMN_VALUE_INTEGER: return hymn_int_to_string(hymn_as_int(value));
     case HYMN_VALUE_FLOAT: return hymn_float_to_string(hymn_as_float(value));
-    case HYMN_VALUE_STRING: {
-        return hymn_quote_string(hymn_as_string(value));
-    }
+    case HYMN_VALUE_STRING: return hymn_quote_string(hymn_as_string(value));
     case HYMN_VALUE_ARRAY: {
         HymnArray *array = hymn_as_array(value);
         if (array == NULL || array->length == 0 || pointer_set_has(set, array)) {
@@ -76,8 +74,8 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
         } else {
             pointer_set_add(set, table);
         }
-        unsigned int size = table->size;
-        HymnObjectString **keys = hymn_malloc(size * sizeof(HymnObjectString *));
+        int size = table->size;
+        HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
         unsigned int total = 0;
         unsigned int bins = table->bins;
         for (unsigned int i = 0; i < bins; i++) {
@@ -100,7 +98,7 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
             }
         }
         HymnString *string = hymn_new_string("{ ");
-        for (unsigned int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             if (i != 0) {
                 string = hymn_string_append(string, ", ");
             }
@@ -126,6 +124,8 @@ static HymnString *json_save_recursive(HymnValue value, struct PointerSet *set) 
     }
     case HYMN_VALUE_FUNC_NATIVE: return hymn_string_copy(hymn_as_native(value)->name->string);
     case HYMN_VALUE_POINTER: return hymn_string_format("\"%p\"", hymn_as_pointer(value));
+    default:
+        break;
     }
     return hymn_new_string("?");
 }

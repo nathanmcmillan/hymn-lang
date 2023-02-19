@@ -1,10 +1,13 @@
 # Bugs
 
+1. Use `int` for size and capcity type data including arrays and strings
+   - Add `INT_MAX` safety checks
 1. Memory leaks when file not found
 1. Fix and thoroughly test OP code optimizations
    - Can we assign the original byte index as a unique identifier
    - And only at the very end, iterate through and match them, then calculate the final difference?
 1. Finish JSON module
+   - Throw proper exceptions
 1. Finish dynamic library support
    - Export everything
    - Build as a library

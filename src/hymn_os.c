@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "hymn.h"
+#include "hymn_os.h"
 
 #ifdef _MSC_VER
 #define HYMN_POPEN_SUPPORTED
@@ -26,7 +26,7 @@ static HymnValue os_clock(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     (void)count;
     (void)arguments;
-    return hymn_new_float((double)clock() / (double)CLOCKS_PER_SEC);
+    return hymn_new_float((HymnFloat)((float)clock() / (float)CLOCKS_PER_SEC));
 }
 
 static HymnValue os_env(Hymn *H, int count, HymnValue *arguments) {

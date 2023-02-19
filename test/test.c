@@ -190,7 +190,7 @@ HymnValue fun_for_vm(Hymn *vm, int count, HymnValue *arguments) {
     return hymn_new_none();
 }
 
-static void test_api() {
+static void test_api(void) {
     tests_count++;
     printf("api\n");
     Hymn *hymn = new_hymn();
@@ -237,7 +237,7 @@ end:
     free(point);
 }
 
-static void test_dynamic_library() {
+static void test_dynamic_library(void) {
 #ifndef HYMN_NO_DYNAMIC_LIBS
     tests_count++;
     printf("dlib\n");

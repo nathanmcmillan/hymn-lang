@@ -2,14 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-#ifndef HYMN_TEXT_LIB_H
-#define HYMN_TEXT_LIB_H
+#ifndef HYMN_IO_LIB_H
+#define HYMN_IO_LIB_H
 
 #include "hymn.h"
 
-bool hymn_string_ends_with(HymnString *string, const char *using);
-bool hymn_string_contains(HymnString *string, const char *using);
-
-void hymn_use_text(Hymn *H);
+void hymn_use_io(Hymn *H);
 
 #endif

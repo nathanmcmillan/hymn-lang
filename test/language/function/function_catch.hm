@@ -5,7 +5,7 @@
 func foo() {
   try {
     echo [2, 4, 8][3]
-  } except _ {
+  } except e {
     echo "foo"
   }
 }
@@ -13,7 +13,7 @@ func foo() {
 func bar() {
   try {
     throw "bad"
-  } except _ {
+  } except e {
   }
   echo "bar"
 }

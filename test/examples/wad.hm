@@ -1,6 +1,6 @@
 use "strings"
 
-func _wad_skip(s, i) {
+func wad-skip(s, i) {
   i += 1
   let c = s[i]
   if c != '\n' and c != ' ' {
@@ -19,13 +19,13 @@ func _wad_skip(s, i) {
   }
 }
 
-func load_wad(s) {
+func load-wad(s) {
   let wad = {}
   let stack = [wad]
   let key = ""
   let value = ""
   let pc = ""
-  let is_key = true
+  let is-key = true
   let size = len(s)
   for i = 0, i < size {
     let c = s[i]
@@ -36,47 +36,47 @@ func load_wad(s) {
         i += 1
       }
     } elif c == '\n' or c == ' ' {
-      if !is_key and pc != '}' and pc != ']' {
+      if !is-key and pc != '}' and pc != ']' {
         if type(stack[0]) == "array" {
           push(stack[0], value)
         } else {
           stack[0][trim(key)] = value
           key = ""
-          is_key = true
+          is-key = true
         }
         value = ""
       }
       pc = c
-      i = _wad_skip(s, i)
+      i = wad-skip(s, i)
     } elif c == '=' {
-      is_key = false
+      is-key = false
       pc = c
-      i = _wad_skip(s, i)
+      i = wad-skip(s, i)
     } elif c == '{' {
       let map = {}
       if type(stack[0]) == "array" {
         push(stack[0], map)
-        is_key = true
+        is-key = true
       } else {
         stack[0][trim(key)] = map
         key = ""
       }
       insert(stack, 0, map)
       pc = c
-      i = _wad_skip(s, i)
+      i = wad-skip(s, i)
     } elif c == '[' {
       let array = []
       if type(stack[0]) == "array" {
         push(stack[0], array)
-        is_key = true
+        is-key = true
       } else {
         stack[0][trim(key)] = array
         key = ""
       }
       insert(stack, 0, array)
-      is_key = false
+      is-key = false
       pc = c
-      i = _wad_skip(s, i)
+      i = wad-skip(s, i)
     } elif c == '}' {
       if pc != ' ' and pc != '{' and pc != '}' and pc != ']' and pc != '\n' {
         stack[0][trim(key)] = value
@@ -84,18 +84,18 @@ func load_wad(s) {
         value = ""
       }
       delete(stack, 0)
-      is_key = type(stack[0]) != "array"
+      is-key = type(stack[0]) != "array"
       pc = c
-      i = _wad_skip(s, i)
+      i = wad-skip(s, i)
     } elif c == ']' {
       if pc != ' ' and pc != '[' and pc != ']' and pc != '}' and pc != '\n' {
         push(stack[0], value)
         value = ""
       }
       delete(stack, 0)
-      is_key = type(stack[0]) != "array"
+      is-key = type(stack[0]) != "array"
       pc = c
-      i = _wad_skip(s, i)
+      i = wad-skip(s, i)
     } elif c == '"' {
       i += 1
       if i == size {
@@ -115,7 +115,7 @@ func load_wad(s) {
           e = s[i]
         }
       }
-    } elif is_key {
+    } elif is-key {
       pc = c
       key += c
     } else {
@@ -136,4 +136,4 @@ let tic = "paint = tic-80-wide-font columns = 128 rows = 128 pixels [
 ]
 "
 
-load_wad(tic)
+load-wad(tic)

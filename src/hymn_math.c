@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#include "hymn.h"
+#include "hymn_math.h"
 
 #define PI 3.14159265358979323846
 
@@ -42,7 +42,7 @@ static HymnValue math_min(Hymn *H, int count, HymnValue *arguments) {
                     return b;
                 }
             } else if (hymn_is_float(b)) {
-                if (hymn_as_int(a) < hymn_as_float(b)) {
+                if ((HymnFloat)hymn_as_int(a) < hymn_as_float(b)) {
                     return a;
                 } else {
                     return b;
@@ -50,7 +50,7 @@ static HymnValue math_min(Hymn *H, int count, HymnValue *arguments) {
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
-                if (hymn_as_float(a) < hymn_as_int(b)) {
+                if (hymn_as_float(a) < (HymnFloat)hymn_as_int(b)) {
                     return a;
                 } else {
                     return b;
@@ -80,7 +80,7 @@ static HymnValue math_max(Hymn *H, int count, HymnValue *arguments) {
                     return b;
                 }
             } else if (hymn_is_float(b)) {
-                if (hymn_as_int(a) > hymn_as_float(b)) {
+                if ((HymnFloat)hymn_as_int(a) > hymn_as_float(b)) {
                     return a;
                 } else {
                     return b;
@@ -88,7 +88,7 @@ static HymnValue math_max(Hymn *H, int count, HymnValue *arguments) {
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
-                if (hymn_as_float(a) > hymn_as_int(b)) {
+                if (hymn_as_float(a) > (HymnFloat)hymn_as_int(b)) {
                     return a;
                 } else {
                     return b;

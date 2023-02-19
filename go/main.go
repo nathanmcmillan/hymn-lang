@@ -1,5 +1,7 @@
 package main
 
+// Work in progress!
+
 import (
 	"fmt"
 	"hymn-lang/go/hymn"

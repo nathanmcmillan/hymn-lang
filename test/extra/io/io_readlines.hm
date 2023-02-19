@@ -1,1 +1,1 @@
-echo io.readlines(".clang-format")
+echo io.read-lines(".clang-format")

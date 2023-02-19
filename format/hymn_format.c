@@ -50,7 +50,7 @@ static void nest(bool v) {
     stack[f++] = v;
 }
 
-static bool compact() {
+static bool compact(void) {
     if (f > 0) {
         f--;
         return stack[f];
@@ -67,7 +67,7 @@ static void append(char c) {
     new[n++] = c;
 }
 
-static void skip() {
+static void skip(void) {
     if (s >= size) {
         return;
     }
@@ -81,14 +81,14 @@ static void skip() {
     }
 }
 
-static void indent() {
+static void indent(void) {
     for (size_t a = 0; a < deep; a++) {
         append(' ');
         append(' ');
     }
 }
 
-static char pre() {
+static char pre(void) {
     if (n >= 1) {
         return new[n - 1];
     }
@@ -127,7 +127,7 @@ static void fix(size_t p) {
     }
 }
 
-static void clear() {
+static void clear(void) {
     while (true) {
         char c = pre();
         if (c == '\n' || c == ' ') {
@@ -149,7 +149,7 @@ static bool match(size_t b, const char *word) {
     return true;
 }
 
-static void newline() {
+static void newline(void) {
     if (n == 0) {
         return;
     }
@@ -221,7 +221,7 @@ push:
     append(c);
 }
 
-static void format() {
+static void format(void) {
     capacity = size;
     new = malloc((capacity + 1) * sizeof(char));
     MEM_CHECK(new)
@@ -427,7 +427,7 @@ done:
     new[n] = '\0';
 }
 
-static void help() {
+static void help(void) {
     printf("Hymn Script Formatter\n\n"
            "  -w  Write to file\n"
            "  -c  Format input command\n"
