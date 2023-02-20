@@ -22,7 +22,6 @@ static void help(void) {
     printf("Hymn Script\n\n"
            "  -c  Run command\n"
            "  -i  Open interactive mode\n"
-           "  -s  Open server mode\n"
            "  -b  Print compiled byte code\n"
            "  -v  Print version information\n"
            "  -h  Print this help message\n"
@@ -31,7 +30,7 @@ static void help(void) {
 
 int main(int argc, char **argv) {
 
-    char mode = 0;
+    bool repl = false;
     bool byte = false;
 
     char *file = NULL;
@@ -61,9 +60,7 @@ int main(int argc, char **argv) {
             } else if (hymn_string_equal(argv[i], "-b")) {
                 byte = true;
             } else if (hymn_string_equal(argv[i], "-i")) {
-                mode = 1;
-            } else if (hymn_string_equal(argv[i], "-s")) {
-                mode = 2;
+                repl = true;
             } else {
                 file = argv[i];
             }
@@ -111,9 +108,7 @@ int main(int argc, char **argv) {
     (void)mode;
     fprintf(stderr, "interactive mode not available\n");
 #else
-    if (mode == 2) {
-        hymn_server(hymn);
-    } else if (mode == 1 || (file == NULL && code == NULL)) {
+    if (repl || (file == NULL && code == NULL)) {
         hymn_repl(hymn);
     }
 #endif

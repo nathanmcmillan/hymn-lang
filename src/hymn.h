@@ -383,7 +383,6 @@ void hymn_delete(Hymn *H);
 
 #ifndef HYMN_NO_REPL
 void hymn_repl(Hymn *H);
-void hymn_server(Hymn *H);
 #endif
 
 #ifndef HYMN_NO_DYNAMIC_LIBS

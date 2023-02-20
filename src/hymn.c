@@ -7913,62 +7913,6 @@ cleanup:
     }
 #endif
 }
-
-void hymn_server(Hymn *H) {
-
-    char line[INPUT_LIMIT];
-    HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
-
-    while (true) {
-
-        if (fgets(line, sizeof(line), stdin) == NULL) {
-            break;
-        }
-        remove_newline(line);
-
-        if (line[0] == '.' && hymn_string_len(input) == 0) {
-            if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
-                break;
-            } else if (hymn_string_equal(line, ".help")) {
-                printf(".exit   Exit interactive mode\n"
-                       ".quit   Alias for .exit\n"
-                       ".debug  Print global variable functions\n"
-                       ".save   Save commands to a file\n"
-                       ".help   Print this help message\n");
-                continue;
-            } else {
-                printf("Invalid keyword\n");
-                continue;
-            }
-        }
-
-        input = hymn_string_append(input, line);
-        hymn_string_trim(input);
-        if (hymn_string_len(input) == 0) {
-            continue;
-        }
-
-        CompileResult result = compile(H, NULL, input, true);
-        char *error = result.error;
-        if (error != NULL) {
-            if (!hymn_string_equal(error, "<eof>")) {
-                hymn_string_zero(input);
-                fprintf(stderr, "%s\n", error);
-                fflush(stderr);
-                free(error);
-            }
-            continue;
-        }
-        HymnFunction *func = result.func;
-
-        hymn_string_zero(input);
-
-        echo_if_none(&func->code);
-        call_function(H, func);
-    }
-
-    hymn_string_delete(input);
-}
 #endif
 
 #ifndef HYMN_NO_DYNAMIC_LIBS
