@@ -4776,31 +4776,31 @@ void hymn_reference(HymnValue value) {
 void hymn_reference(HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING:
-        hymn_as_hymn_string(value)->count++;
+        ((HymnObjectString *)value.as.o)->count++;
 #ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
         return;
     case HYMN_VALUE_ARRAY:
-        hymn_as_array(value)->count++;
+        ((HymnArray *)value.as.o)->count++;
 #ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
         return;
     case HYMN_VALUE_TABLE:
-        hymn_as_table(value)->count++;
+        ((HymnTable *)value.as.o)->count++;
 #ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
         return;
     case HYMN_VALUE_FUNC:
-        hymn_as_func(value)->count++;
+        ((HymnFunction *)value.as.o)->count++;
 #ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
         return;
     case HYMN_VALUE_FUNC_NATIVE:
-        hymn_as_native(value)->count++;
+        ((HymnNativeFunction *)value.as.o)->count++;
 #ifdef HYMN_DEBUG_MEMORY
         debug_reference(value);
 #endif
@@ -4840,57 +4840,57 @@ void hymn_dereference(Hymn *H, HymnValue value) {
 void hymn_dereference(Hymn *H, HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING: {
-        HymnObjectString *string = hymn_as_hymn_string(value);
+        HymnObjectString *string = (HymnObjectString *)value.as.o;
         hymn_dereference_string(H, string);
-        break;
+        return;
     }
     case HYMN_VALUE_ARRAY: {
 #ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
-        HymnArray *array = hymn_as_array(value);
+        HymnArray *array = (HymnArray *)value.as.o;
         int count = --array->count;
         assert(count >= 0);
         if (count == 0) {
             hymn_array_delete(H, array);
         }
-        break;
+        return;
     }
     case HYMN_VALUE_TABLE: {
 #ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
-        HymnTable *table = hymn_as_table(value);
+        HymnTable *table = (HymnTable *)value.as.o;
         int count = --table->count;
         assert(count >= 0);
         if (count == 0) {
             table_delete(H, table);
         }
-        break;
+        return;
     }
     case HYMN_VALUE_FUNC: {
 #ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
-        HymnFunction *func = hymn_as_func(value);
+        HymnFunction *func = (HymnFunction *)value.as.o;
         int count = --func->count;
         assert(count >= 0);
         if (count == 0) {
             function_delete(func);
         }
-        break;
+        return;
     }
     case HYMN_VALUE_FUNC_NATIVE: {
 #ifdef HYMN_DEBUG_MEMORY
         debug_dereference(value);
 #endif
-        HymnNativeFunction *func = hymn_as_native(value);
+        HymnNativeFunction *func = (HymnNativeFunction *)value.as.o;
         int count = --func->count;
         assert(count >= 0);
         if (count == 0) {
             native_function_delete(H, func);
         }
-        break;
+        return;
     }
     default:
         return;
@@ -5395,7 +5395,9 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
 
 #define READ_BYTE(F) (*F->ip++)
 
-#define READ_SHORT(F) (F->ip += 2, (((int)F->ip[-2] << 8) | (int)F->ip[-1]))
+#define READ_SHORT(F) (F->ip += 2, (uint16_t)((F->ip[-2] << 8) | F->ip[-1]))
+
+// #define READ_SHORT(F) (F->ip += 2, (((int)F->ip[-2] << 8) | (int)F->ip[-1]))
 
 #define GET_CONSTANT(F, B) (F->func->code.constants.values[B])
 
@@ -5470,7 +5472,8 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
         hymn_dereference(H, b);                                          \
         THROW("Comparison: Operands must be numbers")                    \
     }                                                                    \
-    int jump = READ_SHORT(frame);                                        \
+    uint16_t jump = READ_SHORT(frame);                                   \
+    /* int jump = READ_SHORT(frame); */                                  \
     if (answer) {                                                        \
         frame->ip += jump;                                               \
     }
@@ -5708,14 +5711,18 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_LOOP: {
-        int jump = READ_SHORT(frame);
+        uint16_t jump = READ_SHORT(frame);
+        // int jump = READ_SHORT(frame);
         frame->ip -= jump;
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOOP: {
-        int slot = READ_BYTE(frame);
-        int increment = READ_BYTE(frame);
-        int jump = READ_SHORT(frame);
+        uint8_t slot = READ_BYTE(frame);
+        uint8_t increment = READ_BYTE(frame);
+        uint16_t jump = READ_SHORT(frame);
+        // int slot = READ_BYTE(frame);
+        // int increment = READ_BYTE(frame);
+        // int jump = READ_SHORT(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
             value.as.i += (HymnInt)increment;
@@ -6311,7 +6318,8 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_GET_LOCAL: {
-        int slot = READ_BYTE(frame);
+        uint8_t slot = READ_BYTE(frame);
+        // int slot = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         hymn_reference(value);
         push(H, value);

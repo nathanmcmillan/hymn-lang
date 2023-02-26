@@ -201,11 +201,11 @@ struct HymnByteCode {
 };
 
 struct HymnExceptList {
-    struct HymnExceptList *next;
     int start;
     int end;
     int locals;
     char padding[4];
+    struct HymnExceptList *next;
 };
 
 struct HymnFunction {
