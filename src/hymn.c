@@ -5395,9 +5395,7 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
 
 #define READ_BYTE(F) (*F->ip++)
 
-#define READ_SHORT(F) (F->ip += 2, (uint16_t)((F->ip[-2] << 8) | F->ip[-1]))
-
-// #define READ_SHORT(F) (F->ip += 2, (((int)F->ip[-2] << 8) | (int)F->ip[-1]))
+#define READ_SHORT(F) (F->ip += 2, (((int)F->ip[-2] << 8) | (int)F->ip[-1]))
 
 #define GET_CONSTANT(F, B) (F->func->code.constants.values[B])
 
@@ -5472,8 +5470,7 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
         hymn_dereference(H, b);                                          \
         THROW("Comparison: Operands must be numbers")                    \
     }                                                                    \
-    uint16_t jump = READ_SHORT(frame);                                   \
-    /* int jump = READ_SHORT(frame); */                                  \
+    int jump = READ_SHORT(frame);                                        \
     if (answer) {                                                        \
         frame->ip += jump;                                               \
     }
@@ -5711,18 +5708,14 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_LOOP: {
-        uint16_t jump = READ_SHORT(frame);
-        // int jump = READ_SHORT(frame);
+        int jump = READ_SHORT(frame);
         frame->ip -= jump;
         HYMN_DISPATCH;
     }
     case OP_INCREMENT_LOOP: {
-        uint8_t slot = READ_BYTE(frame);
-        uint8_t increment = READ_BYTE(frame);
-        uint16_t jump = READ_SHORT(frame);
-        // int slot = READ_BYTE(frame);
-        // int increment = READ_BYTE(frame);
-        // int jump = READ_SHORT(frame);
+        int slot = READ_BYTE(frame);
+        int increment = READ_BYTE(frame);
+        int jump = READ_SHORT(frame);
         HymnValue value = frame->stack[slot];
         if (hymn_is_int(value)) {
             value.as.i += (HymnInt)increment;
@@ -6318,8 +6311,7 @@ dispatch:
         HYMN_DISPATCH;
     }
     case OP_GET_LOCAL: {
-        uint8_t slot = READ_BYTE(frame);
-        // int slot = READ_BYTE(frame);
+        int slot = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         hymn_reference(value);
         push(H, value);
