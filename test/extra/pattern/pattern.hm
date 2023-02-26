@@ -63,6 +63,8 @@ print-assert([0, 9], pattern.find("foo2x4bar", "foo[%a%d]+bar"))
 print-assert([1, 2], pattern.find("x=2", "[!=><&~]"))
 print-assert([1, 2], pattern.find("x+2", "[+-]"))
 print-assert([1, 2], pattern.find("x-2", "[+-]"))
+print-assert([1, 2], pattern.find("[^]", "[+-*^]"))
+print-assert([2, 7], pattern.find("= 256.1", "%d+%.%d+"))
 
 echo "========================================"
 
@@ -78,6 +80,7 @@ print-assert(none, pattern.find("c", "%u"))
 print-assert(none, pattern.find("foo bar", "foo[%a%d]bar"))
 print-assert(none, pattern.find("foo24bar", "foo[%a%d]bar"))
 print-assert(none, pattern.find("fooxzbar", "foo[%a%d]bar"))
+print-assert(none, pattern.find("[2]", "[+-*^]"))
 
 echo "========================================"
 

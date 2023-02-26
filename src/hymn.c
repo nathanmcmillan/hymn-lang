@@ -5154,7 +5154,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     }
 
     if (module == NULL) {
-        HymnString *missing = hymn_string_format("import not found: %s\n", look);
+        HymnString *missing = hymn_string_format("import not found: %s", look);
 
         for (HymnInt i = 0; i < size; i++) {
             HymnValue value = paths->items[i];
@@ -5167,7 +5167,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
             HymnString *path = parent ? hymn_string_replace(replace, "<parent>", parent) : hymn_string_copy(replace);
             HymnString *use = hymn_path_absolute(path);
 
-            missing = string_append_format(missing, "\nno file: %s", use);
+            missing = string_append_format(missing, "\n  no file: %s", use);
 
             hymn_string_delete(path);
             hymn_string_delete(replace);
@@ -7524,18 +7524,7 @@ static void reset_terminal(void) {
         perror("tcsetattr");
     }
 }
-#endif
-
-static void echo_if_none(HymnByteCode *code) {
-    int count = code->count;
-    if (count > 2) {
-        uint8_t *instructions = code->instructions;
-        if (instructions[count - 2] == OP_POP && instructions[count - 1] == OP_VOID) {
-            instructions[count - 2] = OP_ECHO;
-        }
-    }
-}
-
+#else
 static void remove_newline(char *input) {
     size_t p = 0;
     while (input[p] != '\0') {
@@ -7547,6 +7536,17 @@ static void remove_newline(char *input) {
             return;
         }
         input[p] = '\0';
+    }
+}
+#endif
+
+static void echo_if_none(HymnByteCode *code) {
+    int count = code->count;
+    if (count > 2) {
+        uint8_t *instructions = code->instructions;
+        if (instructions[count - 2] == OP_POP && instructions[count - 1] == OP_VOID) {
+            instructions[count - 2] = OP_ECHO;
+        }
     }
 }
 
@@ -7566,6 +7566,15 @@ static void call_function(Hymn *H, HymnFunction *func) {
 }
 
 void hymn_repl(Hymn *H) {
+
+    // FIXME:
+    // > try { echo HELLO } except e { echo e }
+    // error: undefined global 'HELLO'
+    //   at script:1
+    // error: undefined global 'HELLO'
+    //   at script:1
+    // POP is related to error scope
+
     printf("Welcome to Hymn v" HYMN_VERSION "\nType .help for more information\n");
 
 #ifdef _MSC_VER

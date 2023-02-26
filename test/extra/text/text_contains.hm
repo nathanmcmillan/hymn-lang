@@ -1,0 +1,14 @@
+use "test/libs/assert"
+
+print-assert(true, text.contains('goobie', 'goo'))
+print-assert(true, text.contains('goobie', 'oob'))
+print-assert(true, text.contains('goobie', 'bie'))
+
+echo "========================================"
+
+print-assert(false, text.contains('goobie', 'foo'))
+print-assert(false, text.contains('goobie', 'bar'))
+
+echo "========================================"
+
+echo "tests pass!"

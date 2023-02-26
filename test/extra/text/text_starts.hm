@@ -1,2 +1,13 @@
-echo text.starts('foobar', 'foo')
-echo text.starts('foobar', 'bar')
+use "test/libs/assert"
+
+print-assert(true, text.starts('foobar', 'f'))
+print-assert(true, text.starts('foobar', 'foo'))
+print-assert(true, text.starts('foobar', 'foobar'))
+
+echo "========================================"
+
+print-assert(false, text.starts('foobar', 'bar'))
+
+echo "========================================"
+
+echo "tests pass!"

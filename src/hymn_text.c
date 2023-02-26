@@ -29,19 +29,6 @@ static bool space(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-static HymnValue text_ends(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-    if (count >= 2) {
-        HymnValue value = arguments[0];
-        HymnValue starts = arguments[1];
-        if (hymn_is_string(value) && hymn_is_string(starts)) {
-            bool result = hymn_string_ends_with(hymn_as_string(value), hymn_as_string(starts));
-            return hymn_new_bool(result);
-        }
-    }
-    return hymn_new_none();
-}
-
 static HymnValue text_starts(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count >= 2) {
@@ -49,6 +36,32 @@ static HymnValue text_starts(Hymn *H, int count, HymnValue *arguments) {
         HymnValue starts = arguments[1];
         if (hymn_is_string(value) && hymn_is_string(starts)) {
             bool result = hymn_string_starts_with(hymn_as_string(value), hymn_as_string(starts));
+            return hymn_new_bool(result);
+        }
+    }
+    return hymn_new_none();
+}
+
+static HymnValue text_ends(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue ends = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(ends)) {
+            bool result = hymn_string_ends_with(hymn_as_string(value), hymn_as_string(ends));
+            return hymn_new_bool(result);
+        }
+    }
+    return hymn_new_none();
+}
+
+static HymnValue text_contains(Hymn *H, int count, HymnValue *arguments) {
+    (void)H;
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue contains = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(contains)) {
+            bool result = hymn_string_contains(hymn_as_string(value), hymn_as_string(contains));
             return hymn_new_bool(result);
         }
     }
@@ -194,8 +207,9 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
 
 void hymn_use_text(Hymn *H) {
     HymnTable *text = hymn_new_table();
-    hymn_add_function_to_table(H, text, "ends", text_ends);
     hymn_add_function_to_table(H, text, "starts", text_starts);
+    hymn_add_function_to_table(H, text, "ends", text_ends);
+    hymn_add_function_to_table(H, text, "contains", text_contains);
     hymn_add_function_to_table(H, text, "replace", text_replace);
     hymn_add_function_to_table(H, text, "trim", text_trim);
     hymn_add_function_to_table(H, text, "left-strip", text_left_strip);

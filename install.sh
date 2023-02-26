@@ -21,5 +21,4 @@ mkdir -p ~/.hymn
 mv hymn ~/.hymn
 
 echo "Added binary to ~/.hymn"
-
 echo "Please add ~/.hymn to your PATH"

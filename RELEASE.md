@@ -1,3 +1,8 @@
+# Release 0.8.1
+
+- Performance tuning
+- Fixed bug in `pattern` library where ending `]` of class was included as part match
+
 # Release 0.8.0
 
 - Hyphens now allowed in variable names
