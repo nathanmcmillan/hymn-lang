@@ -3493,22 +3493,6 @@ static void optimize(Compiler *C) {
         return;
     }
 
-    // IF RETURNING A VALUE - NO NEED TO INCLUDE EXTRA NONE ON STACK
-    // if [-3] == OP_RETURN && [-2] == OP_NONE && [-1] == OP_RETURN
-    //     REMOVE [-2] and REMOVE [-1]
-    // int count = optimizer.code->count;
-    // if (count >= 3) {
-    //     uint8_t *instructions = optimizer.code->instructions;
-    //     if (instructions[count - 3] == OP_RETURN && instructions[count - 2] == OP_NONE && instructions[count - 1] == OP_RETURN) {
-    //         if (adjustable(&optimizer, count - 2) && adjustable(&optimizer, count - 1)) {
-    //         }
-    //     }
-    // }
-
-    // IF POP AT END OF FUNCTION AND RETURNING NONE - NO NEED TO CALL POP INSTRUCTIONS
-    // if [-3] == OP_POP(S) && [-2] == OP_NONE && [-1] == OP_RETURN
-    //     REMOVE [-3]
-
     interest(&optimizer);
 
 #define COUNT() optimizer.code->count
@@ -3548,6 +3532,21 @@ static void optimize(Compiler *C) {
                 uint8_t *instructions = optimizer.code->instructions;
                 int jump = GET_JUMP(instructions, one, 3, 4) - 1;
                 UPDATE_JUMP(instructions, one, 3, 4, jump)
+                continue;
+            }
+            break;
+        }
+        case OP_POP:
+        case OP_POP_TWO: {
+            if (second == OP_VOID) {
+                rewrite(&optimizer, one, 1);
+                continue;
+            }
+            break;
+        }
+        case OP_POP_N: {
+            if (second == OP_VOID) {
+                rewrite(&optimizer, one, 2);
                 continue;
             }
             break;
@@ -7566,14 +7565,6 @@ static void call_function(Hymn *H, HymnFunction *func) {
 }
 
 void hymn_repl(Hymn *H) {
-
-    // FIXME:
-    // > try { echo HELLO } except e { echo e }
-    // error: undefined global 'HELLO'
-    //   at script:1
-    // error: undefined global 'HELLO'
-    //   at script:1
-    // POP is related to error scope
 
     printf("Welcome to Hymn v" HYMN_VERSION "\nType .help for more information\n");
 

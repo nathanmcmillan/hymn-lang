@@ -14,15 +14,15 @@
 #define IS_DIRECTORY(F) S_ISDIR(F)
 #endif
 
-#define PATH_STRING                 \
-    (void)H;                        \
-    if (count < 1) {                \
-        return hymn_new_none();     \
-    }                               \
-    HymnValue value = arguments[0]; \
-    if (!hymn_is_string(value)) {   \
-        return hymn_new_none();     \
-    }                               \
+#define PATH_STRING                                                 \
+    (void)H;                                                        \
+    if (count < 1) {                                                \
+        return hymn_new_exception(H, "missing path");               \
+    }                                                               \
+    HymnValue value = arguments[0];                                 \
+    if (!hymn_is_string(value)) {                                   \
+        return hymn_new_exception(H, "expected a string for path"); \
+    }                                                               \
     HymnString *path = hymn_as_string(value);
 
 static HymnValue io_size(Hymn *H, int count, HymnValue *arguments) {
@@ -86,12 +86,12 @@ static HymnValue writing(HymnString *path, HymnString *content, const char *mode
 static HymnValue io_write(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path and content");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path and content must be strings");
     }
     HymnString *path = hymn_as_string(a);
     HymnString *content = hymn_as_string(b);
@@ -101,12 +101,12 @@ static HymnValue io_write(Hymn *H, int count, HymnValue *arguments) {
 static HymnValue io_append(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path and content");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path and content must be strings");
     }
     HymnString *path = hymn_as_string(a);
     HymnString *content = hymn_as_string(b);
@@ -156,12 +156,12 @@ static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
 static HymnValue io_move(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing source and destination paths");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "source and destination must be strings");
     }
     HymnString *source = hymn_as_string(a);
     HymnString *target = hymn_as_string(b);

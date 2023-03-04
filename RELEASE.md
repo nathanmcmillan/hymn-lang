@@ -1,7 +1,10 @@
 # Release 0.8.1
 
 - Performance tuning
+- Added proper exception throwing to standard library functions
 - Fixed bug in `pattern` library where ending `]` of class was included as part match
+- Optimized removing POP instructions preceding a VOID return
+- Fixed double echo in REPL when printing an exception
 
 # Release 0.8.0
 

@@ -31,11 +31,11 @@ static HymnValue os_clock(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue os_env(Hymn *H, int count, HymnValue *arguments) {
     if (count < 1) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing environment variable");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_string(value)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "environment variable must be a string");
     }
     HymnString *name = hymn_as_string(value);
     char *variable = getenv(name);
@@ -49,11 +49,11 @@ static HymnValue os_env(Hymn *H, int count, HymnValue *arguments) {
 static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
 #ifdef HYMN_POPEN_SUPPORTED
     if (count < 1) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing command");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_string(value)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "command must be a string");
     }
     HymnString *file = hymn_as_string(value);
     FILE *open = POPEN(file, "r");
@@ -72,18 +72,18 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     (void)count;
     (void)arguments;
-    return hymn_new_none();
+    return hymn_new_exception(H, "popen not supported");
 #endif
 }
 
 static HymnValue os_exec(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count < 1) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing command");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_string(value)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "command must be a string");
     }
     HymnString *command = hymn_as_string(value);
     int result = system(command);
@@ -94,12 +94,12 @@ static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
 #ifdef HYMN_POPEN_SUPPORTED
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path and mode");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path and mode must be strings");
     }
     HymnString *file = hymn_as_string(a);
     HymnString *mode = hymn_as_string(b);
@@ -111,7 +111,7 @@ static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
 #else
     (void)count;
     (void)arguments;
-    return hymn_new_none();
+    return hymn_new_exception(H, "popen not supported");
 #endif
 }
 
@@ -119,11 +119,11 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
 #ifdef HYMN_POPEN_SUPPORTED
     if (count < 1) {
-        return hymn_new_int(0);
+        return hymn_new_exception(H, "missing pointer");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_pointer(value)) {
-        return hymn_new_int(0);
+        return hymn_new_exception(H, "argument not a pointer");
     }
     FILE *open = (FILE *)hymn_as_pointer(value);
     if (open == NULL) {
@@ -134,19 +134,19 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
 #else
     (void)count;
     (void)arguments;
-    return hymn_new_int(0);
+    return hymn_new_exception(H, "pclose not supported");
 #endif
 }
 
 static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path and mode");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path and mode must be strings");
     }
     HymnString *path = hymn_as_string(a);
     HymnString *mode = hymn_as_string(b);
@@ -160,11 +160,11 @@ static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
 static HymnValue os_fclose(Hymn *H, int count, HymnValue *arguments) {
     (void)H;
     if (count < 1) {
-        return hymn_new_int(0);
+        return hymn_new_exception(H, "missing pointer");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_pointer(value)) {
-        return hymn_new_int(0);
+        return hymn_new_exception(H, "argument must be a pointer");
     }
     FILE *open = (FILE *)hymn_as_pointer(value);
     if (open == NULL) {
@@ -176,11 +176,11 @@ static HymnValue os_fclose(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue os_fget(Hymn *H, int count, HymnValue *arguments) {
     if (count < 1) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing pointer");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_pointer(value)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "argument must be a pointer");
     }
     FILE *open = (FILE *)hymn_as_pointer(value);
     if (open == NULL) {
