@@ -1502,7 +1502,7 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
         }
 
         if (begin < end) {
-            error = string_append_format(error, "\n| %.*s\n  ", end - begin, &source[begin]);
+            error = string_append_format(error, "\n  | %.*s\n    ", end - begin, &source[begin]);
             for (int i = 0; i < (int)(start - begin); i++) {
                 error = hymn_string_append_char(error, ' ');
             }
@@ -1514,7 +1514,7 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
         }
     }
 
-    error = string_append_format(error, "\nat %s:%d", C->script == NULL ? "script" : C->script, token->row);
+    error = string_append_format(error, "\n  at %s:%d", C->script == NULL ? "script" : C->script, token->row);
 
     C->error = error;
 
@@ -1723,7 +1723,7 @@ static void push_ident_token(Compiler *C, size_t start, size_t end) {
     const char *ident = &C->source[start];
     size_t size = end - start;
     enum TokenType keyword = ident_keyword(ident, size);
-    if (keyword != TOKEN_UNDEFINED) {
+    if (keyword != TOKEN_UNDEFINED && C->previous.type != TOKEN_DOT) {
         value_token(C, keyword, start, end);
     } else {
         value_token(C, TOKEN_IDENT, start, end);
@@ -1735,7 +1735,7 @@ static bool is_digit(char c) {
 }
 
 static bool is_ident(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
 static enum StringStatus string_status(Compiler *C) {
@@ -2100,7 +2100,7 @@ static void advance(Compiler *C) {
                 long long number = atoll(&C->source[start]);
                 int_token(C, TOKEN_INTEGER, start, end, number);
                 return;
-            } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+            } else if (is_ident(c)) {
                 size_t start = C->pos - 1;
                 while (true) {
                     c = peek_char(C);
@@ -3146,45 +3146,45 @@ static void compile_or(Compiler *C, bool assign) {
 
 static int next(uint8_t instruction) {
     switch (instruction) {
-    case OP_POP_N:
-    case OP_SET_GLOBAL:
-    case OP_SET_LOCAL:
-    case OP_SET_PROPERTY:
-    case OP_INCREMENT:
     case OP_CALL:
-    case OP_TAIL_CALL:
-    case OP_SELF:
     case OP_CONSTANT:
     case OP_DEFINE_GLOBAL:
+    case OP_EXISTS:
     case OP_GET_GLOBAL:
     case OP_GET_LOCAL:
     case OP_GET_PROPERTY:
-    case OP_EXISTS:
+    case OP_INCREMENT:
+    case OP_POP_N:
     case OP_PRINT:
+    case OP_SELF:
+    case OP_SET_GLOBAL:
+    case OP_SET_LOCAL:
+    case OP_SET_PROPERTY:
+    case OP_TAIL_CALL:
         return 2;
+    case OP_ADD_LOCALS:
     case OP_ARRAY_PUSH_LOCALS:
     case OP_GET_GLOBAL_PROPERTY:
     case OP_GET_LOCALS:
-    case OP_ADD_LOCALS:
-    case OP_MODULO_LOCALS:
-    case OP_JUMP:
-    case OP_JUMP_IF_FALSE:
-    case OP_JUMP_IF_TRUE:
-    case OP_JUMP_IF_EQUAL:
-    case OP_JUMP_IF_NOT_EQUAL:
-    case OP_JUMP_IF_LESS:
-    case OP_JUMP_IF_GREATER:
-    case OP_JUMP_IF_LESS_EQUAL:
-    case OP_JUMP_IF_GREATER_EQUAL:
-    case OP_LOOP:
-    case OP_INCREMENT_LOCAL_AND_SET:
     case OP_INCREMENT_LOCAL:
+    case OP_INCREMENT_LOCAL_AND_SET:
+    case OP_JUMP:
+    case OP_JUMP_IF_EQUAL:
+    case OP_JUMP_IF_FALSE:
+    case OP_JUMP_IF_GREATER:
+    case OP_JUMP_IF_GREATER_EQUAL:
+    case OP_JUMP_IF_LESS:
+    case OP_JUMP_IF_LESS_EQUAL:
+    case OP_JUMP_IF_NOT_EQUAL:
+    case OP_JUMP_IF_TRUE:
+    case OP_LOOP:
+    case OP_MODULO_LOCALS:
         return 3;
     case OP_FOR:
     case OP_FOR_LOOP:
         return 4;
-    case OP_JUMP_IF_GREATER_LOCALS:
     case OP_INCREMENT_LOOP:
+    case OP_JUMP_IF_GREATER_LOCALS:
         return 5;
     default:
         return 1;
@@ -3204,27 +3204,27 @@ struct Optimizer {
     HymnExceptList *except;
 };
 
-#define IS_ADJUSTABLE(instructions, index, off, compare, T, operator)                    \
-    if (index compare target) {                                                          \
-        int offset = index + off;                                                        \
-        int jump = ((int)instructions[offset - 2] << 8) | (int)instructions[offset - 1]; \
-        if (offset operator jump == target) {                                            \
-            return false;                                                                \
-        }                                                                                \
-    }                                                                                    \
-    break;
-
 #define GET_JUMP(instructions, index, x, y) (((int)instructions[index + x] << 8) | (int)instructions[index + y])
 
 #define UPDATE_JUMP(instructions, index, x, y, jump)              \
     instructions[index + x] = (uint8_t)((jump >> 8) & UINT8_MAX); \
     instructions[index + y] = (uint8_t)(jump & UINT8_MAX);
 
-static bool adjustable(Optimizer *optimizer, int target) {
+#define IS_ADJUSTABLE(off, compare, T, operator)                                         \
+    if (index compare target) {                                                          \
+        int offset = index + off;                                                        \
+        int jump = ((int)instructions[offset - 2] << 8) | (int)instructions[offset - 1]; \
+        if (offset operator jump == target) {                                            \
+            return view;                                                                 \
+        }                                                                                \
+    }                                                                                    \
+    break;
+
+static Instruction *adjustable(Optimizer *optimizer, int target) {
     Instruction *view = optimizer->important;
     uint8_t *instructions = optimizer->code->instructions;
     while (view != NULL) {
-        int i = view->index;
+        int index = view->index;
         uint8_t instruction = view->instruction;
         switch (instruction) {
         case OP_JUMP:
@@ -3236,32 +3236,32 @@ static bool adjustable(Optimizer *optimizer, int target) {
         case OP_JUMP_IF_GREATER:
         case OP_JUMP_IF_LESS_EQUAL:
         case OP_JUMP_IF_GREATER_EQUAL: {
-            IS_ADJUSTABLE(instructions, i, 3, <, target, +)
+            IS_ADJUSTABLE(3, <, target, +)
         }
         case OP_FOR: {
-            IS_ADJUSTABLE(instructions, i, 4, <, target, +)
+            IS_ADJUSTABLE(4, <, target, +)
         }
         case OP_JUMP_IF_GREATER_LOCALS: {
-            IS_ADJUSTABLE(instructions, i, 5, <, target, +)
+            IS_ADJUSTABLE(5, <, target, +)
         }
         case OP_LOOP: {
-            IS_ADJUSTABLE(instructions, i, 3, >=, target, -)
+            IS_ADJUSTABLE(3, >=, target, -)
         }
         case OP_FOR_LOOP: {
-            IS_ADJUSTABLE(instructions, i, 4, >=, target, -)
+            IS_ADJUSTABLE(4, >=, target, -)
         }
         case OP_INCREMENT_LOOP: {
-            IS_ADJUSTABLE(instructions, i, 5, >=, target, -)
+            IS_ADJUSTABLE(5, >=, target, -)
         }
         default:
             break;
         }
         view = view->next;
     }
-    return true;
+    return NULL;
 }
 
-static void rewrite(Optimizer *optimizer, int start, int shift) {
+static void _rewrite(Optimizer *optimizer, int start, int shift, bool inside) {
     uint8_t *instructions = optimizer->code->instructions;
     Instruction *view = optimizer->important;
     while (view != NULL) {
@@ -3279,11 +3279,13 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             if (i < start) {
                 int jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 + jump;
+                assert((destination < start || destination > start + shift) || !inside);
                 if (destination > start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
-                } else if (destination >= start && destination <= start + shift) {
-                    jump -= shift;
+                } else if (destination >= start && destination <= start + shift && inside) {
+                    // not sure about this
+                    jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
                 }
             }
@@ -3293,10 +3295,12 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             if (i < start) {
                 int jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
+                assert((destination < start || destination > start + shift) || !inside);
                 if (destination > start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
-                } else if (destination >= start && destination <= start + shift) {
+                } else if (destination >= start && destination <= start + shift && inside) {
+                    // not sure about this
                     jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 }
@@ -3307,6 +3311,7 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             if (i < start) {
                 int jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 4 + jump;
+                assert((destination < start || destination > start + shift) || !inside);
                 if (destination > start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
@@ -3318,10 +3323,12 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             if (i >= start) {
                 int jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 - jump;
+                assert((destination < start || destination > start + shift) || !inside);
                 if (destination < start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
-                } else if (destination >= start && destination <= start + shift) {
+                } else if (destination >= start && destination <= start + shift && inside) {
+                    // not sure about this
                     jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
                 }
@@ -3332,10 +3339,12 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             if (i >= start) {
                 int jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 3 - jump;
+                assert((destination < start || destination > start + shift) || !inside);
                 if (destination < start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
-                } else if (destination >= start && destination <= start + shift) {
+                } else if (destination >= start && destination <= start + shift && inside) {
+                    // not sure about this
                     jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
                 }
@@ -3346,11 +3355,12 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
             if (i >= start) {
                 int jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 - jump;
+                assert((destination < start || destination > start + shift) || !inside);
                 if (destination < start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
-                } else if (destination >= start && destination <= start + shift) {
-                    assert(destination < 0);
+                } else if (destination >= start && destination <= start + shift && inside) {
+                    // not sure about this
                     jump -= next(optimizer->code->instructions[destination]);
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
                 }
@@ -3386,13 +3396,16 @@ static void rewrite(Optimizer *optimizer, int start, int shift) {
     }
 }
 
+static void rewrite(Optimizer *optimizer, int start, int shift) {
+    _rewrite(optimizer, start, shift, true);
+}
+
 static void update(Optimizer *optimizer, int index, uint8_t instruction) {
     Instruction *view = optimizer->important;
     while (view != NULL) {
         if (index == view->index) {
             view->instruction = instruction;
-            uint8_t *instructions = optimizer->code->instructions;
-            instructions[index] = instruction;
+            optimizer->code->instructions[index] = instruction;
             return;
         }
         view = view->next;
@@ -3405,10 +3418,9 @@ static void move(Optimizer *optimizer, int index, uint8_t instruction, int to) {
     Instruction *view = optimizer->important;
     while (view != NULL) {
         if (index == view->index) {
-            view->instruction = instruction;
             view->index = to;
-            uint8_t *instructions = optimizer->code->instructions;
-            instructions[to] = instruction;
+            view->instruction = instruction;
+            optimizer->code->instructions[to] = instruction;
             return;
         }
         view = view->next;
@@ -3524,9 +3536,9 @@ static void optimize(Compiler *C) {
         switch (first) {
         case OP_INCREMENT_LOCAL_AND_SET: {
             if (second == OP_LOOP) {
-                // set to increment loop and reuse op loop link
+                // set to increment loop and reuse loop jump
                 move(&optimizer, two, OP_INCREMENT_LOOP, one);
-                // delete op loop
+                // delete loop
                 rewrite(&optimizer, two, 1);
                 // subtract 1 to account for one less byte to jump after deleting instruction
                 uint8_t *instructions = optimizer.code->instructions;
@@ -3539,14 +3551,14 @@ static void optimize(Compiler *C) {
         case OP_POP:
         case OP_POP_TWO: {
             if (second == OP_VOID) {
-                rewrite(&optimizer, one, 1);
+                _rewrite(&optimizer, one, 1, false);
                 continue;
             }
             break;
         }
         case OP_POP_N: {
             if (second == OP_VOID) {
-                rewrite(&optimizer, one, 2);
+                _rewrite(&optimizer, one, 2, false);
                 continue;
             }
             break;
@@ -3555,7 +3567,7 @@ static void optimize(Compiler *C) {
             break;
         }
 
-        if (!adjustable(&optimizer, two)) {
+        if (adjustable(&optimizer, two) != NULL) {
             goto next;
         }
 
@@ -3584,7 +3596,7 @@ static void optimize(Compiler *C) {
             break;
         }
 
-        if (!adjustable(&optimizer, one)) {
+        if (adjustable(&optimizer, one) != NULL) {
             goto next;
         }
 
@@ -3671,21 +3683,14 @@ static void optimize(Compiler *C) {
         case OP_INCREMENT_LOCAL: {
             if (second == OP_SET_LOCAL) {
                 if (INSTRUCTION(one + 1) == INSTRUCTION(one + 4)) {
-                    SET(one, OP_INCREMENT_LOCAL_AND_SET);
-                    rewrite(&optimizer, one + 3, 2);
-                    continue;
+                    int three = two + next(second);
+                    uint8_t third = three < COUNT() ? INSTRUCTION(three) : UINT8_MAX;
+                    if (third == OP_POP) {
+                        SET(one, OP_INCREMENT_LOCAL_AND_SET);
+                        rewrite(&optimizer, one + 3, 3);
+                        continue;
+                    }
                 }
-            }
-            break;
-        }
-        case OP_INCREMENT_LOCAL_AND_SET: {
-            if (second == OP_POP) {
-                // This seems dangerous
-                // What if there's multiple OP_POP
-                // Or OP_POP2 and it's not removed
-                // Should move this to check immediately after OP_INCREMENT_LOCAL_AND_SET is first created?
-                rewrite(&optimizer, one + 3, 1);
-                continue;
             }
             break;
         }
@@ -4064,7 +4069,7 @@ static void for_statement(Compiler *C) {
         iterator_statement(C, false);
         return;
     } else {
-        compile_error(C, &C->previous, "expected one of '=', 'in', or ',' in for loop declaration");
+        compile_error(C, &C->previous, "incomplete for loop declaration");
         return;
     }
 
@@ -5017,11 +5022,16 @@ static HymnFrame *throw_error(Hymn *H, const char *format, ...) {
 }
 
 static HymnFrame *throw_exception(Hymn *H, const char *name) {
-    HymnString *error = H->exception;
-    H->exception = NULL;
 
     HymnString *trace = stacktrace(H);
-    error = hymn_string_append(error, "\nat ");
+    HymnString *error = hymn_new_string_with_capacity(hymn_string_len(H->exception) + hymn_string_len(trace) + 128);
+    error = hymn_string_append(error, "exception: ");
+    error = hymn_string_append(error, H->exception);
+
+    hymn_string_delete(H->exception);
+    H->exception = NULL;
+
+    error = hymn_string_append(error, "\n  in ");
     error = hymn_string_append(error, name);
     HymnFrame *frame = &H->frames[H->frame_count - 1];
     HymnFunction *func = frame->func;
@@ -5403,7 +5413,7 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
 #define THROW(...)                         \
     frame = throw_error(H, ##__VA_ARGS__); \
     if (frame == NULL) return;             \
-    HYMN_DISPATCH;
+    goto dispatch;
 
 #define COMPARE_OP(compare)                                                                       \
     HymnValue b = pop(H);                                                                         \
@@ -5452,7 +5462,7 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else {                                                         \
             hymn_dereference(H, a);                                      \
             hymn_dereference(H, b);                                      \
-            THROW("Comparison: Operands must be numbers")                \
+            THROW("comparison: uperands must be numbers")                \
         }                                                                \
     } else if (hymn_is_float(a)) {                                       \
         if (hymn_is_int(b)) {                                            \
@@ -5462,12 +5472,12 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
         } else {                                                         \
             hymn_dereference(H, a);                                      \
             hymn_dereference(H, b);                                      \
-            THROW("Comparison: Operands must be numbers")                \
+            THROW("comparison: operands must be numbers")                \
         }                                                                \
     } else {                                                             \
         hymn_dereference(H, a);                                          \
         hymn_dereference(H, b);                                          \
-        THROW("Comparison: Operands must be numbers")                    \
+        THROW("comparison: operands must be numbers")                    \
     }                                                                    \
     int jump = READ_SHORT(frame);                                        \
     if (answer) {                                                        \
@@ -5476,8 +5486,6 @@ static void disassemble_byte_code(HymnByteCode *code, const char *name) {
 
 static void run(Hymn *H) {
     HymnFrame *frame = current_frame(H);
-
-#define HYMN_DISPATCH goto dispatch
 
 dispatch:
 #ifdef HYMN_DEBUG_STACK
@@ -5514,7 +5522,7 @@ dispatch:
         }
         push(H, hymn_new_none());
         frame = current_frame(H);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_RETURN: {
         HymnValue result = pop(H);
@@ -5523,47 +5531,45 @@ dispatch:
         while (H->stack_top != frame->stack) {
             hymn_dereference(H, pop(H));
         }
-        if (done) {
-            return;
-        }
+        if (done) return;
         push(H, result);
         frame = current_frame(H);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_POP: {
         hymn_dereference(H, pop(H));
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_POP_TWO: {
         hymn_dereference(H, pop(H));
         hymn_dereference(H, pop(H));
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_POP_N: {
         int count = READ_BYTE(frame);
         while (count--) {
             hymn_dereference(H, pop(H));
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_TRUE: {
         push(H, hymn_new_bool(true));
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_FALSE: {
         push(H, hymn_new_bool(false));
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_NONE: {
         push(H, hymn_new_none());
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_CALL: {
         int count = READ_BYTE(frame);
         HymnValue value = peek(H, count + 1);
         frame = call_value(H, value, count);
         if (frame == NULL) return;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_TAIL_CALL: {
         int count = READ_BYTE(frame);
@@ -5600,7 +5606,7 @@ dispatch:
             }
         }
         if (frame == NULL) return;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_SELF: {
         HymnValue table = peek(H, 1);
@@ -5614,12 +5620,12 @@ dispatch:
         hymn_reference(fun);
         *H->stack_top = table;
         H->stack_top++;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP: {
         int jump = READ_SHORT(frame);
         frame->ip += jump;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_FALSE: {
         HymnValue a = pop(H);
@@ -5628,7 +5634,7 @@ dispatch:
             frame->ip += jump;
         }
         hymn_dereference(H, a);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_TRUE: {
         HymnValue a = pop(H);
@@ -5637,7 +5643,7 @@ dispatch:
             frame->ip += jump;
         }
         hymn_dereference(H, a);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_EQUAL: {
         HymnValue b = pop(H);
@@ -5648,7 +5654,7 @@ dispatch:
         }
         hymn_dereference(H, a);
         hymn_dereference(H, b);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_NOT_EQUAL: {
         HymnValue b = pop(H);
@@ -5659,19 +5665,19 @@ dispatch:
         }
         hymn_dereference(H, a);
         hymn_dereference(H, b);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_LESS: {
         JUMP_COMPARE_OP(<)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_LESS_EQUAL: {
         JUMP_COMPARE_OP(<=)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_GREATER: {
         JUMP_COMPARE_OP(>)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_GREATER_LOCALS: {
         HymnValue a = frame->stack[READ_BYTE(frame)];
@@ -5684,7 +5690,7 @@ dispatch:
             } else if (hymn_is_float(b)) {
                 answer = (HymnFloat)hymn_as_int(a) > hymn_as_float(b);
             } else {
-                THROW("Comparison: Operands must be numbers")
+                THROW("comparison: operands must be numbers")
             }
         } else if (hymn_is_float(a)) {
             if (hymn_is_int(b)) {
@@ -5692,24 +5698,24 @@ dispatch:
             } else if (hymn_is_float(b)) {
                 answer = hymn_as_float(a) > hymn_as_float(b);
             } else {
-                THROW("Comparison: Operands must be numbers")
+                THROW("comparison: operands must be numbers")
             }
         } else {
-            THROW("Comparison: Operands must be numbers")
+            THROW("comparison: operands must be numbers")
         }
         if (answer) {
             frame->ip += jump;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_JUMP_IF_GREATER_EQUAL: {
         JUMP_COMPARE_OP(>=)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_LOOP: {
         int jump = READ_SHORT(frame);
         frame->ip -= jump;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_INCREMENT_LOOP: {
         int slot = READ_BYTE(frame);
@@ -5726,7 +5732,7 @@ dispatch:
         }
         frame->stack[slot] = value;
         frame->ip -= jump;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_FOR: {
         int slot = READ_BYTE(frame);
@@ -5767,7 +5773,7 @@ dispatch:
             const char *is = hymn_value_type(object.is);
             THROW("can't iterate over %s (expected array or table)", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_FOR_LOOP: {
         int slot = READ_BYTE(frame);
@@ -5805,7 +5811,7 @@ dispatch:
                 frame->ip -= jump;
             }
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_EQUAL: {
         HymnValue b = pop(H);
@@ -5813,7 +5819,7 @@ dispatch:
         push(H, hymn_new_bool(hymn_values_equal(a, b)));
         hymn_dereference(H, a);
         hymn_dereference(H, b);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_NOT_EQUAL: {
         HymnValue b = pop(H);
@@ -5821,23 +5827,23 @@ dispatch:
         push(H, hymn_new_bool(!hymn_values_equal(a, b)));
         hymn_dereference(H, a);
         hymn_dereference(H, b);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_LESS: {
         COMPARE_OP(<)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_LESS_EQUAL: {
         COMPARE_OP(<=)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GREATER: {
         COMPARE_OP(>)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GREATER_EQUAL: {
         COMPARE_OP(>=)
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_ADD: {
         HymnValue b = pop(H);
@@ -5885,7 +5891,7 @@ dispatch:
         }
         hymn_dereference(H, a);
         hymn_dereference(H, b);
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_add:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -5937,7 +5943,7 @@ dispatch:
         } else {
             goto bad_add_two;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_add_two:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -5964,7 +5970,7 @@ dispatch:
             goto bad_increment;
         }
         hymn_dereference(H, a);
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_increment:;
         const char *is = hymn_value_type(a.is);
         hymn_dereference(H, a);
@@ -5997,7 +6003,7 @@ dispatch:
         } else {
             goto bad_subtract;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_subtract:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -6032,7 +6038,7 @@ dispatch:
         } else {
             goto bad_multiply;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_multiply:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -6067,7 +6073,7 @@ dispatch:
         } else {
             goto bad_divide;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_divide:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -6088,7 +6094,7 @@ dispatch:
         } else {
             goto bad_modulo;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_modulo:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -6109,7 +6115,7 @@ dispatch:
         } else {
             goto bad_modulo_locals;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     bad_modulo_locals:;
         const char *is_a = hymn_value_type(a.is);
         const char *is_b = hymn_value_type(b.is);
@@ -6125,7 +6131,7 @@ dispatch:
             hymn_dereference(H, value);
             THROW("bitwise '~' can't use %s (expected integer)", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_BIT_OR: {
         HymnValue b = pop(H);
@@ -6140,7 +6146,7 @@ dispatch:
             hymn_dereference(H, b);
             THROW("bitwise '|' can't use %s and %s (expected integers)", is_a, is_b)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_BIT_AND: {
         HymnValue b = pop(H);
@@ -6155,7 +6161,7 @@ dispatch:
             hymn_dereference(H, b);
             THROW("bitwise '&' can't use %s and %s (expected integers)", is_a, is_b)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_BIT_XOR: {
         HymnValue b = pop(H);
@@ -6170,7 +6176,7 @@ dispatch:
             hymn_dereference(H, b);
             THROW("bitwise '^' can't use %s and %s (expected integers)", is_a, is_b)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_BIT_LEFT_SHIFT: {
         HymnValue b = pop(H);
@@ -6185,7 +6191,7 @@ dispatch:
             hymn_dereference(H, b);
             THROW("bitwise '<<' can't use %s and %s (expected integers)", is_a, is_b)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_BIT_RIGHT_SHIFT: {
         HymnValue b = pop(H);
@@ -6200,7 +6206,7 @@ dispatch:
             hymn_dereference(H, b);
             THROW("bitwise '>>' can't use %s and %s (expected integers)", is_a, is_b)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_NEGATE: {
         HymnValue value = pop(H);
@@ -6214,7 +6220,7 @@ dispatch:
             THROW("negation '-' can't use %s (expected number)", is)
         }
         push(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_NOT: {
         HymnValue value = pop(H);
@@ -6226,25 +6232,25 @@ dispatch:
             THROW("not '!' can't use %s (expected boolean)", is)
         }
         push(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_CONSTANT: {
         HymnValue constant = READ_CONSTANT(frame);
         hymn_reference(constant);
         push(H, constant);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_NEW_ARRAY: {
         HymnValue constant = hymn_new_array_value(hymn_new_array(0));
         hymn_reference(constant);
         push(H, constant);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_NEW_TABLE: {
         HymnValue constant = hymn_new_table_value(hymn_new_table());
         hymn_reference(constant);
         push(H, constant);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_DEFINE_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -6257,7 +6263,7 @@ dispatch:
             hymn_dereference(H, value);
             THROW("multiple global definitions of '%s'", name->string)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_SET_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -6269,7 +6275,7 @@ dispatch:
             hymn_dereference(H, previous);
         }
         hymn_reference(value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GET_GLOBAL: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -6279,7 +6285,7 @@ dispatch:
         }
         hymn_reference(get);
         push(H, get);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GET_GLOBAL_PROPERTY: {
         HymnObjectString *name = hymn_as_hymn_string(READ_CONSTANT(frame));
@@ -6299,7 +6305,7 @@ dispatch:
             hymn_reference(get);
         }
         push(H, get);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_SET_LOCAL: {
         int slot = READ_BYTE(frame);
@@ -6307,14 +6313,14 @@ dispatch:
         hymn_dereference(H, frame->stack[slot]);
         frame->stack[slot] = value;
         hymn_reference(value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GET_LOCAL: {
         int slot = READ_BYTE(frame);
         HymnValue value = frame->stack[slot];
         hymn_reference(value);
         push(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GET_LOCALS: {
         int slot_a = READ_BYTE(frame);
@@ -6325,7 +6331,7 @@ dispatch:
         hymn_reference(value_b);
         push(H, value_a);
         push(H, value_b);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_INCREMENT_LOCAL: {
         int slot = READ_BYTE(frame);
@@ -6340,7 +6346,7 @@ dispatch:
             THROW("can't increment %s (expected number)", is)
         }
         push(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_INCREMENT_LOCAL_AND_SET: {
         int slot = READ_BYTE(frame);
@@ -6355,7 +6361,7 @@ dispatch:
             THROW("can't increment %s (expected number)", is)
         }
         frame->stack[slot] = value;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_SET_PROPERTY: {
         HymnValue value = pop(H);
@@ -6371,7 +6377,7 @@ dispatch:
         hymn_set_property(H, table, name, value);
         push(H, value);
         hymn_dereference(H, table_value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GET_PROPERTY: {
         HymnValue value = pop(H);
@@ -6390,7 +6396,7 @@ dispatch:
         }
         hymn_dereference(H, value);
         push(H, get);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_EXISTS: {
         HymnValue value = pop(H);
@@ -6417,7 +6423,7 @@ dispatch:
         }
         hymn_dereference(H, value);
         hymn_dereference(H, object);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_SET_DYNAMIC: {
         HymnValue value = pop(H);
@@ -6481,7 +6487,7 @@ dispatch:
         push(H, value);
         hymn_dereference(H, object);
         hymn_reference(value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_GET_DYNAMIC: {
         HymnValue i = pop(H);
@@ -6571,7 +6577,7 @@ dispatch:
             THROW("can't get value from %s (expected array, table, or string)", is)
         }
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_LEN: {
         HymnValue value = pop(H);
@@ -6598,7 +6604,7 @@ dispatch:
         }
         }
         hymn_dereference(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_ARRAY_POP: {
         HymnValue a = pop(H);
@@ -6611,7 +6617,7 @@ dispatch:
             push(H, value);
             hymn_dereference(H, a);
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_ARRAY_PUSH: {
         HymnValue value = pop(H);
@@ -6625,7 +6631,7 @@ dispatch:
             hymn_array_push(hymn_as_array(array), value);
             hymn_dereference(H, array);
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_ARRAY_PUSH_LOCALS: {
         HymnValue array = frame->stack[READ_BYTE(frame)];
@@ -6636,7 +6642,7 @@ dispatch:
             HymnValue value = frame->stack[READ_BYTE(frame)];
             hymn_array_push(hymn_as_array(array), value);
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_ARRAY_INSERT: {
         HymnValue p = pop(H);
@@ -6681,7 +6687,7 @@ dispatch:
             hymn_dereference(H, v);
             THROW("call to 'insert' can't use %s for 1st argument (expected array)", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_DELETE: {
         HymnValue i = pop(H);
@@ -6736,7 +6742,7 @@ dispatch:
             hymn_dereference(H, v);
             THROW("call to 'delete' can't use %s for 1st argument (expected array or table)", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_COPY: {
         HymnValue value = pop(H);
@@ -6769,7 +6775,7 @@ dispatch:
         default:
             push(H, hymn_new_none());
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_SLICE: {
         HymnValue b = pop(H);
@@ -6875,7 +6881,7 @@ dispatch:
             THROW("can't slice %s (expected string or array)", is)
         }
         hymn_dereference(H, v);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_CLEAR: {
         HymnValue value = pop(H);
@@ -6914,7 +6920,7 @@ dispatch:
         default:
             break;
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_KEYS: {
         HymnValue value = pop(H);
@@ -6930,7 +6936,7 @@ dispatch:
             push(H, keys);
             hymn_dereference(H, value);
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_INDEX: {
         HymnValue b = pop(H);
@@ -6977,14 +6983,14 @@ dispatch:
             THROW("call to 'index' can't use %s for 1st argument (expected string, array, or table)", is)
         }
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_TYPE: {
         HymnValue value = pop(H);
         const char *is = hymn_value_type(value.is);
         push_string(H, hymn_new_string(is));
         hymn_dereference(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_INT: {
         HymnValue value = pop(H);
@@ -7008,7 +7014,7 @@ dispatch:
             hymn_dereference(H, value);
             THROW("can't cast %s to integer", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_FLOAT: {
         HymnValue value = pop(H);
@@ -7032,13 +7038,13 @@ dispatch:
             hymn_dereference(H, value);
             THROW("can't cast %s to float", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_STRING: {
         HymnValue value = pop(H);
         push_string(H, hymn_value_to_string(value));
         hymn_dereference(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_ECHO: {
         HymnValue value = pop(H);
@@ -7046,7 +7052,7 @@ dispatch:
         H->print("%s\n", string);
         hymn_string_delete(string);
         hymn_dereference(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_PRINT: {
         HymnValue value = pop(H);
@@ -7060,7 +7066,7 @@ dispatch:
         hymn_string_delete(string);
         hymn_dereference(H, value);
         hymn_dereference(H, route);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_INSPECT: {
         HymnValue value = pop(H);
@@ -7072,18 +7078,18 @@ dispatch:
         if (inspect == NULL) inspect = hymn_value_to_string(value);
         push_string(H, inspect);
         hymn_dereference(H, value);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_THROW: {
         frame = exception(H);
         if (frame == NULL) return;
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_DUPLICATE: {
         HymnValue top = peek(H, 1);
         push(H, top);
         hymn_reference(top);
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     case OP_USE: {
         HymnValue file = pop(H);
@@ -7096,7 +7102,7 @@ dispatch:
             hymn_dereference(H, file);
             THROW("import can't use %s (expected string)", is)
         }
-        HYMN_DISPATCH;
+        goto dispatch;
     }
     default:
         UNREACHABLE();

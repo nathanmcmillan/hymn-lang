@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.8.0"
+#define HYMN_VERSION "0.9.0"
 
 // #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK

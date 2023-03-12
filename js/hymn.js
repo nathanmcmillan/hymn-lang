@@ -874,14 +874,14 @@ function compileError(C, token, format) {
     }
 
     if (begin < end) {
-      error += '\n| ' + source.substring(begin, end) + '\n  '
+      error += '\n  | ' + source.substring(begin, end) + '\n    '
       const spaces = token.start - begin
       if (spaces > 0) for (let i = 0; i < spaces; i++) error += ' '
       for (let i = 0; i < token.length; i++) error += '^'
     }
   }
 
-  error += '\nat ' + (C.script === null ? 'script' : C.script) + ':' + token.row
+  error += '\n  at ' + (C.script === null ? 'script' : C.script) + ':' + token.row
 
   C.error = error
 
@@ -1072,7 +1072,7 @@ function isDigit(c) {
 }
 
 function isIdent(c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c === '_'
 }
 
 function stringStatus(C) {
@@ -2490,7 +2490,7 @@ function forStatement(C) {
     iteratorStatement(C, false)
     return
   } else {
-    compileError(C, C.previous, "expected one of '=', 'in', or ',' in for loop declaration")
+    compileError(C, C.previous, 'incomplete for loop declaration')
     return
   }
 
@@ -3075,7 +3075,7 @@ function hymnStacktrace(H) {
     const func = frame.func
     const ip = frame.ip - 1
     const row = func.code.lines[ip]
-    trace += 'at'
+    trace += '  at'
     if (func.name !== null) trace += ' ' + func.name
     trace += (func.script === null ? ' script:' : ' ' + func.script + ':') + row
     if (i > 0) trace += '\n'

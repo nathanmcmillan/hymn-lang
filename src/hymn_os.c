@@ -58,7 +58,7 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
     HymnString *file = hymn_as_string(value);
     FILE *open = POPEN(file, "r");
     if (open == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "popen null pointer");
     }
     HymnString *string = hymn_new_string("");
     int ch;
@@ -69,7 +69,6 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
     HymnObjectString *object = hymn_intern_string(H, string);
     return hymn_new_string_value(object);
 #else
-    (void)H;
     (void)count;
     (void)arguments;
     return hymn_new_exception(H, "popen not supported");
@@ -77,7 +76,6 @@ static HymnValue os_system(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue os_exec(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count < 1) {
         return hymn_new_exception(H, "missing command");
     }
@@ -91,7 +89,6 @@ static HymnValue os_exec(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
 #ifdef HYMN_POPEN_SUPPORTED
     if (count < 2) {
         return hymn_new_exception(H, "missing path and mode");
@@ -105,7 +102,7 @@ static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
     HymnString *mode = hymn_as_string(b);
     FILE *open = POPEN(file, mode);
     if (open == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "popen null pointer");
     }
     return hymn_new_pointer(open);
 #else
@@ -116,7 +113,6 @@ static HymnValue os_popen(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
 #ifdef HYMN_POPEN_SUPPORTED
     if (count < 1) {
         return hymn_new_exception(H, "missing pointer");
@@ -129,8 +125,8 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
     if (open == NULL) {
         return hymn_new_int(0);
     }
-    PCLOSE(open);
-    return hymn_new_int(1);
+    int code = PCLOSE(open);
+    return hymn_new_int(code);
 #else
     (void)count;
     (void)arguments;
@@ -139,7 +135,6 @@ static HymnValue os_pclose(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count < 2) {
         return hymn_new_exception(H, "missing path and mode");
     }
@@ -152,13 +147,12 @@ static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
     HymnString *mode = hymn_as_string(b);
     FILE *open = fopen(path, mode);
     if (open == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "fopen null pointer");
     }
     return hymn_new_pointer(open);
 }
 
 static HymnValue os_fclose(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count < 1) {
         return hymn_new_exception(H, "missing pointer");
     }
@@ -170,8 +164,8 @@ static HymnValue os_fclose(Hymn *H, int count, HymnValue *arguments) {
     if (open == NULL) {
         return hymn_new_int(0);
     }
-    fclose(open);
-    return hymn_new_int(1);
+    int code = fclose(open);
+    return hymn_new_int(code);
 }
 
 static HymnValue os_fget(Hymn *H, int count, HymnValue *arguments) {
@@ -184,7 +178,7 @@ static HymnValue os_fget(Hymn *H, int count, HymnValue *arguments) {
     }
     FILE *open = (FILE *)hymn_as_pointer(value);
     if (open == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "pointer was null");
     }
     HymnString *string = hymn_new_string("");
     int ch;

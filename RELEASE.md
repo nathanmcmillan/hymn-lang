@@ -1,10 +1,13 @@
-# Release 0.8.1
+# Release 0.9.0
 
 - Performance tuning
 - Added proper exception throwing to standard library functions
 - Fixed bug in `pattern` library where ending `]` of class was included as part match
 - Optimized removing POP instructions preceding a VOID return
 - Fixed double echo in REPL when printing an exception
+- Fixed dot syntax when using table keys that share a reserved keyword name
+- Fixed bad stack management when optimizing incrementing a local
+- Underscores allowed (again) in variable names
 
 # Release 0.8.0
 
