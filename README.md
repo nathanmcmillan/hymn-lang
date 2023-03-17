@@ -60,9 +60,3 @@ AMD Ryzen 5 1600 6 core 3.2 GHz - Windows 10 using Ubuntu WSL
 | Python  | 3.98s   | 2.27s | 2.63s | 1.28s | 4.68s   | 2.59s  | -     |
 | Node    | 0.69s   | 0.10s | 0.68s | 0.45s | 1.77s   | 0.19s  | -     |
 | Lua JIT | 0.08s   | 0.11s | 0.56s | 0.28s | 1.20s   | 0.06s  | 0.03s |
-
-| Test       | Factors | Fib   | List  | Loop  | Objects | Primes | Tail  |
-| ---------- | ------- | ----- | ----- | ----- | ------- | ------ | ----- |
-| Hymn 0.8.0 | 1.92s   | 2.15s | 2.25s | 1.17s | 3.64s   | 1.21s  | 4.28s |
-| Hymn 0.7.0 | 1.79s   | 1.45s | 2.09s | 0.98s | 3.81s   | 2.00s  | 3.03s |
-| Hymn 0.6.2 | 1.78s   | 1.57s | 2.32s | 0.96s | 3.37s   | 1.03s  | 3.15s |
