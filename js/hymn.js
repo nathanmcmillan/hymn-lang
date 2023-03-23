@@ -3214,7 +3214,7 @@ async function hymnImport(H, file) {
     }
 
     if (module === null) {
-      let missing = 'import not found: ' + file + '\n'
+      let missing = 'import not found: ' + file
 
       for (let i = 0; i < size; i++) {
         const value = paths[i]
@@ -3227,10 +3227,10 @@ async function hymnImport(H, file) {
         const path = parent ? replace.replace(/<parent>/g, parent) : replace
         const use = nodePath.resolve(path)
 
-        missing += '\nno file: ' + use
+        missing += '\n  no file: ' + use
       }
 
-      return hymnPushError(H, missing)
+      return hymnThrowError(H, missing)
     }
 
     tablePut(imports, module, newBool(true))
@@ -3267,7 +3267,7 @@ async function hymnImport(H, file) {
     }
 
     if (module === null) {
-      let missing = 'import not found: ' + file + '\n'
+      let missing = 'import not found: ' + file
 
       for (let i = 0; i < size; i++) {
         const value = paths[i]
@@ -3279,10 +3279,10 @@ async function hymnImport(H, file) {
         const replace = question.replace(/<path>/g, file)
         const use = parent ? replace.replace(/<parent>/g, parent) : replace
 
-        missing += '\nno file: ' + use
+        missing += '\n  no file: ' + use
       }
 
-      return hymnPushError(H, missing)
+      return hymnThrowError(H, missing)
     }
 
     tablePut(imports, module, newBool(true))

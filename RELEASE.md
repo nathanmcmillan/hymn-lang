@@ -8,6 +8,10 @@
 - Fixed dot syntax when using table keys that share a reserved keyword name
 - Fixed bad stack management when optimizing incrementing a local
 - Underscores allowed (again) in variable names
+- Improved REPL line editing
+- Added REPL support to save and load command history
+- New `io` library function: `mkdir`
+- New `text` library function: `last`
 
 # Release 0.8.0
 

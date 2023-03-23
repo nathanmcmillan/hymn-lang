@@ -1,0 +1,23 @@
+use "test/libs/assert"
+
+print-assert(0, text.last("foo", "foo"))
+print-assert(0, text.last("foobar", "foo"))
+
+echo "========================================"
+
+print-assert(2, text.last("foo", "o"))
+print-assert(1, text.last("foo", "oo"))
+
+echo "========================================"
+
+print-assert(-1, text.last("foo", "n"))
+print-assert(-1, text.last("foo", "fooo"))
+
+echo "========================================"
+
+print-assert(-1, text.last("foo", ""))
+print-assert(-1, text.last("", "no"))
+
+echo "========================================"
+
+echo "tests pass!"

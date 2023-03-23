@@ -13,7 +13,9 @@
 #if !defined(HYMN_TESTING) && !defined(HYMN_NO_CLI)
 
 static void signal_handle(int signum) {
-    if (signum != 2) {
+    if (signum == SIGINT) {
+        signal(SIGINT, signal_handle);
+    } else {
         exit(signum);
     }
 }

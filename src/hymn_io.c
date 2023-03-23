@@ -171,6 +171,12 @@ static HymnValue io_remove(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_bool(removed != -1);
 }
 
+static HymnValue io_mkdir(Hymn *H, int count, HymnValue *arguments) {
+    PATH_STRING
+    int result = mkdir(path, 0755);
+    return hymn_new_bool(result != -1);
+}
+
 void hymn_use_io(Hymn *H) {
     HymnTable *io = hymn_new_table();
     hymn_add_function_to_table(H, io, "size", io_size);
@@ -183,5 +189,6 @@ void hymn_use_io(Hymn *H) {
     hymn_add_function_to_table(H, io, "input", io_input);
     hymn_add_function_to_table(H, io, "move", io_move);
     hymn_add_function_to_table(H, io, "remove", io_remove);
+    hymn_add_function_to_table(H, io, "mkdir", io_mkdir);
     hymn_add_table(H, "io", io);
 }

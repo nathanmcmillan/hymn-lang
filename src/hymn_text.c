@@ -68,6 +68,19 @@ static HymnValue text_contains(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_exception(H, "missing text and search");
 }
 
+static HymnValue text_last(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue contains = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(contains)) {
+            HymnInt index = hymn_string_last_index_of(hymn_as_string(value), hymn_as_string(contains));
+            return hymn_new_int(index);
+        }
+        return hymn_new_exception(H, "text and search must be strings");
+    }
+    return hymn_new_exception(H, "missing text and search");
+}
+
 static HymnValue text_replace(Hymn *H, int count, HymnValue *arguments) {
     if (count >= 3) {
         HymnValue value = arguments[0];
@@ -216,6 +229,7 @@ void hymn_use_text(Hymn *H) {
     hymn_add_function_to_table(H, text, "starts", text_starts);
     hymn_add_function_to_table(H, text, "ends", text_ends);
     hymn_add_function_to_table(H, text, "contains", text_contains);
+    hymn_add_function_to_table(H, text, "last", text_last);
     hymn_add_function_to_table(H, text, "replace", text_replace);
     hymn_add_function_to_table(H, text, "trim", text_trim);
     hymn_add_function_to_table(H, text, "left-strip", text_left_strip);
