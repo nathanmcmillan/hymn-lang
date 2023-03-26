@@ -20,12 +20,12 @@
 #include <sys/types.h>
 #include <time.h>
 
-#undef _MSC_VER
+// #undef _MSC_VER
 
 #define HYMN_VERSION "0.9.0"
 
-// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
+// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_MEMORY
 
 // #define HYMN_NO_REPL

@@ -173,7 +173,11 @@ static HymnValue io_remove(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue io_mkdir(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
+#ifdef _MSC_VER
+    int result = mkdir(path);
+#else
     int result = mkdir(path, 0755);
+#endif
     return hymn_new_bool(result != -1);
 }
 
