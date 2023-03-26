@@ -233,6 +233,22 @@ HymnString *hymn_string_append_substring(HymnString *string, const char *b, size
     return (HymnString *)s;
 }
 
+static HymnString *string_insert_char(HymnString *string, size_t index, const char b) {
+    HymnStringHead *head = HYMN_STRING_HEAD(string);
+    size_t len = head->length + 1;
+    if (len > head->capacity) {
+        head = string_resize(head, len * 2);
+    }
+    head->length = len;
+    char *s = (char *)(head + 1);
+    for (size_t i = len - 1; i > index; i--) {
+        s[i] = s[i - 1];
+    }
+    s[index] = b;
+    s[len] = '\0';
+    return (HymnString *)s;
+}
+
 bool hymn_string_equal(const char *a, const char *b) {
     return strcmp(a, b) == 0;
 }
@@ -651,7 +667,7 @@ enum OpCode {
     OP_ADD,
     OP_ADD_LOCALS,
     OP_INCREMENT,
-    OP_ARRAY_INSERT,
+    OP_INSERT,
     OP_ARRAY_POP,
     OP_ARRAY_PUSH,
     OP_ARRAY_PUSH_LOCALS,
@@ -4328,7 +4344,7 @@ static void insert_statement(Compiler *C) {
     consume(C, TOKEN_COMMA, "not enough arguments in call to 'insert' (expected 3)");
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'insert'");
-    emit(C, OP_ARRAY_INSERT);
+    emit(C, OP_INSERT);
 }
 
 static void use_statement(Compiler *C) {
@@ -5347,7 +5363,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     switch (instruction) {
     case OP_ADD: return debug_instruction(debug, "OP_ADD", index);
     case OP_ADD_LOCALS: return debug_three_byte_instruction(debug, "OP_ADD_LOCALS", code, index);
-    case OP_ARRAY_INSERT: return debug_instruction(debug, "OP_ARRAY_INSERT", index);
+    case OP_INSERT: return debug_instruction(debug, "OP_INSERT", index);
     case OP_ARRAY_POP: return debug_instruction(debug, "OP_ARRAY_POP", index);
     case OP_ARRAY_PUSH: return debug_instruction(debug, "OP_ARRAY_PUSH", index);
     case OP_ARRAY_PUSH_LOCALS: return debug_three_byte_instruction(debug, "OP_ARRAY_PUSH_LOCALS", code, index);
@@ -6686,7 +6702,7 @@ dispatch:
         }
         goto dispatch;
     }
-    case OP_ARRAY_INSERT: {
+    case OP_INSERT: {
         HymnValue p = pop(H);
         HymnValue i = pop(H);
         HymnValue v = pop(H);
@@ -6727,7 +6743,7 @@ dispatch:
             hymn_dereference(H, p);
             hymn_dereference(H, i);
             hymn_dereference(H, v);
-            THROW("call to 'insert' can't use %s for 1st argument (expected array)", is)
+            THROW("call to 'insert' can't use %s for 1st argument (expected string or array)", is)
         }
         goto dispatch;
     }
@@ -7682,10 +7698,8 @@ void hymn_repl(Hymn *H) {
 #endif
 
     History *history = NULL;
-
-    HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
-
     bool open_editor = false;
+    HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
 
     while (true) {
         if (input[0] != '\0') {
@@ -7700,6 +7714,14 @@ void hymn_repl(Hymn *H) {
             break;
         }
         remove_newline(line);
+
+        if (line[0] != '\0') {
+            if (input[0] != '\0') {
+                input = hymn_string_append_char(input, '\n');
+            }
+            input = hymn_string_append(input, line);
+            line[0] = '\0';
+        }
 #else
 #define CONTROL_KEY(c) ((c)&0x1f)
 
@@ -7886,18 +7908,14 @@ void hymn_repl(Hymn *H) {
                     //     }
                 } else if (c != '\0') {
                     if (count < INPUT_LIMIT) {
+                        input = string_insert_char(input, pos, (char)c);
                         count++;
-                        for (int i = count - 1; i > pos; i--) {
-                            line[i] = line[i - 1];
-                        }
-                        line[pos] = (char)c;
                         pos++;
                         if (pos == count) {
                             printf("%c", c);
                         } else {
                             cursor_clear();
-                            line[count] = '\0';
-                            printf("%s", &line[pos - 1]);
+                            printf("%s", &input[pos - 1]);
                             cursor_unsave();
                             cursor_forward();
                         }
@@ -7908,20 +7926,41 @@ void hymn_repl(Hymn *H) {
         }
 
     scan:
-        // line[count] = '\0';
         printf("\n");
+        cursor = NULL;
+
+        // if (line[0] != '\0') {
+        //     if (row == rows) {
+        //         if (input[0] != '\0') {
+        //             input = hymn_string_append_char(input, '\n');
+        //         }
+        //         input = hymn_string_append(input, line);
+        //     } else {
+        //         // TODO: Replace section of input with line
+        //         if (input[0] != '\0') {
+        //             input = hymn_string_append_char(input, '\n');
+        //         }
+        //         input = hymn_string_append(input, line);
+        //     }
+        //     line[0] = '\0';
+        //     rows++;
+        // }
+
+        printf("POS: %d ROW: %d COUNT: %d ROWS: %d\n", pos, row, count, rows);
 #endif
 
-        // TODO: line is now only used for windows REPL
-        // Use only input for linux REPL
-        // Must update the below special keyword checks to use only input
+        hymn_string_trim(input);
+        if (hymn_string_len(input) == 0) {
+            continue;
+        }
 
-        if (line[0] == '.' && hymn_string_len(input) == 0) {
-            if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
+        if (input[0] == '.') {
+            if (hymn_string_equal(input, ".exit") || hymn_string_equal(input, ".quit")) {
                 goto cleanup;
-            } else if (hymn_string_equal(line, ".edit")) {
-                open_editor = true;
-            } else if (hymn_string_equal(line, ".help")) {
+            } else if (hymn_string_equal(input, ".edit")) {
+                hymn_string_zero(input);
+                goto editing;
+            } else if (hymn_string_equal(input, ".help")) {
                 printf(".exit   Exit interactive mode\n"
                        ".quit   Alias for .exit\n"
                        ".edit   Edit input using $EDITOR\n"
@@ -7931,8 +7970,7 @@ void hymn_repl(Hymn *H) {
                        ".help   Print this help message\n"
                        "Press ^E to use $EDITOR\n"
                        "Press ^D to exit interactive mode\n");
-                continue;
-            } else if (hymn_string_equal(line, ".debug")) {
+            } else if (hymn_string_equal(input, ".debug")) {
                 HymnTable *globals = &H->globals;
                 unsigned int bins = globals->bins;
                 for (unsigned int i = 0; i < bins; i++) {
@@ -7946,10 +7984,9 @@ void hymn_repl(Hymn *H) {
                         item = item->next;
                     }
                 }
-                continue;
-            } else if (strlen(line) > 6 && memcmp(line, ".save ", 6) == 0) {
+            } else if (hymn_string_starts_with(input, ".save ")) {
                 char path[PATH_MAX];
-                strcpy(path, &line[6]);
+                strcpy(path, &input[6]);
                 if (path[0] == '\0') {
                     printf("Bad file path\n");
                 } else if (history == NULL) {
@@ -7960,57 +7997,54 @@ void hymn_repl(Hymn *H) {
                     FILE *open = fopen(path, "w");
                     if (open == NULL) {
                         printf("Failed to write history: %s\n", path);
-                        continue;
+                    } else {
+                        History *head = history;
+                        while (head->previous != NULL) {
+                            head = head->previous;
+                        }
+                        while (head != NULL) {
+                            fprintf(open, "%s\n", head->input);
+                            head = head->next;
+                        }
+                        fclose(open);
+                        printf("History saved to: %s\n", path);
                     }
-                    History *head = history;
-                    while (head->previous != NULL) {
-                        head = head->previous;
-                    }
-                    while (head != NULL) {
-                        fprintf(open, "%s\n", head->input);
-                        head = head->next;
-                    }
-                    fclose(open);
-                    printf("History saved to: %s\n", path);
                 }
-                continue;
-            } else if (strlen(line) > 6 && memcmp(line, ".load ", 6) == 0) {
+            } else if (hymn_string_starts_with(input, ".load ")) {
                 char path[PATH_MAX];
-                strcpy(path, &line[6]);
+                strcpy(path, &input[6]);
                 if (path[0] == '\0') {
                     printf("Bad file path\n");
                 } else if (hymn_file_exists(path)) {
                     HymnString *source = hymn_read_file(path);
                     if (source == NULL) {
                         printf("Failed to read history: %s\n", path);
-                        continue;
-                    }
-                    char *error = hymn_do(H, source);
-                    hymn_string_delete(source);
-                    if (error != NULL) {
-                        fprintf(stderr, "%s\n", error);
-                        fflush(stderr);
-                        free(error);
+                    } else {
+                        char *error = hymn_do(H, source);
+                        hymn_string_delete(source);
+                        if (error != NULL) {
+                            fprintf(stderr, "%s\n", error);
+                            fflush(stderr);
+                            free(error);
+                        }
                     }
                 } else {
                     printf("History file not found: %s\n", path);
                 }
-                continue;
-            } else if (hymn_string_equal(line, ".save")) {
+            } else if (hymn_string_equal(input, ".save")) {
                 printf("Please specify a path\n");
-                continue;
-            } else if (hymn_string_equal(line, ".load")) {
+            } else if (hymn_string_equal(input, ".load")) {
                 printf("Please specify a path\n");
-                continue;
             } else {
                 printf("Invalid interactive command\n");
-                continue;
             }
+            hymn_string_zero(input);
+            continue;
         }
 
         if (open_editor) {
+        editing:
             open_editor = false;
-            line[0] = '\0';
 
             char *editor = getenv("EDITOR");
             if (editor == NULL) {
@@ -8076,42 +8110,6 @@ void hymn_repl(Hymn *H) {
             input = hymn_string_append_char(input, '\n');
 
             printf("%s", input);
-        }
-
-#ifdef _MSC_VER
-        if (line[0] != '\0') {
-            if (input[0] != '\0') {
-                input = hymn_string_append_char(input, '\n');
-            }
-            input = hymn_string_append(input, line);
-            line[0] = '\0';
-        }
-#else
-        cursor = NULL;
-
-        // if (line[0] != '\0') {
-        //     if (row == rows) {
-        //         if (input[0] != '\0') {
-        //             input = hymn_string_append_char(input, '\n');
-        //         }
-        //         input = hymn_string_append(input, line);
-        //     } else {
-        //         // TODO: Replace section of input with line
-        //         if (input[0] != '\0') {
-        //             input = hymn_string_append_char(input, '\n');
-        //         }
-        //         input = hymn_string_append(input, line);
-        //     }
-        //     line[0] = '\0';
-        //     rows++;
-        // }
-
-        printf("POS: %d ROW: %d COUNT: %d ROWS: %d\n", pos, row, count, rows);
-#endif
-
-        hymn_string_trim(input);
-        if (hymn_string_len(input) == 0) {
-            continue;
         }
 
         CompileResult result = compile(H, NULL, input, true);

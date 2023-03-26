@@ -244,7 +244,7 @@ const STRING_STATUS_CLOSE = 3
 const STRING_STATUS_CONTINUE = 4
 
 const OP_ADD = 0
-const OP_ARRAY_INSERT = 1
+const OP_INSERT = 1
 const OP_ARRAY_POP = 2
 const OP_ARRAY_PUSH = 3
 const OP_BIT_AND = 4
@@ -2740,7 +2740,7 @@ function arrayInsertExpression(C) {
   consume(C, TOKEN_COMMA, `not enough arguments in call to 'insert' (expected 3)`)
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'insert'`)
-  emit(C, OP_ARRAY_INSERT)
+  emit(C, OP_INSERT)
 }
 
 function arrayPopExpression(C) {
@@ -3358,8 +3358,8 @@ function disassembleInstruction(debug, code, index) {
   switch (instruction) {
     case OP_ADD:
       return debugInstruction(debug, 'OP_ADD', index)
-    case OP_ARRAY_INSERT:
-      return debugInstruction(debug, 'OP_ARRAY_INSERT', index)
+    case OP_INSERT:
+      return debugInstruction(debug, 'OP_INSERT', index)
     case OP_ARRAY_POP:
       return debugInstruction(debug, 'OP_ARRAY_POP', index)
     case OP_ARRAY_PUSH:
@@ -4335,7 +4335,7 @@ async function hymnRun(H) {
         }
         break
       }
-      case OP_ARRAY_INSERT: {
+      case OP_INSERT: {
         const p = hymnPop(H)
         const i = hymnPop(H)
         const v = hymnPop(H)
