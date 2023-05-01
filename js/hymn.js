@@ -372,6 +372,8 @@ class Compiler {
     this.stringStatus = STRING_STATUS_NONE
     this.H = H
     this.scope = null
+    this.pop = -1
+    this.barrier = -1
     this.loop = null
     this.jump = null
     this.jumpOr = null
@@ -847,7 +849,7 @@ function current(C) {
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  let error = 'compiler: ' + format
+  let error = format
 
   if (token.type !== TOKEN_EOF && token.length > 0) {
     const source = C.source
@@ -1615,6 +1617,12 @@ function emit(C, i) {
   writeByte(current(C), i, C.previous.row)
 }
 
+function emit_pop(C) {
+  const code = current(C)
+  writeByte(code, OP_POP, C.previous.row)
+  C.pop = code.count
+}
+
 function emitShort(C, i, b) {
   const row = C.previous.row
   const code = current(C)
@@ -1833,9 +1841,10 @@ function endScope(C) {
   const scope = C.scope
   scope.depth--
   while (scope.localCount > 0 && scope.locals[scope.localCount - 1].depth > scope.depth) {
-    emit(C, OP_POP)
+    emit_pop(C)
     scope.localCount--
   }
+  C.barrier = scope.func.code.count
 }
 
 function compileArray(C) {
@@ -1846,7 +1855,8 @@ function compileArray(C) {
   while (!check(C, TOKEN_RIGHT_SQUARE) && !check(C, TOKEN_EOF)) {
     emit(C, OP_DUPLICATE)
     expression(C)
-    emitShort(C, OP_ARRAY_PUSH, OP_POP)
+    emit(C, OP_ARRAY_PUSH)
+    emit_pop(C)
     if (!check(C, TOKEN_RIGHT_SQUARE)) {
       consume(C, TOKEN_COMMA, "expected ',' between array elements")
     }
@@ -1872,7 +1882,7 @@ function compileTable(C) {
     consume(C, TOKEN_COLON, "expected ':' between table key and value")
     expression(C)
     emitShort(C, OP_SET_PROPERTY, name)
-    emit(C, OP_POP)
+    emit_pop(C)
     if (!check(C, TOKEN_RIGHT_CURLY)) {
       consume(C, TOKEN_COMMA, "expected ',' between table elements")
     }
@@ -2237,10 +2247,18 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
+function echoIfNone(C) {
+  const code = C.scope.func.code
+  const count = code.count
+  if (C.barrier === count) return
+  if (C.pop === count) code.instructions[count - 1] = OP_ECHO
+}
+
 function endFunction(C) {
-  emitShort(C, OP_NONE, OP_RETURN)
   const scope = C.scope
   const func = scope.func
+  if (scope.type === TYPE_SCRIPT) echoIfNone(C)
+  emitShort(C, OP_NONE, OP_RETURN)
   if (scope.type === TYPE_FUNCTION) func.source = C.source.substring(scope.begin, C.previous.start + C.previous.length)
   C.scope = scope.enclosing
   return func
@@ -2597,7 +2615,7 @@ function popStackLoop(C) {
     if (scope.locals[i - 1].depth < depth) {
       return
     }
-    emit(C, OP_POP)
+    emit_pop(C)
   }
 }
 
@@ -2842,7 +2860,7 @@ function inspectExpression(C) {
 
 function expressionStatement(C) {
   expression(C)
-  emit(C, OP_POP)
+  emit_pop(C)
 }
 
 function expression(C) {
@@ -3093,7 +3111,7 @@ function hymnThrowExistingError(H, error) {
 }
 
 function hymnThrowError(H, error) {
-  error = 'error: ' + error + '\n' + hymnStacktrace(H)
+  error += '\n' + hymnStacktrace(H)
   return hymnPushError(H, error)
 }
 

@@ -125,18 +125,6 @@ static HymnString *test_source(HymnString *script) {
         hymn_string_zero(out);
         char *error = hymn_run(hymn, script, source);
         hymn_delete(hymn);
-        if (error != NULL) {
-            size_t len = strlen(error);
-            if (len > 7 && memcmp(error, "error: ", 7) == 0) {
-                for (size_t s = 7; s <= len; s++) {
-                    error[s - 7] = error[s];
-                }
-            } else if (len > 10 && memcmp(error, "compiler: ", 10) == 0) {
-                for (size_t s = 10; s <= len; s++) {
-                    error[s - 10] = error[s];
-                }
-            }
-        }
         if (hymn_string_starts_with(expected, "@exception")) {
             if (error == NULL) {
                 hymn_string_trim(out);

@@ -89,16 +89,12 @@ async function test(file) {
     out += text + '\n'
   }
   let result = null
-  let error = await hymn.interpretScript(vm, file, source).catch((exception) => {
+  const error = await hymn.interpretScript(vm, file, source).catch((exception) => {
     if (exception.stack) {
       return indent(4, exception.stack)
     }
     return indent(4, exception)
   })
-  if (error) {
-    if (error.startsWith('error: ')) error = error.substring(7)
-    else if (error.startsWith('compiler: ')) error = error.substring(10)
-  }
   if (expected.startsWith('@exception')) {
     if (error === null) {
       result = indent(4, 'EXPECTED AN ERROR') + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)

@@ -30,7 +30,6 @@
 
 // #define HYMN_NO_REPL
 #define HYMN_NO_DYNAMIC_LIBS
-
 // #define HYMN_NO_OPTIMIZE
 // #define HYMN_NO_MEMORY_MANAGE
 
@@ -74,7 +73,9 @@
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
 
-#define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
+#define hymn_string_head(string) ((HymnStringHead *)((char *)string - sizeof(HymnStringHead)))
+#define hymn_string_len(string) (hymn_string_head(string)->length)
+#define hymn_string_equal(a, b) (strcmp(a, b) == 0)
 
 typedef long long HymnInt;
 typedef double HymnFloat;
@@ -271,11 +272,8 @@ HymnString *hymn_new_string(const char *init);
 HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string);
 HymnObjectString *hymn_new_intern_string(Hymn *H, const char *value);
 
-HymnStringHead *hymn_string_head(HymnString *string);
 HymnString *hymn_string_copy(HymnString *string);
-size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
-bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *string, const char b);
 HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end);

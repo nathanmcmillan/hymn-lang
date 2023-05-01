@@ -1,4 +1,5 @@
 # 16
+# none
 
 func foo(number) {
   return number * 2
