@@ -754,6 +754,8 @@ enum OpCode {
 enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
+    TYPE_DO,
+    TYPE_REPL,
 };
 
 static void compile_with_precedence(Compiler *C, enum Precedence precedence);
@@ -2504,24 +2506,6 @@ static void scope_init(Compiler *C, Scope *scope, enum FunctionType type, size_t
     local->name.length = 0;
 }
 
-static inline Compiler new_compiler(const char *script, const char *source, Hymn *H, Scope *scope, bool interactive) {
-    Compiler C = {0};
-    C.row = 1;
-    C.column = 1;
-    C.script = script;
-    C.source = source;
-    C.interactive = interactive;
-    C.size = strlen(source);
-    C.previous.type = TOKEN_UNDEFINED;
-    C.current.type = TOKEN_UNDEFINED;
-    C.string_status = STRING_STATUS_NONE;
-    C.H = H;
-    C.pop = -1;
-    C.barrier = -1;
-    scope_init(&C, scope, TYPE_SCRIPT, 0);
-    return C;
-}
-
 static void byte_code_delete(HymnByteCode *this) {
     free(this->instructions);
     free(this->lines);
@@ -3859,7 +3843,7 @@ static void echo_if_none(Compiler *C) {
 static HymnFunction *end_function(Compiler *C) {
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
-    if (scope->type == TYPE_SCRIPT) echo_if_none(C);
+    if (scope->type == TYPE_SCRIPT || scope->type == TYPE_REPL) echo_if_none(C);
     emit(C, OP_VOID);
 #ifndef HYMN_NO_OPTIMIZE
     optimize(C);
@@ -4520,22 +4504,33 @@ static HymnFrame *current_frame(Hymn *H) {
     return &H->frames[H->frame_count - 1];
 }
 
-static CompileResult compile(Hymn *H, const char *script, const char *source, bool interactive) {
+static CompileResult compile(Hymn *H, const char *script, const char *source, enum FunctionType type) {
     Scope scope = {0};
+    Compiler C = {0};
+    C.row = 1;
+    C.column = 1;
+    C.script = script;
+    C.source = source;
+    C.interactive = type == TYPE_REPL;
+    C.size = strlen(source);
+    C.previous.type = TOKEN_UNDEFINED;
+    C.current.type = TOKEN_UNDEFINED;
+    C.string_status = STRING_STATUS_NONE;
+    C.H = H;
+    C.pop = -1;
+    C.barrier = -1;
+    scope_init(&C, &scope, type, 0);
 
-    Compiler compiler = new_compiler(script, source, H, &scope, interactive);
-    Compiler *C = &compiler;
-
-    advance(C);
-    while (!match(C, TOKEN_EOF)) {
-        declaration(C);
+    advance(&C);
+    while (!match(&C, TOKEN_EOF)) {
+        declaration(&C);
     }
 
-    HymnFunction *func = end_function(C);
+    HymnFunction *func = end_function(&C);
 
-    if (C->error != NULL) {
-        char *error = string_to_chars(C->error);
-        hymn_string_delete(C->error);
+    if (C.error != NULL) {
+        char *error = string_to_chars(C.error);
+        hymn_string_delete(C.error);
 
         HymnValuePool *constants = &func->code.constants;
         int count = constants->count;
@@ -5261,7 +5256,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
         return throw_error_string(H, failed);
     }
 
-    CompileResult result = compile(H, module->string, source, false);
+    CompileResult result = compile(H, module->string, source, TYPE_SCRIPT);
 
     hymn_string_delete(source);
 
@@ -7359,6 +7354,27 @@ void hymn_add_function(Hymn *H, const char *name, HymnNativeCall func) {
     hymn_add_function_to_table(H, &H->globals, name, func);
 }
 
+char *hymn_call(Hymn *H, const char *name, int arguments) {
+    HymnValue function = hymn_table_get(&H->globals, name);
+    if (hymn_is_undefined(function)) {
+        return NULL;
+    }
+    hymn_reference(function);
+
+    push(H, function);
+    call_value(H, function, arguments);
+
+    char *error = interpret(H);
+    if (error) {
+        return error;
+    }
+
+    assert(H->stack_top == H->stack);
+    reset_stack(H);
+
+    return NULL;
+}
+
 char *hymn_debug(Hymn *H, const char *script, const char *source) {
     HymnString *code = NULL;
     if (source == NULL) {
@@ -7373,7 +7389,7 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
         code = hymn_new_string(source);
     }
 
-    CompileResult result = compile(H, script, code, false);
+    CompileResult result = compile(H, script, code, TYPE_SCRIPT);
 
     char *error = result.error;
     if (error) {
@@ -7414,29 +7430,8 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
     return NULL;
 }
 
-char *hymn_call(Hymn *H, const char *name, int arguments) {
-    HymnValue function = hymn_table_get(&H->globals, name);
-    if (hymn_is_undefined(function)) {
-        return NULL;
-    }
-    hymn_reference(function);
-
-    push(H, function);
-    call_value(H, function, arguments);
-
-    char *error = interpret(H);
-    if (error) {
-        return error;
-    }
-
-    assert(H->stack_top == H->stack);
-    reset_stack(H);
-
-    return NULL;
-}
-
-char *hymn_run(Hymn *H, const char *script, const char *source) {
-    CompileResult result = compile(H, script, source, false);
+static char *exec(Hymn *H, const char *script, const char *source, enum FunctionType type) {
+    CompileResult result = compile(H, script, source, type);
 
     char *error = result.error;
     if (error) {
@@ -7461,11 +7456,15 @@ char *hymn_run(Hymn *H, const char *script, const char *source) {
     return NULL;
 }
 
-char *hymn_do(Hymn *H, const char *source) {
-    return hymn_run(H, NULL, source);
+char *hymn_run(Hymn *H, const char *script, const char *source) {
+    return exec(H, script, source, TYPE_SCRIPT);
 }
 
-char *hymn_read(Hymn *H, const char *script) {
+char *hymn_do(Hymn *H, const char *source) {
+    return exec(H, NULL, source, TYPE_DO);
+}
+
+char *hymn_script(Hymn *H, const char *script) {
     HymnString *source = hymn_read_file(script);
     if (source == NULL) {
         HymnString *format = hymn_string_format("file not found: %s\n", script);
@@ -7473,7 +7472,7 @@ char *hymn_read(Hymn *H, const char *script) {
         hymn_string_delete(format);
         return error;
     }
-    char *error = hymn_run(H, script, source);
+    char *error = exec(H, script, source, TYPE_SCRIPT);
     hymn_string_delete(source);
     return error;
 }
@@ -8100,7 +8099,7 @@ void hymn_repl(Hymn *H) {
             printf("%s", input);
         }
 
-        CompileResult result = compile(H, NULL, input, true);
+        CompileResult result = compile(H, NULL, input, TYPE_REPL);
         char *error = result.error;
         if (error != NULL) {
             if (!hymn_string_equal(error, "<eof>")) {

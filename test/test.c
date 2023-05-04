@@ -207,7 +207,7 @@ static void test_api(void) {
 
     hymn_string_trim(out);
     if (!hymn_string_equal(out, "{ \"number\": 8 }")) {
-        printf("incorrent output: %s\n\n", out);
+        printf("incorrent output: <%s>\n\n", out);
         tests_fail++;
         goto end;
     }

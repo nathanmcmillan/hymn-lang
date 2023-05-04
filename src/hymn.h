@@ -364,11 +364,11 @@ HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnVal
 
 Hymn *new_hymn(void);
 
-char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_call(Hymn *H, const char *name, int arguments);
+char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
-char *hymn_read(Hymn *H, const char *script);
+char *hymn_script(Hymn *H, const char *script);
 
 HymnValue hymn_get(Hymn *H, const char *name);
 
