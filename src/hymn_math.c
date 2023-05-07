@@ -9,7 +9,6 @@
 #define PI 3.14159265358979323846
 
 static HymnValue math_abs(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count >= 1) {
         HymnValue value = arguments[0];
         if (hymn_is_int(value)) {
@@ -25,12 +24,12 @@ static HymnValue math_abs(Hymn *H, int count, HymnValue *arguments) {
             }
             return value;
         }
+        return hymn_new_exception(H, "argument must be a number");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing number");
 }
 
 static HymnValue math_min(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count >= 2) {
         HymnValue a = arguments[0];
         HymnValue b = arguments[1];
@@ -63,12 +62,12 @@ static HymnValue math_min(Hymn *H, int count, HymnValue *arguments) {
                 }
             }
         }
+        return hymn_new_exception(H, "arguments must be numbers");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing numbers");
 }
 
 static HymnValue math_max(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count >= 2) {
         HymnValue a = arguments[0];
         HymnValue b = arguments[1];
@@ -101,12 +100,12 @@ static HymnValue math_max(Hymn *H, int count, HymnValue *arguments) {
                 }
             }
         }
+        return hymn_new_exception(H, "arguments must be numbers");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing numbers");
 }
 
 #define MATH_FUNCTION(fun)                                          \
-    (void)H;                                                        \
     if (count >= 1) {                                               \
         HymnValue value = arguments[0];                             \
         if (hymn_is_int(value)) {                                   \
@@ -114,8 +113,9 @@ static HymnValue math_max(Hymn *H, int count, HymnValue *arguments) {
         } else if (hymn_is_float(value)) {                          \
             return hymn_new_float(fun(hymn_as_float(value)));       \
         }                                                           \
+        return hymn_new_exception(H, "argument must be a number");  \
     }                                                               \
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing number");
 
 static HymnValue math_floor(Hymn *H, int count, HymnValue *arguments) {
     MATH_FUNCTION(floor)
@@ -158,7 +158,6 @@ static HymnValue math_atan(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue math_atan2(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count >= 2) {
         HymnValue a = arguments[0];
         HymnValue b = arguments[1];
@@ -175,8 +174,9 @@ static HymnValue math_atan2(Hymn *H, int count, HymnValue *arguments) {
                 hymn_new_float(atan2(hymn_as_float(a), hymn_as_float(b)));
             }
         }
+        return hymn_new_exception(H, "arguments must be numbers");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing numbers");
 }
 
 static HymnValue math_sqrt(Hymn *H, int count, HymnValue *arguments) {
@@ -184,7 +184,6 @@ static HymnValue math_sqrt(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue math_pow(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count >= 2) {
         HymnValue a = arguments[0];
         HymnValue b = arguments[1];
@@ -201,8 +200,9 @@ static HymnValue math_pow(Hymn *H, int count, HymnValue *arguments) {
                 hymn_new_float(pow(hymn_as_float(a), hymn_as_float(b)));
             }
         }
+        return hymn_new_exception(H, "arguments must be numbers");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing numbers");
 }
 
 static HymnValue math_log(Hymn *H, int count, HymnValue *arguments) {

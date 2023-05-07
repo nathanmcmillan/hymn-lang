@@ -1,3 +1,18 @@
+# Release 0.9.0
+
+- Added proper exception throwing to standard library functions
+- Fixed bug in `pattern` library where ending `]` of class was included as part match
+- Optimized removing POP instructions preceding a VOID return
+- Fixed double echo in REPL when printing an exception
+- Fixed dot syntax when using table keys that share a reserved keyword name
+- Fixed bad stack management when optimizing incrementing a local
+- Underscores allowed (again) in variable names
+- Improved REPL line editing
+- Added REPL support to save and load command history
+- New `io` library function: `mkdir`
+- New `text` library function: `last`
+- New function `debug` prints a given function's byte code
+
 # Release 0.8.0
 
 - Hyphens now allowed in variable names

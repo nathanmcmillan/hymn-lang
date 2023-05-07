@@ -20,15 +20,14 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.8.0"
+#define HYMN_VERSION "0.9.0"
 
-// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_STACK
+// #define HYMN_DEBUG_TRACE
 // #define HYMN_DEBUG_MEMORY
 
 // #define HYMN_NO_REPL
 #define HYMN_NO_DYNAMIC_LIBS
-
 // #define HYMN_NO_OPTIMIZE
 // #define HYMN_NO_MEMORY_MANAGE
 
@@ -72,7 +71,9 @@
 #define HYMN_FRAMES_MAX 64
 #define HYMN_STACK_MAX (HYMN_FRAMES_MAX * HYMN_UINT8_COUNT)
 
-#define HYMN_STRING_HEAD(string) (HymnStringHead *)((char *)string - sizeof(HymnStringHead))
+#define hymn_string_head(string) ((HymnStringHead *)((char *)string - sizeof(HymnStringHead)))
+#define hymn_string_len(string) (hymn_string_head(string)->length)
+#define hymn_string_equal(a, b) (strcmp(a, b) == 0)
 
 typedef long long HymnInt;
 typedef double HymnFloat;
@@ -201,11 +202,11 @@ struct HymnByteCode {
 };
 
 struct HymnExceptList {
-    struct HymnExceptList *next;
     int start;
     int end;
     int locals;
     char padding[4];
+    struct HymnExceptList *next;
 };
 
 struct HymnFunction {
@@ -269,11 +270,8 @@ HymnString *hymn_new_string(const char *init);
 HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string);
 HymnObjectString *hymn_new_intern_string(Hymn *H, const char *value);
 
-HymnStringHead *hymn_string_head(HymnString *string);
 HymnString *hymn_string_copy(HymnString *string);
-size_t hymn_string_len(HymnString *this);
 void hymn_string_delete(HymnString *this);
-bool hymn_string_equal(const char *a, const char *b);
 void hymn_string_zero(HymnString *this);
 HymnString *hymn_string_append_char(HymnString *string, const char b);
 HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end);
@@ -363,11 +361,11 @@ HymnValue hymn_type_exception(Hymn *H, enum HymnValueType expected, enum HymnVal
 
 Hymn *new_hymn(void);
 
-char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_call(Hymn *H, const char *name, int arguments);
+char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
-char *hymn_read(Hymn *H, const char *script);
+char *hymn_script(Hymn *H, const char *script);
 
 HymnValue hymn_get(Hymn *H, const char *name);
 
@@ -383,7 +381,6 @@ void hymn_delete(Hymn *H);
 
 #ifndef HYMN_NO_REPL
 void hymn_repl(Hymn *H);
-void hymn_server(Hymn *H);
 #endif
 
 #ifndef HYMN_NO_DYNAMIC_LIBS

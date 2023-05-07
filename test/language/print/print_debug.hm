@@ -1,0 +1,7 @@
+# @starts 0000    4 OP_CONSTANT: [0] [integer: 5]
+
+func foo() {
+  return 5
+}
+
+echo debug(foo)

@@ -25,25 +25,31 @@ bool hymn_string_contains(HymnString *string, const char *using) {
     return false;
 }
 
+static HymnInt string_last_index_of(HymnString *string, const char *sub) {
+    HymnStringHead *head = hymn_string_head(string);
+    size_t len = head->length;
+    size_t len_sub = strlen(sub);
+    if (len_sub > len || len == 0 || len_sub == 0) return -1;
+    size_t i = len - len_sub + 1;
+    while (true) {
+        if (i == 0) return -1;
+        i--;
+        bool match = true;
+        for (size_t k = 0; k < len_sub; k++) {
+            if (sub[k] != string[i + k]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) return (HymnInt)i;
+    }
+}
+
 static bool space(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-static HymnValue text_ends(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
-    if (count >= 2) {
-        HymnValue value = arguments[0];
-        HymnValue starts = arguments[1];
-        if (hymn_is_string(value) && hymn_is_string(starts)) {
-            bool result = hymn_string_ends_with(hymn_as_string(value), hymn_as_string(starts));
-            return hymn_new_bool(result);
-        }
-    }
-    return hymn_new_none();
-}
-
 static HymnValue text_starts(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count >= 2) {
         HymnValue value = arguments[0];
         HymnValue starts = arguments[1];
@@ -51,8 +57,48 @@ static HymnValue text_starts(Hymn *H, int count, HymnValue *arguments) {
             bool result = hymn_string_starts_with(hymn_as_string(value), hymn_as_string(starts));
             return hymn_new_bool(result);
         }
+        return hymn_new_exception(H, "text and search must be strings");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing text and search");
+}
+
+static HymnValue text_ends(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue ends = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(ends)) {
+            bool result = hymn_string_ends_with(hymn_as_string(value), hymn_as_string(ends));
+            return hymn_new_bool(result);
+        }
+        return hymn_new_exception(H, "text and search must be strings");
+    }
+    return hymn_new_exception(H, "missing text and search");
+}
+
+static HymnValue text_contains(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue contains = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(contains)) {
+            bool result = hymn_string_contains(hymn_as_string(value), hymn_as_string(contains));
+            return hymn_new_bool(result);
+        }
+        return hymn_new_exception(H, "text and search must be strings");
+    }
+    return hymn_new_exception(H, "missing text and search");
+}
+
+static HymnValue text_last(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 2) {
+        HymnValue value = arguments[0];
+        HymnValue contains = arguments[1];
+        if (hymn_is_string(value) && hymn_is_string(contains)) {
+            HymnInt index = string_last_index_of(hymn_as_string(value), hymn_as_string(contains));
+            return hymn_new_int(index);
+        }
+        return hymn_new_exception(H, "text and search must be strings");
+    }
+    return hymn_new_exception(H, "missing text and search");
 }
 
 static HymnValue text_replace(Hymn *H, int count, HymnValue *arguments) {
@@ -65,8 +111,9 @@ static HymnValue text_replace(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *string = hymn_intern_string(H, result);
             return hymn_new_string_value(string);
         }
+        return hymn_new_exception(H, "text, search, and replace must be strings");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing text, search, and replace");
 }
 
 static HymnValue text_trim(Hymn *H, int count, HymnValue *arguments) {
@@ -78,8 +125,9 @@ static HymnValue text_trim(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *trim = hymn_intern_string(H, string);
             return hymn_new_string_value(trim);
         }
+        return hymn_new_exception(H, "text must be a string");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing text");
 }
 
 static HymnValue text_left_strip(Hymn *H, int count, HymnValue *arguments) {
@@ -112,8 +160,9 @@ static HymnValue text_left_strip(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *strip = hymn_intern_string(H, string);
             return hymn_new_string_value(strip);
         }
+        return hymn_new_exception(H, "text must be a string");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing text");
 }
 
 static HymnValue text_right_strip(Hymn *H, int count, HymnValue *arguments) {
@@ -142,8 +191,9 @@ static HymnValue text_right_strip(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *strip = hymn_intern_string(H, string);
             return hymn_new_string_value(strip);
         }
+        return hymn_new_exception(H, "text must be a string");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing text");
 }
 
 static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
@@ -170,6 +220,7 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *object = hymn_intern_string(H, string);
             return hymn_new_string_value(object);
         }
+        return hymn_new_exception(H, "expected an array and string");
     } else if (count == 1) {
         HymnValue a = arguments[0];
         if (hymn_is_array(a)) {
@@ -188,14 +239,17 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
             HymnObjectString *object = hymn_intern_string(H, string);
             return hymn_new_string_value(object);
         }
+        return hymn_new_exception(H, "expected an array");
     }
-    return hymn_new_none();
+    return hymn_new_exception(H, "missing array");
 }
 
 void hymn_use_text(Hymn *H) {
     HymnTable *text = hymn_new_table();
-    hymn_add_function_to_table(H, text, "ends", text_ends);
     hymn_add_function_to_table(H, text, "starts", text_starts);
+    hymn_add_function_to_table(H, text, "ends", text_ends);
+    hymn_add_function_to_table(H, text, "contains", text_contains);
+    hymn_add_function_to_table(H, text, "last", text_last);
     hymn_add_function_to_table(H, text, "replace", text_replace);
     hymn_add_function_to_table(H, text, "trim", text_trim);
     hymn_add_function_to_table(H, text, "left-strip", text_left_strip);

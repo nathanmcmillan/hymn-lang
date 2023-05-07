@@ -13,25 +13,26 @@
 #if !defined(HYMN_TESTING) && !defined(HYMN_NO_CLI)
 
 static void signal_handle(int signum) {
-    if (signum != 2) {
+    if (signum == SIGINT) {
+        signal(SIGINT, signal_handle);
+    } else {
         exit(signum);
     }
 }
 
 static void help(void) {
-    printf("Hymn Script\n\n"
-           "  -c  Run command\n"
-           "  -i  Open interactive mode\n"
-           "  -s  Open server mode\n"
-           "  -b  Print compiled byte code\n"
-           "  -v  Print version information\n"
-           "  -h  Print this help message\n"
-           "  --  End of options\n");
+    printf("hymn script v" HYMN_VERSION "\n\n"
+           "  -c  run command\n"
+           "  -i  open interactive mode\n"
+           "  -b  print compiled byte code\n"
+           "  -v  print version information\n"
+           "  -h  print this help message\n"
+           "  --  end of options\n");
 }
 
 int main(int argc, char **argv) {
 
-    char mode = 0;
+    bool repl = false;
     bool byte = false;
 
     char *file = NULL;
@@ -48,7 +49,7 @@ int main(int argc, char **argv) {
                 help();
                 return 2;
             } else if (hymn_string_equal(argv[i], "-v") || hymn_string_equal(argv[i], "--version")) {
-                printf("Hymn " HYMN_VERSION "\n");
+                printf("hymn v" HYMN_VERSION "\n");
                 return EXIT_SUCCESS;
             } else if (hymn_string_equal(argv[i], "-c")) {
                 if (i + 1 < argc) {
@@ -61,9 +62,7 @@ int main(int argc, char **argv) {
             } else if (hymn_string_equal(argv[i], "-b")) {
                 byte = true;
             } else if (hymn_string_equal(argv[i], "-i")) {
-                mode = 1;
-            } else if (hymn_string_equal(argv[i], "-s")) {
-                mode = 2;
+                repl = true;
             } else {
                 file = argv[i];
             }
@@ -82,7 +81,7 @@ int main(int argc, char **argv) {
         if (byte) {
             error = hymn_debug(hymn, file, NULL);
         } else {
-            error = hymn_read(hymn, file);
+            error = hymn_script(hymn, file);
         }
         if (error != NULL) {
             fprintf(stderr, "%s\n", error);
@@ -111,9 +110,7 @@ int main(int argc, char **argv) {
     (void)mode;
     fprintf(stderr, "interactive mode not available\n");
 #else
-    if (mode == 2) {
-        hymn_server(hymn);
-    } else if (mode == 1 || (file == NULL && code == NULL)) {
+    if (repl || (file == NULL && code == NULL)) {
         hymn_repl(hymn);
     }
 #endif

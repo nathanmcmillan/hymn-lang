@@ -103,7 +103,7 @@
       }
     },
     {
-      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|inspect)(?:\\s|\\(|$)",
+      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|inspect|debug)(?:\\s|\\(|$)",
       "captures": {
         "1": {
           "name": "support.function.hymn"

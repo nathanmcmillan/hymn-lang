@@ -7,7 +7,7 @@
    - Can we assign the original byte index as a unique identifier
    - And only at the very end, iterate through and match them, then calculate the final difference?
 1. Finish JSON module
-   - Throw proper exceptions
+   - Handle scientific notation
 1. Finish dynamic library support
    - Export everything
    - Build as a library

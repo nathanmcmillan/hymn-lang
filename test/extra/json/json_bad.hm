@@ -1,7 +1,13 @@
-func fun(raw) {
-  print(stdout, "raw: { raw } -- ")
-  let parsed = json.parse(raw)
-  print(stdout, "exception: { parsed }\n")
+use "test/libs/assert"
+
+func fun(input) {
+  echo "input: < ${input} >"
+  try {
+    json.parse(input)
+  } except e {
+    return
+  }
+  throw "expected a JSON exception"
 }
 
 fun('[')

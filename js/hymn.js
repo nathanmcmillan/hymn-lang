@@ -224,6 +224,7 @@ const TOKEN_UNDEFINED = 80
 const TOKEN_USE = 81
 const TOKEN_VALUE = 82
 const TOKEN_WHILE = 83
+const TOKEN_DEBUG = 84
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -244,7 +245,7 @@ const STRING_STATUS_CLOSE = 3
 const STRING_STATUS_CONTINUE = 4
 
 const OP_ADD = 0
-const OP_ARRAY_INSERT = 1
+const OP_INSERT = 1
 const OP_ARRAY_POP = 2
 const OP_ARRAY_PUSH = 3
 const OP_BIT_AND = 4
@@ -309,6 +310,7 @@ const OP_THROW = 62
 const OP_TRUE = 63
 const OP_TYPE = 64
 const OP_USE = 65
+const OP_DEBUG = 66
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -372,6 +374,8 @@ class Compiler {
     this.stringStatus = STRING_STATUS_NONE
     this.H = H
     this.scope = null
+    this.pop = -1
+    this.barrier = -1
     this.loop = null
     this.jump = null
     this.jumpOr = null
@@ -424,6 +428,7 @@ rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_DEBUG] = new Rule(debugExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DIVIDE] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
@@ -847,7 +852,7 @@ function current(C) {
 function compileError(C, token, format) {
   if (C.error !== null) return
 
-  let error = 'compiler: ' + format
+  let error = format
 
   if (token.type !== TOKEN_EOF && token.length > 0) {
     const source = C.source
@@ -874,14 +879,14 @@ function compileError(C, token, format) {
     }
 
     if (begin < end) {
-      error += '\n| ' + source.substring(begin, end) + '\n  '
+      error += '\n  | ' + source.substring(begin, end) + '\n    '
       const spaces = token.start - begin
       if (spaces > 0) for (let i = 0; i < spaces; i++) error += ' '
       for (let i = 0; i < token.length; i++) error += '^'
     }
   }
 
-  error += '\nat ' + (C.script === null ? 'script' : C.script) + ':' + token.row
+  error += '\n  at ' + (C.script === null ? 'script' : C.script) + ':' + token.row
 
   C.error = error
 
@@ -980,6 +985,7 @@ function identKey(ident, size) {
       if (size === 5) return identTrie(ident, 1, 'reak', TOKEN_BREAK)
       break
     case 'd':
+      if (size === 5) return identTrie(ident, 1, 'ebug', TOKEN_DEBUG)
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
       break
     case 'r':
@@ -1072,7 +1078,7 @@ function isDigit(c) {
 }
 
 function isIdent(c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c === '_'
 }
 
 function stringStatus(C) {
@@ -1615,6 +1621,12 @@ function emit(C, i) {
   writeByte(current(C), i, C.previous.row)
 }
 
+function emitPop(C) {
+  const code = current(C)
+  writeByte(code, OP_POP, C.previous.row)
+  C.pop = code.count
+}
+
 function emitShort(C, i, b) {
   const row = C.previous.row
   const code = current(C)
@@ -1833,9 +1845,10 @@ function endScope(C) {
   const scope = C.scope
   scope.depth--
   while (scope.localCount > 0 && scope.locals[scope.localCount - 1].depth > scope.depth) {
-    emit(C, OP_POP)
+    emitPop(C)
     scope.localCount--
   }
+  C.barrier = scope.func.code.count
 }
 
 function compileArray(C) {
@@ -1846,7 +1859,8 @@ function compileArray(C) {
   while (!check(C, TOKEN_RIGHT_SQUARE) && !check(C, TOKEN_EOF)) {
     emit(C, OP_DUPLICATE)
     expression(C)
-    emitShort(C, OP_ARRAY_PUSH, OP_POP)
+    emit(C, OP_ARRAY_PUSH)
+    emitPop(C)
     if (!check(C, TOKEN_RIGHT_SQUARE)) {
       consume(C, TOKEN_COMMA, "expected ',' between array elements")
     }
@@ -1872,7 +1886,7 @@ function compileTable(C) {
     consume(C, TOKEN_COLON, "expected ':' between table key and value")
     expression(C)
     emitShort(C, OP_SET_PROPERTY, name)
-    emit(C, OP_POP)
+    emitPop(C)
     if (!check(C, TOKEN_RIGHT_CURLY)) {
       consume(C, TOKEN_COMMA, "expected ',' between table elements")
     }
@@ -2237,10 +2251,18 @@ function compileOr(C) {
   compileWithPrecedence(C, PRECEDENCE_OR)
 }
 
+function echoIfNone(C) {
+  const code = C.scope.func.code
+  const count = code.count
+  if (C.barrier === count) return
+  if (C.pop === count) code.instructions[count - 1] = OP_ECHO
+}
+
 function endFunction(C) {
-  emitShort(C, OP_NONE, OP_RETURN)
   const scope = C.scope
   const func = scope.func
+  if (scope.type === TYPE_SCRIPT) echoIfNone(C)
+  emitShort(C, OP_NONE, OP_RETURN)
   if (scope.type === TYPE_FUNCTION) func.source = C.source.substring(scope.begin, C.previous.start + C.previous.length)
   C.scope = scope.enclosing
   return func
@@ -2490,7 +2512,7 @@ function forStatement(C) {
     iteratorStatement(C, false)
     return
   } else {
-    compileError(C, C.previous, "expected one of '=', 'in', or ',' in for loop declaration")
+    compileError(C, C.previous, 'incomplete for loop declaration')
     return
   }
 
@@ -2597,7 +2619,7 @@ function popStackLoop(C) {
     if (scope.locals[i - 1].depth < depth) {
       return
     }
-    emit(C, OP_POP)
+    emitPop(C)
   }
 }
 
@@ -2740,7 +2762,7 @@ function arrayInsertExpression(C) {
   consume(C, TOKEN_COMMA, `not enough arguments in call to 'insert' (expected 3)`)
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'insert'`)
-  emit(C, OP_ARRAY_INSERT)
+  emit(C, OP_INSERT)
 }
 
 function arrayPopExpression(C) {
@@ -2840,9 +2862,16 @@ function inspectExpression(C) {
   emit(C, OP_INSPECT)
 }
 
+function debugExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'debug'`)
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'debug'`)
+  emit(C, OP_DEBUG)
+}
+
 function expressionStatement(C) {
   expression(C)
-  emit(C, OP_POP)
+  emitPop(C)
 }
 
 function expression(C) {
@@ -2996,6 +3025,14 @@ function valueToInspect(value) {
   return valueToStringRecursive(value, null, false)
 }
 
+function valueToDebug(value) {
+  if (value.is === HYMN_VALUE_FUNC) {
+    const func = value.value
+    return disassembleByteCode(func.code, func.name)
+  }
+  return valueToStringRecursive(value, null, false)
+}
+
 function hymnConcat(a, b) {
   return newString(valueToString(a) + valueToString(b))
 }
@@ -3075,7 +3112,7 @@ function hymnStacktrace(H) {
     const func = frame.func
     const ip = frame.ip - 1
     const row = func.code.lines[ip]
-    trace += 'at'
+    trace += '  at'
     if (func.name !== null) trace += ' ' + func.name
     trace += (func.script === null ? ' script:' : ' ' + func.script + ':') + row
     if (i > 0) trace += '\n'
@@ -3093,7 +3130,7 @@ function hymnThrowExistingError(H, error) {
 }
 
 function hymnThrowError(H, error) {
-  error = 'error: ' + error + '\n' + hymnStacktrace(H)
+  error += '\n' + hymnStacktrace(H)
   return hymnPushError(H, error)
 }
 
@@ -3214,7 +3251,7 @@ async function hymnImport(H, file) {
     }
 
     if (module === null) {
-      let missing = 'import not found: ' + file + '\n'
+      let missing = 'import not found: ' + file
 
       for (let i = 0; i < size; i++) {
         const value = paths[i]
@@ -3227,10 +3264,10 @@ async function hymnImport(H, file) {
         const path = parent ? replace.replace(/<parent>/g, parent) : replace
         const use = nodePath.resolve(path)
 
-        missing += '\nno file: ' + use
+        missing += '\n  no file: ' + use
       }
 
-      return hymnPushError(H, missing)
+      return hymnThrowError(H, missing)
     }
 
     tablePut(imports, module, newBool(true))
@@ -3267,7 +3304,7 @@ async function hymnImport(H, file) {
     }
 
     if (module === null) {
-      let missing = 'import not found: ' + file + '\n'
+      let missing = 'import not found: ' + file
 
       for (let i = 0; i < size; i++) {
         const value = paths[i]
@@ -3279,10 +3316,10 @@ async function hymnImport(H, file) {
         const replace = question.replace(/<path>/g, file)
         const use = parent ? replace.replace(/<parent>/g, parent) : replace
 
-        missing += '\nno file: ' + use
+        missing += '\n  no file: ' + use
       }
 
-      return hymnPushError(H, missing)
+      return hymnThrowError(H, missing)
     }
 
     tablePut(imports, module, newBool(true))
@@ -3358,8 +3395,8 @@ function disassembleInstruction(debug, code, index) {
   switch (instruction) {
     case OP_ADD:
       return debugInstruction(debug, 'OP_ADD', index)
-    case OP_ARRAY_INSERT:
-      return debugInstruction(debug, 'OP_ARRAY_INSERT', index)
+    case OP_INSERT:
+      return debugInstruction(debug, 'OP_INSERT', index)
     case OP_ARRAY_POP:
       return debugInstruction(debug, 'OP_ARRAY_POP', index)
     case OP_ARRAY_PUSH:
@@ -3488,20 +3525,23 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_USE', index)
     case OP_INSPECT:
       return debugInstruction(debug, 'OP_INSPECT', index)
+    case OP_DEBUG:
+      return debugInstruction(debug, 'OP_DEBUG', index)
     default:
       return (debug[0] += 'UNKNOWN_OPCODE ' + instruction)
   }
 }
 
-function disassembleByteCode(code, name) {
-  console.debug(`\n-- ${name !== null ? name : 'script'} --`)
+function disassembleByteCode(code) {
   const debug = ['']
-  let index = 0
-  while (index < code.count) {
-    index = disassembleInstruction(debug, code, index)
-    console.debug(debug[0])
-    debug[0] = ''
+  if (code.count > 0) {
+    let index = disassembleInstruction(debug, code, 0)
+    while (index < code.count) {
+      debug[0] += '\n'
+      index = disassembleInstruction(debug, code, index)
+    }
   }
+  return debug[0]
 }
 
 function debugStack(H) {
@@ -4335,7 +4375,7 @@ async function hymnRun(H) {
         }
         break
       }
-      case OP_ARRAY_INSERT: {
+      case OP_INSERT: {
         const p = hymnPop(H)
         const i = hymnPop(H)
         const v = hymnPop(H)
@@ -4687,6 +4727,11 @@ async function hymnRun(H) {
         hymnPush(H, newString(valueToInspect(value)))
         break
       }
+      case OP_DEBUG: {
+        const value = hymnPop(H)
+        hymnPush(H, newString(valueToDebug(value)))
+        break
+      }
       case OP_THROW: {
         frame = hymnException(H)
         if (frame === null) return
@@ -4733,7 +4778,7 @@ async function debugScript(H, script, source) {
     return result.error
   }
 
-  disassembleByteCode(func.code, script)
+  console.debug(`\n-- ${script !== null ? script : 'script'} --\n${disassembleByteCode(func.code)}`)
 
   const constants = func.code.constants
 
@@ -4741,7 +4786,7 @@ async function debugScript(H, script, source) {
     const constant = constants[i]
     if (isFunc(constant)) {
       const value = constant.value
-      disassembleByteCode(value.code, value.name)
+      console.debug(`\n-- ${value.name !== null ? value.name : 'script'} --\n${disassembleByteCode(value.code)}`)
     }
   }
 

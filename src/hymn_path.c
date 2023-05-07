@@ -81,15 +81,15 @@ void hymn_delete_file_list(struct HymnPathFileList *list) {
     free(list->files);
 }
 
-#define PATH_FUNCTION(fun)                          \
-    if (count == 0) {                               \
-        return hymn_new_none();                     \
-    }                                               \
-    HymnValue path = arguments[0];                  \
-    if (!hymn_is_string(path)) {                    \
-        return hymn_new_none();                     \
-    }                                               \
-    HymnString *string = fun(hymn_as_string(path)); \
+#define PATH_FUNCTION(fun)                                     \
+    if (count == 0) {                                          \
+        return hymn_new_exception(H, "missing path");          \
+    }                                                          \
+    HymnValue path = arguments[0];                             \
+    if (!hymn_is_string(path)) {                               \
+        return hymn_new_exception(H, "path must be a string"); \
+    }                                                          \
+    HymnString *string = fun(hymn_as_string(path));            \
     return hymn_new_string_value(hymn_intern_string(H, string));
 
 static HymnValue path_working(Hymn *H, int count, HymnValue *arguments) {
@@ -140,7 +140,7 @@ static HymnValue walk(Hymn *H, int count, HymnValue *arguments, bool recursive) 
     } else {
         HymnValue value = arguments[0];
         if (!hymn_is_string(value)) {
-            return hymn_new_none();
+            return hymn_new_exception(H, "path must be a string");
         }
         path = hymn_as_string(value);
     }
@@ -173,7 +173,7 @@ static HymnValue path_base(Hymn *H, int count, HymnValue *arguments) {
     }
     HymnValue value = arguments[0];
     if (!hymn_is_string(value)) {
-        return hymn_new_exception(H, "path not a string");
+        return hymn_new_exception(H, "path must be a string");
     }
     HymnString *path = hymn_as_string(value);
     size_t size = hymn_string_len(path);
@@ -194,11 +194,11 @@ static HymnValue path_base(Hymn *H, int count, HymnValue *arguments) {
 
 static HymnValue path_extension(Hymn *H, int count, HymnValue *arguments) {
     if (count == 0) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path");
     }
     HymnValue value = arguments[0];
     if (!hymn_is_string(value)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path must be a string");
     }
     HymnString *path = hymn_as_string(value);
     size_t size = hymn_string_len(path);

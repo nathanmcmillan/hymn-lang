@@ -97,7 +97,7 @@ static bool check(char *pattern, char *end, int c) {
     switch (pattern[0]) {
     case '.': return true;
     case '%': return class(pattern[1], c);
-    case '[': return any(pattern, end, c);
+    case '[': return any(pattern, end - 1, c);
     default: return pattern[0] == c;
     }
 }

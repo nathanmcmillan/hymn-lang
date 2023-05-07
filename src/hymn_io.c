@@ -14,15 +14,14 @@
 #define IS_DIRECTORY(F) S_ISDIR(F)
 #endif
 
-#define PATH_STRING                 \
-    (void)H;                        \
-    if (count < 1) {                \
-        return hymn_new_none();     \
-    }                               \
-    HymnValue value = arguments[0]; \
-    if (!hymn_is_string(value)) {   \
-        return hymn_new_none();     \
-    }                               \
+#define PATH_STRING                                            \
+    if (count < 1) {                                           \
+        return hymn_new_exception(H, "missing path");          \
+    }                                                          \
+    HymnValue value = arguments[0];                            \
+    if (!hymn_is_string(value)) {                              \
+        return hymn_new_exception(H, "path must be a string"); \
+    }                                                          \
     HymnString *path = hymn_as_string(value);
 
 static HymnValue io_size(Hymn *H, int count, HymnValue *arguments) {
@@ -35,7 +34,7 @@ static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     HymnString *string = hymn_read_file(path);
     if (string == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "fopen null pointer");
     }
     HymnObjectString *object = hymn_intern_string(H, string);
     return hymn_new_string_value(object);
@@ -45,7 +44,7 @@ static HymnValue io_read_lines(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     HymnString *string = hymn_read_file(path);
     if (string == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "fopen null pointer");
     }
     HymnArray *array = hymn_new_array(0);
     size_t size = hymn_string_len(string);
@@ -73,10 +72,10 @@ static HymnValue io_read_lines(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_array_value(array);
 }
 
-static HymnValue writing(HymnString *path, HymnString *content, const char *mode) {
+static HymnValue writing(Hymn *H, HymnString *path, HymnString *content, const char *mode) {
     FILE *open = fopen(path, mode);
     if (open == NULL) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "fopen null pointer");
     }
     fputs(content, open);
     fclose(open);
@@ -84,33 +83,31 @@ static HymnValue writing(HymnString *path, HymnString *content, const char *mode
 }
 
 static HymnValue io_write(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path and content");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path and content must be strings");
     }
     HymnString *path = hymn_as_string(a);
     HymnString *content = hymn_as_string(b);
-    return writing(path, content, "w");
+    return writing(H, path, content, "w");
 }
 
 static HymnValue io_append(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing path and content");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path and content must be strings");
     }
     HymnString *path = hymn_as_string(a);
     HymnString *content = hymn_as_string(b);
-    return writing(path, content, "a");
+    return writing(H, path, content, "a");
 }
 
 static HymnValue io_exists(Hymn *H, int count, HymnValue *arguments) {
@@ -124,7 +121,7 @@ static HymnValue io_stats(Hymn *H, int count, HymnValue *arguments) {
     struct stat b;
     bool exists = stat(path, &b) == 0;
     if (!exists) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "path does not exist");
     }
     HymnTable *table = hymn_new_table();
     hymn_set_property_const(H, table, "directory", hymn_new_bool(IS_DIRECTORY(b.st_mode)));
@@ -154,14 +151,13 @@ static HymnValue io_input(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue io_move(Hymn *H, int count, HymnValue *arguments) {
-    (void)H;
     if (count < 2) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "missing source and destination paths");
     }
     HymnValue a = arguments[0];
     HymnValue b = arguments[1];
     if (!hymn_is_string(a) || !hymn_is_string(b)) {
-        return hymn_new_none();
+        return hymn_new_exception(H, "source and destination must be strings");
     }
     HymnString *source = hymn_as_string(a);
     HymnString *target = hymn_as_string(b);
@@ -173,6 +169,16 @@ static HymnValue io_remove(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     int removed = remove(path);
     return hymn_new_bool(removed != -1);
+}
+
+static HymnValue io_mkdir(Hymn *H, int count, HymnValue *arguments) {
+    PATH_STRING
+#ifdef _MSC_VER
+    int result = mkdir(path);
+#else
+    int result = mkdir(path, 0755);
+#endif
+    return hymn_new_bool(result != -1);
 }
 
 void hymn_use_io(Hymn *H) {
@@ -187,5 +193,6 @@ void hymn_use_io(Hymn *H) {
     hymn_add_function_to_table(H, io, "input", io_input);
     hymn_add_function_to_table(H, io, "move", io_move);
     hymn_add_function_to_table(H, io, "remove", io_remove);
+    hymn_add_function_to_table(H, io, "mkdir", io_mkdir);
     hymn_add_table(H, "io", io);
 }

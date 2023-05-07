@@ -428,11 +428,11 @@ done:
 }
 
 static void help(void) {
-    printf("Hymn Script Formatter\n\n"
-           "  -w  Write to file\n"
-           "  -c  Format input command\n"
-           "  -v  Print version information\n"
-           "  -h  Print this help message\n");
+    printf("hymn script formatter\n\n"
+           "  -w  write to file\n"
+           "  -c  format input command\n"
+           "  -v  print version information\n"
+           "  -h  print this help message\n");
 }
 
 static void read_file(const char *path) {
