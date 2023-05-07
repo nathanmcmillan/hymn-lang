@@ -7874,9 +7874,7 @@ void hymn_repl(Hymn *H) {
                 lines = save;
             }
 #endif
-            if (input[0] != '\0') {
-                input = hymn_string_append_char(input, '\n');
-            }
+            if (input[0] != '\0') input = hymn_string_append_char(input, '\n');
             input = hymn_string_append(input, line);
             hymn_string_trim(input);
         }
@@ -7967,9 +7965,6 @@ void hymn_repl(Hymn *H) {
 
         History *save = hymn_calloc(1, sizeof(History));
         save->input = hymn_new_string(input);
-
-        hymn_string_zero(input);
-
         if (history == NULL) {
             history = save;
         } else {
@@ -7977,6 +7972,7 @@ void hymn_repl(Hymn *H) {
             save->previous = history;
             history = save;
         }
+        hymn_string_zero(input);
 
         call_function(H, func);
     }
