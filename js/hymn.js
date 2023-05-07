@@ -1621,7 +1621,7 @@ function emit(C, i) {
   writeByte(current(C), i, C.previous.row)
 }
 
-function emit_pop(C) {
+function emitPop(C) {
   const code = current(C)
   writeByte(code, OP_POP, C.previous.row)
   C.pop = code.count
@@ -1845,7 +1845,7 @@ function endScope(C) {
   const scope = C.scope
   scope.depth--
   while (scope.localCount > 0 && scope.locals[scope.localCount - 1].depth > scope.depth) {
-    emit_pop(C)
+    emitPop(C)
     scope.localCount--
   }
   C.barrier = scope.func.code.count
@@ -1860,7 +1860,7 @@ function compileArray(C) {
     emit(C, OP_DUPLICATE)
     expression(C)
     emit(C, OP_ARRAY_PUSH)
-    emit_pop(C)
+    emitPop(C)
     if (!check(C, TOKEN_RIGHT_SQUARE)) {
       consume(C, TOKEN_COMMA, "expected ',' between array elements")
     }
@@ -1886,7 +1886,7 @@ function compileTable(C) {
     consume(C, TOKEN_COLON, "expected ':' between table key and value")
     expression(C)
     emitShort(C, OP_SET_PROPERTY, name)
-    emit_pop(C)
+    emitPop(C)
     if (!check(C, TOKEN_RIGHT_CURLY)) {
       consume(C, TOKEN_COMMA, "expected ',' between table elements")
     }
@@ -2619,7 +2619,7 @@ function popStackLoop(C) {
     if (scope.locals[i - 1].depth < depth) {
       return
     }
-    emit_pop(C)
+    emitPop(C)
   }
 }
 
@@ -2871,7 +2871,7 @@ function debugExpression(C) {
 
 function expressionStatement(C) {
   expression(C)
-  emit_pop(C)
+  emitPop(C)
 }
 
 function expression(C) {
