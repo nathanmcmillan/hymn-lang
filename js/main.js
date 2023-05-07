@@ -14,10 +14,10 @@ async function main() {
   const args = process.argv
 
   if (args.length <= 2) {
-    console.info('Usage: hymn [-b] [-c] FILE')
-    console.info('Interprets a Hymn script FILE.\n')
-    console.info('  -b  Print compiled byte code')
-    console.info('  -c  Run FILE as source code')
+    console.info('usage: hymn [-b] [-c] FILE')
+    console.info('interprets a hymn script FILE.\n')
+    console.info('  -b  print compiled byte code')
+    console.info('  -c  run FILE as source code')
     return
   }
 
@@ -32,7 +32,7 @@ async function main() {
         if (args[3] === '-c') {
           error = await hymn.debug(vm, null, args[4])
         } else {
-          console.error('Unknown second argument:', args[3])
+          console.error('unknown second argument:', args[3])
         }
       } else {
         const script = args[3]
@@ -42,7 +42,7 @@ async function main() {
     } else if (args[2] === '-c') {
       error = await hymn.interpret(vm, args[3])
     } else {
-      console.error('Unknown argument:', args[2])
+      console.error('unknown argument:', args[2])
     }
   } else {
     const script = args[2]

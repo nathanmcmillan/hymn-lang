@@ -1,6 +1,5 @@
 # Release 0.9.0
 
-- Performance tuning
 - Added proper exception throwing to standard library functions
 - Fixed bug in `pattern` library where ending `]` of class was included as part match
 - Optimized removing POP instructions preceding a VOID return
@@ -12,6 +11,7 @@
 - Added REPL support to save and load command history
 - New `io` library function: `mkdir`
 - New `text` library function: `last`
+- New function `debug` prints a given function's byte code
 
 # Release 0.8.0
 

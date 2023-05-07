@@ -20,8 +20,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-// #undef _MSC_VER
-
 #define HYMN_VERSION "0.9.0"
 
 // #define HYMN_DEBUG_STACK
@@ -279,7 +277,6 @@ HymnString *hymn_string_append_char(HymnString *string, const char b);
 HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end);
 bool hymn_string_starts_with(HymnString *s, const char *using);
 HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace);
-HymnInt hymn_string_last_index_of(HymnString *string, const char *sub);
 HymnString *hymn_string_append(HymnString *string, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
 HymnString *hymn_substring(const char *init, size_t start, size_t end);

@@ -25,6 +25,26 @@ bool hymn_string_contains(HymnString *string, const char *using) {
     return false;
 }
 
+static HymnInt string_last_index_of(HymnString *string, const char *sub) {
+    HymnStringHead *head = hymn_string_head(string);
+    size_t len = head->length;
+    size_t len_sub = strlen(sub);
+    if (len_sub > len || len == 0 || len_sub == 0) return -1;
+    size_t i = len - len_sub + 1;
+    while (true) {
+        if (i == 0) return -1;
+        i--;
+        bool match = true;
+        for (size_t k = 0; k < len_sub; k++) {
+            if (sub[k] != string[i + k]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) return (HymnInt)i;
+    }
+}
+
 static bool space(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
@@ -73,7 +93,7 @@ static HymnValue text_last(Hymn *H, int count, HymnValue *arguments) {
         HymnValue value = arguments[0];
         HymnValue contains = arguments[1];
         if (hymn_is_string(value) && hymn_is_string(contains)) {
-            HymnInt index = hymn_string_last_index_of(hymn_as_string(value), hymn_as_string(contains));
+            HymnInt index = string_last_index_of(hymn_as_string(value), hymn_as_string(contains));
             return hymn_new_int(index);
         }
         return hymn_new_exception(H, "text and search must be strings");

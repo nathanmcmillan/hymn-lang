@@ -21,13 +21,13 @@ static void signal_handle(int signum) {
 }
 
 static void help(void) {
-    printf("Hymn Script\n\n"
-           "  -c  Run command\n"
-           "  -i  Open interactive mode\n"
-           "  -b  Print compiled byte code\n"
-           "  -v  Print version information\n"
-           "  -h  Print this help message\n"
-           "  --  End of options\n");
+    printf("hymn script v" HYMN_VERSION "\n\n"
+           "  -c  run command\n"
+           "  -i  open interactive mode\n"
+           "  -b  print compiled byte code\n"
+           "  -v  print version information\n"
+           "  -h  print this help message\n"
+           "  --  end of options\n");
 }
 
 int main(int argc, char **argv) {
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
                 help();
                 return 2;
             } else if (hymn_string_equal(argv[i], "-v") || hymn_string_equal(argv[i], "--version")) {
-                printf("Hymn " HYMN_VERSION "\n");
+                printf("hymn v" HYMN_VERSION "\n");
                 return EXIT_SUCCESS;
             } else if (hymn_string_equal(argv[i], "-c")) {
                 if (i + 1 < argc) {
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
         if (byte) {
             error = hymn_debug(hymn, file, NULL);
         } else {
-            error = hymn_read(hymn, file);
+            error = hymn_script(hymn, file);
         }
         if (error != NULL) {
             fprintf(stderr, "%s\n", error);

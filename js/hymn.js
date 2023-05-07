@@ -224,6 +224,7 @@ const TOKEN_UNDEFINED = 80
 const TOKEN_USE = 81
 const TOKEN_VALUE = 82
 const TOKEN_WHILE = 83
+const TOKEN_DEBUG = 84
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -309,6 +310,7 @@ const OP_THROW = 62
 const OP_TRUE = 63
 const OP_TYPE = 64
 const OP_USE = 65
+const OP_DEBUG = 66
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -426,6 +428,7 @@ rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_DEBUG] = new Rule(debugExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DIVIDE] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
@@ -982,6 +985,7 @@ function identKey(ident, size) {
       if (size === 5) return identTrie(ident, 1, 'reak', TOKEN_BREAK)
       break
     case 'd':
+      if (size === 5) return identTrie(ident, 1, 'ebug', TOKEN_DEBUG)
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
       break
     case 'r':
@@ -2858,6 +2862,13 @@ function inspectExpression(C) {
   emit(C, OP_INSPECT)
 }
 
+function debugExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'debug'`)
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'debug'`)
+  emit(C, OP_DEBUG)
+}
+
 function expressionStatement(C) {
   expression(C)
   emit_pop(C)
@@ -3010,6 +3021,14 @@ function valueToInspect(value) {
   if (value.is === HYMN_VALUE_FUNC) {
     const func = value.value
     if (func.source) return func.source
+  }
+  return valueToStringRecursive(value, null, false)
+}
+
+function valueToDebug(value) {
+  if (value.is === HYMN_VALUE_FUNC) {
+    const func = value.value
+    return disassembleByteCode(func.code, func.name)
   }
   return valueToStringRecursive(value, null, false)
 }
@@ -3506,20 +3525,23 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_USE', index)
     case OP_INSPECT:
       return debugInstruction(debug, 'OP_INSPECT', index)
+    case OP_DEBUG:
+      return debugInstruction(debug, 'OP_DEBUG', index)
     default:
       return (debug[0] += 'UNKNOWN_OPCODE ' + instruction)
   }
 }
 
-function disassembleByteCode(code, name) {
-  console.debug(`\n-- ${name !== null ? name : 'script'} --`)
+function disassembleByteCode(code) {
   const debug = ['']
-  let index = 0
-  while (index < code.count) {
-    index = disassembleInstruction(debug, code, index)
-    console.debug(debug[0])
-    debug[0] = ''
+  if (code.count > 0) {
+    let index = disassembleInstruction(debug, code, 0)
+    while (index < code.count) {
+      debug[0] += '\n'
+      index = disassembleInstruction(debug, code, index)
+    }
   }
+  return debug[0]
 }
 
 function debugStack(H) {
@@ -4705,6 +4727,11 @@ async function hymnRun(H) {
         hymnPush(H, newString(valueToInspect(value)))
         break
       }
+      case OP_DEBUG: {
+        const value = hymnPop(H)
+        hymnPush(H, newString(valueToDebug(value)))
+        break
+      }
       case OP_THROW: {
         frame = hymnException(H)
         if (frame === null) return
@@ -4751,7 +4778,7 @@ async function debugScript(H, script, source) {
     return result.error
   }
 
-  disassembleByteCode(func.code, script)
+  console.debug(`\n-- ${script !== null ? script : 'script'} --\n${disassembleByteCode(func.code)}`)
 
   const constants = func.code.constants
 
@@ -4759,7 +4786,7 @@ async function debugScript(H, script, source) {
     const constant = constants[i]
     if (isFunc(constant)) {
       const value = constant.value
-      disassembleByteCode(value.code, value.name)
+      console.debug(`\n-- ${value.name !== null ? value.name : 'script'} --\n${disassembleByteCode(value.code)}`)
     }
   }
 

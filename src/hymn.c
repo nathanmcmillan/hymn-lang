@@ -224,39 +224,16 @@ HymnString *hymn_string_append_substring(HymnString *string, const char *b, size
     return (HymnString *)s;
 }
 
-#ifndef _MSC_VER
-static HymnString *string_insert_char(HymnString *string, size_t index, const char b) {
-    HymnStringHead *head = hymn_string_head(string);
-    size_t len = head->length + 1;
-    if (len > head->capacity) {
-        head = string_resize(head, len * 2);
-    }
-    head->length = len;
-    char *s = (char *)(head + 1);
-    for (size_t i = len - 1; i > index; i--) {
-        s[i] = s[i - 1];
-    }
-    s[index] = b;
-    s[len] = '\0';
-    return (HymnString *)s;
+static bool string_starts_with(const char *t, const char *s) {
+    size_t tlen = strlen(t);
+    size_t slen = strlen(s);
+    return tlen < slen ? false : memcmp(t, s, slen) == 0;
 }
-
-static void string_remove(HymnString *string, size_t index) {
-    HymnStringHead *head = hymn_string_head(string);
-    size_t len = head->length - 1;
-    head->length = len;
-    char *s = (char *)(head + 1);
-    for (size_t i = index; i < len; i++) {
-        s[i] = s[i + 1];
-    }
-    s[len] = '\0';
-}
-#endif
 
 bool hymn_string_starts_with(HymnString *s, const char *using) {
     size_t slen = hymn_string_len(s);
-    size_t plen = strlen(using);
-    return slen < plen ? false : memcmp(s, using, plen) == 0;
+    size_t ulen = strlen(using);
+    return slen < ulen ? false : memcmp(s, using, ulen) == 0;
 }
 
 static bool string_find(HymnString *string, HymnString *sub, size_t *out) {
@@ -317,26 +294,6 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
         out = hymn_string_append_substring(out, string, pos, len);
     }
     return out;
-}
-
-HymnInt hymn_string_last_index_of(HymnString *string, const char *sub) {
-    HymnStringHead *head = hymn_string_head(string);
-    size_t len = head->length;
-    size_t len_sub = strlen(sub);
-    if (len_sub > len || len == 0 || len_sub == 0) return -1;
-    size_t i = len - len_sub + 1;
-    while (true) {
-        if (i == 0) return -1;
-        i--;
-        bool match = true;
-        for (size_t k = 0; k < len_sub; k++) {
-            if (sub[k] != string[i + k]) {
-                match = false;
-                break;
-            }
-        }
-        if (match) return (HymnInt)i;
-    }
 }
 
 static HymnString *char_to_string(char ch) {
@@ -580,6 +537,7 @@ enum TokenType {
     TOKEN_COMMA,
     TOKEN_CONTINUE,
     TOKEN_COPY,
+    TOKEN_DEBUG,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
     TOKEN_DOT,
@@ -684,6 +642,7 @@ enum OpCode {
     OP_CONSTANT,
     OP_COPY,
     OP_DEFINE_GLOBAL,
+    OP_DEBUG,
     OP_DELETE,
     OP_DIVIDE,
     OP_DUPLICATE,
@@ -790,6 +749,7 @@ static void keys_expression(Compiler *C, bool assign);
 static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
 static void inspect_expression(Compiler *C, bool assign);
+static void debug_expression(Compiler *C, bool assign);
 static void function_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
@@ -1036,6 +996,7 @@ static Rule rules[] = {
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_DEBUG] = {debug_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL, {0}},
@@ -1679,6 +1640,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 5) return ident_trie(ident, 1, "reak", TOKEN_BREAK);
         break;
     case 'd':
+        if (size == 5) return ident_trie(ident, 1, "ebug", TOKEN_DEBUG);
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
         break;
     case 'r':
@@ -4485,6 +4447,14 @@ static void inspect_expression(Compiler *C, bool assign) {
     emit(C, OP_INSPECT);
 }
 
+static void debug_expression(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'debug'");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'debug'");
+    emit(C, OP_DEBUG);
+}
+
 static void expression_statement(Compiler *C) {
     expression(C);
     emit_pop(C);
@@ -5280,7 +5250,7 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     return current_frame(H);
 }
 
-static size_t debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+static int debug_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, int index) {
     uint8_t constant = code->instructions[index + 1];
     HymnString *value = debug_value_to_string(code->constants.values[constant]);
     *debug = string_append_format(*debug, "%s: [%d] [%s]", name, constant, value);
@@ -5288,7 +5258,7 @@ static size_t debug_constant_instruction(HymnString **debug, const char *name, H
     return index + 2;
 }
 
-static size_t debug_two_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+static int debug_two_constant_instruction(HymnString **debug, const char *name, HymnByteCode *code, int index) {
     uint8_t constant = code->instructions[index + 1];
     HymnString *value = debug_value_to_string(code->constants.values[constant]);
     uint8_t constant2 = code->instructions[index + 2];
@@ -5299,54 +5269,54 @@ static size_t debug_two_constant_instruction(HymnString **debug, const char *nam
     return index + 3;
 }
 
-static size_t debug_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+static int debug_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, int index) {
     uint8_t byte = code->instructions[index + 1];
     *debug = string_append_format(*debug, "%s: [%d]", name, byte);
     return index + 2;
 }
 
-static size_t debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
-    unsigned int jump = ((unsigned int)code->instructions[index + 1] << 8U) | (unsigned int)code->instructions[index + 2];
+static int debug_jump_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, int index) {
+    int jump = ((int)code->instructions[index + 1] << 8) | (int)code->instructions[index + 2];
     *debug = string_append_format(*debug, "%s: [%zu] -> [%zu]", name, index, sign < 0 ? index + 3 - jump : index + 3 + jump);
     return index + 3;
 }
 
-static size_t debug_register_jump_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+static int debug_register_jump_instruction(HymnString **debug, const char *name, HymnByteCode *code, int index) {
     uint8_t slot_a = code->instructions[index + 1];
     uint8_t slot_b = code->instructions[index + 2];
-    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8U) | (unsigned int)code->instructions[index + 4];
+    int jump = ((int)code->instructions[index + 3] << 8) | (int)code->instructions[index + 4];
     *debug = string_append_format(*debug, "%s: [%d] [%d] ? [%zu] -> [%zu]", name, slot_a, slot_b, index, index + 5 + jump);
     return index + 5;
 }
 
-static size_t debug_three_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+static int debug_three_byte_instruction(HymnString **debug, const char *name, HymnByteCode *code, int index) {
     uint8_t byte = code->instructions[index + 1];
     uint8_t next = code->instructions[index + 2];
     *debug = string_append_format(*debug, "%s: [%d] [%d]", name, byte, next);
     return index + 3;
 }
 
-static size_t debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, size_t index) {
+static int debug_for_loop_instruction(HymnString **debug, const char *name, int sign, HymnByteCode *code, int index) {
     uint8_t slot = code->instructions[index + 1];
-    unsigned int jump = ((unsigned int)code->instructions[index + 2] << 8U) | (unsigned int)code->instructions[index + 3];
+    int jump = ((int)code->instructions[index + 2] << 8) | (int)code->instructions[index + 3];
     *debug = string_append_format(*debug, "%s: [%d] [%zu] -> [%zu]", name, slot, index, sign < 0 ? index + 4 - jump : index + 4 + jump);
     return index + 4;
 }
 
-static size_t debug_increment_loop_instruction(HymnString **debug, const char *name, HymnByteCode *code, size_t index) {
+static int debug_increment_loop_instruction(HymnString **debug, const char *name, HymnByteCode *code, int index) {
     uint8_t slot = code->instructions[index + 1];
     uint8_t increment = code->instructions[index + 2];
-    unsigned int jump = ((unsigned int)code->instructions[index + 3] << 8U) | (unsigned int)code->instructions[index + 4];
+    int jump = ((int)code->instructions[index + 3] << 8) | (int)code->instructions[index + 4];
     *debug = string_append_format(*debug, "%s: [%d] [%d] & [%zu] -> [%zu]", name, slot, increment, index, index + 5 - jump);
     return index + 5;
 }
 
-static size_t debug_instruction(HymnString **debug, const char *name, size_t index) {
+static int debug_instruction(HymnString **debug, const char *name, int index) {
     *debug = string_append_format(*debug, "%s", name);
     return index + 1;
 }
 
-static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, size_t index) {
+static int disassemble_instruction(HymnString **debug, HymnByteCode *code, int index) {
     *debug = string_append_format(*debug, "%04zu ", index);
     if (index > 0 && code->lines[index] == code->lines[index - 1]) {
         *debug = hymn_string_append(*debug, "   | ");
@@ -5375,6 +5345,7 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     case OP_NEW_TABLE: return debug_instruction(debug, "OP_NEW_TABLE", index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
+    case OP_DEBUG: return debug_instruction(debug, "OP_DEBUG", index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
@@ -5444,16 +5415,16 @@ static size_t disassemble_instruction(HymnString **debug, HymnByteCode *code, si
     }
 }
 
-static void disassemble_byte_code(HymnByteCode *code, const char *name) {
-    printf("\n-- %s --\n", name != NULL ? name : "script");
+static HymnString *disassemble_byte_code(HymnByteCode *code) {
     HymnString *debug = hymn_new_string("");
-    size_t offset = 0;
-    while (offset < (size_t)code->count) {
-        offset = disassemble_instruction(&debug, code, offset);
-        printf("%s\n", debug);
-        hymn_string_zero(debug);
+    if (code->count > 0) {
+        int offset = disassemble_instruction(&debug, code, 0);
+        while (offset < code->count) {
+            debug = hymn_string_append_char(debug, '\n');
+            offset = disassemble_instruction(&debug, code, offset);
+        }
     }
-    hymn_string_delete(debug);
+    return debug;
 }
 
 #define READ_BYTE(F) (*F->ip++)
@@ -7132,6 +7103,18 @@ dispatch:
         hymn_dereference(H, value);
         goto dispatch;
     }
+    case OP_DEBUG: {
+        HymnValue value = pop(H);
+        HymnString *debug = NULL;
+        if (hymn_is_func(value)) {
+            HymnFunction *func = hymn_as_func(value);
+            debug = disassemble_byte_code(&func->code);
+        }
+        if (debug == NULL) debug = hymn_value_to_string(value);
+        push_string(H, debug);
+        hymn_dereference(H, value);
+        goto dispatch;
+    }
     case OP_THROW: {
         frame = exception(H);
         if (frame == NULL) return;
@@ -7399,7 +7382,9 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
 
     HymnFunction *main = result.func;
 
-    disassemble_byte_code(&main->code, script);
+    HymnString *debug = disassemble_byte_code(&main->code);
+    printf("\n-- %s --\n%s\n", script != NULL ? script : "script", debug);
+    hymn_string_delete(debug);
 
     HymnValuePool *constants = &main->code.constants;
     int count = constants->count;
@@ -7409,7 +7394,9 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
         HymnValue value = values[i];
         if (hymn_is_func(value)) {
             HymnFunction *func = hymn_as_func(value);
-            disassemble_byte_code(&func->code, func->name);
+            debug = disassemble_byte_code(&func->code);
+            printf("\n-- %s --\n%s\n", func->name != NULL ? func->name : "script", debug);
+            hymn_string_delete(debug);
         }
     }
 
@@ -7494,21 +7481,15 @@ struct History {
 #ifndef _MSC_VER
 #include <termios.h>
 
-#define CURSOR_SAVE "\033[s"
-#define CURSOR_UNSAVE "\033[u"
 #define CURSOR_RESET "\033[2K\r"
-#define CURSOR_UP "\033[1F"
 
 #define cursor_backspace() printf("\b \b")
 #define cursor_forward() printf("\033[1C")
 #define cursor_backward() printf("\033[1D")
 #define cursor_clear() printf("\033[s\033[K")
 #define cursor_erase() printf("\033[1D\033[s\033[K")
-#define cursor_save() printf(CURSOR_SAVE)
-#define cursor_unsave() printf(CURSOR_UNSAVE)
+#define cursor_unsave() printf("\033[u")
 #define cursor_reset() printf(CURSOR_RESET)
-#define cursor_up() printf(CURSOR_UP)
-#define cursor_down() printf("\033[1E")
 
 enum Keyboard {
     ARROW_UP = 1000,
@@ -7588,67 +7569,21 @@ static int read_key(void) {
     } while (true);
 }
 
-static bool render(HymnString *input, int pos) {
-    int len = (int)hymn_string_len(input);
-    if (len == 0) {
-        printf(CURSOR_RESET "> ");
-        fflush(stdout);
-        return false;
-    }
-    // printf("\nRENDER: %d of %d [%s]\n\n\n\n", pos, len, input);
-    for (int i = pos; i >= 0; i--) {
-        if (input[i] == '\n') printf(CURSOR_RESET CURSOR_UP);
-    }
-    printf(CURSOR_RESET CURSOR_SAVE);
-    int s = 0;
-    for (int i = 0; i < len; i++) {
-        if (input[i] == '\n') {
-            printf("%s %.*s\n", (s == 0 ? ">" : "..."), (int)(i - s), &input[s]);
-            s = i + 1;
-        }
-    }
-    if (s == 0) {
-        printf("> %s", input);
-    } else {
-        printf("... %.*s", len - s, &input[s]);
-    }
-    return true;
-}
-
-static void curse(HymnString *input, int pos) {
-    cursor_unsave();
-    int p = 0;
-    for (int i = 0; i < pos; i++) {
-        if (input[i] == '\n') {
-            cursor_down();
-            p = i + 1;
-        }
-    }
-    printf("\033[%dC", (pos - p) + (p == 0 ? 2 : 4));
-    fflush(stdout);
-}
-
-static void render_new(HymnString *input, int pos) {
-    if (render(input, pos)) curse(input, pos);
-}
-
 static void reset_terminal(void) {
     if (tcsetattr(STDIN_FILENO, TCSANOW, &save_termios) == -1) {
         perror("tcsetattr");
     }
 }
 #else
-static void remove_newline(char *input) {
-    size_t p = 0;
-    while (input[p] != '\0') {
-        p++;
+static void remove_newline(char *line) {
+    size_t i = 0;
+    while (line[i] != '\0') {
+        i++;
     }
-    while (p > 0) {
-        p--;
-        if (input[p] != '\n') {
-            return;
-        }
-        input[p] = '\0';
+    while (i > 0) {
+        i--;
+        if (line[i] != '\n') return;
+        line[i] = '\0';
     }
 }
 #endif
@@ -7670,13 +7605,11 @@ static void call_function(Hymn *H, HymnFunction *func) {
 
 void hymn_repl(Hymn *H) {
 
-    printf("Welcome to Hymn v" HYMN_VERSION "\nType .help for more information\n");
+    printf("welcome to hymn v" HYMN_VERSION "\ntype .help for more information\n");
 
 #ifdef _MSC_VER
     char temp_dir[MAX_PATH];
     GetTempPath(MAX_PATH, temp_dir);
-
-    char line[INPUT_LIMIT];
 #else
     if (tcgetattr(STDIN_FILENO, &save_termios) == -1) {
         perror("tcgetattr");
@@ -7692,147 +7625,111 @@ void hymn_repl(Hymn *H) {
     }
     atexit(reset_terminal);
 
-    int pos = 0;
+    int index = 0;
     int count = 0;
 
+    History *lines = NULL;
     History *cursor = NULL;
 #endif
 
-    History *history = NULL;
-    bool open_editor = false;
+    char line[INPUT_LIMIT];
     HymnString *input = hymn_new_string_with_capacity(INPUT_LIMIT);
 
+    History *history = NULL;
+    bool open_editor = false;
+
     while (true) {
-#ifdef _MSC_VER
-        if (input[0] != '\0') {
-            printf("... ");
-        } else {
-            printf("> ");
-        }
+        printf(input[0] == '\0' ? "> " : "... ");
         fflush(stdout);
 
+#ifdef _MSC_VER
         if (fgets(line, sizeof(line), stdin) == NULL) {
             break;
         }
         remove_newline(line);
-
-        if (line[0] != '\0') {
-            if (input[0] != '\0') {
-                input = hymn_string_append_char(input, '\n');
-            }
-            input = hymn_string_append(input, line);
-            line[0] = '\0';
-        }
 #else
 #define CONTROL_KEY(c) ((c)&0x1f)
 
-        render_new(input, pos);
+        index = 0;
+        count = 0;
 
         while (true) {
             int c = read_key();
             switch (c) {
-            case CONTROL_KEY('c'):
             case CONTROL_KEY('d'):
                 printf("\n");
-                goto cleanup;
+                goto quit;
             case CONTROL_KEY('e'):
                 open_editor = true;
-                // input = hymn_string_append(input, line);
                 goto scan;
             case PAGE_UP:
             case ARROW_UP:
-                // if (history != NULL) {
-                //     if (cursor == NULL) {
-                //         cursor = history;
-                //     } else if (cursor->previous == NULL) {
-                //         continue;
-                //     } else {
-                //         cursor = cursor->previous;
-                //     }
-                //     hymn_string_zero(input);
-                //     input = hymn_string_append(input, cursor->input);
-                //     int len = (int)hymn_string_len(input);
-                //     int newline = (int)hymn_string_last_index_of(input, "\n");
-                //     if (newline > 0) {
-                //         int size = len - newline - 1;
-                //         for (int i = 0; i < size; i++) {
-                //             line[i] = input[newline + 1 + i];
-                //         }
-                //         count = size;
-                //         line[count] = '\0';
-                //         index = size;
-                //         size_t end = (size_t)newline;
-                //         HymnStringHead *head = hymn_string_head(input);
-                //         head->length = end;
-                //         input[end] = '\0';
-                //     } else {
-                //         for (int i = 0; i < len; i++) {
-                //             line[i] = input[i];
-                //         }
-                //         count = len;
-                //         line[count] = '\0';
-                //         index = len;
-                //         hymn_string_zero(input);
-                //     }
-                //     render(input, line, true);
-                // }
+                if (lines != NULL) {
+                    if (cursor == NULL) {
+                        cursor = lines;
+                    } else if (cursor->previous == NULL) {
+                        continue;
+                    } else {
+                        cursor = cursor->previous;
+                    }
+                    size_t len = hymn_string_len(cursor->input);
+                    memcpy(line, cursor->input, len + 1);
+                    index = (int)len;
+                    count = index;
+                    printf(CURSOR_RESET "%s %s", input[0] == '\0' ? ">" : "...", line);
+                    fflush(stdout);
+                }
                 continue;
             case PAGE_DOWN:
             case ARROW_DOWN:
-                // if (cursor != NULL) {
-                //     cursor = cursor->next;
-                //     hymn_string_zero(input);
-                //     if (cursor != NULL) {
-                //         input = hymn_string_append(input, cursor->input);
-                //     }
-                //     //     for (int i = 0; i < len; i++) {
-                //     //         if (input[i] == '\n') {
-                //     //             cursor_reset();
-                //     //             cursor_up();
-                //     //         }
-                //     //     }
-                //     cursor_reset();
-                //     printf("> %s", input);
-                //     fflush(stdout);
-                //     count = (int)hymn_string_len(input);
-                //     index = count;
-                // }
+                if (cursor != NULL) {
+                    cursor = cursor->next;
+                    if (cursor != NULL) {
+                        size_t len = hymn_string_len(cursor->input);
+                        memcpy(line, cursor->input, len + 1);
+                        index = (int)len;
+                        count = index;
+                    } else {
+                        line[0] = '\0';
+                        index = 0;
+                        count = 0;
+                    }
+                    printf(CURSOR_RESET "%s %s", input[0] == '\0' ? ">" : "...", line);
+                    fflush(stdout);
+                }
                 continue;
             case HOME_KEY:
             case ARROW_LEFT:
-                if (pos > 0) {
-                    if (pos == count && input[pos - 1] == '\n') {
-                        string_remove(input, pos);
-                        count--;
-                        // printf("\nLEFT: %d of %d [%s]\n\n\n\n", pos, count, input);
-                        printf(CURSOR_RESET CURSOR_UP);
-                    }
-                    render(input, pos);
-                    pos--;
-                    curse(input, pos);
-                    // render_new(input, pos);
+                if (index > 0) {
+                    index--;
+                    cursor_backward();
+                    fflush(stdout);
                 }
                 continue;
             case END_KEY:
             case ARROW_RIGHT:
-                if (pos < count) {
-                    // printf("\nRIGHT: %d of %d [%s]\n\n\n\n", pos, count, input);
-                    render(input, pos);
-                    pos++;
-                    curse(input, pos);
+                if (index < count) {
+                    index++;
+                    cursor_forward();
+                    fflush(stdout);
                 }
                 continue;
             case DELETE_KEY:
-                if (pos < count) {
-                    string_remove(input, 0);
+                if (index < count) {
                     count--;
-                    render_new(input, 0);
+                    for (int i = index; i < count; i++) {
+                        line[i] = line[i + 1];
+                    }
+                    cursor_clear();
+                    line[count] = '\0';
+                    printf("%s", &line[index]);
+                    cursor_unsave();
+                    fflush(stdout);
                 }
                 continue;
             case EOF:
                 hymn_string_zero(input);
                 count = 0;
-                pos = 0;
                 goto scan;
             case '\n':
             case '\r':
@@ -7841,62 +7738,21 @@ void hymn_repl(Hymn *H) {
                 if (iscntrl(c)) {
                     if (c == 8 || c == 127) {
                         // delete or backspace
-                        if (pos > 0) {
-                            string_remove(input, pos);
+                        if (index > 0) {
+                            index--;
+                            for (int i = index; i < count - 1; i++) {
+                                line[i] = line[i + 1];
+                            }
                             count--;
-                            pos--;
-                            render_new(input, pos);
-                            //             if (index == count) {
-                            //                 cursor_backspace();
-                            //             } else {
-                            //                 cursor_erase();
-                            //                 line[count] = '\0';
-                            //                 printf("%s", &line[index]);
-                            //                 cursor_unsave();
-                            //             }
-                            //             fflush(stdout);
-                            //         } else {
-                            //             int len = (int)hymn_string_len(input);
-                            //             if (len > 0) {
-                            //                 int newline = (int)hymn_string_last_index_of(input, "\n");
-                            //                 if (newline > 0) {
-                            //                     int size = len - newline - 1;
-                            //                     for (int i = 0; i < count; i++) {
-                            //                         int t = i + size;
-                            //                         if (t == INPUT_LIMIT) {
-                            //                             break;
-                            //                         }
-                            //                         line[t] = line[i];
-                            //                     }
-                            //                     for (int i = 0; i < size; i++) {
-                            //                         line[i] = input[newline + 1 + i];
-                            //                     }
-                            //                     count += size;
-                            //                     line[count] = '\0';
-                            //                     index = size;
-                            //                     size_t end = (size_t)newline;
-                            //                     HymnStringHead *head = hymn_string_head(input);
-                            //                     head->length = end;
-                            //                     input[end] = '\0';
-                            //                 } else {
-                            //                     for (int i = 0; i < count; i++) {
-                            //                         int t = i + len;
-                            //                         if (t == INPUT_LIMIT) {
-                            //                             break;
-                            //                         }
-                            //                         line[t] = line[i];
-                            //                     }
-                            //                     for (int i = 0; i < len; i++) {
-                            //                         line[i] = input[i];
-                            //                     }
-                            //                     count += len;
-                            //                     line[count] = '\0';
-                            //                     index = len;
-                            //                     hymn_string_zero(input);
-                            //                 }
-                            //                 render(input, line, false);
-                            //             }
-                            //         }
+                            if (index == count) {
+                                cursor_backspace();
+                            } else {
+                                cursor_erase();
+                                line[count] = '\0';
+                                printf("%s", &line[index]);
+                                cursor_unsave();
+                            }
+                            fflush(stdout);
                         }
                     } else {
                         printf("<%d>", c);
@@ -7904,14 +7760,18 @@ void hymn_repl(Hymn *H) {
                     }
                 } else if (c != '\0') {
                     if (count < INPUT_LIMIT) {
-                        input = string_insert_char(input, pos, (char)c);
                         count++;
-                        pos++;
-                        if (pos == count) {
+                        for (int i = count - 1; i > index; i--) {
+                            line[i] = line[i - 1];
+                        }
+                        line[index] = (char)c;
+                        index++;
+                        if (index == count) {
                             printf("%c", c);
                         } else {
                             cursor_clear();
-                            printf("%s", &input[pos - 1]);
+                            line[count] = '\0';
+                            printf("%s", &line[index - 1]);
                             cursor_unsave();
                             cursor_forward();
                         }
@@ -7921,69 +7781,42 @@ void hymn_repl(Hymn *H) {
             }
         }
 
-    scan:;
-        int len = (int)hymn_string_len(input);
-        for (int i = pos; i < len; i++) {
-            if (input[i] == '\n') {
-                cursor_down();
-            }
-        }
+    scan:
+        line[count] = '\0';
         printf("\n");
         cursor = NULL;
 #endif
 
-        hymn_string_trim(input);
-        if (hymn_string_len(input) == 0) {
-#ifndef _MSC_VER
-            count = 0;
-            pos = 0;
-#endif
-            continue;
-        }
-
-        if (input[0] == '.') {
-            if (hymn_string_equal(input, ".exit") || hymn_string_equal(input, ".quit")) {
-                goto cleanup;
-            } else if (hymn_string_equal(input, ".edit")) {
-                hymn_string_zero(input);
+        if (line[0] == '.') {
+            if (hymn_string_equal(line, ".exit") || hymn_string_equal(line, ".quit")) {
+                goto quit;
+            } else if (hymn_string_equal(line, ".edit")) {
+                line[0] = '\0';
+                open_editor = true;
                 goto editing;
-            } else if (hymn_string_equal(input, ".help")) {
+            } else if (hymn_string_equal(line, ".help")) {
                 printf(".exit   Exit interactive mode\n"
                        ".quit   Alias for .exit\n"
                        ".edit   Edit input using $EDITOR\n"
-                       ".debug  Print global variable functions\n"
                        ".save   Save history to [FILE]\n"
                        ".load   Read history from [FILE]\n"
                        ".help   Print this help message\n"
-                       "Press ^E to use $EDITOR\n"
-                       "Press ^D to exit interactive mode\n");
-            } else if (hymn_string_equal(input, ".debug")) {
-                HymnTable *globals = &H->globals;
-                unsigned int bins = globals->bins;
-                for (unsigned int i = 0; i < bins; i++) {
-                    HymnTableItem *item = globals->items[i];
-                    while (item != NULL) {
-                        HymnValue value = item->value;
-                        if (hymn_is_func(value)) {
-                            HymnFunction *func = hymn_as_func(value);
-                            disassemble_byte_code(&func->code, func->name);
-                        }
-                        item = item->next;
-                    }
-                }
-            } else if (hymn_string_starts_with(input, ".save ")) {
+                       "press ^E to use $EDITOR\n"
+                       "press ^C to cancel expression\n"
+                       "press ^D to exit interactive mode\n");
+            } else if (string_starts_with(line, ".save ")) {
                 char path[PATH_MAX];
-                strcpy(path, &input[6]);
+                strcpy(path, &line[6]);
                 if (path[0] == '\0') {
-                    printf("Bad file path\n");
+                    printf("bad file path\n");
                 } else if (history == NULL) {
-                    printf("No history to save\n");
+                    printf("no history to save\n");
                 } else if (hymn_file_exists(path)) {
-                    printf("History can't overwrite an existing file: %s\n", path);
+                    printf("history can't overwrite an existing file: %s\n", path);
                 } else {
                     FILE *open = fopen(path, "w");
                     if (open == NULL) {
-                        printf("Failed to write history: %s\n", path);
+                        printf("failed to write history: %s\n", path);
                     } else {
                         History *head = history;
                         while (head->previous != NULL) {
@@ -7994,18 +7827,18 @@ void hymn_repl(Hymn *H) {
                             head = head->next;
                         }
                         fclose(open);
-                        printf("History saved to: %s\n", path);
+                        printf("history saved to: %s\n", path);
                     }
                 }
-            } else if (hymn_string_starts_with(input, ".load ")) {
+            } else if (string_starts_with(line, ".load ")) {
                 char path[PATH_MAX];
-                strcpy(path, &input[6]);
+                strcpy(path, &line[6]);
                 if (path[0] == '\0') {
-                    printf("Bad file path\n");
+                    printf("bad file path\n");
                 } else if (hymn_file_exists(path)) {
                     HymnString *source = hymn_read_file(path);
                     if (source == NULL) {
-                        printf("Failed to read history: %s\n", path);
+                        printf("failed to read history: %s\n", path);
                     } else {
                         char *error = hymn_do(H, source);
                         hymn_string_delete(source);
@@ -8016,21 +7849,39 @@ void hymn_repl(Hymn *H) {
                         }
                     }
                 } else {
-                    printf("History file not found: %s\n", path);
+                    printf("history file not found: %s\n", path);
                 }
-            } else if (hymn_string_equal(input, ".save")) {
-                printf("Please specify a path\n");
-            } else if (hymn_string_equal(input, ".load")) {
-                printf("Please specify a path\n");
+            } else if (hymn_string_equal(line, ".save")) {
+                printf("specify a path\n");
+            } else if (hymn_string_equal(line, ".load")) {
+                printf("specify a path\n");
             } else {
-                printf("Invalid interactive command\n");
+                printf("invalid interactive command\n");
             }
-            hymn_string_zero(input);
             continue;
         }
 
+    editing:
+        if (line[0] != '\0') {
+#ifndef _MSC_VER
+            History *save = hymn_calloc(1, sizeof(History));
+            save->input = hymn_new_string(line);
+            if (lines == NULL) {
+                lines = save;
+            } else {
+                lines->next = save;
+                save->previous = lines;
+                lines = save;
+            }
+#endif
+            if (input[0] != '\0') {
+                input = hymn_string_append_char(input, '\n');
+            }
+            input = hymn_string_append(input, line);
+            hymn_string_trim(input);
+        }
+
         if (open_editor) {
-        editing:
             open_editor = false;
 
             char *editor = getenv("EDITOR");
@@ -8038,7 +7889,7 @@ void hymn_repl(Hymn *H) {
 #ifdef _MSC_VER
                 editor = "notepad";
 #else
-                printf("No EDITOR set\n");
+                printf("no EDITOR set\n");
                 continue;
 #endif
             }
@@ -8063,7 +7914,7 @@ void hymn_repl(Hymn *H) {
 #endif
 
             if (temp == NULL) {
-                printf("Failed to create temporary file\n");
+                printf("failed to create temporary file\n");
                 continue;
             }
 
@@ -8078,7 +7929,7 @@ void hymn_repl(Hymn *H) {
             HymnString *edit = hymn_string_format("%s %s", editor, path);
             int result = system(edit);
             if (result == -1) {
-                printf("Failed edit: %d\n", result);
+                printf("failed edit: %d\n", result);
             }
             hymn_string_delete(edit);
 
@@ -8086,37 +7937,29 @@ void hymn_repl(Hymn *H) {
             unlink(path);
 
             if (content == NULL) {
-                printf("Failed to read temporary file\n");
+                printf("failed to read temporary file\n");
                 continue;
             }
 
             input = hymn_string_append(input, content);
             hymn_string_delete(content);
-
             hymn_string_trim(input);
-            input = hymn_string_append_char(input, '\n');
-
-            printf("%s", input);
+            if (input[0] == '\0') {
+                continue;
+            }
+            printf("%s\n", input);
         }
+
+        if (input[0] == '\0') continue;
 
         CompileResult result = compile(H, NULL, input, TYPE_REPL);
         char *error = result.error;
         if (error != NULL) {
             if (!hymn_string_equal(error, "<eof>")) {
                 hymn_string_zero(input);
-#ifndef _MSC_VER
-                count = 0;
-                pos = 0;
-#endif
                 fprintf(stderr, "%s\n", error);
                 fflush(stderr);
                 free(error);
-            } else {
-                input = hymn_string_append_char(input, '\n');
-#ifndef _MSC_VER
-                count++;
-                pos++;
-#endif
             }
             continue;
         }
@@ -8126,11 +7969,6 @@ void hymn_repl(Hymn *H) {
         save->input = hymn_new_string(input);
 
         hymn_string_zero(input);
-
-#ifndef _MSC_VER
-        count = 0;
-        pos = 0;
-#endif
 
         if (history == NULL) {
             history = save;
@@ -8143,8 +7981,16 @@ void hymn_repl(Hymn *H) {
         call_function(H, func);
     }
 
-cleanup:
+quit:
     hymn_string_delete(input);
+#ifndef _MSC_VER
+    while (lines != NULL) {
+        hymn_string_delete(lines->input);
+        History *previous = lines->previous;
+        free(lines);
+        lines = previous;
+    }
+#endif
     while (history != NULL) {
         hymn_string_delete(history->input);
         History *previous = history->previous;
