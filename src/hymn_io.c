@@ -192,6 +192,7 @@ void hymn_use_io(Hymn *H) {
     hymn_add_function_to_table(H, io, "stats", io_stats);
     hymn_add_function_to_table(H, io, "input", io_input);
     hymn_add_function_to_table(H, io, "move", io_move);
+    // TODO: copy command
     hymn_add_function_to_table(H, io, "remove", io_remove);
     hymn_add_function_to_table(H, io, "mkdir", io_mkdir);
     hymn_add_table(H, "io", io);

@@ -1,3 +1,10 @@
+# Release 0.10.0
+
+- Fixed tail call stack bug
+- True dynamic library support
+- New function `debug_stack` prints the current stack
+- New function `debug_reference` prints a given object's reference counts
+
 # Release 0.9.0
 
 - Added proper exception throwing to standard library functions

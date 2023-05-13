@@ -268,9 +268,8 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
     HymnStringHead *head = hymn_string_head(string);
     size_t len = head->length;
     size_t len_sub = strlen(find);
-    if (len == 0 || len_sub > len) {
-        return hymn_new_string("");
-    }
+    if (len == 0) return hymn_new_string("");
+    if (len_sub == 0 || len_sub > len) return hymn_string_copy(string);
     HymnString *out = hymn_new_string_with_capacity(len);
     size_t end = len - len_sub + 1;
     size_t pos = 0;
@@ -285,14 +284,11 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
         if (match) {
             out = hymn_string_append_substring(out, string, pos, i);
             out = hymn_string_append(out, replace);
-            i += len_sub;
-            pos = i;
-            i--;
+            pos = i + len_sub;
+            i = pos - 1;
         }
     }
-    if (pos < len) {
-        out = hymn_string_append_substring(out, string, pos, len);
-    }
+    if (pos < len) out = hymn_string_append_substring(out, string, pos, len);
     return out;
 }
 
@@ -538,6 +534,8 @@ enum TokenType {
     TOKEN_CONTINUE,
     TOKEN_COPY,
     TOKEN_DEBUG,
+    TOKEN_DEBUG_STACK,
+    TOKEN_DEBUG_REFERENCE,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
     TOKEN_DOT,
@@ -641,8 +639,10 @@ enum OpCode {
     OP_CLEAR,
     OP_CONSTANT,
     OP_COPY,
-    OP_DEFINE_GLOBAL,
     OP_DEBUG,
+    OP_DEBUG_STACK,
+    OP_DEBUG_REFERENCE,
+    OP_DEFINE_GLOBAL,
     OP_DELETE,
     OP_DIVIDE,
     OP_DUPLICATE,
@@ -750,6 +750,8 @@ static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
 static void inspect_expression(Compiler *C, bool assign);
 static void debug_expression(Compiler *C, bool assign);
+static void debug_stack_expression(Compiler *C, bool assign);
+static void debug_reference_expression(Compiler *C, bool assign);
 static void function_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
@@ -997,6 +999,8 @@ static Rule rules[] = {
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DEBUG] = {debug_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_DEBUG_STACK] = {debug_stack_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_DEBUG_REFERENCE] = {debug_reference_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL, {0}},
@@ -1642,6 +1646,8 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
     case 'd':
         if (size == 5) return ident_trie(ident, 1, "ebug", TOKEN_DEBUG);
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
+        if (size == 11) return ident_trie(ident, 1, "ebug_stack", TOKEN_DEBUG_STACK);
+        if (size == 15) return ident_trie(ident, 1, "ebug_reference", TOKEN_DEBUG_REFERENCE);
         break;
     case 'r':
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
@@ -3625,6 +3631,7 @@ static void optimize(Compiler *C) {
                 rewrite(&optimizer, two, 1);
                 continue;
             }
+            // IF OP_POP - REMOVE?
             break;
         }
         case OP_CALL: {
@@ -4453,6 +4460,19 @@ static void debug_expression(Compiler *C, bool assign) {
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'debug'");
     emit(C, OP_DEBUG);
+}
+
+static void debug_stack_expression(Compiler *C, bool assign) {
+    (void)assign;
+    emit(C, OP_DEBUG_STACK);
+}
+
+static void debug_reference_expression(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'debug_reference'");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'debug_reference'");
+    emit(C, OP_DEBUG_REFERENCE);
 }
 
 static void expression_statement(Compiler *C) {
@@ -5346,6 +5366,8 @@ static int disassemble_instruction(HymnString **debug, HymnByteCode *code, int i
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
     case OP_DEBUG: return debug_instruction(debug, "OP_DEBUG", index);
+    case OP_DEBUG_STACK: return debug_instruction(debug, "OP_DEBUG_STACK", index);
+    case OP_DEBUG_REFERENCE: return debug_instruction(debug, "OP_DEBUG_REFERENCE", index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
@@ -5607,23 +5629,23 @@ dispatch:
                 if (frame == NULL) return;
             } else {
                 HymnValue *top = H->stack_top;
-                HymnValue *start = top - count - 1;
+                HymnValue *new_frame = top - count - 1;
                 HymnValue *bottom = frame->stack;
-                HymnValue *move = start;
-                while (bottom != start) {
+                HymnValue *shift = new_frame;
+                while (bottom != new_frame) {
                     hymn_dereference(H, *bottom);
-                    if (move != top) {
-                        *bottom = *move;
-                        move++;
+                    if (shift != top) {
+                        *bottom = *shift;
+                        shift++;
                     }
                     bottom++;
                 }
-                while (move != top) {
-                    *bottom = *move;
-                    move++;
+                while (shift != top) {
+                    *bottom = *shift;
+                    shift++;
                     bottom++;
                 }
-                H->stack_top = start;
+                H->stack_top = frame->stack + count + 1;
                 frame->func = func;
                 frame->ip = func->code.instructions;
             }
@@ -7112,6 +7134,48 @@ dispatch:
         }
         if (debug == NULL) debug = hymn_value_to_string(value);
         push_string(H, debug);
+        hymn_dereference(H, value);
+        goto dispatch;
+    }
+    case OP_DEBUG_STACK: {
+        if (H->stack_top != H->stack) {
+            HymnString *debug = hymn_new_string("");
+            for (HymnValue *i = H->stack; i != H->stack_top; i++) {
+                debug = hymn_string_append_char(debug, '[');
+                HymnString *stack_debug = debug_value_to_string(*i);
+                debug = hymn_string_append(debug, stack_debug);
+                hymn_string_delete(stack_debug);
+                debug = hymn_string_append(debug, "]\n");
+            }
+            push_string(H, debug);
+        } else {
+            push_string(H, hymn_new_string(""));
+        }
+        goto dispatch;
+    }
+    case OP_DEBUG_REFERENCE: {
+        HymnValue value = pop(H);
+        int count = 0;
+        switch (value.is) {
+        case HYMN_VALUE_STRING:
+            count = ((HymnObjectString *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_ARRAY:
+            count = ((HymnArray *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_TABLE:
+            count = ((HymnTable *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_FUNC:
+            count = ((HymnFunction *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_FUNC_NATIVE:
+            count = ((HymnNativeFunction *)value.as.o)->count;
+            break;
+        default:
+            break;
+        }
+        push(H, hymn_new_int(count));
         hymn_dereference(H, value);
         goto dispatch;
     }
