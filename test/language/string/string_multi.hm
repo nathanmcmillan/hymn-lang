@@ -4,7 +4,7 @@
 # world
 # good bye
 
-let foo = "hello
+set foo = "hello
   across
   the
 world"

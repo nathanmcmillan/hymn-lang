@@ -7,7 +7,7 @@ echo "Hello " "World"
 echo "Good" " Bye"
 echo "This " "Is" " Text"
 
-let line = "I"
+set line = "I"
   " Am "
   "One "
   "Line"

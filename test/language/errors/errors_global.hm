@@ -3,7 +3,7 @@
 
 use "errors"
 
-let foo = 8
+set foo = 8
 
 try {
   echo foo

@@ -3,7 +3,7 @@
 # or
 # worl
 
-let foo = "world"
+set foo = "world"
 
 echo foo[:]
 echo foo[0:1]

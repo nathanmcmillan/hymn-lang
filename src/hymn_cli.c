@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
         if (byte) {
             error = hymn_debug(hymn, NULL, code);
         } else {
-            error = hymn_do(hymn, code);
+            error = hymn_command(hymn, code);
         }
         if (error != NULL) {
             fprintf(stderr, "%s\n", error);

@@ -79,7 +79,7 @@
       ]
     },
     {
-      "match": "\\b(let)\\b",
+      "match": "\\b(set)\\b",
       "captures": {
         "1": {
           "name": "storage.modifier.hymn"

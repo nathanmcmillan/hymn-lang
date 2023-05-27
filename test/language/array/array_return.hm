@@ -7,7 +7,7 @@ func new() {
 }
 
 for i = 0, i < 3 {
-  let a = new()
+  set a = new()
   a[1] = a[1] * 4
   a[2][0] = a[2][0] * 4
   echo a[0] + ', ' + a[1] + ', ' + a[2]

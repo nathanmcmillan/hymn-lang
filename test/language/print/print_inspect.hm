@@ -6,15 +6,15 @@
 
 func bar(b) { return b }
 
-let world = func() {
+set world = func() {
   return 12
 }
 
-let foo = {
+set foo = {
   call: bar,
   hello: world
 }
 
-echo inspect(foo)
-echo inspect(bar)
-echo inspect(world)
+echo INSPECT(foo)
+echo INSPECT(bar)
+echo INSPECT(world)

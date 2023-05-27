@@ -1,20 +1,20 @@
 func load-texture(wad) {
-    let name = wad-get(wad, "paint")
-    let width = int(wad-get(wad, "columns"))
-    let height = int(wad-get(wad, "rows"))
-    let transparency = 0
+    set name = wad-get(wad, "paint")
+    set width = int(wad-get(wad, "columns"))
+    set height = int(wad-get(wad, "rows"))
+    set transparency = 0
     if wad-has(wad, "transparency") transparency = int(wad-get(wad, "transparency")) }
-    let data = wad-get(wad, "pixels")
-    let pixels = []
+    set data = wad-get(wad, "pixels")
+    set pixels = []
     for h = 0, h < height {
-        let row = h * width
+        set row = h * width
         for c = 0, c < width {
-            let i = c + row
-            let p = int(data[c])
+            set i = c + row
+            set p = int(data[c])
             if p == transparency { pixels[i] = 255 }
             else { pixels[i] = p }
         }
     }
-    let sprites = none
+    set sprites = none
     return { name: name, width: width, height: height, pixels: pixels, sprites: sprites }
 }

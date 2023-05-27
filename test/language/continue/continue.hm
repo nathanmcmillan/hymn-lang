@@ -1,10 +1,10 @@
-let x = 0
+set x = 0
 
 while x < 8 {
   echo "x == " + x
-  let y = 0
+  set y = 0
   while y < 4 {
-    let z = y + 1
+    set z = y + 1
     echo "z == " + z
     if y == 1
       y = y + 4

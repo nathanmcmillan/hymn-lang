@@ -2,8 +2,8 @@ use "util"
 
 # last-index returns the index of the last instance of v in a, or -1 if not found.
 func last-index(a, v) {
-  let size = len(a)
-  let i = size - 1
+  set size = len(a)
+  set i = size - 1
   while i >= 0 {
     if a[i] == v {
       return i
@@ -15,10 +15,10 @@ func last-index(a, v) {
 
 # upper returns s with letters mapped to their upper case.
 func upper(s) {
-  let new = ""
-  let size = len(s)
+  set new = ""
+  set size = len(s)
   for i = 0, i < size {
-    let c = s[i]
+    set c = s[i]
     if c == 'a' { c = 'A' }
     elif c == 'b' { c = 'B' }
     elif c == 'f' { c = 'F' }
@@ -48,9 +48,9 @@ func max(a, b) {
 
 # string-comparator returns the alphabetical integer difference comparing a to b.
 func string-comparator(a, b) {
-  let to = min(len(a), len(b))
+  set to = min(len(a), len(b))
   for i = 0, i < to {
-    let char = int(a[i]) - int(b[i])
+    set char = int(a[i]) - int(b[i])
     if char != 0 { return char }
   }
   return len(a) - len(b)
@@ -58,10 +58,10 @@ func string-comparator(a, b) {
 
 # sort returns a new array with elements sorted using the comparator function.
 func sort(a, comparator) {
-  let n = []
-  let total = 0
+  set n = []
+  set total = 0
   for v in a {
-    let id = 0
+    set id = 0
     while true {
       if id == total { break }
       if comparator(v, n[id]) < 0 {

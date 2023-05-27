@@ -2,7 +2,7 @@
 
 use "../errors/errors"
 
-let err = "empty"
+set err = "empty"
 try {
   index(0, 0)
   err = "bad"

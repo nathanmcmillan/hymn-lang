@@ -2,7 +2,7 @@ func foo(a, b) {
   echo a + b
 }
 
-let hello = ["hello"]
+set hello = ["hello"]
 
 @
 
@@ -10,4 +10,4 @@ func bar(a, b) {
   echo a + b
 }
 
-let world = ["world"]
+set world = ["world"]

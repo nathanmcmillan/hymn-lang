@@ -2,8 +2,12 @@
 
 - Fixed tail call stack bug
 - True dynamic library support
-- New function `debug_stack` prints the current stack
-- New function `debug_reference` prints a given object's reference counts
+- New function `STACK` prints the current stack
+- New function `REFEERENCE` prints a given object's reference counts
+- Renamed global functions
+  - `inspect` -> `INSPECT`
+  - `debug` -> `DEBUG`
+- Changed `let` keyword to `set`
 
 # Release 0.9.0
 

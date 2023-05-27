@@ -4,21 +4,21 @@
 # { "a\"b": 2, "c\"d": 4, "e'f": 6, "g'h": 8, "ijkl": 10, "x\\z": 12 }
 
 {
-  let table = {}
+  set table = {}
   echo table
 }
 
 {
-  let table = { a: 2, b: 4, c: 6 }
+  set table = { a: 2, b: 4, c: 6 }
   echo table
 }
 
 {
-  let table = { "a": 2, "b": 4, 'c': 6, 'd': 8 }
+  set table = { "a": 2, "b": 4, 'c': 6, 'd': 8 }
   echo table
 }
 
 {
-  let table = { "a\"b": 2, 'c"d': 4, "e'f": 6, 'g\'h': 8, "ij""kl": 10, "x\\z": 12 }
+  set table = { "a\"b": 2, 'c"d': 4, "e'f": 6, 'g\'h': 8, "ij""kl": 10, "x\\z": 12 }
   echo table
 }

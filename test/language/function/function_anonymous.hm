@@ -1,8 +1,7 @@
 # > be me
 # > be global
-# none
 
-let anon = none
+set anon = none
 {
   anon = func() {
     echo "> be me"
@@ -11,7 +10,7 @@ let anon = none
 
 anon()
 
-let unnamed = func() {
+set unnamed = func() {
   echo "> be global"
 }
 

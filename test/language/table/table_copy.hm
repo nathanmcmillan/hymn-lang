@@ -2,10 +2,10 @@
 # { "foo": "baz", "hello": "world" }
 # { "foo": "bar", "hello": "world" }
 
-let table = { foo: "bar", hello: "world" }
+set table = { foo: "bar", hello: "world" }
 echo table
 
-let copied = copy(table)
+set copied = copy(table)
 copied.foo = "baz"
 
 echo copied

@@ -244,6 +244,29 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_exception(H, "missing array");
 }
 
+static HymnValue text_split(Hymn *H, int count, HymnValue *arguments) {
+    if (count >= 2) {
+        HymnValue a = arguments[0];
+        HymnValue b = arguments[1];
+        if (hymn_is_string(a) && hymn_is_string(b)) {
+            HymnString *original = hymn_as_string(a);
+            HymnString *delimiter = hymn_as_string(b);
+            HymnArray *array = hymn_new_array(0);
+            return hymn_new_array_value(array);
+        }
+        return hymn_new_exception(H, "expected two strings");
+    } else if (count == 1) {
+        HymnValue a = arguments[0];
+        if (hymn_is_string(a)) {
+            HymnString *original = hymn_as_string(a);
+            HymnArray *array = hymn_new_array(0);
+            return hymn_new_array_value(array);
+        }
+        return hymn_new_exception(H, "expected a string");
+    }
+    return hymn_new_exception(H, "missing string");
+}
+
 void hymn_use_text(Hymn *H) {
     HymnTable *text = hymn_new_table();
     hymn_add_function_to_table(H, text, "starts", text_starts);
@@ -255,5 +278,6 @@ void hymn_use_text(Hymn *H) {
     hymn_add_function_to_table(H, text, "left-strip", text_left_strip);
     hymn_add_function_to_table(H, text, "right-strip", text_right_strip);
     hymn_add_function_to_table(H, text, "join", text_join);
+    hymn_add_function_to_table(H, text, "split", text_split);
     hymn_add_table(H, "text", text);
 }

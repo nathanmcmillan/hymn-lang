@@ -4,7 +4,7 @@ func foo(me, more) {
   return me.value + more
 }
 
-let bar = {
+set bar = {
   call: foo,
   value: 3
 }

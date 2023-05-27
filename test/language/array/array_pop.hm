@@ -2,9 +2,9 @@
 # 6
 # [2, 4]
 
-let array = [2, 4, 6]
+set array = [2, 4, 6]
 echo array
 
-let top = pop(array)
+set top = pop(array)
 echo top
 echo array

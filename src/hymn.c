@@ -534,8 +534,8 @@ enum TokenType {
     TOKEN_CONTINUE,
     TOKEN_COPY,
     TOKEN_DEBUG,
-    TOKEN_DEBUG_STACK,
-    TOKEN_DEBUG_REFERENCE,
+    TOKEN_STACK,
+    TOKEN_REFERENCE,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
     TOKEN_DOT,
@@ -567,7 +567,7 @@ enum TokenType {
     TOKEN_LEN,
     TOKEN_LESS,
     TOKEN_LESS_EQUAL,
-    TOKEN_LET,
+    TOKEN_SET,
     TOKEN_MODULO,
     TOKEN_MULTIPLY,
     TOKEN_NONE,
@@ -640,10 +640,9 @@ enum OpCode {
     OP_CONSTANT,
     OP_COPY,
     OP_DEBUG,
-    OP_DEBUG_STACK,
-    OP_DEBUG_REFERENCE,
+    OP_STACK,
+    OP_REFERENCE,
     OP_DEFINE_GLOBAL,
-    OP_DEBUG,
     OP_DELETE,
     OP_DIVIDE,
     OP_DUPLICATE,
@@ -714,7 +713,7 @@ enum OpCode {
 enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
-    TYPE_DO,
+    TYPE_MAIN,
     TYPE_REPL,
 };
 
@@ -751,8 +750,8 @@ static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
 static void inspect_expression(Compiler *C, bool assign);
 static void debug_expression(Compiler *C, bool assign);
-static void debug_stack_expression(Compiler *C, bool assign);
-static void debug_reference_expression(Compiler *C, bool assign);
+static void stack_expression(Compiler *C, bool assign);
+static void reference_expression(Compiler *C, bool assign);
 static void function_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
@@ -1000,8 +999,8 @@ static Rule rules[] = {
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DEBUG] = {debug_expression, NULL, PRECEDENCE_NONE, {0}},
-    [TOKEN_DEBUG_STACK] = {debug_stack_expression, NULL, PRECEDENCE_NONE, {0}},
-    [TOKEN_DEBUG_REFERENCE] = {debug_reference_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_STACK] = {stack_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_REFERENCE] = {reference_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL, {0}},
@@ -1033,7 +1032,7 @@ static Rule rules[] = {
     [TOKEN_LEN] = {len_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_LESS] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
     [TOKEN_LESS_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
-    [TOKEN_LET] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_SET] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_MODULO] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_MULTIPLY] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_NONE] = {compile_none, NULL, PRECEDENCE_NONE, {0}},
@@ -1645,16 +1644,22 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 5) return ident_trie(ident, 1, "reak", TOKEN_BREAK);
         break;
     case 'd':
-        if (size == 5) return ident_trie(ident, 1, "ebug", TOKEN_DEBUG);
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
-        if (size == 11) return ident_trie(ident, 1, "ebug_stack", TOKEN_DEBUG_STACK);
-        if (size == 15) return ident_trie(ident, 1, "ebug_reference", TOKEN_DEBUG_REFERENCE);
+        break;
+    case 'D':
+        if (size == 5) return ident_trie(ident, 1, "EBUG", TOKEN_DEBUG);
         break;
     case 'r':
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
         break;
     case 's':
-        if (size == 3) return ident_trie(ident, 1, "tr", TOKEN_TO_STRING);
+        if (size == 3) {
+            if (ident[1] == 'e' && ident[2] == 't') return TOKEN_SET;
+            if (ident[1] == 't' && ident[2] == 'r') return TOKEN_TO_STRING;
+        }
+        break;
+    case 'S':
+        if (size == 5) return ident_trie(ident, 1, "TACK", TOKEN_STACK);
         break;
     case 'k':
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
@@ -1665,10 +1670,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 8) return ident_trie(ident, 1, "ontinue", TOKEN_CONTINUE);
         break;
     case 'l':
-        if (size == 3 && ident[1] == 'e') {
-            if (ident[2] == 't') return TOKEN_LET;
-            if (ident[2] == 'n') return TOKEN_LEN;
-        }
+        if (size == 3) return ident_trie(ident, 1, "en", TOKEN_LEN);
         break;
     case 't':
         if (size == 3) return ident_trie(ident, 1, "ry", TOKEN_TRY);
@@ -1682,11 +1684,13 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 3) return ident_trie(ident, 1, "nt", TOKEN_TO_INTEGER);
         if (size == 5) return ident_trie(ident, 1, "ndex", TOKEN_INDEX);
         if (size == 6) return ident_trie(ident, 1, "nsert", TOKEN_INSERT);
-        if (size == 7) return ident_trie(ident, 1, "nspect", TOKEN_INSPECT);
         if (size == 2) {
             if (ident[1] == 'f') return TOKEN_IF;
             if (ident[1] == 'n') return TOKEN_IN;
         }
+        break;
+    case 'I':
+        if (size == 7) return ident_trie(ident, 1, "NSPECT", TOKEN_INSPECT);
         break;
     case 'p':
         if (size == 3) return ident_trie(ident, 1, "op", TOKEN_POP);
@@ -1720,6 +1724,9 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 'a') return ident_trie(ident, 2, "lse", TOKEN_FALSE);
             if (ident[1] == 'l') return ident_trie(ident, 2, "oat", TOKEN_TO_FLOAT);
         }
+        break;
+    case 'R':
+        if (size == 9) return ident_trie(ident, 1, "EFERENCE", TOKEN_REFERENCE);
         break;
     default:
         break;
@@ -3813,7 +3820,7 @@ static void echo_if_none(Compiler *C) {
 static HymnFunction *end_function(Compiler *C) {
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
-    if (scope->type == TYPE_SCRIPT || scope->type == TYPE_REPL) echo_if_none(C);
+    if (scope->type == TYPE_MAIN || scope->type == TYPE_REPL) echo_if_none(C);
     emit(C, OP_VOID);
 #ifndef HYMN_NO_OPTIMIZE
     optimize(C);
@@ -3873,7 +3880,7 @@ static void declare_function(Compiler *C) {
 }
 
 static void declaration(Compiler *C) {
-    if (match(C, TOKEN_LET)) {
+    if (match(C, TOKEN_SET)) {
         define_new_variable(C);
     } else if (match(C, TOKEN_FUNCTION)) {
         declare_function(C);
@@ -4463,17 +4470,17 @@ static void debug_expression(Compiler *C, bool assign) {
     emit(C, OP_DEBUG);
 }
 
-static void debug_stack_expression(Compiler *C, bool assign) {
+static void stack_expression(Compiler *C, bool assign) {
     (void)assign;
-    emit(C, OP_DEBUG_STACK);
+    emit(C, OP_STACK);
 }
 
-static void debug_reference_expression(Compiler *C, bool assign) {
+static void reference_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'debug_reference'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'REFERENCE'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'debug_reference'");
-    emit(C, OP_DEBUG_REFERENCE);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'REFERENCE'");
+    emit(C, OP_REFERENCE);
 }
 
 static void expression_statement(Compiler *C) {
@@ -4806,7 +4813,7 @@ static void debug_dereference(HymnValue value) {
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_reference_string(HymnObjectString *string) {
     (void)string;
 }
@@ -4819,7 +4826,7 @@ void hymn_reference_string(HymnObjectString *string) {
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_reference(HymnValue value) {
     (void)value;
 }
@@ -4862,7 +4869,7 @@ void hymn_reference(HymnValue value) {
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
     (void)H;
     (void)string;
@@ -4882,7 +4889,7 @@ void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_dereference(Hymn *H, HymnValue value) {
     (void)H;
     (void)value;
@@ -5367,8 +5374,8 @@ static int disassemble_instruction(HymnString **debug, HymnByteCode *code, int i
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
     case OP_DEBUG: return debug_instruction(debug, "OP_DEBUG", index);
-    case OP_DEBUG_STACK: return debug_instruction(debug, "OP_DEBUG_STACK", index);
-    case OP_DEBUG_REFERENCE: return debug_instruction(debug, "OP_DEBUG_REFERENCE", index);
+    case OP_STACK: return debug_instruction(debug, "OP_STACK", index);
+    case OP_REFERENCE: return debug_instruction(debug, "OP_REFERENCE", index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
@@ -5536,28 +5543,6 @@ static void run(Hymn *H) {
     HymnFrame *frame = current_frame(H);
 
 dispatch:
-#ifdef HYMN_DEBUG_STACK
-    if (H->stack_top != H->stack) {
-        HymnString *debug = hymn_new_string("");
-        for (HymnValue *i = H->stack; i != H->stack_top; i++) {
-            debug = hymn_string_append_char(debug, '[');
-            HymnString *stack_debug = debug_value_to_string(*i);
-            debug = hymn_string_append(debug, stack_debug);
-            hymn_string_delete(stack_debug);
-            debug = hymn_string_append(debug, "] ");
-        }
-        printf("STACK   | %s\n", debug);
-        hymn_string_delete(debug);
-    }
-#endif
-#ifdef HYMN_DEBUG_TRACE
-    {
-        HymnString *debug = hymn_new_string("");
-        disassemble_instruction(&debug, &frame->func->code, (int)(frame->ip - frame->func->code.instructions));
-        printf("%s\n", debug);
-        hymn_string_delete(debug);
-    }
-#endif
     switch (READ_BYTE(frame)) {
     case OP_VOID: {
         H->frame_count--;
@@ -7138,7 +7123,7 @@ dispatch:
         hymn_dereference(H, value);
         goto dispatch;
     }
-    case OP_DEBUG_STACK: {
+    case OP_STACK: {
         if (H->stack_top != H->stack) {
             HymnString *debug = hymn_new_string("");
             for (HymnValue *i = H->stack; i != H->stack_top; i++) {
@@ -7154,7 +7139,7 @@ dispatch:
         }
         goto dispatch;
     }
-    case OP_DEBUG_REFERENCE: {
+    case OP_REFERENCE: {
         HymnValue value = pop(H);
         int count = 0;
         switch (value.is) {
@@ -7513,7 +7498,11 @@ char *hymn_run(Hymn *H, const char *script, const char *source) {
 }
 
 char *hymn_do(Hymn *H, const char *source) {
-    return exec(H, NULL, source, TYPE_DO);
+    return exec(H, NULL, source, TYPE_SCRIPT);
+}
+
+char *hymn_command(Hymn *H, const char *source) {
+    return exec(H, NULL, source, TYPE_MAIN);
 }
 
 char *hymn_script(Hymn *H, const char *script) {

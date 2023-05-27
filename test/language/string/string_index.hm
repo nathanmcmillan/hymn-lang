@@ -8,7 +8,7 @@
 # 0
 # -1
 
-let foo = "hello world"
+set foo = "hello world"
 
 echo index(foo, "h")
 echo index(foo, "he")

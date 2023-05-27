@@ -21,34 +21,34 @@ echo tail(10)
 
 # pop two
 {
-  let x = 1
-  let y = 2
+  set x = 1
+  set y = 2
   echo x + y
 }
 
 # pop n
 {
-  let x = 2
-  let y = 3
-  let z = 4
-  let w = 5
-  let v = 6
+  set x = 2
+  set y = 3
+  set z = 4
+  set w = 5
+  set v = 6
   echo x + y + z + w + v
 }
 
 # negate constant
-let a = [2, 4, 6]
+set a = [2, 4, 6]
 echo a[-1]
 
 # double negate constant
-let b = [2, 4, 6]
+set b = [2, 4, 6]
 echo b[- - 1]
 
 # add two local
 {
-  let x = 2
-  let y = 4
-  let z = x + y
+  set x = 2
+  set y = 4
+  set z = x + y
   echo z
 }
 
@@ -65,22 +65,22 @@ if false { echo "no" } else { echo "Z" }
 if !false { echo "W" } else { echo "no" }
 
 # increment
-let x = 1
+set x = 1
 {
-  let z = x + 255
+  set z = x + 255
   echo z
 }
 
 # increment local
 {
-  let x = 1
-  let z = x + 255
+  set x = 1
+  set z = x + 255
   echo z
 }
 
 # increment and set local
 {
-  let x = 1
+  set x = 1
   x = x + 255
   echo x
 }

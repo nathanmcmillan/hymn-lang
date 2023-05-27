@@ -1,8 +1,8 @@
 # bar
 # bar
 
-let foo = "bar"
-let bar = copy(foo)
+set foo = "bar"
+set bar = copy(foo)
 
 echo foo
 echo bar

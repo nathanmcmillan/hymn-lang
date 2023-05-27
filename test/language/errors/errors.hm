@@ -1,5 +1,5 @@
 func runtime(s) {
-  let i = index(s, "\n")
+  set i = index(s, "\n")
   if i > 0 { return s[:i] }
   return s
 }

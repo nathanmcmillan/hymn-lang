@@ -22,7 +22,7 @@
 # 8
 # end
 
-let table = { a: 2, b: 4, c: 8 }
+set table = { a: 2, b: 4, c: 8 }
 
 echo "begin"
 for value in table {

@@ -1,6 +1,6 @@
 # @exception variable 'x' already exists in scope
 
 {
-  let x = 1
-  let x = 2
+  set x = 1
+  set x = 2
 }

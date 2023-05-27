@@ -22,14 +22,10 @@
 
 #define HYMN_VERSION "0.9.0"
 
-// #define HYMN_DEBUG_STACK
-// #define HYMN_DEBUG_TRACE
-// #define HYMN_DEBUG_MEMORY
-
 // #define HYMN_NO_REPL
 #define HYMN_NO_DYNAMIC_LIBS
 // #define HYMN_NO_OPTIMIZE
-// #define HYMN_NO_MEMORY_MANAGE
+// #define HYMN_NO_MEMORY
 
 #ifdef _MSC_VER
 #include <Windows.h>
@@ -365,6 +361,7 @@ char *hymn_call(Hymn *H, const char *name, int arguments);
 char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
+char *hymn_command(Hymn *H, const char *source);
 char *hymn_script(Hymn *H, const char *script);
 
 HymnValue hymn_get(Hymn *H, const char *name);

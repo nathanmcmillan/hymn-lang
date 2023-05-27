@@ -1,12 +1,12 @@
-let start = os.clock()
+set start = os.clock()
 
-let N = 5000000
-let objects = []
-let sum = 0
-let words = ["foo", "bar", "baz"]
+set N = 5000000
+set objects = []
+set sum = 0
+set words = ["foo", "bar", "baz"]
 
 for i = 1, i < N {
-  let object = {}
+  set object = {}
   for word in words {
     object[word] = sum
     sum += i
@@ -14,5 +14,5 @@ for i = 1, i < N {
   push(objects, object)
 }
 
-let seconds = os.clock() - start
+set seconds = os.clock() - start
 echo "elapsed: " + seconds + "s | " + objects[-1].foo

@@ -1,5 +1,5 @@
 # @exception expected a variable name
 
-let 32 = "ok"
+set 32 = "ok"
 
 echo 32

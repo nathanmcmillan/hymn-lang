@@ -7,7 +7,7 @@ func new() {
 }
 
 for i = 0, i < 3 {
-  let o = new()
+  set o = new()
   o.foo = o.foo * 4
   o.bar.hello = o.bar.hello * 4
   echo o.foo + ', ' + o.bar

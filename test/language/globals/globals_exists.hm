@@ -3,7 +3,7 @@
 # C
 # D
 
-let foo = 1
+set foo = 1
 
 if GLOBALS.foo {
   echo "A"
@@ -17,7 +17,7 @@ if GLOBALS.bar {
   echo "B"
 }
 
-let hello = none
+set hello = none
 
 if exists(GLOBALS, "hello") {
   echo "C"

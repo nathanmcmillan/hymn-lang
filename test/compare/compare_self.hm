@@ -1,8 +1,8 @@
 {
-  let start = os.clock()
+  set start = os.clock()
 
-  let N = 20000000
-  let sum = 0
+  set N = 20000000
+  set sum = 0
 
   func foo(me) {
     return me.value
@@ -18,17 +18,17 @@
     sum += object->call()
   }
 
-  let seconds = os.clock() - start
+  set seconds = os.clock() - start
   echo "elapsed: " + seconds + "s | " + sum
 }
 
 echo "----------------------------------------"
 
 {
-  let start = os.clock()
+  set start = os.clock()
 
-  let N = 20000000
-  let sum = 0
+  set N = 20000000
+  set sum = 0
 
   func foo(me) {
     return me.value
@@ -44,6 +44,6 @@ echo "----------------------------------------"
     sum += object.call(object)
   }
 
-  let seconds = os.clock() - start
+  set seconds = os.clock() - start
   echo "elapsed: " + seconds + "s | " + sum
 }

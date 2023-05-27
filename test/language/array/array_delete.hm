@@ -4,13 +4,13 @@
 # false
 # [true, false]
 
-let array = [true, true, false, false]
+set array = [true, true, false, false]
 echo array
 
-let one = delete(array, 0)
+set one = delete(array, 0)
 echo one
 echo array
 
-let two = delete(array, 1)
+set two = delete(array, 1)
 echo two
 echo array

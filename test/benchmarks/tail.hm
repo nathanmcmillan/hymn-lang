@@ -3,17 +3,17 @@ func fib(n, a, b) {
   return fib(n - 1, b, a + b)
 }
 
-let start = os.clock()
+set start = os.clock()
 
-let N = 50000
-let sum = 0
+set N = 50000
+set sum = 0
 
 for i = 0, i < N {
-  let number = fib(1000, 0, 1)
+  set number = fib(1000, 0, 1)
   if number > 1 {
     sum += 1
   }
 }
 
-let seconds = os.clock() - start
+set seconds = os.clock() - start
 echo "elapsed: " + seconds + "s | " + sum

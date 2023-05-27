@@ -40,7 +40,7 @@ async function main() {
         error = await hymn.debug(vm, script, source)
       }
     } else if (args[2] === '-c') {
-      error = await hymn.interpret(vm, args[3])
+      error = await hymn.command(vm, args[3])
     } else {
       console.error('unknown argument:', args[2])
     }

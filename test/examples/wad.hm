@@ -2,11 +2,11 @@ use "strings"
 
 func wad-skip(s, i) {
   i += 1
-  let c = s[i]
+  set c = s[i]
   if c != '\n' and c != ' ' {
     return i - 1
   }
-  let size = len(s)
+  set size = len(s)
   while true {
     i += 1
     if i == size {
@@ -20,15 +20,15 @@ func wad-skip(s, i) {
 }
 
 func load-wad(s) {
-  let wad = {}
-  let stack = [wad]
-  let key = ""
-  let value = ""
-  let pc = ""
-  let is-key = true
-  let size = len(s)
+  set wad = {}
+  set stack = [wad]
+  set key = ""
+  set value = ""
+  set pc = ""
+  set is-key = true
+  set size = len(s)
   for i = 0, i < size {
-    let c = s[i]
+    set c = s[i]
     if c == '#' {
       pc = c
       i += 1
@@ -53,7 +53,7 @@ func load-wad(s) {
       pc = c
       i = wad-skip(s, i)
     } elif c == '{' {
-      let map = {}
+      set map = {}
       if type(stack[0]) == "array" {
         push(stack[0], map)
         is-key = true
@@ -65,7 +65,7 @@ func load-wad(s) {
       pc = c
       i = wad-skip(s, i)
     } elif c == '[' {
-      let array = []
+      set array = []
       if type(stack[0]) == "array" {
         push(stack[0], array)
         is-key = true
@@ -101,7 +101,7 @@ func load-wad(s) {
       if i == size {
         break
       }
-      let e = s[i]
+      set e = s[i]
       while i < size {
         if e == '"' or e == '\n' {
           break
@@ -130,7 +130,7 @@ func load-wad(s) {
   return wad
 }
 
-let tic = "paint = tic-80-wide-font columns = 128 rows = 128 pixels [
+set tic = "paint = tic-80-wide-font columns = 128 rows = 128 pixels [
   0 7 7 7 0 0
   7 7 7 7 0 0
 ]
