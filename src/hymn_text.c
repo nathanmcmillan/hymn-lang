@@ -245,26 +245,59 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue text_split(Hymn *H, int count, HymnValue *arguments) {
-    if (count >= 2) {
-        HymnValue a = arguments[0];
-        HymnValue b = arguments[1];
-        if (hymn_is_string(a) && hymn_is_string(b)) {
-            HymnString *original = hymn_as_string(a);
-            HymnString *delimiter = hymn_as_string(b);
-            HymnArray *array = hymn_new_array(0);
-            return hymn_new_array_value(array);
-        }
-        return hymn_new_exception(H, "expected two strings");
-    } else if (count == 1) {
-        HymnValue a = arguments[0];
-        if (hymn_is_string(a)) {
-            HymnString *original = hymn_as_string(a);
-            HymnArray *array = hymn_new_array(0);
-            return hymn_new_array_value(array);
-        }
+    if (count == 0) {
+        return hymn_new_exception(H, "missing text");
+    }
+    HymnValue text = arguments[0];
+    if (!hymn_is_string(text)) {
         return hymn_new_exception(H, "expected a string");
     }
-    return hymn_new_exception(H, "missing string");
+    HymnString *original = hymn_as_string(text);
+    char delimiter;
+    if (count == 1) {
+        delimiter = '\n';
+    } else {
+        HymnValue given = arguments[1];
+        if (!hymn_is_string(given)) {
+            return hymn_new_exception(H, "expected a string");
+        }
+        HymnString *character = hymn_as_string(given);
+        if (hymn_string_len(character) == 0) {
+            return hymn_new_exception(H, "empty delimiter string");
+        }
+        delimiter = character[0];
+    }
+    size_t len = hymn_string_len(original);
+    size_t start = 0;
+    HymnArray *array = hymn_new_array(0);
+    for (size_t i = 0; i < len; i++) {
+        if (original[i] == delimiter) {
+            if (start < i) {
+                HymnString *sub = hymn_substring(original, start, i);
+                HymnObjectString *object = hymn_intern_string(H, sub);
+                hymn_reference_string(object);
+                hymn_array_push(array, hymn_new_string_value(object));
+            } else {
+                HymnString *sub = hymn_new_empty_string(0);
+                HymnObjectString *object = hymn_intern_string(H, sub);
+                hymn_reference_string(object);
+                hymn_array_push(array, hymn_new_string_value(object));
+            }
+            start = i + 1;
+        }
+    }
+    if (start < len) {
+        HymnString *sub = hymn_substring(original, start, len);
+        HymnObjectString *object = hymn_intern_string(H, sub);
+        hymn_reference_string(object);
+        hymn_array_push(array, hymn_new_string_value(object));
+    } else {
+        HymnString *sub = hymn_new_empty_string(0);
+        HymnObjectString *object = hymn_intern_string(H, sub);
+        hymn_reference_string(object);
+        hymn_array_push(array, hymn_new_string_value(object));
+    }
+    return hymn_new_array_value(array);
 }
 
 void hymn_use_text(Hymn *H) {

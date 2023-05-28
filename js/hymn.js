@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+const HYMN_VERSION = '0.9.0'
+
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
 const HYMN_UINT8_COUNT = UINT8_MAX + 1
@@ -315,7 +317,7 @@ const OP_REFERENCE = 68
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
-const TYPE_MAIN = 2
+const TYPE_DIRECT = 2
 
 class Token {
   constructor() {
@@ -2269,7 +2271,7 @@ function echoIfNone(C) {
 function endFunction(C) {
   const scope = C.scope
   const func = scope.func
-  if (scope.type === TYPE_MAIN) echoIfNone(C)
+  if (scope.type === TYPE_DIRECT) echoIfNone(C)
   emitShort(C, OP_NONE, OP_RETURN)
   if (scope.type === TYPE_FUNCTION) func.source = C.source.substring(scope.begin, C.previous.start + C.previous.length)
   C.scope = scope.enclosing
@@ -4841,7 +4843,7 @@ async function interpret(H, source) {
 }
 
 async function command(H, source) {
-  return interpretScript(H, null, source, TYPE_MAIN)
+  return interpretScript(H, null, source, TYPE_DIRECT)
 }
 
 function newVM() {
@@ -4869,6 +4871,7 @@ function newVM() {
 
 if (node) {
   module.exports = {
+    version: HYMN_VERSION,
     isFloat: isFloat,
     isFuncNative: isFuncNative,
     isPointer: isPointer,

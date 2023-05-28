@@ -713,7 +713,7 @@ enum OpCode {
 enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
-    TYPE_MAIN,
+    TYPE_DIRECT,
     TYPE_REPL,
 };
 
@@ -3820,7 +3820,7 @@ static void echo_if_none(Compiler *C) {
 static HymnFunction *end_function(Compiler *C) {
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
-    if (scope->type == TYPE_MAIN || scope->type == TYPE_REPL) echo_if_none(C);
+    if (scope->type == TYPE_DIRECT || scope->type == TYPE_REPL) echo_if_none(C);
     emit(C, OP_VOID);
 #ifndef HYMN_NO_OPTIMIZE
     optimize(C);
@@ -7502,7 +7502,7 @@ char *hymn_do(Hymn *H, const char *source) {
 }
 
 char *hymn_command(Hymn *H, const char *source) {
-    return exec(H, NULL, source, TYPE_MAIN);
+    return exec(H, NULL, source, TYPE_DIRECT);
 }
 
 char *hymn_script(Hymn *H, const char *script) {

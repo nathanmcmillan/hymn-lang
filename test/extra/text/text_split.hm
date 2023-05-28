@@ -1,0 +1,20 @@
+use "test/libs/assert"
+
+print-assert([''], text.split(''))
+print-assert(['foo', 'bar'], text.split('foo\nbar'))
+print-assert(['', 'foo', 'bar'], text.split('\nfoo\nbar'))
+print-assert(['foo', 'bar', ''], text.split('foo\nbar\n'))
+print-assert(['foo', '', 'bar'], text.split('foo\n\nbar'))
+print-assert(['foo', '', '', 'bar'], text.split('foo\n\n\nbar'))
+
+echo "========================================"
+
+print-assert(['hello', 'world'], text.split('hello~world', '~'))
+
+echo "========================================"
+
+print-assert(['foo\nbar'], text.split('foo\nbar', '~'))
+
+echo "========================================"
+
+echo "tests pass!"

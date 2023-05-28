@@ -1,13 +1,13 @@
 # Release 0.10.0
 
-- Fixed tail call stack bug
-- True dynamic library support
+- Fixed tail call bug
 - New function `STACK` prints the current stack
 - New function `REFEERENCE` prints a given object's reference counts
-- Renamed global functions
-  - `inspect` -> `INSPECT`
-  - `debug` -> `DEBUG`
+- Renamed global function `inspect` to `INSPECT`
+- Renamed global function `debug` to `DEBUG`
 - Changed `let` keyword to `set`
+- New `text` library function: `split`
+- Changed echo on end of script to only occur for direct commands or REPL
 
 # Release 0.9.0
 
