@@ -186,7 +186,7 @@ const TOKEN_IF = 43
 const TOKEN_IN = 44
 const TOKEN_INDEX = 45
 const TOKEN_INSERT = 46
-const TOKEN_CODE = 47
+const TOKEN_SRC = 47
 const TOKEN_INTEGER = 48
 const TOKEN_KEYS = 49
 const TOKEN_LEFT_CURLY = 50
@@ -311,7 +311,7 @@ const OP_THROW = 62
 const OP_TRUE = 63
 const OP_TYPE = 64
 const OP_USE = 65
-const OP_INSTRUCTIONS = 66
+const OP_CODES = 66
 const OP_STACK = 67
 const OP_REFERENCE = 68
 
@@ -432,7 +432,7 @@ rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_OPCODES] = new Rule(debugExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_OPCODES] = new Rule(opCodesExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_STACK] = new Rule(stackExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_REFERENCE] = new Rule(referenceExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
@@ -457,7 +457,7 @@ rules[TOKEN_IF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_IN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_INDEX] = new Rule(indexExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INSERT] = new Rule(arrayInsertExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_CODE] = new Rule(inspectExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_SRC] = new Rule(sourceExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INTEGER] = new Rule(compileInteger, null, PRECEDENCE_NONE)
 rules[TOKEN_KEYS] = new Rule(keysExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LEFT_CURLY] = new Rule(compileTable, null, PRECEDENCE_NONE)
@@ -1065,7 +1065,7 @@ function identKey(ident, size) {
       break
     case '_':
       if (size === 6) return identTrie(ident, 1, 'stack', TOKEN_STACK)
-      if (size === 7) return identTrie(ident, 1, 'source', TOKEN_CODE)
+      if (size === 7) return identTrie(ident, 1, 'source', TOKEN_SRC)
       if (size === 8) return identTrie(ident, 1, 'opcodes', TOKEN_OPCODES)
       if (size === 10) return identTrie(ident, 1, 'reference', TOKEN_REFERENCE)
       break
@@ -2859,30 +2859,30 @@ function existsExpression(C) {
   emit(C, OP_EXISTS)
 }
 
-function inspectExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'INSPECT'`)
+function sourceExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_source'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'INSPECT'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_source'`)
   emit(C, OP_SOURCE)
 }
 
-function debugExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'DEBUG'`)
+function opCodesExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_opcodes'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'DEBUG'`)
-  emit(C, OP_INSTRUCTIONS)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_opcodes'`)
+  emit(C, OP_CODES)
 }
 
 function stackExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'STACK'`)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'STACK'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_stack'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_stack'`)
   emit(C, OP_STACK)
 }
 
 function referenceExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'REFERENCE'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_reference'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'REFERENCE'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_reference'`)
   emit(C, OP_REFERENCE)
 }
 
@@ -3543,8 +3543,8 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_USE', index)
     case OP_SOURCE:
       return debugInstruction(debug, 'OP_SOURCE', index)
-    case OP_INSTRUCTIONS:
-      return debugInstruction(debug, 'OP_INSTRUCTIONS', index)
+    case OP_CODES:
+      return debugInstruction(debug, 'OP_CODES', index)
     case OP_STACK:
       return debugInstruction(debug, 'OP_STACK', index)
     case OP_REFERENCE:
@@ -4730,7 +4730,7 @@ async function hymnRun(H) {
         hymnPush(H, newString(valueToInspect(value)))
         break
       }
-      case OP_INSTRUCTIONS: {
+      case OP_CODES: {
         const value = hymnPop(H)
         hymnPush(H, newString(valueToDebug(value)))
         break

@@ -558,7 +558,7 @@ enum TokenType {
     TOKEN_IN,
     TOKEN_INDEX,
     TOKEN_INSERT,
-    TOKEN_CODE,
+    TOKEN_SRC,
     TOKEN_INTEGER,
     TOKEN_KEYS,
     TOKEN_LEFT_CURLY,
@@ -639,7 +639,7 @@ enum OpCode {
     OP_CLEAR,
     OP_CONSTANT,
     OP_COPY,
-    OP_INSTRUCTIONS,
+    OP_CODES,
     OP_STACK,
     OP_REFERENCE,
     OP_DEFINE_GLOBAL,
@@ -1019,7 +1019,7 @@ static Rule rules[] = {
     [TOKEN_GREATER] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
     [TOKEN_GREATER_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
     [TOKEN_IDENT] = {compile_variable, NULL, PRECEDENCE_NONE, {0}},
-    [TOKEN_CODE] = {source_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_SRC] = {source_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_IF] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_IN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_INDEX] = {index_expression, NULL, PRECEDENCE_NONE, {0}},
@@ -1718,7 +1718,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         break;
     case '_':
         if (size == 6) return ident_trie(ident, 1, "stack", TOKEN_STACK);
-        if (size == 7) return ident_trie(ident, 1, "source", TOKEN_CODE);
+        if (size == 7) return ident_trie(ident, 1, "source", TOKEN_SRC);
         if (size == 8) return ident_trie(ident, 1, "opcodes", TOKEN_OPCODES);
         if (size == 10) return ident_trie(ident, 1, "reference", TOKEN_REFERENCE);
         break;
@@ -4489,7 +4489,7 @@ static void opcode_expression(Compiler *C, bool assign) {
     consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_opcodes'");
     expression(C);
     consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_opcodes'");
-    emit(C, OP_INSTRUCTIONS);
+    emit(C, OP_CODES);
 }
 
 static void stack_expression(Compiler *C, bool assign) {
@@ -5277,7 +5277,7 @@ static int disassemble_instruction(HymnString **debug, HymnByteCode *code, int i
     case OP_NEW_TABLE: return debug_instruction(debug, "OP_NEW_TABLE", index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
-    case OP_INSTRUCTIONS: return debug_instruction(debug, "OP_INSTRUCTIONS", index);
+    case OP_CODES: return debug_instruction(debug, "OP_CODES", index);
     case OP_STACK: return debug_instruction(debug, "OP_STACK", index);
     case OP_REFERENCE: return debug_instruction(debug, "OP_REFERENCE", index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
@@ -7015,7 +7015,7 @@ dispatch:
         hymn_dereference(H, value);
         goto dispatch;
     }
-    case OP_INSTRUCTIONS: {
+    case OP_CODES: {
         HymnValue value = pop(H);
         HymnString *debug = NULL;
         if (hymn_is_func(value)) {
