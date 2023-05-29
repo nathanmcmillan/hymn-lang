@@ -7,6 +7,7 @@
 - Renamed global function `inspect` to `_source`
 - Renamed global function `debug` to `_opcodes`
 - Changed `let` keyword to `set`
+- New `io` library function: `copy`
 - New `text` library function: `split`
 - Changed echo on end of script to only occur for direct commands or REPL
 

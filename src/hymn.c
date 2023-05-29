@@ -2823,10 +2823,10 @@ static void function_delete(HymnFunction *this) {
                 HymnFunction *func = hymn_as_func(value);
                 if (func == this) {
                     values[i] = hymn_new_undefined();
+                    break;
                 }
             }
         }
-        this->parent = NULL;
     }
     HymnValuePool *constants = &this->code.constants;
     int count = constants->count;
@@ -3661,7 +3661,6 @@ static void optimize(Compiler *C) {
                 rewrite(&optimizer, two, 1);
                 continue;
             }
-            // IF OP_POP - REMOVE?
             break;
         }
         case OP_CALL: {

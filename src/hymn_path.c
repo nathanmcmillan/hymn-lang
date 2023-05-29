@@ -177,11 +177,9 @@ static HymnValue path_base(Hymn *H, int count, HymnValue *arguments) {
     }
     HymnString *path = hymn_as_string(value);
     size_t size = hymn_string_len(path);
-    // FIXME: Bugs here?!
-    if (path[size - 1] == PATH_SEP) {
+    if (size == 0 || path[size - 1] == PATH_SEP) {
         return hymn_new_string_value(hymn_intern_string(H, hymn_new_string("")));
-    }
-    if (size < 2) {
+    } else if (size == 1) {
         return value;
     }
     size_t index = size - 2;
