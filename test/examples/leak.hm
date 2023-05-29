@@ -1,8 +1,8 @@
 #!/usr/bin/env hymn
 
 {
-  let a = {}
-  let b = {}
+  set a = {}
+  set b = {}
   a.x = b
   b.y = a
   echo a

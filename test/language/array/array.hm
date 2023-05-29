@@ -2,11 +2,11 @@
 # [2, 4, 6]
 
 {
-  let array = []
+  set array = []
   echo array
 }
 
 {
-  let array = [2, 4, 6]
+  set array = [2, 4, 6]
   echo array
 }

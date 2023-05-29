@@ -1,7 +1,7 @@
 # [2.1, 6.8]
 # []
 
-let array = [2.1, 6.8]
+set array = [2.1, 6.8]
 echo array
 
 clear(array)

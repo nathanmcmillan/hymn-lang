@@ -1,11 +1,11 @@
 func assert(expected, actual) {
   if expected != actual  {
-    let t = type(expected)
+    set t = type(expected)
     if type(actual) == t {
       if t == "array" {
-        let size = len(expected)
+        set size = len(expected)
         if len(actual) == size {
-          let i = 0
+          set i = 0
           try {
             while i < size {
               assert(expected[i], actual[i])

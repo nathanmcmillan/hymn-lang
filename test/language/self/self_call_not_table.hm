@@ -4,6 +4,6 @@ func foo(me, more) {
   return me.value + more
 }
 
-let bar = [foo]
+set bar = [foo]
 
 echo bar->call(4)

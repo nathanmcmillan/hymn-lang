@@ -17,8 +17,8 @@ func dog(name) {
   return { name: name, says: bork }
 }
 
-let k = cat("Mittens")
-let d = dog("Cookies")
+set k = cat("Mittens")
+set d = dog("Cookies")
 
 echo "My cat is " + k.name + " and says " + k.says()
 echo "My dog is " + d.name + " and says " + d.says()

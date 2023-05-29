@@ -197,7 +197,7 @@ static void test_api(void) {
         goto fail;
     }
 
-    hymn_do(hymn, "let table = {}");
+    hymn_do(hymn, "set table = {}");
     HymnTable *table = hymn_as_table(hymn_get(hymn, "table"));
     hymn_set_property_const(hymn, table, "number", hymn_new_int(8));
     error = hymn_do(hymn, "echo table");

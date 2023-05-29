@@ -4,13 +4,13 @@
 # false
 # { "b": true, "d": false }
 
-let table = { a: true, b: true, c: false, d: false }
+set table = { a: true, b: true, c: false, d: false }
 echo table
 
-let one = delete(table, "a")
+set one = delete(table, "a")
 echo one
 echo table
 
-let two = delete(table, "c")
+set two = delete(table, "c")
 echo two
 echo table

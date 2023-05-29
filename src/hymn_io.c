@@ -165,6 +165,34 @@ static HymnValue io_move(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_bool(renamed != -1);
 }
 
+static HymnValue io_copy(Hymn *H, int count, HymnValue *arguments) {
+    if (count < 2) {
+        return hymn_new_exception(H, "missing source and destination paths");
+    }
+    HymnValue a = arguments[0];
+    HymnValue b = arguments[1];
+    if (!hymn_is_string(a) || !hymn_is_string(b)) {
+        return hymn_new_exception(H, "source and destination must be strings");
+    }
+    HymnString *source = hymn_as_string(a);
+    HymnString *target = hymn_as_string(b);
+    size_t size = hymn_file_size(source);
+    FILE *from = fopen(source, "r");
+    if (from == NULL) {
+        return hymn_new_exception(H, "fopen null pointer");
+    }
+    FILE *to = fopen(target, "w");
+    if (to == NULL) {
+        return hymn_new_exception(H, "fopen null pointer");
+    }
+    for (size_t i = 0; i < size; i++) {
+        fputc(fgetc(from), to);
+    }
+    fclose(from);
+    fclose(to);
+    return hymn_new_bool(true);
+}
+
 static HymnValue io_remove(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     int removed = remove(path);
@@ -192,6 +220,7 @@ void hymn_use_io(Hymn *H) {
     hymn_add_function_to_table(H, io, "stats", io_stats);
     hymn_add_function_to_table(H, io, "input", io_input);
     hymn_add_function_to_table(H, io, "move", io_move);
+    hymn_add_function_to_table(H, io, "copy", io_copy);
     hymn_add_function_to_table(H, io, "remove", io_remove);
     hymn_add_function_to_table(H, io, "mkdir", io_mkdir);
     hymn_add_table(H, "io", io);

@@ -244,6 +244,62 @@ static HymnValue text_join(Hymn *H, int count, HymnValue *arguments) {
     return hymn_new_exception(H, "missing array");
 }
 
+static HymnValue text_split(Hymn *H, int count, HymnValue *arguments) {
+    if (count == 0) {
+        return hymn_new_exception(H, "missing text");
+    }
+    HymnValue text = arguments[0];
+    if (!hymn_is_string(text)) {
+        return hymn_new_exception(H, "expected a string");
+    }
+    HymnString *original = hymn_as_string(text);
+    char delimiter;
+    if (count == 1) {
+        delimiter = '\n';
+    } else {
+        HymnValue given = arguments[1];
+        if (!hymn_is_string(given)) {
+            return hymn_new_exception(H, "expected a string");
+        }
+        HymnString *character = hymn_as_string(given);
+        if (hymn_string_len(character) == 0) {
+            return hymn_new_exception(H, "empty delimiter string");
+        }
+        delimiter = character[0];
+    }
+    size_t len = hymn_string_len(original);
+    size_t start = 0;
+    HymnArray *array = hymn_new_array(0);
+    for (size_t i = 0; i < len; i++) {
+        if (original[i] == delimiter) {
+            if (start < i) {
+                HymnString *sub = hymn_substring(original, start, i);
+                HymnObjectString *object = hymn_intern_string(H, sub);
+                hymn_reference_string(object);
+                hymn_array_push(array, hymn_new_string_value(object));
+            } else {
+                HymnString *sub = hymn_new_empty_string(0);
+                HymnObjectString *object = hymn_intern_string(H, sub);
+                hymn_reference_string(object);
+                hymn_array_push(array, hymn_new_string_value(object));
+            }
+            start = i + 1;
+        }
+    }
+    if (start < len) {
+        HymnString *sub = hymn_substring(original, start, len);
+        HymnObjectString *object = hymn_intern_string(H, sub);
+        hymn_reference_string(object);
+        hymn_array_push(array, hymn_new_string_value(object));
+    } else {
+        HymnString *sub = hymn_new_empty_string(0);
+        HymnObjectString *object = hymn_intern_string(H, sub);
+        hymn_reference_string(object);
+        hymn_array_push(array, hymn_new_string_value(object));
+    }
+    return hymn_new_array_value(array);
+}
+
 void hymn_use_text(Hymn *H) {
     HymnTable *text = hymn_new_table();
     hymn_add_function_to_table(H, text, "starts", text_starts);
@@ -255,5 +311,6 @@ void hymn_use_text(Hymn *H) {
     hymn_add_function_to_table(H, text, "left-strip", text_left_strip);
     hymn_add_function_to_table(H, text, "right-strip", text_right_strip);
     hymn_add_function_to_table(H, text, "join", text_join);
+    hymn_add_function_to_table(H, text, "split", text_split);
     hymn_add_table(H, "text", text);
 }

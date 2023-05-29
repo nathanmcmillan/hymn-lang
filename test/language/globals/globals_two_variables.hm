@@ -1,7 +1,7 @@
 # @exception multiple global definitions of 'a'
 
-let a = [2, 4, 6]
+set a = [2, 4, 6]
 echo a[-1]
 
-let a = [2, 4, 6]
+set a = [2, 4, 6]
 echo a[- - 1]

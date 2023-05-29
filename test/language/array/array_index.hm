@@ -8,7 +8,7 @@
 # -1
 # -1
 
-let array = [2, 4, 8]
+set array = [2, 4, 8]
 
 echo index(array, 2)
 echo index(array, 4)

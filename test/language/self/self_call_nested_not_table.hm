@@ -5,7 +5,7 @@ func foo(me, more) {
 }
 
 func main() {
-  let bar = [foo]
+  set bar = [foo]
   echo bar->call(4)
 }
 

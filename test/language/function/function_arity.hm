@@ -12,7 +12,7 @@ func foo(x) {
 try { foo() } except e { echo runtime(e) }
 try { foo(2, 3) } except e { echo runtime(e) }
 
-let hidden = func(x, y) {
+set hidden = func(x, y) {
   echo x + y
 }
 

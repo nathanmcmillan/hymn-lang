@@ -5,13 +5,13 @@
 # y
 # none
 
-let words = { a: "foo", b: "bar" }
+set words = { a: "foo", b: "bar" }
 
 echo index(words, "foo")
 echo index(words, "bar")
 echo index(words, "hello")
 
-let numbers = { x: 2, y: 4 }
+set numbers = { x: 2, y: 4 }
 
 echo index(numbers, 2)
 echo index(numbers, 4)

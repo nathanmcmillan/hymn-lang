@@ -1,0 +1,8 @@
+# @exception undefined global 'let'
+
+let foo = 1
+let bar = 2
+
+func nothing(a) {
+  return a
+}

@@ -1,5 +1,4 @@
 # 16
-# none
 
 func foo(number) {
   return number * 2
@@ -9,7 +8,7 @@ func bar(value) {
   echo value
 }
 
-let multiply = foo
-let printer = bar
+set multiply = foo
+set printer = bar
 
 printer(multiply(8))

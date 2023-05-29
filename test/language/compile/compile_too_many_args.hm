@@ -5,26 +5,26 @@ func foobar(a, b) {
 }
 
 {
-  let g0 = 0
-  let g1 = 0
-  let g2 = 0
-  let g3 = 0
-  let g4 = 0
-  let g5 = 0
-  let g6 = 0
-  let g7 = 0
-  let g8 = 0
-  let g9 = 0
-  let g10 = 0
-  let g11 = 0
-  let g12 = 0
-  let g13 = 0
-  let g14 = 0
-  let g15 = 0
-  let g16 = 0
-  let g17 = 0
-  let g18 = 0
-  let g19 = 0
+  set g0 = 0
+  set g1 = 0
+  set g2 = 0
+  set g3 = 0
+  set g4 = 0
+  set g5 = 0
+  set g6 = 0
+  set g7 = 0
+  set g8 = 0
+  set g9 = 0
+  set g10 = 0
+  set g11 = 0
+  set g12 = 0
+  set g13 = 0
+  set g14 = 0
+  set g15 = 0
+  set g16 = 0
+  set g17 = 0
+  set g18 = 0
+  set g19 = 0
 
   foobar(
     g0,

@@ -1,9 +1,9 @@
 # { "xy": "v" }
 
 {
-  let x = "x"
-  let y = "y"
-  let table = {}
+  set x = "x"
+  set y = "y"
+  set table = {}
   table[x + y] = "v"
   echo table
 }

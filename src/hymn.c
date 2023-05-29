@@ -268,9 +268,8 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
     HymnStringHead *head = hymn_string_head(string);
     size_t len = head->length;
     size_t len_sub = strlen(find);
-    if (len == 0 || len_sub > len) {
-        return hymn_new_string("");
-    }
+    if (len == 0) return hymn_new_string("");
+    if (len_sub == 0 || len_sub > len) return hymn_string_copy(string);
     HymnString *out = hymn_new_string_with_capacity(len);
     size_t end = len - len_sub + 1;
     size_t pos = 0;
@@ -285,14 +284,11 @@ HymnString *hymn_string_replace(HymnString *string, const char *find, const char
         if (match) {
             out = hymn_string_append_substring(out, string, pos, i);
             out = hymn_string_append(out, replace);
-            i += len_sub;
-            pos = i;
-            i--;
+            pos = i + len_sub;
+            i = pos - 1;
         }
     }
-    if (pos < len) {
-        out = hymn_string_append_substring(out, string, pos, len);
-    }
+    if (pos < len) out = hymn_string_append_substring(out, string, pos, len);
     return out;
 }
 
@@ -537,7 +533,9 @@ enum TokenType {
     TOKEN_COMMA,
     TOKEN_CONTINUE,
     TOKEN_COPY,
-    TOKEN_DEBUG,
+    TOKEN_OPCODES,
+    TOKEN_STACK,
+    TOKEN_REFERENCE,
     TOKEN_DELETE,
     TOKEN_DIVIDE,
     TOKEN_DOT,
@@ -560,7 +558,7 @@ enum TokenType {
     TOKEN_IN,
     TOKEN_INDEX,
     TOKEN_INSERT,
-    TOKEN_INSPECT,
+    TOKEN_SRC,
     TOKEN_INTEGER,
     TOKEN_KEYS,
     TOKEN_LEFT_CURLY,
@@ -569,7 +567,7 @@ enum TokenType {
     TOKEN_LEN,
     TOKEN_LESS,
     TOKEN_LESS_EQUAL,
-    TOKEN_LET,
+    TOKEN_SET,
     TOKEN_MODULO,
     TOKEN_MULTIPLY,
     TOKEN_NONE,
@@ -641,8 +639,10 @@ enum OpCode {
     OP_CLEAR,
     OP_CONSTANT,
     OP_COPY,
+    OP_CODES,
+    OP_STACK,
+    OP_REFERENCE,
     OP_DEFINE_GLOBAL,
-    OP_DEBUG,
     OP_DELETE,
     OP_DIVIDE,
     OP_DUPLICATE,
@@ -659,7 +659,7 @@ enum OpCode {
     OP_GREATER,
     OP_GREATER_EQUAL,
     OP_INDEX,
-    OP_INSPECT,
+    OP_SOURCE,
     OP_JUMP,
     OP_JUMP_IF_EQUAL,
     OP_JUMP_IF_NOT_EQUAL,
@@ -713,7 +713,7 @@ enum OpCode {
 enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
-    TYPE_DO,
+    TYPE_DIRECT,
     TYPE_REPL,
 };
 
@@ -748,8 +748,10 @@ static void index_expression(Compiler *C, bool assign);
 static void keys_expression(Compiler *C, bool assign);
 static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
-static void inspect_expression(Compiler *C, bool assign);
-static void debug_expression(Compiler *C, bool assign);
+static void source_expression(Compiler *C, bool assign);
+static void opcode_expression(Compiler *C, bool assign);
+static void stack_expression(Compiler *C, bool assign);
+static void reference_expression(Compiler *C, bool assign);
 static void function_expression(Compiler *C, bool assign);
 static void declaration(Compiler *C);
 static void statement(Compiler *C);
@@ -996,7 +998,9 @@ static Rule rules[] = {
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE, {0}},
-    [TOKEN_DEBUG] = {debug_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_OPCODES] = {opcode_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_STACK] = {stack_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_REFERENCE] = {reference_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DIVIDE] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_DOT] = {NULL, compile_dot, PRECEDENCE_CALL, {0}},
@@ -1015,7 +1019,7 @@ static Rule rules[] = {
     [TOKEN_GREATER] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
     [TOKEN_GREATER_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
     [TOKEN_IDENT] = {compile_variable, NULL, PRECEDENCE_NONE, {0}},
-    [TOKEN_INSPECT] = {inspect_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_SRC] = {source_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_IF] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_IN] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_INDEX] = {index_expression, NULL, PRECEDENCE_NONE, {0}},
@@ -1028,7 +1032,7 @@ static Rule rules[] = {
     [TOKEN_LEN] = {len_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_LESS] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
     [TOKEN_LESS_EQUAL] = {NULL, compile_binary, PRECEDENCE_COMPARE, {0}},
-    [TOKEN_LET] = {NULL, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_SET] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_MODULO] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_MULTIPLY] = {NULL, compile_binary, PRECEDENCE_FACTOR, {0}},
     [TOKEN_NONE] = {compile_none, NULL, PRECEDENCE_NONE, {0}},
@@ -1502,7 +1506,7 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
         }
 
         if (begin < end) {
-            error = string_append_format(error, "\n  | %.*s\n    ", end - begin, &source[begin]);
+            error = string_append_format(error, "\n  %.*s\n  ", end - begin, &source[begin]);
             for (int i = 0; i < (int)(start - begin); i++) {
                 error = hymn_string_append_char(error, ' ');
             }
@@ -1640,14 +1644,16 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 5) return ident_trie(ident, 1, "reak", TOKEN_BREAK);
         break;
     case 'd':
-        if (size == 5) return ident_trie(ident, 1, "ebug", TOKEN_DEBUG);
         if (size == 6) return ident_trie(ident, 1, "elete", TOKEN_DELETE);
         break;
     case 'r':
         if (size == 6) return ident_trie(ident, 1, "eturn", TOKEN_RETURN);
         break;
     case 's':
-        if (size == 3) return ident_trie(ident, 1, "tr", TOKEN_TO_STRING);
+        if (size == 3) {
+            if (ident[1] == 'e' && ident[2] == 't') return TOKEN_SET;
+            if (ident[1] == 't' && ident[2] == 'r') return TOKEN_TO_STRING;
+        }
         break;
     case 'k':
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
@@ -1658,10 +1664,7 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 8) return ident_trie(ident, 1, "ontinue", TOKEN_CONTINUE);
         break;
     case 'l':
-        if (size == 3 && ident[1] == 'e') {
-            if (ident[2] == 't') return TOKEN_LET;
-            if (ident[2] == 'n') return TOKEN_LEN;
-        }
+        if (size == 3) return ident_trie(ident, 1, "en", TOKEN_LEN);
         break;
     case 't':
         if (size == 3) return ident_trie(ident, 1, "ry", TOKEN_TRY);
@@ -1675,7 +1678,6 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
         if (size == 3) return ident_trie(ident, 1, "nt", TOKEN_TO_INTEGER);
         if (size == 5) return ident_trie(ident, 1, "ndex", TOKEN_INDEX);
         if (size == 6) return ident_trie(ident, 1, "nsert", TOKEN_INSERT);
-        if (size == 7) return ident_trie(ident, 1, "nspect", TOKEN_INSPECT);
         if (size == 2) {
             if (ident[1] == 'f') return TOKEN_IF;
             if (ident[1] == 'n') return TOKEN_IN;
@@ -1713,6 +1715,12 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 'a') return ident_trie(ident, 2, "lse", TOKEN_FALSE);
             if (ident[1] == 'l') return ident_trie(ident, 2, "oat", TOKEN_TO_FLOAT);
         }
+        break;
+    case '_':
+        if (size == 6) return ident_trie(ident, 1, "stack", TOKEN_STACK);
+        if (size == 7) return ident_trie(ident, 1, "source", TOKEN_SRC);
+        if (size == 8) return ident_trie(ident, 1, "opcodes", TOKEN_OPCODES);
+        if (size == 10) return ident_trie(ident, 1, "reference", TOKEN_REFERENCE);
         break;
     default:
         break;
@@ -2224,15 +2232,6 @@ static void byte_code_init(HymnByteCode *this) {
     value_pool_init(&this->constants);
 }
 
-static HymnFunction *new_function(const char *script) {
-    HymnFunction *func = hymn_calloc(1, sizeof(HymnFunction));
-    byte_code_init(&func->code);
-    if (script != NULL) {
-        func->script = hymn_new_string(script);
-    }
-    return func;
-}
-
 static HymnNativeFunction *new_native_function(HymnObjectString *name, HymnNativeCall func) {
     HymnNativeFunction *native = hymn_calloc(1, sizeof(HymnNativeFunction));
     native->name = name;
@@ -2449,14 +2448,22 @@ static HymnObjectString *table_key_of(HymnTable *this, HymnValue match) {
 }
 
 static void scope_init(Compiler *C, Scope *scope, enum FunctionType type, size_t begin) {
-    scope->enclosing = C->scope;
+
+    Scope *enclosing = C->scope;
+
+    scope->enclosing = enclosing;
     C->scope = scope;
 
     scope->local_count = 0;
     scope->depth = 0;
-    scope->func = new_function(C->script);
     scope->type = type;
     scope->begin = begin;
+    scope->func = hymn_calloc(1, sizeof(HymnFunction));
+    byte_code_init(&scope->func->code);
+    if (C->script != NULL) {
+        scope->func->script = hymn_new_string(C->script);
+    }
+    scope->func->parent = enclosing == NULL ? NULL : enclosing->func;
 
     if (type == TYPE_FUNCTION) {
         scope->func->name = hymn_substring(C->source, C->previous.start, C->previous.start + C->previous.length);
@@ -2805,6 +2812,35 @@ static void compile_table(Compiler *C, bool assign) {
 }
 
 static void function_delete(HymnFunction *this) {
+    if (this->parent != NULL) {
+        HymnFunction *parent = this->parent;
+        HymnValuePool *constants = &parent->code.constants;
+        int count = constants->count;
+        HymnValue *values = constants->values;
+        for (int i = 0; i < count; i++) {
+            HymnValue value = values[i];
+            if (hymn_is_func(value)) {
+                HymnFunction *func = hymn_as_func(value);
+                if (func == this) {
+                    values[i] = hymn_new_undefined();
+                    break;
+                }
+            }
+        }
+    }
+    HymnValuePool *constants = &this->code.constants;
+    int count = constants->count;
+    HymnValue *values = constants->values;
+    for (int i = 0; i < count; i++) {
+        HymnValue value = values[i];
+        if (hymn_is_func(value)) {
+            HymnFunction *func = hymn_as_func(value);
+            func->parent = NULL;
+            if (func->count == 0) {
+                function_delete(func);
+            }
+        }
+    }
     byte_code_delete(&this->code);
     hymn_string_delete(this->name);
     hymn_string_delete(this->script);
@@ -3805,7 +3841,7 @@ static void echo_if_none(Compiler *C) {
 static HymnFunction *end_function(Compiler *C) {
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
-    if (scope->type == TYPE_SCRIPT || scope->type == TYPE_REPL) echo_if_none(C);
+    if (scope->type == TYPE_DIRECT || scope->type == TYPE_REPL) echo_if_none(C);
     emit(C, OP_VOID);
 #ifndef HYMN_NO_OPTIMIZE
     optimize(C);
@@ -3865,7 +3901,7 @@ static void declare_function(Compiler *C) {
 }
 
 static void declaration(Compiler *C) {
-    if (match(C, TOKEN_LET)) {
+    if (match(C, TOKEN_SET)) {
         define_new_variable(C);
     } else if (match(C, TOKEN_FUNCTION)) {
         declare_function(C);
@@ -4439,20 +4475,35 @@ static void exists_expression(Compiler *C, bool assign) {
     emit(C, OP_EXISTS);
 }
 
-static void inspect_expression(Compiler *C, bool assign) {
+static void source_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'inspect'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_source'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'inspect'");
-    emit(C, OP_INSPECT);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_source'");
+    emit(C, OP_SOURCE);
 }
 
-static void debug_expression(Compiler *C, bool assign) {
+static void opcode_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'debug'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_opcodes'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'debug'");
-    emit(C, OP_DEBUG);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_opcodes'");
+    emit(C, OP_CODES);
+}
+
+static void stack_expression(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_stack'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_stack'");
+    emit(C, OP_STACK);
+}
+
+static void reference_expression(Compiler *C, bool assign) {
+    (void)assign;
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_reference'");
+    expression(C);
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_reference'");
+    emit(C, OP_REFERENCE);
 }
 
 static void expression_statement(Compiler *C) {
@@ -4501,18 +4552,6 @@ static CompileResult compile(Hymn *H, const char *script, const char *source, en
     if (C.error != NULL) {
         char *error = string_to_chars(C.error);
         hymn_string_delete(C.error);
-
-        HymnValuePool *constants = &func->code.constants;
-        int count = constants->count;
-        HymnValue *values = constants->values;
-
-        for (int i = 0; i < count; i++) {
-            HymnValue value = values[i];
-            if (hymn_is_func(value)) {
-                function_delete(hymn_as_func(value));
-            }
-        }
-
         function_delete(func);
         return (CompileResult){.func = NULL, .error = error};
     }
@@ -4712,93 +4751,17 @@ static void reset_stack(Hymn *H) {
     H->frame_count = 0;
 }
 
-#ifdef HYMN_DEBUG_MEMORY
-static void debug_value(HymnValue value) {
-    HymnString *string = debug_value_to_string(value);
-    printf("%s", string);
-    hymn_string_delete(string);
-}
-
-static void debug_reference(HymnValue value) {
-    int count;
-    switch (value.is) {
-    case HYMN_VALUE_STRING:
-        count = hymn_as_hymn_string(value)->count;
-        break;
-    case HYMN_VALUE_ARRAY:
-        count = hymn_as_array(value)->count;
-        break;
-    case HYMN_VALUE_TABLE:
-        count = hymn_as_table(value)->count;
-        break;
-    case HYMN_VALUE_FUNC:
-        count = hymn_as_func(value)->count;
-        break;
-    case HYMN_VALUE_FUNC_NATIVE:
-        count = hymn_as_native(value)->count;
-        break;
-    default:
-        return;
-    }
-    printf("REF     | [%p] [", (void *)value.as.o);
-    debug_value(value);
-    printf("] [%d]\n", count);
-    assert(count >= 0);
-}
-
-static void debug_dereference(HymnValue value) {
-    int count;
-    switch (value.is) {
-    case HYMN_VALUE_STRING:
-        count = hymn_as_hymn_string(value)->count;
-        break;
-    case HYMN_VALUE_ARRAY:
-        count = hymn_as_array(value)->count;
-        break;
-    case HYMN_VALUE_TABLE:
-        count = hymn_as_table(value)->count;
-        break;
-    case HYMN_VALUE_FUNC:
-        count = hymn_as_func(value)->count;
-        break;
-    case HYMN_VALUE_FUNC_NATIVE:
-        count = hymn_as_native(value)->count;
-        break;
-    default:
-        return;
-    }
-    count--;
-    if (count == 0) {
-        printf("FREE    | [%p] [", (void *)object);
-        debug_value(value);
-        printf("]\n");
-    } else if (count < 0) {
-        printf("BAD     | [%p] [", (void *)object);
-        debug_value(value);
-        printf("]\n");
-    } else {
-        printf("DEREF   | [%p] [", (void *)object);
-        debug_value(value);
-        printf("] [%d]\n", count);
-    }
-    assert(count >= 0);
-}
-#endif
-
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_reference_string(HymnObjectString *string) {
     (void)string;
 }
 #else
 void hymn_reference_string(HymnObjectString *string) {
     string->count++;
-#ifdef HYMN_DEBUG_MEMORY
-    debug_reference(hymn_new_string_value(string));
-#endif
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_reference(HymnValue value) {
     (void)value;
 }
@@ -4807,33 +4770,18 @@ void hymn_reference(HymnValue value) {
     switch (value.is) {
     case HYMN_VALUE_STRING:
         ((HymnObjectString *)value.as.o)->count++;
-#ifdef HYMN_DEBUG_MEMORY
-        debug_reference(value);
-#endif
         return;
     case HYMN_VALUE_ARRAY:
         ((HymnArray *)value.as.o)->count++;
-#ifdef HYMN_DEBUG_MEMORY
-        debug_reference(value);
-#endif
         return;
     case HYMN_VALUE_TABLE:
         ((HymnTable *)value.as.o)->count++;
-#ifdef HYMN_DEBUG_MEMORY
-        debug_reference(value);
-#endif
         return;
     case HYMN_VALUE_FUNC:
         ((HymnFunction *)value.as.o)->count++;
-#ifdef HYMN_DEBUG_MEMORY
-        debug_reference(value);
-#endif
         return;
     case HYMN_VALUE_FUNC_NATIVE:
         ((HymnNativeFunction *)value.as.o)->count++;
-#ifdef HYMN_DEBUG_MEMORY
-        debug_reference(value);
-#endif
         return;
     default:
         return;
@@ -4841,16 +4789,13 @@ void hymn_reference(HymnValue value) {
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
     (void)H;
     (void)string;
 }
 #else
 void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
-#ifdef HYMN_DEBUG_MEMORY
-    debug_dereference(hymn_new_string_value(string));
-#endif
     int count = --string->count;
     assert(count >= 0);
     if (count == 0) {
@@ -4861,7 +4806,7 @@ void hymn_dereference_string(Hymn *H, HymnObjectString *string) {
 }
 #endif
 
-#ifdef HYMN_NO_MEMORY_MANAGE
+#ifdef HYMN_NO_MEMORY
 void hymn_dereference(Hymn *H, HymnValue value) {
     (void)H;
     (void)value;
@@ -4875,9 +4820,6 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         return;
     }
     case HYMN_VALUE_ARRAY: {
-#ifdef HYMN_DEBUG_MEMORY
-        debug_dereference(value);
-#endif
         HymnArray *array = (HymnArray *)value.as.o;
         int count = --array->count;
         assert(count >= 0);
@@ -4887,9 +4829,6 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         return;
     }
     case HYMN_VALUE_TABLE: {
-#ifdef HYMN_DEBUG_MEMORY
-        debug_dereference(value);
-#endif
         HymnTable *table = (HymnTable *)value.as.o;
         int count = --table->count;
         assert(count >= 0);
@@ -4899,9 +4838,6 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         return;
     }
     case HYMN_VALUE_FUNC: {
-#ifdef HYMN_DEBUG_MEMORY
-        debug_dereference(value);
-#endif
         HymnFunction *func = (HymnFunction *)value.as.o;
         int count = --func->count;
         assert(count >= 0);
@@ -4911,9 +4847,6 @@ void hymn_dereference(Hymn *H, HymnValue value) {
         return;
     }
     case HYMN_VALUE_FUNC_NATIVE: {
-#ifdef HYMN_DEBUG_MEMORY
-        debug_dereference(value);
-#endif
         HymnNativeFunction *func = (HymnNativeFunction *)value.as.o;
         int count = --func->count;
         assert(count >= 0);
@@ -5237,15 +5170,13 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
 
     HymnFunction *func = result.func;
     HymnValue function = hymn_new_func_value(func);
-    hymn_reference(function);
+    func->count = 1;
 
     push(H, function);
     call(H, func, 0);
 
     error = interpret(H);
-    if (error != NULL) {
-        return throw_existing_error(H, error);
-    }
+    if (error != NULL) return throw_existing_error(H, error);
 
     return current_frame(H);
 }
@@ -5345,7 +5276,9 @@ static int disassemble_instruction(HymnString **debug, HymnByteCode *code, int i
     case OP_NEW_TABLE: return debug_instruction(debug, "OP_NEW_TABLE", index);
     case OP_COPY: return debug_instruction(debug, "OP_COPY", index);
     case OP_DEFINE_GLOBAL: return debug_constant_instruction(debug, "OP_DEFINE_GLOBAL", code, index);
-    case OP_DEBUG: return debug_instruction(debug, "OP_DEBUG", index);
+    case OP_CODES: return debug_instruction(debug, "OP_CODES", index);
+    case OP_STACK: return debug_instruction(debug, "OP_STACK", index);
+    case OP_REFERENCE: return debug_instruction(debug, "OP_REFERENCE", index);
     case OP_DELETE: return debug_instruction(debug, "OP_DELETE", index);
     case OP_DIVIDE: return debug_instruction(debug, "OP_DIVIDE", index);
     case OP_DUPLICATE: return debug_instruction(debug, "OP_DUPLICATE", index);
@@ -5368,7 +5301,7 @@ static int disassemble_instruction(HymnString **debug, HymnByteCode *code, int i
     case OP_INCREMENT_LOCAL_AND_SET: return debug_three_byte_instruction(debug, "OP_INCREMENT_LOCAL_AND_SET", code, index);
     case OP_INCREMENT_LOOP: return debug_increment_loop_instruction(debug, "OP_INCREMENT_LOOP", code, index);
     case OP_INDEX: return debug_instruction(debug, "OP_INDEX", index);
-    case OP_INSPECT: return debug_instruction(debug, "OP_INSPECT", index);
+    case OP_SOURCE: return debug_instruction(debug, "OP_SOURCE", index);
     case OP_JUMP: return debug_jump_instruction(debug, "OP_JUMP", 1, code, index);
     case OP_JUMP_IF_EQUAL: return debug_jump_instruction(debug, "OP_JUMP_IF_EQUAL", 1, code, index);
     case OP_JUMP_IF_FALSE: return debug_jump_instruction(debug, "OP_JUMP_IF_FALSE", 1, code, index);
@@ -5513,28 +5446,6 @@ static void run(Hymn *H) {
     HymnFrame *frame = current_frame(H);
 
 dispatch:
-#ifdef HYMN_DEBUG_STACK
-    if (H->stack_top != H->stack) {
-        HymnString *debug = hymn_new_string("");
-        for (HymnValue *i = H->stack; i != H->stack_top; i++) {
-            debug = hymn_string_append_char(debug, '[');
-            HymnString *stack_debug = debug_value_to_string(*i);
-            debug = hymn_string_append(debug, stack_debug);
-            hymn_string_delete(stack_debug);
-            debug = hymn_string_append(debug, "] ");
-        }
-        printf("STACK   | %s\n", debug);
-        hymn_string_delete(debug);
-    }
-#endif
-#ifdef HYMN_DEBUG_TRACE
-    {
-        HymnString *debug = hymn_new_string("");
-        disassemble_instruction(&debug, &frame->func->code, (int)(frame->ip - frame->func->code.instructions));
-        printf("%s\n", debug);
-        hymn_string_delete(debug);
-    }
-#endif
     switch (READ_BYTE(frame)) {
     case OP_VOID: {
         H->frame_count--;
@@ -5607,23 +5518,23 @@ dispatch:
                 if (frame == NULL) return;
             } else {
                 HymnValue *top = H->stack_top;
-                HymnValue *start = top - count - 1;
+                HymnValue *new_frame = top - count - 1;
                 HymnValue *bottom = frame->stack;
-                HymnValue *move = start;
-                while (bottom != start) {
+                HymnValue *shift = new_frame;
+                while (bottom != new_frame) {
                     hymn_dereference(H, *bottom);
-                    if (move != top) {
-                        *bottom = *move;
-                        move++;
+                    if (shift != top) {
+                        *bottom = *shift;
+                        shift++;
                     }
                     bottom++;
                 }
-                while (move != top) {
-                    *bottom = *move;
-                    move++;
+                while (shift != top) {
+                    *bottom = *shift;
+                    shift++;
                     bottom++;
                 }
-                H->stack_top = start;
+                H->stack_top = frame->stack + count + 1;
                 frame->func = func;
                 frame->ip = func->code.instructions;
             }
@@ -7091,7 +7002,7 @@ dispatch:
         hymn_dereference(H, route);
         goto dispatch;
     }
-    case OP_INSPECT: {
+    case OP_SOURCE: {
         HymnValue value = pop(H);
         HymnString *inspect = NULL;
         if (hymn_is_func(value)) {
@@ -7103,7 +7014,7 @@ dispatch:
         hymn_dereference(H, value);
         goto dispatch;
     }
-    case OP_DEBUG: {
+    case OP_CODES: {
         HymnValue value = pop(H);
         HymnString *debug = NULL;
         if (hymn_is_func(value)) {
@@ -7112,6 +7023,48 @@ dispatch:
         }
         if (debug == NULL) debug = hymn_value_to_string(value);
         push_string(H, debug);
+        hymn_dereference(H, value);
+        goto dispatch;
+    }
+    case OP_STACK: {
+        if (H->stack_top != H->stack) {
+            HymnString *debug = hymn_new_string("");
+            for (HymnValue *i = H->stack; i != H->stack_top; i++) {
+                debug = hymn_string_append_char(debug, '[');
+                HymnString *stack_debug = debug_value_to_string(*i);
+                debug = hymn_string_append(debug, stack_debug);
+                hymn_string_delete(stack_debug);
+                debug = hymn_string_append(debug, "]\n");
+            }
+            push_string(H, debug);
+        } else {
+            push_string(H, hymn_new_string(""));
+        }
+        goto dispatch;
+    }
+    case OP_REFERENCE: {
+        HymnValue value = pop(H);
+        int count = 0;
+        switch (value.is) {
+        case HYMN_VALUE_STRING:
+            count = ((HymnObjectString *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_ARRAY:
+            count = ((HymnArray *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_TABLE:
+            count = ((HymnTable *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_FUNC:
+            count = ((HymnFunction *)value.as.o)->count;
+            break;
+        case HYMN_VALUE_FUNC_NATIVE:
+            count = ((HymnNativeFunction *)value.as.o)->count;
+            break;
+        default:
+            break;
+        }
+        push(H, hymn_new_int(count));
         hymn_dereference(H, value);
         goto dispatch;
     }
@@ -7263,18 +7216,6 @@ void hymn_delete(Hymn *H) {
             }
         }
     }
-#ifdef HYMN_DEBUG_MEMORY
-    {
-        unsigned int bins = strings->bins;
-        for (unsigned int i = 0; i < bins; i++) {
-            HymnSetItem *item = strings->items[i];
-            while (item != NULL) {
-                fprintf(stderr, "ENDING STRING REFERENCE: %s\n", item->string->string);
-                item = item->next;
-            }
-        }
-    }
-#endif
     assert(strings->size == 0);
     free(strings->items);
 
@@ -7348,9 +7289,7 @@ char *hymn_call(Hymn *H, const char *name, int arguments) {
     call_value(H, function, arguments);
 
     char *error = interpret(H);
-    if (error) {
-        return error;
-    }
+    if (error != NULL) return error;
 
     assert(H->stack_top == H->stack);
     reset_stack(H);
@@ -7375,7 +7314,7 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
     CompileResult result = compile(H, script, code, TYPE_SCRIPT);
 
     char *error = result.error;
-    if (error) {
+    if (error != NULL) {
         hymn_string_delete(code);
         return error;
     }
@@ -7400,14 +7339,6 @@ char *hymn_debug(Hymn *H, const char *script, const char *source) {
         }
     }
 
-    for (int i = 0; i < count; i++) {
-        HymnValue value = values[i];
-        if (hymn_is_func(value)) {
-            HymnFunction *func = hymn_as_func(value);
-            function_delete(func);
-        }
-    }
-
     function_delete(main);
     hymn_string_delete(code);
 
@@ -7421,21 +7352,17 @@ static char *exec(Hymn *H, const char *script, const char *source, enum Function
     CompileResult result = compile(H, script, source, type);
 
     char *error = result.error;
-    if (error) {
-        return error;
-    }
+    if (error != NULL) return error;
 
     HymnFunction *func = result.func;
     HymnValue function = hymn_new_func_value(func);
-    hymn_reference(function);
+    func->count = 1;
 
     push(H, function);
     call(H, func, 0);
 
     error = interpret(H);
-    if (error) {
-        return error;
-    }
+    if (error != NULL) return error;
 
     assert(H->stack_top == H->stack);
     reset_stack(H);
@@ -7448,7 +7375,11 @@ char *hymn_run(Hymn *H, const char *script, const char *source) {
 }
 
 char *hymn_do(Hymn *H, const char *source) {
-    return exec(H, NULL, source, TYPE_DO);
+    return exec(H, NULL, source, TYPE_SCRIPT);
+}
+
+char *hymn_direct(Hymn *H, const char *source) {
+    return exec(H, NULL, source, TYPE_DIRECT);
 }
 
 char *hymn_script(Hymn *H, const char *script) {

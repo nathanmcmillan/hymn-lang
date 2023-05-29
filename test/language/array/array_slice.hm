@@ -6,7 +6,7 @@
 # [2, 4, 6]
 # [2, 4]
 
-let array = [2, 4, 6, 8]
+set array = [2, 4, 6, 8]
 
 echo array[:]
 echo array[0:]

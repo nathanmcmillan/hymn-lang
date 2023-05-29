@@ -2,8 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const HYMN_DEBUG_TRACE = false
-const HYMN_DEBUG_STACK = false
+const HYMN_VERSION = '0.10.0'
 
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
@@ -187,7 +186,7 @@ const TOKEN_IF = 43
 const TOKEN_IN = 44
 const TOKEN_INDEX = 45
 const TOKEN_INSERT = 46
-const TOKEN_INSPECT = 47
+const TOKEN_SRC = 47
 const TOKEN_INTEGER = 48
 const TOKEN_KEYS = 49
 const TOKEN_LEFT_CURLY = 50
@@ -196,7 +195,7 @@ const TOKEN_LEFT_SQUARE = 52
 const TOKEN_LEN = 53
 const TOKEN_LESS = 54
 const TOKEN_LESS_EQUAL = 55
-const TOKEN_LET = 56
+const TOKEN_SET = 56
 const TOKEN_MODULO = 57
 const TOKEN_MULTIPLY = 58
 const TOKEN_NONE = 59
@@ -224,7 +223,9 @@ const TOKEN_UNDEFINED = 80
 const TOKEN_USE = 81
 const TOKEN_VALUE = 82
 const TOKEN_WHILE = 83
-const TOKEN_DEBUG = 84
+const TOKEN_OPCODES = 84
+const TOKEN_STACK = 85
+const TOKEN_REFERENCE = 86
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -277,7 +278,7 @@ const OP_GREATER = 29
 const OP_GREATER_EQUAL = 30
 const OP_INCREMENT_LOCAL_AND_SET = 31
 const OP_INDEX = 32
-const OP_INSPECT = 33
+const OP_SOURCE = 33
 const OP_INT = 34
 const OP_JUMP = 35
 const OP_JUMP_IF_FALSE = 36
@@ -310,10 +311,13 @@ const OP_THROW = 62
 const OP_TRUE = 63
 const OP_TYPE = 64
 const OP_USE = 65
-const OP_DEBUG = 66
+const OP_CODES = 66
+const OP_STACK = 67
+const OP_REFERENCE = 68
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
+const TYPE_DIRECT = 2
 
 class Token {
   constructor() {
@@ -428,7 +432,9 @@ rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_DEBUG] = new Rule(debugExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_OPCODES] = new Rule(opCodesExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_STACK] = new Rule(stackExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_REFERENCE] = new Rule(referenceExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DIVIDE] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_DOT] = new Rule(null, compileDot, PRECEDENCE_CALL)
@@ -451,7 +457,7 @@ rules[TOKEN_IF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_IN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_INDEX] = new Rule(indexExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INSERT] = new Rule(arrayInsertExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_INSPECT] = new Rule(inspectExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_SRC] = new Rule(sourceExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INTEGER] = new Rule(compileInteger, null, PRECEDENCE_NONE)
 rules[TOKEN_KEYS] = new Rule(keysExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LEFT_CURLY] = new Rule(compileTable, null, PRECEDENCE_NONE)
@@ -460,7 +466,7 @@ rules[TOKEN_LEFT_SQUARE] = new Rule(compileArray, compileSquare, PRECEDENCE_CALL
 rules[TOKEN_LEN] = new Rule(lenExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LESS] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
 rules[TOKEN_LESS_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
-rules[TOKEN_LET] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_SET] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_MODULO] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_MULTIPLY] = new Rule(null, compileBinary, PRECEDENCE_FACTOR)
 rules[TOKEN_NONE] = new Rule(compileNone, null, PRECEDENCE_NONE)
@@ -879,7 +885,7 @@ function compileError(C, token, format) {
     }
 
     if (begin < end) {
-      error += '\n  | ' + source.substring(begin, end) + '\n    '
+      error += '\n  ' + source.substring(begin, end) + '\n  '
       const spaces = token.start - begin
       if (spaces > 0) for (let i = 0; i < spaces; i++) error += ' '
       for (let i = 0; i < token.length; i++) error += '^'
@@ -985,14 +991,16 @@ function identKey(ident, size) {
       if (size === 5) return identTrie(ident, 1, 'reak', TOKEN_BREAK)
       break
     case 'd':
-      if (size === 5) return identTrie(ident, 1, 'ebug', TOKEN_DEBUG)
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
       break
     case 'r':
       if (size === 6) return identTrie(ident, 1, 'eturn', TOKEN_RETURN)
       break
     case 's':
-      if (size === 3) return identTrie(ident, 1, 'tr', TOKEN_TO_STRING)
+      if (size === 3) {
+        if (ident[1] === 'e' && ident[2] === 't') return TOKEN_SET
+        if (ident[1] === 't' && ident[2] === 'r') return TOKEN_TO_STRING
+      }
       break
     case 'k':
       if (size === 4) return identTrie(ident, 1, 'eys', TOKEN_KEYS)
@@ -1003,10 +1011,7 @@ function identKey(ident, size) {
       if (size === 8) return identTrie(ident, 1, 'ontinue', TOKEN_CONTINUE)
       break
     case 'l':
-      if (size === 3 && ident[1] === 'e') {
-        if (ident[2] === 't') return TOKEN_LET
-        if (ident[2] === 'n') return TOKEN_LEN
-      }
+      if (size === 3) return identTrie(ident, 1, 'en', TOKEN_LEN)
       break
     case 't':
       if (size === 3) return identTrie(ident, 1, 'ry', TOKEN_TRY)
@@ -1020,7 +1025,6 @@ function identKey(ident, size) {
       if (size === 3) return identTrie(ident, 1, 'nt', TOKEN_TO_INTEGER)
       if (size === 5) return identTrie(ident, 1, 'ndex', TOKEN_INDEX)
       if (size === 6) return identTrie(ident, 1, 'nsert', TOKEN_INSERT)
-      if (size === 7) return identTrie(ident, 1, 'nspect', TOKEN_INSPECT)
       if (size === 2) {
         if (ident[1] === 'f') return TOKEN_IF
         if (ident[1] === 'n') return TOKEN_IN
@@ -1058,6 +1062,12 @@ function identKey(ident, size) {
         if (ident[1] === 'a') return identTrie(ident, 2, 'lse', TOKEN_FALSE)
         if (ident[1] === 'l') return identTrie(ident, 2, 'oat', TOKEN_TO_FLOAT)
       }
+      break
+    case '_':
+      if (size === 6) return identTrie(ident, 1, 'stack', TOKEN_STACK)
+      if (size === 7) return identTrie(ident, 1, 'source', TOKEN_SRC)
+      if (size === 8) return identTrie(ident, 1, 'opcodes', TOKEN_OPCODES)
+      if (size === 10) return identTrie(ident, 1, 'reference', TOKEN_REFERENCE)
       break
   }
   return TOKEN_UNDEFINED
@@ -1567,12 +1577,6 @@ function scopeInit(C, scope, type, begin) {
   const local = scopeGetLocal(scope, scope.localCount++)
   local.depth = 0
   local.name = null
-}
-
-function newCompiler(script, source, H, scope) {
-  const C = new Compiler(script, source, H)
-  scopeInit(C, scope, TYPE_SCRIPT, 0)
-  return C
 }
 
 function byteCodeNewConstant(C, value) {
@@ -2261,7 +2265,7 @@ function echoIfNone(C) {
 function endFunction(C) {
   const scope = C.scope
   const func = scope.func
-  if (scope.type === TYPE_SCRIPT) echoIfNone(C)
+  if (scope.type === TYPE_DIRECT) echoIfNone(C)
   emitShort(C, OP_NONE, OP_RETURN)
   if (scope.type === TYPE_FUNCTION) func.source = C.source.substring(scope.begin, C.previous.start + C.previous.length)
   C.scope = scope.enclosing
@@ -2316,7 +2320,7 @@ function declareFunction(C) {
 }
 
 function declaration(C) {
-  if (match(C, TOKEN_LET)) {
+  if (match(C, TOKEN_SET)) {
     defineNewVariable(C)
   } else if (match(C, TOKEN_FUNCTION)) {
     declareFunction(C)
@@ -2855,18 +2859,31 @@ function existsExpression(C) {
   emit(C, OP_EXISTS)
 }
 
-function inspectExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'inspect'`)
+function sourceExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_source'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'inspect'`)
-  emit(C, OP_INSPECT)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_source'`)
+  emit(C, OP_SOURCE)
 }
 
-function debugExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'debug'`)
+function opCodesExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_opcodes'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'debug'`)
-  emit(C, OP_DEBUG)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_opcodes'`)
+  emit(C, OP_CODES)
+}
+
+function stackExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_stack'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_stack'`)
+  emit(C, OP_STACK)
+}
+
+function referenceExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_reference'`)
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_reference'`)
+  emit(C, OP_REFERENCE)
 }
 
 function expressionStatement(C) {
@@ -2890,9 +2907,10 @@ function currentFrame(H) {
   return H.frames[H.frameCount - 1]
 }
 
-function compile(H, script, source) {
+function compile(H, script, source, type) {
   const scope = new Scope()
-  const C = newCompiler(script, source, H, scope)
+  const C = new Compiler(script, source, H)
+  scopeInit(C, scope, type, 0)
 
   advance(C)
   while (!match(C, TOKEN_EOF)) {
@@ -3325,7 +3343,7 @@ async function hymnImport(H, file) {
     tablePut(imports, module, newBool(true))
   }
 
-  const result = compile(H, module, source)
+  const result = compile(H, module, source, TYPE_SCRIPT)
 
   const func = result.func
   let error = result.error
@@ -3523,10 +3541,14 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_TYPE', index)
     case OP_USE:
       return debugInstruction(debug, 'OP_USE', index)
-    case OP_INSPECT:
-      return debugInstruction(debug, 'OP_INSPECT', index)
-    case OP_DEBUG:
-      return debugInstruction(debug, 'OP_DEBUG', index)
+    case OP_SOURCE:
+      return debugInstruction(debug, 'OP_SOURCE', index)
+    case OP_CODES:
+      return debugInstruction(debug, 'OP_CODES', index)
+    case OP_STACK:
+      return debugInstruction(debug, 'OP_STACK', index)
+    case OP_REFERENCE:
+      return debugInstruction(debug, 'OP_REFERENCE', index)
     default:
       return (debug[0] += 'UNKNOWN_OPCODE ' + instruction)
   }
@@ -3544,28 +3566,9 @@ function disassembleByteCode(code) {
   return debug[0]
 }
 
-function debugStack(H) {
-  if (H.stackTop === 0) {
-    return
-  }
-  let debug = 'STACK   | '
-  for (let i = 0; i < H.stackTop; i++) {
-    debug += '[' + debugValueToString(H.stack[i]) + '] '
-  }
-  console.debug(debug)
-}
-
-function debugTrace(code, index) {
-  const debug = ['']
-  disassembleInstruction(debug, code, index)
-  console.debug(debug[0])
-}
-
 async function hymnRun(H) {
   let frame = currentFrame(H)
   while (true) {
-    if (HYMN_DEBUG_STACK) debugStack(H)
-    if (HYMN_DEBUG_TRACE) debugTrace(frame.func.code, frame.ip)
     switch (readByte(frame)) {
       case OP_RETURN: {
         const result = hymnPop(H)
@@ -4722,14 +4725,31 @@ async function hymnRun(H) {
         }
         break
       }
-      case OP_INSPECT: {
+      case OP_SOURCE: {
         const value = hymnPop(H)
         hymnPush(H, newString(valueToInspect(value)))
         break
       }
-      case OP_DEBUG: {
+      case OP_CODES: {
         const value = hymnPop(H)
         hymnPush(H, newString(valueToDebug(value)))
+        break
+      }
+      case OP_STACK: {
+        if (H.stackTop !== 0) {
+          let debug = ''
+          for (let i = 0; i < H.stackTop; i++) {
+            debug += '[' + debugValueToString(H.stack[i]) + ']\n'
+          }
+          hymnPush(H, newString(debug))
+        } else {
+          hymnPush(H, newString(''))
+        }
+        break
+      }
+      case OP_REFERENCE: {
+        hymnPop(H)
+        hymnPush(H, newInt(0))
         break
       }
       case OP_THROW: {
@@ -4771,7 +4791,7 @@ function addPointer(H, name, pointer) {
 }
 
 async function debugScript(H, script, source) {
-  const result = compile(H, script, source)
+  const result = compile(H, script, source, TYPE_SCRIPT)
 
   const func = result.func
   if (result.error !== null) {
@@ -4795,8 +4815,8 @@ async function debugScript(H, script, source) {
   return null
 }
 
-async function interpretScript(H, script, source) {
-  const result = compile(H, script, source)
+async function interpretScript(H, script, source, type) {
+  const result = compile(H, script, source, type)
 
   const func = result.func
   if (result.error !== null) {
@@ -4808,16 +4828,18 @@ async function interpretScript(H, script, source) {
   hymnCall(H, func, 0)
 
   await hymnRun(H)
-  if (H.error !== null) {
-    return H.error
-  }
+  if (H.error !== null) return H.error
 
   hymnResetStack(H)
   return null
 }
 
 async function interpret(H, source) {
-  return interpretScript(H, null, source)
+  return interpretScript(H, null, source, TYPE_SCRIPT)
+}
+
+async function direct(H, source) {
+  return interpretScript(H, null, source, TYPE_DIRECT)
 }
 
 function newVM() {
@@ -4845,6 +4867,7 @@ function newVM() {
 
 if (node) {
   module.exports = {
+    version: HYMN_VERSION,
     isFloat: isFloat,
     isFuncNative: isFuncNative,
     isPointer: isPointer,
@@ -4856,9 +4879,10 @@ if (node) {
     newNativeFunction: newNativeFunction,
     addFunction: addFunction,
     addPointer: addPointer,
-    newVM: newVM,
-    interpret: interpret,
     interpretScript: interpretScript,
+    interpret: interpret,
+    direct: direct,
+    newVM: newVM,
     debug: debugScript,
   }
 }

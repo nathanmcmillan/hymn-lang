@@ -7,7 +7,7 @@
 
 use "errors"
 
-let array = [2]
+set array = [2]
 
 try { array["foo"] } except e { echo runtime(e) }
 try { array["foo"] = 0 } except e { echo runtime(e) }

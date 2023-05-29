@@ -5,7 +5,7 @@
 
 use "errors"
 
-let foo = "bar"
+set foo = "bar"
 
 try { foo[true] } except e { echo runtime(e) }
 try { foo[10] } except e { echo runtime(e) }

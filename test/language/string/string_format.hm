@@ -15,7 +15,7 @@
 # nothing { 3 + 4 }}
 # nothing {{ 5 + 6 }}
 
-let foo = 42
+set foo = 42
 
 echo "number " + foo
 echo "number format ${foo}"
@@ -24,8 +24,8 @@ echo 'simply symbol ${foo}'
 echo "multiplied ${foo * 2}"
 echo "divide${64/2}test"
 
-let x = 2
-let y = 3
+set x = 2
+set y = 3
 
 echo "add two ${x + y} numbers"
 

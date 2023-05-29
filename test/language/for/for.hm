@@ -20,7 +20,7 @@ for i = 0, i < 4 {
 }
 echo ""
 
-let i = 0
+set i = 0
 for i = 0, i < 4, i = i + 1 {
   echo i
 }

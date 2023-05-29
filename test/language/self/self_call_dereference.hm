@@ -9,7 +9,7 @@ func foo(me, more) {
   return me.value + more
 }
 
-let bar = {
+set bar = {
   call: foo,
   value: 2
 }
@@ -17,7 +17,7 @@ let bar = {
 echo bar->call(2)
 echo bar.call
 
-let unnamed = func(me, more) {
+set unnamed = func(me, more) {
   me.call = none
   unnamed = none
   return me.value + more

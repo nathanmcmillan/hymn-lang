@@ -3,10 +3,10 @@
 # hello world
 # hello foobar world
 
-let foo = "foo"
-let bar = "bar"
+set foo = "foo"
+set bar = "bar"
 echo foo + bar
-let cat = foo + bar
+set cat = foo + bar
 echo cat
 
 echo "hello " + "world"

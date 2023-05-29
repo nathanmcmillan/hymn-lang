@@ -1,0 +1,9 @@
+# true
+
+func foo() {
+  return 5
+}
+
+set bar = foo
+
+echo _reference(foo) >= 0

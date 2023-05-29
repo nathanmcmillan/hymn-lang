@@ -48,7 +48,7 @@
       ]
     },
     {
-      "begin": "\\b(func)\\s*(?:\\s+([a-zA-Z][a-zA-Z0-9-]*)\\s*)?(\\()",
+      "begin": "\\b(func)\\s*(?:\\s+([a-zA-Z_][a-zA-Z0-9_-]*)\\s*)?(\\()",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.hymn"
@@ -69,7 +69,7 @@
       "name": "meta.function.hymn",
       "patterns": [
         {
-          "match": "[a-zA-Z][a-zA-Z0-9-]*",
+          "match": "[a-zA-Z_][a-zA-Z0-9_-]*",
           "name": "variable.parameter.hymn"
         },
         {
@@ -79,7 +79,7 @@
       ]
     },
     {
-      "match": "\\b(let)\\b",
+      "match": "\\b(set)\\b",
       "captures": {
         "1": {
           "name": "storage.modifier.hymn"
@@ -103,7 +103,7 @@
       }
     },
     {
-      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|inspect|debug)(?:\\s|\\(|$)",
+      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|_source|_opcodes|_stack|_reference)(?:\\s|\\(|$)",
       "captures": {
         "1": {
           "name": "support.function.hymn"
@@ -119,7 +119,7 @@
       }
     },
     {
-      "match": "([a-zA-Z][a-zA-Z0-9-]*) *(?=\\()",
+      "match": "([a-zA-Z_][a-zA-Z0-9_-]*) *(?=\\()",
       "captures": {
         "1": {
           "name": "entity.name.function.hymn"
@@ -127,7 +127,7 @@
       }
     },
     {
-      "match": "\\b([a-zA-Z][a-zA-Z0-9-]*(?:\\.[a-zA-Z][a-zA-Z0-9-]*)*)\\b",
+      "match": "\\b([a-zA-Z_][a-zA-Z0-9_-]*(?:\\.[a-zA-Z][a-zA-Z0-9-]*)*)\\b",
       "captures": {
         "1": {
           "name": "variable.hymn"

@@ -20,16 +20,12 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.9.0"
-
-// #define HYMN_DEBUG_STACK
-// #define HYMN_DEBUG_TRACE
-// #define HYMN_DEBUG_MEMORY
+#define HYMN_VERSION "0.10.0"
 
 // #define HYMN_NO_REPL
 #define HYMN_NO_DYNAMIC_LIBS
 // #define HYMN_NO_OPTIMIZE
-// #define HYMN_NO_MEMORY_MANAGE
+// #define HYMN_NO_MEMORY
 
 #ifdef _MSC_VER
 #include <Windows.h>
@@ -127,7 +123,7 @@ typedef struct HymnValuePool HymnValuePool;
 typedef struct HymnByteCode HymnByteCode;
 typedef struct Hymn Hymn;
 
-typedef struct HymnValue (*HymnNativeCall)(Hymn *this, int count, HymnValue *arguments);
+typedef struct HymnValue (*HymnNativeCall)(Hymn *H, int count, HymnValue *arguments);
 
 struct HymnValue {
     union {
@@ -216,6 +212,7 @@ struct HymnFunction {
     HymnString *script;
     HymnString *source;
     HymnExceptList *except;
+    HymnFunction *parent;
     HymnByteCode code;
 };
 
@@ -271,11 +268,11 @@ HymnObjectString *hymn_intern_string(Hymn *H, HymnString *string);
 HymnObjectString *hymn_new_intern_string(Hymn *H, const char *value);
 
 HymnString *hymn_string_copy(HymnString *string);
-void hymn_string_delete(HymnString *this);
-void hymn_string_zero(HymnString *this);
+void hymn_string_delete(HymnString *string);
+void hymn_string_zero(HymnString *string);
 HymnString *hymn_string_append_char(HymnString *string, const char b);
 HymnString *hymn_string_append_substring(HymnString *string, const char *b, size_t start, size_t end);
-bool hymn_string_starts_with(HymnString *s, const char *using);
+bool hymn_string_starts_with(HymnString *s, const char *start);
 HymnString *hymn_string_replace(HymnString *string, const char *find, const char *replace);
 HymnString *hymn_string_append(HymnString *string, const char *b);
 HymnString *hymn_string_format(const char *format, ...);
@@ -288,18 +285,18 @@ HymnString *hymn_float_to_string(HymnFloat number);
 
 HymnArray *hymn_new_array(HymnInt length);
 
-void hymn_array_push(HymnArray *this, HymnValue value);
-void hymn_array_insert(HymnArray *this, HymnInt index, HymnValue value);
-HymnValue hymn_array_get(HymnArray *this, HymnInt index);
-HymnInt hymn_array_index_of(HymnArray *this, HymnValue match);
-HymnValue hymn_array_pop(HymnArray *this);
-HymnValue hymn_array_remove_index(HymnArray *this, HymnInt index);
-void hymn_array_clear(Hymn *H, HymnArray *this);
-void hymn_array_delete(Hymn *H, HymnArray *this);
+void hymn_array_push(HymnArray *array, HymnValue value);
+void hymn_array_insert(HymnArray *array, HymnInt index, HymnValue value);
+HymnValue hymn_array_get(HymnArray *array, HymnInt index);
+HymnInt hymn_array_index_of(HymnArray *array, HymnValue match);
+HymnValue hymn_array_pop(HymnArray *array);
+HymnValue hymn_array_remove_index(HymnArray *array, HymnInt index);
+void hymn_array_clear(Hymn *H, HymnArray *array);
+void hymn_array_delete(Hymn *H, HymnArray *array);
 
 export HymnTable *hymn_new_table(void);
 
-HymnValue hymn_table_get(HymnTable *this, const char *key);
+HymnValue hymn_table_get(HymnTable *table, const char *key);
 
 HymnValue hymn_new_undefined(void);
 HymnValue hymn_new_none(void);
@@ -365,6 +362,7 @@ char *hymn_call(Hymn *H, const char *name, int arguments);
 char *hymn_debug(Hymn *H, const char *script, const char *source);
 char *hymn_run(Hymn *H, const char *script, const char *source);
 char *hymn_do(Hymn *H, const char *source);
+char *hymn_direct(Hymn *H, const char *source);
 char *hymn_script(Hymn *H, const char *script);
 
 HymnValue hymn_get(Hymn *H, const char *name);

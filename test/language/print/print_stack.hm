@@ -1,0 +1,10 @@
+# [function: foo]
+# [integer: 12]
+
+func foo() {
+  set x = 12
+  set stack = _stack()
+  echo stack[index(stack, '\n'):]
+}
+
+foo()

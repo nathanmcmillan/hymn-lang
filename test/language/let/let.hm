@@ -2,9 +2,9 @@
 # digits
 # hyphen
 
-let foo = "letter"
-let foo32 = "digits"
-let foo-32 = "hyphen"
+set foo = "letter"
+set foo32 = "digits"
+set foo-32 = "hyphen"
 
 echo foo
 echo foo32

@@ -2,7 +2,7 @@
 # ...
 # end
 
-let foo = {}
+set foo = {}
 foo.bar = func(h) {
   return h
 }

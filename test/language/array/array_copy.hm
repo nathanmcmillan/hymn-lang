@@ -5,10 +5,10 @@
 # 12
 # 12
 
-let a = [2, "foo", [4, 6]]
+set a = [2, "foo", [4, 6]]
 echo a
 
-let b = copy(a)
+set b = copy(a)
 echo b
 
 a[1] = a[1] + "bar"

@@ -2,7 +2,7 @@
 # elif
 # else
 
-let x = 3
+set x = 3
 
 if x == 3 {
   echo "if"

@@ -1,4 +1,4 @@
-let words = ["foo", "bar", "baz"]
+set words = ["foo", "bar", "baz"]
 
 for i = 1, i < 10 {
   for word in words {
