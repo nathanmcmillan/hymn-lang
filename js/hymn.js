@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const HYMN_VERSION = '0.9.0'
+const HYMN_VERSION = '0.10.0'
 
 const UINT8_MAX = 255
 const UINT16_MAX = 65535
@@ -885,7 +885,7 @@ function compileError(C, token, format) {
     }
 
     if (begin < end) {
-      error += '\n  | ' + source.substring(begin, end) + '\n    '
+      error += '\n  ' + source.substring(begin, end) + '\n  '
       const spaces = token.start - begin
       if (spaces > 0) for (let i = 0; i < spaces; i++) error += ' '
       for (let i = 0; i < token.length; i++) error += '^'
@@ -2866,20 +2866,22 @@ function existsExpression(C) {
 }
 
 function inspectExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'inspect'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'INSPECT'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'inspect'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'INSPECT'`)
   emit(C, OP_INSPECT)
 }
 
 function debugExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'debug'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'DEBUG'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'debug'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'DEBUG'`)
   emit(C, OP_DEBUG)
 }
 
 function stackExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'STACK'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'STACK'`)
   emit(C, OP_STACK)
 }
 
@@ -4842,7 +4844,7 @@ async function interpret(H, source) {
   return interpretScript(H, null, source, TYPE_SCRIPT)
 }
 
-async function command(H, source) {
+async function direct(H, source) {
   return interpretScript(H, null, source, TYPE_DIRECT)
 }
 
@@ -4885,7 +4887,7 @@ if (node) {
     addPointer: addPointer,
     interpretScript: interpretScript,
     interpret: interpret,
-    command: command,
+    direct: direct,
     newVM: newVM,
     debug: debugScript,
   }

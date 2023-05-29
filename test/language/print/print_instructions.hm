@@ -4,4 +4,4 @@ func foo() {
   return 5
 }
 
-echo DEBUG(foo)
+echo INSTRUCTIONS(foo)

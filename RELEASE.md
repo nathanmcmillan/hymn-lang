@@ -1,6 +1,7 @@
 # Release 0.10.0
 
 - Fixed tail call bug
+- Fixed memory leak from functions after runtime errors
 - New function `STACK` prints the current stack
 - New function `REFEERENCE` prints a given object's reference counts
 - Renamed global function `inspect` to `INSPECT`

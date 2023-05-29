@@ -1,8 +1,8 @@
 # 4
 # none
 
- GLOBALS.foo = 4
- GLOBALS.bar = none
+GLOBALS.foo = 4
+GLOBALS.bar = none
 
 echo foo
 echo bar

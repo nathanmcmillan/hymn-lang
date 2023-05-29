@@ -15,6 +15,6 @@ set foo = {
   hello: world
 }
 
-echo INSPECT(foo)
-echo INSPECT(bar)
-echo INSPECT(world)
+echo SOURCE(foo)
+echo SOURCE(bar)
+echo SOURCE(world)

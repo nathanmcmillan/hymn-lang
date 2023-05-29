@@ -12,7 +12,7 @@ func new-node(value) {
 }
 
 func node-add(list, value) {
-  let node = list
+  set node = list
   while true {
     if node.next == none { break }
     node = node.next
@@ -21,7 +21,7 @@ func node-add(list, value) {
 }
 
 # objects are passed by reference
-let list = new-node("hello")
+set list = new-node("hello")
 node-add(list, "world")
 
 # print statements will show all nested values in an object

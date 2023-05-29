@@ -3,7 +3,7 @@
 
 func foo() {
   set x = 12
-  set stack = STACK
+  set stack = STACK()
   echo stack[index(stack, '\n'):]
 }
 
