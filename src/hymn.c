@@ -533,7 +533,7 @@ enum TokenType {
     TOKEN_COMMA,
     TOKEN_CONTINUE,
     TOKEN_COPY,
-    TOKEN_INSTRUCTIONS,
+    TOKEN_OPCODES,
     TOKEN_STACK,
     TOKEN_REFERENCE,
     TOKEN_DELETE,
@@ -749,7 +749,7 @@ static void keys_expression(Compiler *C, bool assign);
 static void type_expression(Compiler *C, bool assign);
 static void exists_expression(Compiler *C, bool assign);
 static void source_expression(Compiler *C, bool assign);
-static void instructions_expression(Compiler *C, bool assign);
+static void opcode_expression(Compiler *C, bool assign);
 static void stack_expression(Compiler *C, bool assign);
 static void reference_expression(Compiler *C, bool assign);
 static void function_expression(Compiler *C, bool assign);
@@ -998,7 +998,7 @@ static Rule rules[] = {
     [TOKEN_COMMA] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_CONTINUE] = {NULL, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_COPY] = {copy_expression, NULL, PRECEDENCE_NONE, {0}},
-    [TOKEN_INSTRUCTIONS] = {instructions_expression, NULL, PRECEDENCE_NONE, {0}},
+    [TOKEN_OPCODES] = {opcode_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_STACK] = {stack_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_REFERENCE] = {reference_expression, NULL, PRECEDENCE_NONE, {0}},
     [TOKEN_DELETE] = {delete_expression, NULL, PRECEDENCE_NONE, {0}},
@@ -1655,10 +1655,6 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 't' && ident[2] == 'r') return TOKEN_TO_STRING;
         }
         break;
-    case 'S':
-        if (size == 5) return ident_trie(ident, 1, "TACK", TOKEN_STACK);
-        if (size == 6) return ident_trie(ident, 1, "OURCE", TOKEN_CODE);
-        break;
     case 'k':
         if (size == 4) return ident_trie(ident, 1, "eys", TOKEN_KEYS);
         break;
@@ -1686,9 +1682,6 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 'f') return TOKEN_IF;
             if (ident[1] == 'n') return TOKEN_IN;
         }
-        break;
-    case 'I':
-        if (size == 12) return ident_trie(ident, 1, "NSTRUCTIONS", TOKEN_INSTRUCTIONS);
         break;
     case 'p':
         if (size == 3) return ident_trie(ident, 1, "op", TOKEN_POP);
@@ -1723,8 +1716,11 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 'l') return ident_trie(ident, 2, "oat", TOKEN_TO_FLOAT);
         }
         break;
-    case 'R':
-        if (size == 9) return ident_trie(ident, 1, "EFERENCE", TOKEN_REFERENCE);
+    case '_':
+        if (size == 6) return ident_trie(ident, 1, "stack", TOKEN_STACK);
+        if (size == 7) return ident_trie(ident, 1, "source", TOKEN_CODE);
+        if (size == 8) return ident_trie(ident, 1, "opcodes", TOKEN_OPCODES);
+        if (size == 10) return ident_trie(ident, 1, "reference", TOKEN_REFERENCE);
         break;
     default:
         break;
@@ -4482,32 +4478,32 @@ static void exists_expression(Compiler *C, bool assign) {
 
 static void source_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'SOURCE'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_source'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'SOURCE'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_source'");
     emit(C, OP_SOURCE);
 }
 
-static void instructions_expression(Compiler *C, bool assign) {
+static void opcode_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'INSTRUCTIONS'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_opcodes'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'INSTRUCTIONS'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_opcodes'");
     emit(C, OP_INSTRUCTIONS);
 }
 
 static void stack_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'STACK'");
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'STACK'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_stack'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_stack'");
     emit(C, OP_STACK);
 }
 
 static void reference_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'REFERENCE'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_reference'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'REFERENCE'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_reference'");
     emit(C, OP_REFERENCE);
 }
 

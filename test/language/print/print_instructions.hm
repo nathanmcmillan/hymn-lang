@@ -4,4 +4,4 @@ func foo() {
   return 5
 }
 
-echo INSTRUCTIONS(foo)
+echo _opcodes(foo)

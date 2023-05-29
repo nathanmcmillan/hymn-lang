@@ -186,7 +186,7 @@ const TOKEN_IF = 43
 const TOKEN_IN = 44
 const TOKEN_INDEX = 45
 const TOKEN_INSERT = 46
-const TOKEN_INSPECT = 47
+const TOKEN_CODE = 47
 const TOKEN_INTEGER = 48
 const TOKEN_KEYS = 49
 const TOKEN_LEFT_CURLY = 50
@@ -223,7 +223,7 @@ const TOKEN_UNDEFINED = 80
 const TOKEN_USE = 81
 const TOKEN_VALUE = 82
 const TOKEN_WHILE = 83
-const TOKEN_DEBUG = 84
+const TOKEN_OPCODES = 84
 const TOKEN_STACK = 85
 const TOKEN_REFERENCE = 86
 
@@ -278,7 +278,7 @@ const OP_GREATER = 29
 const OP_GREATER_EQUAL = 30
 const OP_INCREMENT_LOCAL_AND_SET = 31
 const OP_INDEX = 32
-const OP_INSPECT = 33
+const OP_SOURCE = 33
 const OP_INT = 34
 const OP_JUMP = 35
 const OP_JUMP_IF_FALSE = 36
@@ -311,7 +311,7 @@ const OP_THROW = 62
 const OP_TRUE = 63
 const OP_TYPE = 64
 const OP_USE = 65
-const OP_DEBUG = 66
+const OP_INSTRUCTIONS = 66
 const OP_STACK = 67
 const OP_REFERENCE = 68
 
@@ -432,7 +432,7 @@ rules[TOKEN_COLON] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COMMA] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_CONTINUE] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_COPY] = new Rule(copyExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_DEBUG] = new Rule(debugExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_OPCODES] = new Rule(debugExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_STACK] = new Rule(stackExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_REFERENCE] = new Rule(referenceExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_DELETE] = new Rule(deleteExpression, null, PRECEDENCE_NONE)
@@ -457,7 +457,7 @@ rules[TOKEN_IF] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_IN] = new Rule(null, null, PRECEDENCE_NONE)
 rules[TOKEN_INDEX] = new Rule(indexExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INSERT] = new Rule(arrayInsertExpression, null, PRECEDENCE_NONE)
-rules[TOKEN_INSPECT] = new Rule(inspectExpression, null, PRECEDENCE_NONE)
+rules[TOKEN_CODE] = new Rule(inspectExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_INTEGER] = new Rule(compileInteger, null, PRECEDENCE_NONE)
 rules[TOKEN_KEYS] = new Rule(keysExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_LEFT_CURLY] = new Rule(compileTable, null, PRECEDENCE_NONE)
@@ -993,9 +993,6 @@ function identKey(ident, size) {
     case 'd':
       if (size === 6) return identTrie(ident, 1, 'elete', TOKEN_DELETE)
       break
-    case 'D':
-      if (size === 5) return identTrie(ident, 1, 'EBUG', TOKEN_DEBUG)
-      break
     case 'r':
       if (size === 6) return identTrie(ident, 1, 'eturn', TOKEN_RETURN)
       break
@@ -1004,9 +1001,6 @@ function identKey(ident, size) {
         if (ident[1] === 'e' && ident[2] === 't') return TOKEN_SET
         if (ident[1] === 't' && ident[2] === 'r') return TOKEN_TO_STRING
       }
-      break
-    case 'S':
-      if (size === 5) return identTrie(ident, 1, 'TACK', TOKEN_STACK)
       break
     case 'k':
       if (size === 4) return identTrie(ident, 1, 'eys', TOKEN_KEYS)
@@ -1035,9 +1029,6 @@ function identKey(ident, size) {
         if (ident[1] === 'f') return TOKEN_IF
         if (ident[1] === 'n') return TOKEN_IN
       }
-      break
-    case 'I':
-      if (size === 7) return identTrie(ident, 1, 'NSPECT', TOKEN_INSPECT)
       break
     case 'p':
       if (size === 3) return identTrie(ident, 1, 'op', TOKEN_POP)
@@ -1072,8 +1063,11 @@ function identKey(ident, size) {
         if (ident[1] === 'l') return identTrie(ident, 2, 'oat', TOKEN_TO_FLOAT)
       }
       break
-    case 'R':
-      if (size === 9) return identTrie(ident, 1, 'EFERENCE', TOKEN_REFERENCE)
+    case '_':
+      if (size === 6) return identTrie(ident, 1, 'stack', TOKEN_STACK)
+      if (size === 7) return identTrie(ident, 1, 'source', TOKEN_CODE)
+      if (size === 8) return identTrie(ident, 1, 'opcodes', TOKEN_OPCODES)
+      if (size === 10) return identTrie(ident, 1, 'reference', TOKEN_REFERENCE)
       break
   }
   return TOKEN_UNDEFINED
@@ -2869,14 +2863,14 @@ function inspectExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'INSPECT'`)
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'INSPECT'`)
-  emit(C, OP_INSPECT)
+  emit(C, OP_SOURCE)
 }
 
 function debugExpression(C) {
   consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'DEBUG'`)
   expression(C)
   consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'DEBUG'`)
-  emit(C, OP_DEBUG)
+  emit(C, OP_INSTRUCTIONS)
 }
 
 function stackExpression(C) {
@@ -3547,10 +3541,10 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_TYPE', index)
     case OP_USE:
       return debugInstruction(debug, 'OP_USE', index)
-    case OP_INSPECT:
-      return debugInstruction(debug, 'OP_INSPECT', index)
-    case OP_DEBUG:
-      return debugInstruction(debug, 'OP_DEBUG', index)
+    case OP_SOURCE:
+      return debugInstruction(debug, 'OP_SOURCE', index)
+    case OP_INSTRUCTIONS:
+      return debugInstruction(debug, 'OP_INSTRUCTIONS', index)
     case OP_STACK:
       return debugInstruction(debug, 'OP_STACK', index)
     case OP_REFERENCE:
@@ -4731,12 +4725,12 @@ async function hymnRun(H) {
         }
         break
       }
-      case OP_INSPECT: {
+      case OP_SOURCE: {
         const value = hymnPop(H)
         hymnPush(H, newString(valueToInspect(value)))
         break
       }
-      case OP_DEBUG: {
+      case OP_INSTRUCTIONS: {
         const value = hymnPop(H)
         hymnPush(H, newString(valueToDebug(value)))
         break

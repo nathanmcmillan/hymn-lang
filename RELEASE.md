@@ -1,11 +1,11 @@
 # Release 0.10.0
 
 - Fixed tail call bug
-- Fixed memory leak from functions after runtime errors
-- New function `STACK` prints the current stack
-- New function `REFEERENCE` prints a given object's reference counts
-- Renamed global function `inspect` to `INSPECT`
-- Renamed global function `debug` to `DEBUG`
+- Fixed memory leak from functions
+- New function `_stack` prints the current stack
+- New function `_reference` prints a given object's reference counts
+- Renamed global function `inspect` to `_source`
+- Renamed global function `debug` to `_opcodes`
 - Changed `let` keyword to `set`
 - New `text` library function: `split`
 - Changed echo on end of script to only occur for direct commands or REPL
