@@ -11,9 +11,11 @@
 1. Finish dynamic library support
    - Export everything
    - Build as a library
+1. Finish formatter
 
 # Features
 
+1. Macro system
 1. UTF8 encode and decode strings and codes with `\u0000`
 1. Self referencing local functions
 1. Add special `@` array for vardic functions `@[0] == parameter[0]`
@@ -23,7 +25,6 @@
    - Can HymnObjectString have it's own `char*`?
 1. Optimize string handling to skip interning for special cases
 1. Insert into table collision linked lists in sorted order
-1. Macro system
 1. Compile time constant evaluation
 1. Transpile to C code and use a C compiler to generate a dynamic library at runtime
 1. Cache byte code in a `.hymn_cache` directory

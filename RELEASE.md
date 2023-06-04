@@ -1,3 +1,7 @@
+# Release 0.11.0
+
+- Dynamic library support
+
 # Release 0.10.0
 
 - Fixed tail call bug
