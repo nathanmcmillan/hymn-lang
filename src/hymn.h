@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.11.0"
+#define HYMN_VERSION "0.10.1"
 
 // #define HYMN_NO_REPL
 // #define HYMN_NO_DYNAMIC_LIBS

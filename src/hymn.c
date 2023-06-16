@@ -5156,7 +5156,9 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     HymnString *module_string = module->string;
 
 #ifndef HYMN_NO_DYNAMIC_LIBS
-    if (module_string[hymn_string_len(module_string) - 1] != 'm') {
+    size_t len = hymn_string_len(module_string);
+    size_t lib_len = strlen(HYMN_DLIB_EXTENSION);
+    if (len > lib_len && memcmp(&module_string[len - lib_len], HYMN_DLIB_EXTENSION, lib_len) == 0) {
         HymnString *error = hymn_use_dlib(H, module_string, "hymn_import");
         if (error != NULL) {
             hymn_string_trim(error);
