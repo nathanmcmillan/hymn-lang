@@ -1,4 +1,4 @@
-# Release 0.11.0
+# Release 0.10.1
 
 - Dynamic library support
 
