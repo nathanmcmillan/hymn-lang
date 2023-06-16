@@ -1099,8 +1099,8 @@ static unsigned int string_mix_code_const(const char *key) {
 
 static HymnObjectString *new_hymn_string_with_hash(HymnString *string, unsigned int hash) {
     HymnObjectString *object = hymn_calloc(1, sizeof(HymnObjectString));
-    object->string = string;
     object->hash = hash;
+    object->string = string;
     return object;
 }
 
@@ -5153,13 +5153,30 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
 
     table_put(imports, module, hymn_new_bool(true));
 
-    HymnString *source = hymn_read_file(module->string);
+    HymnString *module_string = module->string;
+
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    size_t len = hymn_string_len(module_string);
+    size_t lib_len = strlen(HYMN_DLIB_EXTENSION);
+    if (len > lib_len && memcmp(&module_string[len - lib_len], HYMN_DLIB_EXTENSION, lib_len) == 0) {
+        HymnString *error = hymn_use_dlib(H, module_string, "hymn_import");
+        if (error != NULL) {
+            hymn_string_trim(error);
+            HymnString *failed = hymn_string_format("error reading file: %s: %s\n", module_string, error);
+            hymn_string_delete(error);
+            return throw_error_string(H, failed);
+        }
+        return current_frame(H);
+    }
+#endif
+
+    HymnString *source = hymn_read_file(module_string);
     if (source == NULL) {
-        HymnString *failed = hymn_string_format("error reading file: %s\n", module->string);
+        HymnString *failed = hymn_string_format("error reading file: %s\n", module_string);
         return throw_error_string(H, failed);
     }
 
-    CompileResult result = compile(H, module->string, source, TYPE_SCRIPT);
+    CompileResult result = compile(H, module_string, source, TYPE_SCRIPT);
 
     hymn_string_delete(source);
 
@@ -7141,6 +7158,17 @@ Hymn *new_hymn(void) {
     HymnObjectString *search_libs = hymn_new_intern_string(H, "." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>.hm");
     hymn_reference_string(search_libs);
 
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    HymnObjectString *search_this_dynamic = hymn_new_intern_string(H, "<parent>" PATH_SEP_STRING "<path>" HYMN_DLIB_EXTENSION);
+    hymn_reference_string(search_this_dynamic);
+
+    HymnObjectString *search_relative_dynamic = hymn_new_intern_string(H, "." PATH_SEP_STRING "<path>" HYMN_DLIB_EXTENSION);
+    hymn_reference_string(search_relative_dynamic);
+
+    HymnObjectString *search_libs_dynamic = hymn_new_intern_string(H, "." PATH_SEP_STRING "libs" PATH_SEP_STRING "<path>" HYMN_DLIB_EXTENSION);
+    hymn_reference_string(search_libs_dynamic);
+#endif
+
     // GLOBALS
 
     table_init(&H->globals);
@@ -7156,14 +7184,23 @@ Hymn *new_hymn(void) {
 
     // PATHS
 
-    H->paths = hymn_new_array(3);
-
     HymnObjectString *paths = hymn_new_intern_string(H, "PATHS");
     hymn_reference_string(paths);
 
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    H->paths = hymn_new_array(6);
+    H->paths->items[0] = hymn_new_string_value(search_this);
+    H->paths->items[1] = hymn_new_string_value(search_this_dynamic);
+    H->paths->items[2] = hymn_new_string_value(search_relative);
+    H->paths->items[3] = hymn_new_string_value(search_relative_dynamic);
+    H->paths->items[4] = hymn_new_string_value(search_libs);
+    H->paths->items[5] = hymn_new_string_value(search_libs_dynamic);
+#else
+    H->paths = hymn_new_array(3);
     H->paths->items[0] = hymn_new_string_value(search_this);
     H->paths->items[1] = hymn_new_string_value(search_relative);
     H->paths->items[2] = hymn_new_string_value(search_libs);
+#endif
 
     HymnValue paths_value = hymn_new_array_value(H->paths);
     table_put(&H->globals, paths, paths_value);
@@ -7938,7 +7975,6 @@ void hymn_add_dlib(Hymn *H, void *library) {
 }
 
 #ifdef _MSC_VER
-typedef void (*HymnDynamicLib)(Hymn *H);
 
 void hymn_close_dlib(void *library) {
     FreeLibrary(library);
@@ -7947,7 +7983,7 @@ void hymn_close_dlib(void *library) {
 HymnString *hymn_use_dlib(Hymn *H, const char *path, const char *func) {
     HINSTANCE lib = LoadLibrary(path);
     if (lib != NULL) {
-        HymnDynamicLib proc = (HymnDynamicLib)GetProcAddress(lib, func);
+        FARPROC proc = GetProcAddress(lib, func);
         if (proc != NULL) {
             proc(H);
             hymn_add_dlib(H, lib);
@@ -7956,7 +7992,7 @@ HymnString *hymn_use_dlib(Hymn *H, const char *path, const char *func) {
     }
 
     HymnString *message = NULL;
-    int error = GetLastError();
+    unsigned long error = GetLastError();
     char buffer[128];
     if (FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, buffer, sizeof(buffer), 0)) {
         message = hymn_new_string(buffer);

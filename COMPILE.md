@@ -5,15 +5,13 @@
 ### Debug
 
 ```
-$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wpadded -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -g -o hymn -lm -ldl
+$ gcc src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wpadded -Wundef -Wpointer-arith -Wunreachable-code -Wuninitialized -Winit-self -Wmissing-include-dirs -Wswitch-default -Wunused -Wunused-parameter -Wunused-variable -Wunused-value -Wshadow -Wconversion -Wcast-qual -Wcast-align -Wwrite-strings -Wlogical-op -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wvla -Woverlength-strings -Wstrict-overflow=5 -g -o hymn -lm -ldl -rdynamic
 ```
-
-Include `-rdynamic` for dynamic library support
 
 ### Testing
 
 ```
-$ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm -ldl
+$ gcc test/*.c src/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -g -DHYMN_TESTING -Isrc -o hymntest -lm -ldl -rdynamic
 ```
 
 ### Benchmark
@@ -36,9 +34,23 @@ $ gcc format/*.c -std=c11 -Wall -Wextra -Werror -pedantic -Wno-unused-function -
 
 ### Dynamic Library
 
+1. Compile the dynamic library C file into an object file. The will create `dynamic.o`
+
 ```
-$ gcc -Isrc -fpic -c test/dlib/dlib.c
-$ gcc -shared -lc -o dlib.so dlib.o
+$ gcc -Isrc -fpic -c test/dynamic/dynamic.c
+```
+
+2. Compile the object file into a shared object file. This will create `dynamic.so`
+
+```
+$ gcc -shared -lc -o dynamic.so dynamic.o
+```
+
+3. Load `dynamic.so` and use in Hymn script
+
+```
+> ./hymn
+> use "dynamic"
 ```
 
 ## Windows + MSVC
@@ -69,9 +81,23 @@ $ gcc -shared -lc -o dlib.so dlib.o
 
 ### Dynamic Library
 
+1. Compile Hymn as a library. This will create `hymn.dll`, `hymn.lib` and `hymn.exp`
+
 ```
 > cl src/hymn.c /W4 /WX /wd4996 /LD
-> cl /LD /Isrc hymn.lib test\\dlib\\dlib.c
+```
+
+2. Compile the dynamic library C file against `hymn.lib`. This will create `dynamic.dll`, `dynamic.lib`, and `dynamic.exp`
+
+```
+> cl /LD /Isrc hymn.lib test\\dynamic\\dynamic.c
+```
+
+3. Load `dynamic.dll` and use in Hymn script
+
+```
+> HYMN.exe
+> use "dynamic"
 ```
 
 ## Windows + Clang

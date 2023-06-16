@@ -228,12 +228,52 @@ end:
 static void test_dynamic_library(void) {
 #ifndef HYMN_NO_DYNAMIC_LIBS
     tests_count++;
-    printf("dlib\n");
+    printf("dynamic\n");
     Hymn *hymn = new_hymn();
     hymn->print = console;
     hymn_string_zero(out);
 
-    HymnString *result = hymn_use_dlib(hymn, "test" PATH_SEP_STRING "dlib" HYMN_DLIB_EXTENSION, "hymn_use_test_dlib");
+    char *error = NULL;
+
+    error = hymn_do(hymn, "use \"dynamic\"");
+    if (error != NULL) {
+        goto fail;
+    }
+
+    error = hymn_do(hymn, "echo dynamic.fun()");
+    if (error != NULL) {
+        goto fail;
+    }
+
+    hymn_string_trim(out);
+    if (!hymn_string_equal(out, "256")) {
+        printf("incorrent output: %s\n\n", out);
+        tests_fail++;
+        goto end;
+    }
+
+    tests_success++;
+    goto end;
+
+fail:
+    printf("%s\n\n", error);
+    free(error);
+    tests_fail++;
+
+end:
+    hymn_delete(hymn);
+#endif
+}
+
+static void test_direct_dynamic_library(void) {
+#ifndef HYMN_NO_DYNAMIC_LIBS
+    tests_count++;
+    printf("direct dynamic\n");
+    Hymn *hymn = new_hymn();
+    hymn->print = console;
+    hymn_string_zero(out);
+
+    HymnString *result = hymn_use_dlib(hymn, "test" PATH_SEP_STRING "dynamic" HYMN_DLIB_EXTENSION, "hymn_import");
 
     if (result != NULL) {
         fprintf(stderr, "error: %s\n", result);
@@ -244,7 +284,7 @@ static void test_dynamic_library(void) {
 
     char *error = NULL;
 
-    error = hymn_do(hymn, "echo dlib.fun()");
+    error = hymn_do(hymn, "echo dynamic.fun()");
     if (error != NULL) {
         goto fail;
     }
@@ -312,8 +352,9 @@ static void test_hymn(const char *filter) {
         test_api();
     }
 
-    if (filter == NULL || hymn_string_equal(filter, "dlib")) {
+    if (filter == NULL || hymn_string_equal(filter, "dynamic")) {
         test_dynamic_library();
+        test_direct_dynamic_library();
     }
 
     hymn_string_delete(out);
