@@ -95,7 +95,7 @@
       }
     },
     {
-      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|in|try|except|throw|func)\\b",
+      "match": "\\b(if|elif|else|for|while|return|break|continue|and|or|not|in|try|except|throw|func)\\b",
       "captures": {
         "1": {
           "name": "keyword.control.hymn"
@@ -103,7 +103,7 @@
       }
     },
     {
-      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|_source|_opcodes|_stack|_reference)(?:\\s|\\(|$)",
+      "match": "\\b(copy|clear|delete|float|index|int|insert|keys|pop|echo|print|push|int|str|exists|len|type|_source|_format|_opcodes|_stack|_reference)(?:\\s|\\(|$)",
       "captures": {
         "1": {
           "name": "support.function.hymn"

@@ -1,3 +1,9 @@
+# Release 0.11.0
+
+- New function `_format` formats a string as source code
+- Changed boolean keyword `!` to `not`
+- Compile time folding
+
 # Release 0.10.1
 
 - Dynamic library support

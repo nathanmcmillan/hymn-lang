@@ -1,6 +1,7 @@
 # if
 # elif
 # else
+# not
 
 set x = 3
 
@@ -26,4 +27,10 @@ if x == 1 {
   echo "bad"
 } else {
   echo "else"
+}
+
+if not (x == 1) {
+  echo "not"
+} else {
+  echo "bad"
 }

@@ -387,4 +387,6 @@ export void hymn_close_dlib(void *library);
 export HymnString *hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
 #endif
 
+export char *hymn_format(HymnString *source);
+
 #endif

@@ -1,0 +1,21 @@
+# func fun(a, b) {
+#   set table = {
+#     x: a,
+#     y: (b + 1),
+#   }
+#   table.z = 2 * 3 / 6
+#   table->a()
+#   return table
+# }
+
+func fun(a,b) {
+  set table={
+    x:a,
+    y:(b+1)
+  }
+  table.z=2*3/6
+  table -> a( )
+  return z
+}
+
+echo _format(fun)

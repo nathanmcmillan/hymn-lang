@@ -62,7 +62,7 @@ if true { echo "Y" } else { echo "no" }
 if false { echo "no" } else { echo "Z" }
 
 # if not
-if !false { echo "W" } else { echo "no" }
+if not false { echo "W" } else { echo "no" }
 
 # increment
 set x = 1
