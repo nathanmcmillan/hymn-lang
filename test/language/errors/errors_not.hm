@@ -1,4 +1,4 @@
 # @exception expected '!='
 
-set x = !false
+set x = ! false
 echo x

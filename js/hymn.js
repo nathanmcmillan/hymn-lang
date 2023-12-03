@@ -226,6 +226,7 @@ const TOKEN_WHILE = 83
 const TOKEN_OPCODES = 84
 const TOKEN_STACK = 85
 const TOKEN_REFERENCE = 86
+const TOKEN_FORMAT = 87
 
 const PRECEDENCE_NONE = 0
 const PRECEDENCE_ASSIGN = 1
@@ -314,6 +315,7 @@ const OP_USE = 65
 const OP_CODES = 66
 const OP_STACK = 67
 const OP_REFERENCE = 68
+const OP_FORMAT = 69
 
 const TYPE_FUNCTION = 0
 const TYPE_SCRIPT = 1
@@ -336,6 +338,7 @@ function copyToken(dest, src) {
   dest.column = src.column
   dest.start = src.start
   dest.length = src.length
+  dest.number = src.number
 }
 
 class Local {
@@ -449,6 +452,7 @@ rules[TOKEN_EXISTS] = new Rule(existsExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_FALSE] = new Rule(compileFalse, null, PRECEDENCE_NONE)
 rules[TOKEN_FLOAT] = new Rule(compileFloat, null, PRECEDENCE_NONE)
 rules[TOKEN_FOR] = new Rule(null, null, PRECEDENCE_NONE)
+rules[TOKEN_FORMAT] = new Rule(formatExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_FUNCTION] = new Rule(functionExpression, null, PRECEDENCE_NONE)
 rules[TOKEN_GREATER] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
 rules[TOKEN_GREATER_EQUAL] = new Rule(null, compileBinary, PRECEDENCE_COMPARE)
@@ -792,8 +796,8 @@ function newFuncValue(func) {
   return new HymnValue(HYMN_VALUE_FUNC, func)
 }
 
-function newFuncNativeValue(func) {
-  return new HymnValue(HYMN_VALUE_FUNC_NATIVE, func)
+function newNativeFuncValue(name, func) {
+  return new HymnValue(HYMN_VALUE_FUNC_NATIVE, new HymnNativeFunction(name, func))
 }
 
 function newPointerValue(pointer) {
@@ -805,10 +809,6 @@ function newFunction(script) {
   func.code = new HymnByteCode()
   if (script) func.script = script
   return func
-}
-
-function newNativeFunction(name, func) {
-  return new HymnNativeFunction(name, func)
 }
 
 function isNone(value) {
@@ -982,6 +982,7 @@ function identKey(ident, size) {
       if (size === 3) return identTrie(ident, 1, 'nd', TOKEN_AND)
       break
     case 'n':
+      if (size === 3) return identTrie(ident, 1, 'ot', TOKEN_NOT)
       if (size === 4) return identTrie(ident, 1, 'one', TOKEN_NONE)
       break
     case 'w':
@@ -1065,7 +1066,10 @@ function identKey(ident, size) {
       break
     case '_':
       if (size === 6) return identTrie(ident, 1, 'stack', TOKEN_STACK)
-      if (size === 7) return identTrie(ident, 1, 'source', TOKEN_SRC)
+      if (size === 7) {
+        if (ident[1] === 's') return identTrie(ident, 2, 'ource', TOKEN_SRC)
+        if (ident[1] === 'f') return identTrie(ident, 2, 'ormat', TOKEN_FORMAT)
+      }
       if (size === 8) return identTrie(ident, 1, 'opcodes', TOKEN_OPCODES)
       if (size === 10) return identTrie(ident, 1, 'reference', TOKEN_REFERENCE)
       break
@@ -1219,7 +1223,8 @@ function advance(C) {
           nextChar(C)
           tokenSpecial(C, TOKEN_NOT_EQUAL, 2, 2)
         } else {
-          token(C, TOKEN_NOT)
+          token(C, TOKEN_ERROR)
+          compileError(C, C.current, "expected '!='")
         }
         return
       case '=':
@@ -1775,11 +1780,11 @@ function compileFalse(C) {
 }
 
 function compileInteger(C) {
-  emitConstant(C, newInt(C.current.number))
+  emitConstant(C, newInt(C.previous.number))
 }
 
 function compileFloat(C) {
-  emitConstant(C, newFloat(C.current.number))
+  emitConstant(C, newFloat(C.previous.number))
 }
 
 function escapeSequence(c) {
@@ -2886,6 +2891,13 @@ function referenceExpression(C) {
   emit(C, OP_REFERENCE)
 }
 
+function formatExpression(C) {
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_format'`)
+  expression(C)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_format'`)
+  emit(C, OP_FORMAT)
+}
+
 function expressionStatement(C) {
   expression(C)
   emitPop(C)
@@ -3051,6 +3063,15 @@ function valueToDebug(value) {
   return valueToStringRecursive(value, null, false)
 }
 
+function valueToFormat(value) {
+  if (value.is === HYMN_VALUE_FUNC) {
+    return format(value.value.source)
+  } else if (value.is === HYMN_VALUE_STRING) {
+    return format(value.value)
+  }
+  return valueToStringRecursive(value, null, false)
+}
+
 function hymnConcat(a, b) {
   return newString(valueToString(a) + valueToString(b))
 }
@@ -3183,7 +3204,7 @@ function hymnCallValue(H, value, count) {
       return hymnCall(H, value.value, count)
     case HYMN_VALUE_FUNC_NATIVE: {
       const func = value.value.func
-      const result = func(H, count, H.stack[H.stackTop - count])
+      const result = func(H, count, H.stack.slice(H.stackTop - count))
       const top = H.stackTop - count - 1
       H.stackTop = top
       hymnPush(H, result)
@@ -3549,6 +3570,8 @@ function disassembleInstruction(debug, code, index) {
       return debugInstruction(debug, 'OP_STACK', index)
     case OP_REFERENCE:
       return debugInstruction(debug, 'OP_REFERENCE', index)
+    case OP_FORMAT:
+      return debugInstruction(debug, 'OP_FORMAT', index)
     default:
       return (debug[0] += 'UNKNOWN_OPCODE ' + instruction)
   }
@@ -4074,7 +4097,7 @@ async function hymnRun(H) {
         if (isBool(value)) {
           value.value = !value.value
         } else {
-          frame = hymnThrowError(H, `not '!' can't use ${valueType(value.is)} (expected boolean)`)
+          frame = hymnThrowError(H, `'not' can't use ${valueType(value.is)} (expected boolean)`)
           if (frame === null) return
           else break
         }
@@ -4752,6 +4775,11 @@ async function hymnRun(H) {
         hymnPush(H, newInt(0))
         break
       }
+      case OP_FORMAT: {
+        const value = hymnPop(H)
+        hymnPush(H, newString(valueToFormat(value)))
+        break
+      }
       case OP_THROW: {
         frame = hymnException(H)
         if (frame === null) return
@@ -4781,13 +4809,20 @@ async function hymnRun(H) {
   }
 }
 
+function addTable(H, name, table) {
+  tablePut(H.globals, name, newTableValue(table))
+}
+
 function addFunction(H, name, func) {
-  const value = newNativeFunction(name, func)
-  tablePut(H.globals, name, newFuncNativeValue(value))
+  tablePut(H.globals, name, newNativeFuncValue(name, func))
 }
 
 function addPointer(H, name, pointer) {
   tablePut(H.globals, name, newPointerValue(pointer))
+}
+
+function addFunctionToTable(table, name, func) {
+  tablePut(table, name, newNativeFuncValue(name, func))
 }
 
 async function debugScript(H, script, source) {
@@ -4865,24 +4900,549 @@ function newVM() {
   return H
 }
 
+class Format {
+  constructor(source) {
+    this.source = source
+    this.size = source.length
+    this.dest = new Array()
+    this.s = 0
+    this.deep = 0
+    this.compact = new Array()
+  }
+}
+
+function isImportant(f, len) {
+  let start = len - 2
+  while (start >= 0) {
+    if (!isIdent(f.dest[start])) break
+    start--
+  }
+  const word = f.dest.slice(start + 1, len).join('')
+  switch (word) {
+    case 'in':
+    case 'if':
+    case 'for':
+    case 'not':
+    case 'else':
+    case 'elif':
+    case 'echo':
+    case 'while':
+    case 'return':
+      return true
+    default:
+      return false
+  }
+}
+
+function space(f, t) {
+  switch (t) {
+    case ' ':
+    case '\n':
+    case '\t':
+    case '\r':
+      return
+  }
+  const len = f.dest.length
+  if (len === 0) return
+  const p = f.dest[len - 1]
+  if (p === '\n') {
+    indent(f)
+    return
+  } else if (p === ':') {
+    for (let s = len - 2; s >= 0; s--) {
+      if (f.dest[s] === '{') {
+        f.dest.push(' ')
+        return
+      } else if (f.dest[s] === '[') {
+        return
+      }
+    }
+    return
+  } else if (p === '~') {
+    return
+  }
+  if (isDigit(t) || isIdent(t)) {
+    switch (p) {
+      case ' ':
+      case '.':
+      case '(':
+      case '[':
+        return
+      case '>':
+        if (len - 2 >= 0 && f.dest[len - 2] === '-') return
+        break
+      case '-':
+        if (len - 3 >= 0) {
+          const t = f.dest[len - 3]
+          if (t === ',' || t === '{') return
+          if (isIdent(t) && isImportant(f, len - 2)) return
+        }
+        if (len - 2 >= 0) {
+          const t = f.dest[len - 2]
+          if (t !== ')' && t !== ' ') return
+        }
+        break
+    }
+    f.dest.push(' ')
+    return
+  }
+  switch (t) {
+    case '{':
+      if (p === '(') return
+      break
+    case '(':
+      if (isDigit(p)) return
+      if (isIdent(p)) {
+        if (isImportant(f, len)) break
+        return
+      }
+      switch (p) {
+        case ' ':
+        case '(':
+        case ')':
+        case '[':
+        case '}':
+        case ']':
+          return
+      }
+      break
+    case '[':
+      if (isIdent(p)) {
+        if (isImportant(f, len)) break
+        return
+      }
+      switch (p) {
+        case '+':
+        case '=':
+        case ',':
+        case '{':
+          break
+        default:
+          return
+      }
+      break
+    case '<':
+      if (p === '<') return
+      break
+    case '>':
+      if (p === '-' || p === '>') return
+      break
+    case '=':
+      switch (p) {
+        case '-':
+        case '+':
+        case '*':
+        case '/':
+        case '<':
+        case '>':
+        case '~':
+        case '^':
+        case '%':
+        case '&':
+        case '|':
+        case '!':
+        case '=':
+          return
+      }
+      break
+    case '-':
+      if (f.s < f.size && f.source[f.s] === '>') return
+      if (p === ',' || p === '{' || p === ')') break
+      if (isIdent(p) || isDigit(p)) break
+      return
+    case '"':
+    case "'":
+      switch (p) {
+        case '(':
+        case '[':
+          return
+      }
+      break
+    case ',':
+    case '.':
+    case ':':
+    case ')':
+    case ']':
+      return
+  }
+  f.dest.push(' ')
+}
+
+function skip(f) {
+  if (f.s >= f.size) return
+  let c = f.source[f.s]
+  while (c === ' ' || c === '\t' || c === '\r') {
+    f.s++
+    if (f.s >= f.size) return
+    c = f.source[f.s]
+  }
+}
+
+function indent(f) {
+  for (let a = 0; a < f.deep; a++) {
+    f.dest.push(' ')
+    f.dest.push(' ')
+  }
+}
+
+function newline(f) {
+  f.dest.push('\n')
+  skip(f)
+  if (f.s >= f.size) return
+  const c = f.source[f.s]
+  if (c === '}') {
+    f.s++
+    if (f.deep >= 1) f.deep--
+    indent(f)
+    f.dest.push('}')
+  } else if (c === ')') {
+    f.s++
+    if (f.deep >= 1) f.deep--
+    indent(f)
+    f.dest.push(')')
+  }
+}
+
+function possibleNewline(f) {
+  for (let p = f.dest.length - 1; p >= 0; p--) {
+    const o = f.dest[p]
+    if (o === '\n') {
+      return
+    } else if (o === ' ' || o === '\t' || o === '\r') {
+      continue
+    } else {
+      newline(f)
+      return
+    }
+  }
+}
+
+function stringly(f, c) {
+  const source = f.source
+  const dest = f.dest
+  dest.push(c)
+  while (f.s < f.size) {
+    const n = source[f.s]
+    dest.push(n)
+    f.s++
+    if (n === '\\') {
+      dest.push(source[f.s++])
+    } else if (n === c) {
+      break
+    }
+  }
+  let a = f.s
+  let multiple = false
+  loop: while (a < f.size) {
+    const n = source[a]
+    if (n === '\n') {
+      for (let d = a + 1; d < f.size; d++) {
+        const m = source[d]
+        if (m === '"' || m === "'") {
+          if (!multiple) {
+            multiple = true
+            f.deep++
+          }
+          dest.push('\n')
+          indent(f)
+          dest.push(m)
+          f.s = d + 1
+          while (f.s < f.size) {
+            const i = source[f.s]
+            dest.push(i)
+            f.s++
+            if (i === '\\') {
+              dest.push(source[f.s++])
+            } else if (i === m) {
+              a = f.s
+              continue loop
+            }
+          }
+          break loop
+        }
+        if (m !== ' ' && m !== '\t' && m !== '\r' && m !== '\n') break loop
+      }
+      break loop
+    }
+    if (n === '"' || n === "'") {
+      space(f, n)
+      dest.push(n)
+      f.s = a + 1
+      while (f.s < f.size) {
+        const i = source[f.s]
+        dest.push(i)
+        f.s++
+        if (i === '\\') {
+          dest.push(source[f.s++])
+        } else if (i === n) {
+          a = f.s
+          continue loop
+        }
+      }
+    }
+    if (n !== ' ' && n !== '\t' && n !== '\r') break
+    a++
+  }
+  if (multiple) {
+    if (f.deep >= 1) f.deep--
+    possibleNewline(f)
+  }
+}
+
+function format(source) {
+  const f = new Format(source)
+  const dest = f.dest
+  const compact = f.compact
+  skip(f)
+  while (f.s < f.size) {
+    const c = source[f.s++]
+    space(f, c)
+    if (isDigit(c)) {
+      dest.push(c)
+      if (f.s < f.size) {
+        if (c === '0') {
+          const n = source[f.s]
+          if (n === 'x') {
+            dest.push(n)
+            f.s++
+            while (f.s < f.size) {
+              const m = source[f.s]
+              if (!(m >= '0' && m <= '9') && !(m >= 'a' && m <= 'f')) break
+              dest.push(m)
+              f.s++
+            }
+            continue
+          } else if (n === 'b') {
+            dest.push(n)
+            f.s++
+            while (f.s < f.size) {
+              const m = source[f.s]
+              if (m !== '0' && m !== '1') break
+              dest.push(m)
+              f.s++
+            }
+            continue
+          }
+        }
+        while (f.s < f.size) {
+          const n = source[f.s]
+          if (!isDigit(n)) {
+            if (n === '.') {
+              dest.push(n)
+              f.s++
+              while (f.s < f.size) {
+                const d = source[f.s]
+                if (!isDigit(d)) {
+                  if (d === 'e' || d === 'E') {
+                    dest.push(d)
+                    f.s++
+                    if (f.s < f.size) {
+                      const m = source[f.s]
+                      if (m === '+' || m === '-') {
+                        dest.push(m)
+                        f.s++
+                      }
+                      while (f.s < f.size) {
+                        const e = source[f.s]
+                        if (!isDigit(e)) break
+                        dest.push(e)
+                        f.s++
+                      }
+                    }
+                    break
+                  }
+                  break
+                }
+                dest.push(d)
+                f.s++
+              }
+              break
+            } else if (n === 'e' || n === 'E') {
+              dest.push(n)
+              f.s++
+              if (f.s < f.size) {
+                const m = source[f.s]
+                if (m === '+' || m === '-') {
+                  dest.push(m)
+                  f.s++
+                }
+                while (f.s < f.size) {
+                  const e = source[f.s]
+                  if (!isDigit(e)) break
+                  dest.push(e)
+                  f.s++
+                }
+              }
+              break
+            } else {
+              break
+            }
+          }
+          dest.push(n)
+          f.s++
+        }
+      }
+      continue
+    } else if (isIdent(c)) {
+      dest.push(c)
+      while (f.s < f.size) {
+        const n = source[f.s]
+        if (isIdent(n)) {
+          dest.push(n)
+          f.s++
+        } else if (n === '-' && f.s + 1 < f.size) {
+          const m = source[f.s + 1]
+          if (isIdent(m)) {
+            dest.push('-')
+            dest.push(m)
+            f.s += 2
+          } else {
+            break
+          }
+        } else {
+          break
+        }
+      }
+      continue
+    }
+    switch (c) {
+      case '(': {
+        dest.push(c)
+        for (let a = f.s; a < f.size; a++) {
+          const n = source[a]
+          if (n === '\n') {
+            f.deep++
+            newline(f)
+            compact.push(false)
+            break
+          } else if (n === ')') {
+            compact.push(true)
+            break
+          }
+        }
+        break
+      }
+      case '{': {
+        dest.push(c)
+        let any = false
+        for (let a = f.s; a < f.size; a++) {
+          const n = source[a]
+          if (n === '\n') {
+            let ok = true
+            if (!any) {
+              for (let d = a + 1; d < f.size; d++) {
+                const m = source[d]
+                if (m === '}') {
+                  ok = false
+                  dest.push('\n')
+                  indent(f)
+                  dest.push('}')
+                  f.s = d + 1
+                  break
+                } else if (m !== ' ' && m !== '\t' && m !== '\r' && m !== '\n') {
+                  break
+                }
+              }
+            }
+            if (ok) {
+              f.deep++
+              newline(f)
+              compact.push(false)
+            }
+            break
+          } else if (n === '}') {
+            if (any) {
+              compact.push(true)
+            } else {
+              dest.push('}')
+              f.s = a + 1
+            }
+            break
+          } else if (n !== ' ' && n !== '\t' && n !== '\r') {
+            any = true
+          }
+        }
+        break
+      }
+      case ')':
+      case '}': {
+        if (!compact.pop()) {
+          if (f.deep >= 1) f.deep--
+          possibleNewline(f)
+        }
+        dest.push(c)
+        break
+      }
+      case "'":
+      case '"':
+        stringly(f, c)
+        break
+      case '#': {
+        dest.push(c)
+        while (f.s < f.size) {
+          const n = source[f.s]
+          dest.push(n)
+          if (n === '\n') break
+          f.s++
+        }
+        break
+      }
+      case '\n': {
+        let twice = false
+        while (f.s < f.size) {
+          const n = source[f.s]
+          if (n === '\n') {
+            f.s++
+            twice = true
+          } else if (n === ' ' || n === '\t' || n === '\r') {
+            f.s++
+          } else {
+            break
+          }
+        }
+        possibleNewline(f)
+        if (twice) {
+          newline(f)
+        }
+        break
+      }
+      case ' ':
+      case '\t':
+      case '\r':
+        break
+      default:
+        dest.push(c)
+        break
+    }
+  }
+  return dest.join('')
+}
+
 if (node) {
   module.exports = {
     version: HYMN_VERSION,
+    HymnTable: HymnTable,
     isFloat: isFloat,
+    isString: isString,
     isFuncNative: isFuncNative,
     isPointer: isPointer,
     newNone: newNone,
+    newBool: newBool,
     newFloat: newFloat,
-    newFuncNativeValue: newFuncNativeValue,
+    newString: newString,
+    newArrayValue: newArrayValue,
+    newNativeFuncValue: newNativeFuncValue,
     newPointerValue: newPointerValue,
     newFunction: newFunction,
-    newNativeFunction: newNativeFunction,
+    addTable: addTable,
     addFunction: addFunction,
     addPointer: addPointer,
+    addFunctionToTable: addFunctionToTable,
     interpretScript: interpretScript,
     interpret: interpret,
-    direct: direct,
-    newVM: newVM,
     debug: debugScript,
+    direct: direct,
+    format: format,
+    newVM: newVM,
   }
 }

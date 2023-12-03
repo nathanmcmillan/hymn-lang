@@ -9,6 +9,12 @@ function clock(H, count, args) {
   return hymn.newFloat(Date.now() / 1000.0)
 }
 
+function useOS(H) {
+  const os = new hymn.HymnTable()
+  hymn.addFunctionToTable(os, 'clock', clock)
+  hymn.addTable(H, 'os', os)
+}
+
 module.exports = {
-  clock: clock,
+  useOS: useOS,
 }

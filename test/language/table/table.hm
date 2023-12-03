@@ -19,6 +19,6 @@
 }
 
 {
-  set table = { "a\"b": 2, 'c"d': 4, "e'f": 6, 'g\'h': 8, "ij""kl": 10, "x\\z": 12 }
+  set table = { "a\"b": 2, 'c"d': 4, "e'f": 6, 'g\'h': 8, "ij" "kl": 10, "x\\z": 12 }
   echo table
 }

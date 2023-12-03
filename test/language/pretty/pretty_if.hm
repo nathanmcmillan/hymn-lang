@@ -1,0 +1,21 @@
+# func fun() {
+#   set x = 0
+#   if x < 123 {
+#   } elif x < 456 {
+#     x = 2
+#   } else {
+#     x = 4
+#   }
+# }
+
+func fun() {
+  set x=0
+  if x<123 {
+  }elif x<456{
+    x = 2
+  }else{
+    x = 4
+  }
+}
+
+echo _format(fun)

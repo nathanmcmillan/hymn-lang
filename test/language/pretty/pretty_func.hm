@@ -1,0 +1,5 @@
+# func fun() { set z = "foo" return z + "bar" }
+
+func fun() {set z = "foo" return z+"bar"}
+
+echo _format(fun)

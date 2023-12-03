@@ -8,8 +8,8 @@
 // #define HYMN_NO_LIBS
 
 #ifdef HYMN_NO_LIBS
-#define hymn_use_libs(hymn) \
-    do {                    \
+#define hymn_use_libs(H) \
+    do {                 \
     } while (0)
 #else
 #include "hymn_glob.h"
@@ -21,15 +21,15 @@
 #include "hymn_pattern.h"
 #include "hymn_text.h"
 
-#define hymn_use_libs(hymn) \
-    hymn_use_os(hymn);      \
-    hymn_use_io(hymn);      \
-    hymn_use_path(hymn);    \
-    hymn_use_math(hymn);    \
-    hymn_use_json(hymn);    \
-    hymn_use_text(hymn);    \
-    hymn_use_glob(hymn);    \
-    hymn_use_pattern(hymn)
+#define hymn_use_libs(H) \
+    hymn_use_os(H);      \
+    hymn_use_io(H);      \
+    hymn_use_path(H);    \
+    hymn_use_math(H);    \
+    hymn_use_json(H);    \
+    hymn_use_text(H);    \
+    hymn_use_glob(H);    \
+    hymn_use_pattern(H)
 #endif
 
 #endif

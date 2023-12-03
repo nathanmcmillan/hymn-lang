@@ -42,7 +42,7 @@ echo a[-1]
 
 # double negate constant
 set b = [2, 4, 6]
-echo b[- - 1]
+echo b[--1]
 
 # add two local
 {

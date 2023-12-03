@@ -78,6 +78,16 @@ static void hymn_mem_copy(void *dest, void *src, int count, size_t size) {
     memcpy(dest, src, (size_t)count * size);
 }
 
+FILE *hymn_open_file(const char *path, const char *mode) {
+#ifdef _MSC_VER
+    FILE *open = NULL;
+    errno_t code = fopen_s(&open, path, mode);
+    return code != 0 ? NULL : open;
+#else
+    return fopen(path, mode);
+#endif
+}
+
 static HymnStringHead *string_head_init(size_t length, size_t capacity) {
     size_t memory = sizeof(HymnStringHead) + capacity + 1;
     HymnStringHead *head = (HymnStringHead *)hymn_malloc(memory);
@@ -448,7 +458,7 @@ HymnString *hymn_path_absolute(HymnString *path) {
 }
 
 size_t hymn_file_size(const char *path) {
-    FILE *open = fopen(path, "r");
+    FILE *open = hymn_open_file(path, "r");
     if (open == NULL) {
         return 0;
     }
@@ -463,7 +473,7 @@ size_t hymn_file_size(const char *path) {
 
 HymnString *hymn_read_file(const char *path) {
     size_t size = hymn_file_size(path);
-    FILE *open = fopen(path, "r");
+    FILE *open = hymn_open_file(path, "r");
     if (open == NULL) {
         return NULL;
     }
@@ -1883,6 +1893,7 @@ static void advance(Compiler *C) {
                 next_char(C);
                 token_special(C, TOKEN_NOT_EQUAL, 2, 2);
             } else {
+                token(C, TOKEN_ERROR);
                 compile_error(C, &C->current, "expected '!='");
             }
             return;
@@ -2601,17 +2612,17 @@ static bool match(Compiler *C, enum TokenType type) {
 
 static void compile_with_precedence(Compiler *C, enum Precedence precedence) {
     advance(C);
-    Rule *rule = token_rule(C->previous.type);
-    void (*prefix)(Compiler *, bool) = rule->prefix;
+    const Rule *rule = token_rule(C->previous.type);
+    void (*const prefix)(Compiler *, bool) = rule->prefix;
     if (prefix == NULL) {
         compile_error(C, &C->previous, "expression expected near '%.*s'", C->previous.length, &C->source[C->previous.start]);
         return;
     }
-    bool assign = precedence <= PRECEDENCE_ASSIGN;
+    const bool assign = precedence <= PRECEDENCE_ASSIGN;
     prefix(C, assign);
     while (precedence <= token_rule(C->current.type)->precedence) {
         advance(C);
-        void (*infix)(Compiler *, bool) = token_rule(C->previous.type)->infix;
+        void (*const infix)(Compiler *, bool) = token_rule(C->previous.type)->infix;
         if (infix == NULL) {
             compile_error(C, &C->previous, "expected infix");
             return;
@@ -2690,12 +2701,12 @@ static void compile_false(Compiler *C, bool assign) {
 
 static void compile_integer(Compiler *C, bool assign) {
     (void)assign;
-    emit_constant(C, hymn_new_int(C->current.integer));
+    emit_constant(C, hymn_new_int(C->previous.integer));
 }
 
 static void compile_float(Compiler *C, bool assign) {
     (void)assign;
-    emit_constant(C, hymn_new_float(C->current.floating));
+    emit_constant(C, hymn_new_float(C->previous.floating));
 }
 
 static char escape_sequence(const char c) {
@@ -3180,6 +3191,174 @@ static void compile_or(Compiler *C, bool assign) {
     compile_with_precedence(C, PRECEDENCE_OR);
 }
 
+struct PointerSet {
+    int count;
+    int capacity;
+    void **items;
+};
+
+static bool pointer_set_has(struct PointerSet *set, void *pointer) {
+    void **items = set->items;
+    if (items) {
+        int count = set->count;
+        for (int i = 0; i < count; i++) {
+            if (pointer == items[i]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void pointer_set_add(struct PointerSet *set, void *pointer) {
+    if (set->items) {
+        int count = set->count;
+        if (count >= set->capacity) {
+            set->capacity *= 2;
+            set->items = hymn_realloc_int(set->items, set->capacity, sizeof(void *));
+        }
+        set->items[count] = pointer;
+        set->count = count + 1;
+    } else {
+        set->count = 1;
+        set->capacity = 1;
+        set->items = hymn_calloc(1, sizeof(void *));
+        set->items[0] = pointer;
+    }
+}
+
+static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *set, bool quote) {
+    switch (value.is) {
+    case HYMN_VALUE_UNDEFINED: return hymn_new_string("undefined");
+    case HYMN_VALUE_NONE: return hymn_new_string("none");
+    case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
+    case HYMN_VALUE_INTEGER: return hymn_int_to_string(hymn_as_int(value));
+    case HYMN_VALUE_FLOAT: return hymn_float_to_string(hymn_as_float(value));
+    case HYMN_VALUE_STRING: {
+        if (quote) return hymn_quote_string(hymn_as_string(value));
+        return hymn_string_copy(hymn_as_string(value));
+    }
+    case HYMN_VALUE_ARRAY: {
+        HymnArray *array = hymn_as_array(value);
+        if (array == NULL || array->length == 0) {
+            return hymn_new_string("[]");
+        }
+        if (pointer_set_has(set, array)) {
+            return hymn_new_string("[..]");
+        } else {
+            pointer_set_add(set, array);
+        }
+        HymnString *string = hymn_new_string("[");
+        for (HymnInt i = 0; i < array->length; i++) {
+            if (i != 0) {
+                string = hymn_string_append(string, ", ");
+            }
+            HymnString *add = value_to_string_recusive(array->items[i], set, true);
+            string = hymn_string_append(string, add);
+            hymn_string_delete(add);
+        }
+        string = hymn_string_append_char(string, ']');
+        return string;
+    }
+    case HYMN_VALUE_TABLE: {
+        HymnTable *table = hymn_as_table(value);
+        if (table == NULL || table->size == 0) {
+            return hymn_new_string("{}");
+        } else if (pointer_set_has(set, table)) {
+            return hymn_new_string("{ .. }");
+        } else {
+            pointer_set_add(set, table);
+        }
+        int size = table->size;
+        HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
+        unsigned int total = 0;
+        unsigned int bins = table->bins;
+        for (unsigned int i = 0; i < bins; i++) {
+            HymnTableItem *item = table->items[i];
+            while (item != NULL) {
+                HymnString *string = item->key->string;
+                unsigned int insert = 0;
+                while (insert != total) {
+                    if (strcmp(string, keys[insert]->string) < 0) {
+                        for (unsigned int swap = total; swap > insert; swap--) {
+                            keys[swap] = keys[swap - 1];
+                        }
+                        break;
+                    }
+                    insert++;
+                }
+                keys[insert] = item->key;
+                total++;
+                item = item->next;
+            }
+        }
+        HymnString *string = hymn_new_string("{ ");
+        for (int i = 0; i < size; i++) {
+            if (i != 0) {
+                string = hymn_string_append(string, ", ");
+            }
+            HymnObjectString *key = keys[i];
+            HymnValue item = table_get(table, key);
+            HymnString *add = value_to_string_recusive(item, set, true);
+            HymnString *quoting = hymn_quote_string(key->string);
+            string = hymn_string_append(string, quoting);
+            string = hymn_string_append(string, ": ");
+            string = hymn_string_append(string, add);
+            hymn_string_delete(quoting);
+            hymn_string_delete(add);
+        }
+        string = hymn_string_append(string, " }");
+        free(keys);
+        return string;
+    }
+    case HYMN_VALUE_FUNC: {
+        HymnFunction *func = hymn_as_func(value);
+        if (func->name) return hymn_string_copy(func->name);
+        if (func->script) return hymn_string_copy(func->script);
+        return hymn_new_string("script");
+    }
+    case HYMN_VALUE_FUNC_NATIVE: return hymn_string_copy(hymn_as_native(value)->name->string);
+    case HYMN_VALUE_POINTER: return hymn_string_format("%p", hymn_as_pointer(value));
+    default:
+        break;
+    }
+    return hymn_new_string("?");
+}
+
+HymnString *hymn_value_to_string(HymnValue value) {
+    struct PointerSet set = {.count = 0, .capacity = 0, .items = NULL};
+    HymnString *string = value_to_string_recusive(value, &set, false);
+    free(set.items);
+    return string;
+}
+
+static HymnString *value_concat(HymnValue a, HymnValue b) {
+    HymnString *string = hymn_value_to_string(a);
+    HymnString *second = hymn_value_to_string(b);
+    string = hymn_string_append(string, second);
+    hymn_string_delete(second);
+    return string;
+}
+
+static HymnString *debug_value_to_string(HymnValue value) {
+    HymnString *string = hymn_value_to_string(value);
+    HymnString *format = hymn_string_format("%s: %s", hymn_value_type(value.is), string);
+    hymn_string_delete(string);
+    return format;
+}
+
+// static int stack_delta(uint8_t instruction) {
+//     switch (instruction) {
+//     case OP_POP_N:
+//         // What about instruction specific deltas?
+//         return 2;
+//     case OP_JUMP_IF_EQUAL:
+//     // What about branching leading to different stack results?
+//     default:
+//         return 1;
+//     }
+// }
+
 static int next(uint8_t instruction) {
     switch (instruction) {
     case OP_CALL:
@@ -3297,7 +3476,7 @@ static Instruction *adjustable(Optimizer *optimizer, int target) {
     return NULL;
 }
 
-static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
+static void rewrite(Optimizer *optimizer, int start, int shift) {
     uint8_t *instructions = optimizer->code->instructions;
     Instruction *view = optimizer->important;
     while (view != NULL) {
@@ -3315,14 +3494,11 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
             if (i < start) {
                 int jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 + jump;
-                assert((destination < start || destination > start + shift) || !inside);
                 if (destination > start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
-                } else if (destination >= start && destination <= start + shift && inside) {
-                    // not sure about this
-                    jump -= next(optimizer->code->instructions[destination]);
-                    UPDATE_JUMP(instructions, i, 1, 2, jump)
+                } else {
+                    assert(destination < start || destination > start + shift || shift == next(optimizer->code->instructions[destination]));
                 }
             }
             break;
@@ -3331,14 +3507,11 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
             if (i < start) {
                 int jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 + jump;
-                assert((destination < start || destination > start + shift) || !inside);
                 if (destination > start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
-                } else if (destination >= start && destination <= start + shift && inside) {
-                    // not sure about this
-                    jump -= next(optimizer->code->instructions[destination]);
-                    UPDATE_JUMP(instructions, i, 3, 4, jump)
+                } else {
+                    assert(destination < start || destination > start + shift || shift == next(optimizer->code->instructions[destination]));
                 }
             }
             break;
@@ -3347,7 +3520,6 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
             if (i < start) {
                 int jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 4 + jump;
-                assert((destination < start || destination > start + shift) || !inside);
                 if (destination > start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
@@ -3359,14 +3531,11 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
             if (i >= start) {
                 int jump = GET_JUMP(instructions, i, 1, 2);
                 int destination = i + 3 - jump;
-                assert((destination < start || destination > start + shift) || !inside);
                 if (destination < start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 1, 2, jump)
-                } else if (destination >= start && destination <= start + shift && inside) {
-                    // not sure about this
-                    jump -= next(optimizer->code->instructions[destination]);
-                    UPDATE_JUMP(instructions, i, 1, 2, jump)
+                } else {
+                    assert(destination > start + shift || shift == next(optimizer->code->instructions[destination]));
                 }
             }
             break;
@@ -3375,14 +3544,11 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
             if (i >= start) {
                 int jump = GET_JUMP(instructions, i, 2, 3);
                 int destination = i + 3 - jump;
-                assert((destination < start || destination > start + shift) || !inside);
                 if (destination < start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 2, 3, jump)
-                } else if (destination >= start && destination <= start + shift && inside) {
-                    // not sure about this
-                    jump -= next(optimizer->code->instructions[destination]);
-                    UPDATE_JUMP(instructions, i, 2, 3, jump)
+                } else {
+                    assert(destination > start + shift || shift == next(optimizer->code->instructions[destination]));
                 }
             }
             break;
@@ -3391,14 +3557,11 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
             if (i >= start) {
                 int jump = GET_JUMP(instructions, i, 3, 4);
                 int destination = i + 5 - jump;
-                assert((destination < start || destination > start + shift) || !inside);
                 if (destination < start) {
                     jump -= shift;
                     UPDATE_JUMP(instructions, i, 3, 4, jump)
-                } else if (destination >= start && destination <= start + shift && inside) {
-                    // not sure about this
-                    jump -= next(optimizer->code->instructions[destination]);
-                    UPDATE_JUMP(instructions, i, 3, 4, jump)
+                } else {
+                    assert(destination > start + shift || shift == next(optimizer->code->instructions[destination]));
                 }
             }
             break;
@@ -3430,10 +3593,6 @@ static void rewriting(Optimizer *optimizer, int start, int shift, bool inside) {
         }
         except = except->next;
     }
-}
-
-static void rewrite(Optimizer *optimizer, int start, int shift) {
-    rewriting(optimizer, start, shift, true);
 }
 
 static void update(Optimizer *optimizer, int index, uint8_t instruction) {
@@ -3532,11 +3691,14 @@ static HymnString *disassemble_byte_code(HymnByteCode *code);
 
 static void optimize(Compiler *C) {
 
+    // TODO: Recover no-longer used constants
+    // TODO: Optimize unmodified local variables
+
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
 
     HymnString *debug = disassemble_byte_code(&func->code);
-    printf("original:\n%s\n---\n", debug);
+    printf("debug:\n%s\n", debug);
     hymn_string_delete(debug);
 
     Optimizer optimizer = {0};
@@ -3548,6 +3710,9 @@ static void optimize(Compiler *C) {
     }
 
     interest(&optimizer);
+
+    // bool stack[HYMN_UINT8_COUNT];
+    // int stack_count = 0;
 
 #define COUNT() optimizer.code->count
 #define INSTRUCTION(I) optimizer.code->instructions[I]
@@ -3594,14 +3759,14 @@ static void optimize(Compiler *C) {
         case OP_POP:
         case OP_POP_TWO: {
             if (second == OP_VOID) {
-                rewriting(&optimizer, one, 1, false);
+                rewrite(&optimizer, one, 1);
                 continue;
             }
             break;
         }
         case OP_POP_N: {
             if (second == OP_VOID) {
-                rewriting(&optimizer, one, 2, false);
+                rewrite(&optimizer, one, 2);
                 continue;
             }
             break;
@@ -3637,7 +3802,7 @@ static void optimize(Compiler *C) {
         }
         case OP_POP: {
             if (second == OP_POP) {
-                rewriting(&optimizer, one, 1, false);
+                rewrite(&optimizer, one, 1);
                 SET(one, OP_POP_TWO);
                 continue;
             }
@@ -3655,7 +3820,7 @@ static void optimize(Compiler *C) {
             if (second == OP_POP) {
                 uint8_t pop = INSTRUCTION(one + 1);
                 if (pop < UINT8_MAX - 1) {
-                    rewriting(&optimizer, one + 1, 1, false);
+                    rewrite(&optimizer, one + 1, 1);
                     SET(one + 1, (uint8_t)(pop + 1));
                     continue;
                 }
@@ -3745,40 +3910,87 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_CONSTANT: {
+            // What about when we REDO an instruction?
+            // stack[stack_count] = true;
+            // stack_count++;
             if (zero == -1) zero = one;
             if (second == OP_CONSTANT) {
                 int three = two + next(second);
                 uint8_t third = three < COUNT() ? INSTRUCTION(three) : UINT8_MAX;
                 if (third == OP_ADD) {
                     HymnValue a = CONSTANT(one + 1);
-                    if (hymn_is_int(a)) {
-                        HymnValue b = CONSTANT(two + 1);
-                        if (hymn_is_int(b)) {
-                            HymnInt x = hymn_as_int(a);
-                            HymnInt y = hymn_as_int(b);
-                            HymnValue value = hymn_new_int(x + y);
-                            uint8_t constant = byte_code_new_constant(C, value);
-                            SET(one + 1, constant);
-                            rewrite(&optimizer, two, 3);
-                            one = zero;
-                            continue;
+                    HymnValue b = CONSTANT(two + 1);
+                    HymnValue value;
+                    if (hymn_is_none(a)) {
+                        if (hymn_is_string(b)) {
+                            value = compile_intern_string(C->H, value_concat(a, b));
+                        } else {
+                            break;
                         }
+                    } else if (hymn_is_bool(a)) {
+                        if (hymn_is_string(b)) {
+                            value = compile_intern_string(C->H, value_concat(a, b));
+                        } else {
+                            break;
+                        }
+                    } else if (hymn_is_int(a)) {
+                        if (hymn_is_int(b)) {
+                            value = hymn_new_int(a.as.i + b.as.i);
+                        } else if (hymn_is_float(b)) {
+                            value = hymn_new_float((HymnFloat)a.as.i + b.as.f);
+                        } else if (hymn_is_string(b)) {
+                            value = compile_intern_string(C->H, value_concat(a, b));
+                        } else {
+                            break;
+                        }
+                    } else if (hymn_is_float(a)) {
+                        if (hymn_is_int(b)) {
+                            value = hymn_new_float(a.as.f + (HymnFloat)b.as.i);
+                        } else if (hymn_is_float(b)) {
+                            value = hymn_new_float(a.as.f + b.as.f);
+                        } else if (hymn_is_string(b)) {
+                            value = compile_intern_string(C->H, value_concat(a, b));
+                        } else {
+                            break;
+                        }
+                    } else if (hymn_is_string(a)) {
+                        value = compile_intern_string(C->H, value_concat(a, b));
+                    } else {
+                        break;
                     }
+                    uint8_t constant = byte_code_new_constant(C, value);
+                    SET(one + 1, constant);
+                    rewrite(&optimizer, two, 3);
+                    one = zero;
+                    continue;
                 } else if (third == OP_SUBTRACT) {
                     HymnValue a = CONSTANT(one + 1);
+                    HymnValue b = CONSTANT(two + 1);
+                    HymnValue value;
                     if (hymn_is_int(a)) {
-                        HymnValue b = CONSTANT(two + 1);
                         if (hymn_is_int(b)) {
-                            HymnInt x = hymn_as_int(a);
-                            HymnInt y = hymn_as_int(b);
-                            HymnValue value = hymn_new_int(x - y);
-                            uint8_t constant = byte_code_new_constant(C, value);
-                            SET(one + 1, constant);
-                            rewrite(&optimizer, two, 3);
-                            one = zero;
-                            continue;
+                            value = hymn_new_int(a.as.i - b.as.i);
+                        } else if (hymn_is_float(b)) {
+                            value = hymn_new_float((HymnFloat)a.as.i - b.as.f);
+                        } else {
+                            break;
                         }
+                    } else if (hymn_is_float(a)) {
+                        if (hymn_is_int(b)) {
+                            value = hymn_new_float(a.as.f - (HymnFloat)b.as.i);
+                        } else if (hymn_is_float(b)) {
+                            value = hymn_new_float(a.as.f - b.as.f);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
                     }
+                    uint8_t constant = byte_code_new_constant(C, value);
+                    SET(one + 1, constant);
+                    rewrite(&optimizer, two, 3);
+                    one = zero;
+                    continue;
                 } else if (third == OP_MULTIPLY) {
                     HymnValue a = CONSTANT(one + 1);
                     HymnValue b = CONSTANT(two + 1);
@@ -3809,19 +4021,32 @@ static void optimize(Compiler *C) {
                     continue;
                 } else if (third == OP_DIVIDE) {
                     HymnValue a = CONSTANT(one + 1);
+                    HymnValue b = CONSTANT(two + 1);
+                    HymnValue value;
                     if (hymn_is_int(a)) {
-                        HymnValue b = CONSTANT(two + 1);
                         if (hymn_is_int(b)) {
-                            HymnInt x = hymn_as_int(a);
-                            HymnInt y = hymn_as_int(b);
-                            HymnValue value = hymn_new_int(x / y);
-                            uint8_t constant = byte_code_new_constant(C, value);
-                            SET(one + 1, constant);
-                            rewrite(&optimizer, two, 3);
-                            one = zero;
-                            continue;
+                            value = hymn_new_int(a.as.i / b.as.i);
+                        } else if (hymn_is_float(b)) {
+                            value = hymn_new_float((HymnFloat)a.as.i / b.as.f);
+                        } else {
+                            break;
                         }
+                    } else if (hymn_is_float(a)) {
+                        if (hymn_is_int(b)) {
+                            value = hymn_new_float(a.as.f / (HymnFloat)b.as.i);
+                        } else if (hymn_is_float(b)) {
+                            value = hymn_new_float(a.as.f / b.as.f);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
                     }
+                    uint8_t constant = byte_code_new_constant(C, value);
+                    SET(one + 1, constant);
+                    rewrite(&optimizer, two, 3);
+                    one = zero;
+                    continue;
                 } else if (third == OP_BIT_AND) {
                     HymnValue a = CONSTANT(one + 1);
                     if (hymn_is_int(a)) {
@@ -4692,9 +4917,9 @@ static void reference_expression(Compiler *C, bool assign) {
 
 static void format_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'format'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_format'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'format'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_format'");
     emit(C, OP_FORMAT);
 }
 
@@ -4780,162 +5005,6 @@ HymnString *hymn_quote_string(HymnString *string) {
     quoted[len + extra - 1] = '"';
     quoted[len + extra] = '\0';
     return quoted;
-}
-
-struct PointerSet {
-    int count;
-    int capacity;
-    void **items;
-};
-
-static bool pointer_set_has(struct PointerSet *set, void *pointer) {
-    void **items = set->items;
-    if (items) {
-        int count = set->count;
-        for (int i = 0; i < count; i++) {
-            if (pointer == items[i]) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-static void pointer_set_add(struct PointerSet *set, void *pointer) {
-    if (set->items) {
-        int count = set->count;
-        if (count >= set->capacity) {
-            set->capacity *= 2;
-            set->items = hymn_realloc_int(set->items, set->capacity, sizeof(void *));
-        }
-        set->items[count] = pointer;
-        set->count = count + 1;
-    } else {
-        set->count = 1;
-        set->capacity = 1;
-        set->items = hymn_calloc(1, sizeof(void *));
-        set->items[0] = pointer;
-    }
-}
-
-static HymnString *value_to_string_recusive(HymnValue value, struct PointerSet *set, bool quote) {
-    switch (value.is) {
-    case HYMN_VALUE_UNDEFINED: return hymn_new_string("undefined");
-    case HYMN_VALUE_NONE: return hymn_new_string("none");
-    case HYMN_VALUE_BOOL: return hymn_as_bool(value) ? hymn_new_string("true") : hymn_new_string("false");
-    case HYMN_VALUE_INTEGER: return hymn_int_to_string(hymn_as_int(value));
-    case HYMN_VALUE_FLOAT: return hymn_float_to_string(hymn_as_float(value));
-    case HYMN_VALUE_STRING: {
-        if (quote) return hymn_quote_string(hymn_as_string(value));
-        return hymn_string_copy(hymn_as_string(value));
-    }
-    case HYMN_VALUE_ARRAY: {
-        HymnArray *array = hymn_as_array(value);
-        if (array == NULL || array->length == 0) {
-            return hymn_new_string("[]");
-        }
-        if (pointer_set_has(set, array)) {
-            return hymn_new_string("[..]");
-        } else {
-            pointer_set_add(set, array);
-        }
-        HymnString *string = hymn_new_string("[");
-        for (HymnInt i = 0; i < array->length; i++) {
-            if (i != 0) {
-                string = hymn_string_append(string, ", ");
-            }
-            HymnString *add = value_to_string_recusive(array->items[i], set, true);
-            string = hymn_string_append(string, add);
-            hymn_string_delete(add);
-        }
-        string = hymn_string_append_char(string, ']');
-        return string;
-    }
-    case HYMN_VALUE_TABLE: {
-        HymnTable *table = hymn_as_table(value);
-        if (table == NULL || table->size == 0) {
-            return hymn_new_string("{}");
-        } else if (pointer_set_has(set, table)) {
-            return hymn_new_string("{ .. }");
-        } else {
-            pointer_set_add(set, table);
-        }
-        int size = table->size;
-        HymnObjectString **keys = hymn_malloc_int(size, sizeof(HymnObjectString *));
-        unsigned int total = 0;
-        unsigned int bins = table->bins;
-        for (unsigned int i = 0; i < bins; i++) {
-            HymnTableItem *item = table->items[i];
-            while (item != NULL) {
-                HymnString *string = item->key->string;
-                unsigned int insert = 0;
-                while (insert != total) {
-                    if (strcmp(string, keys[insert]->string) < 0) {
-                        for (unsigned int swap = total; swap > insert; swap--) {
-                            keys[swap] = keys[swap - 1];
-                        }
-                        break;
-                    }
-                    insert++;
-                }
-                keys[insert] = item->key;
-                total++;
-                item = item->next;
-            }
-        }
-        HymnString *string = hymn_new_string("{ ");
-        for (int i = 0; i < size; i++) {
-            if (i != 0) {
-                string = hymn_string_append(string, ", ");
-            }
-            HymnObjectString *key = keys[i];
-            HymnValue item = table_get(table, key);
-            HymnString *add = value_to_string_recusive(item, set, true);
-            HymnString *quoting = hymn_quote_string(key->string);
-            string = hymn_string_append(string, quoting);
-            string = hymn_string_append(string, ": ");
-            string = hymn_string_append(string, add);
-            hymn_string_delete(quoting);
-            hymn_string_delete(add);
-        }
-        string = hymn_string_append(string, " }");
-        free(keys);
-        return string;
-    }
-    case HYMN_VALUE_FUNC: {
-        HymnFunction *func = hymn_as_func(value);
-        if (func->name) return hymn_string_copy(func->name);
-        if (func->script) return hymn_string_copy(func->script);
-        return hymn_new_string("script");
-    }
-    case HYMN_VALUE_FUNC_NATIVE: return hymn_string_copy(hymn_as_native(value)->name->string);
-    case HYMN_VALUE_POINTER: return hymn_string_format("%p", hymn_as_pointer(value));
-    default:
-        break;
-    }
-    return hymn_new_string("?");
-}
-
-HymnString *hymn_value_to_string(HymnValue value) {
-    struct PointerSet set = {.count = 0, .capacity = 0, .items = NULL};
-    HymnString *string = value_to_string_recusive(value, &set, false);
-    free(set.items);
-    return string;
-}
-
-static HymnString *value_concat(HymnValue a, HymnValue b) {
-    HymnString *string = hymn_value_to_string(a);
-    HymnString *second = hymn_value_to_string(b);
-    string = hymn_string_append(string, second);
-    hymn_string_delete(second);
-    return string;
-}
-
-static HymnString *debug_value_to_string(HymnValue value) {
-    HymnString *string = hymn_value_to_string(value);
-    HymnString *format = hymn_string_format("%s: %s", hymn_value_type(value.is), string);
-    hymn_string_delete(string);
-    return format;
 }
 
 static void reset_stack(Hymn *H) {
@@ -7995,7 +8064,7 @@ void hymn_repl(Hymn *H) {
                 } else if (hymn_file_exists(path)) {
                     printf("history can't overwrite an existing file: %s\n", path);
                 } else {
-                    FILE *open = fopen(path, "w");
+                    FILE *open = hymn_open_file(path, "w");
                     if (open == NULL) {
                         printf("failed to write history: %s\n", path);
                     } else {
@@ -8013,7 +8082,11 @@ void hymn_repl(Hymn *H) {
                 }
             } else if (string_starts_with(line, ".load ")) {
                 char path[PATH_MAX];
+#ifdef _MSC_VER
+                strcpy_s(path, PATH_MAX, &line[6]);
+#else
                 strcpy(path, &line[6]);
+#endif
                 if (path[0] == '\0') {
                     printf("bad file path\n");
                 } else if (hymn_file_exists(path)) {
@@ -8063,29 +8136,32 @@ void hymn_repl(Hymn *H) {
         if (open_editor) {
             open_editor = false;
 
-            char *editor = getenv("EDITOR");
-            if (editor == NULL) {
-#ifdef _MSC_VER
-                editor = "notepad";
-#else
-                printf("no EDITOR set\n");
-                continue;
-#endif
-            }
-
             FILE *temp = NULL;
 
 #ifdef _MSC_VER
+            char *editor = NULL;
+            size_t size = 0;
+            errno_t error = _dupenv_s(&editor, &size, "EDITOR");
+            if (error != 0) {
+                free(editor);
+                printf("no EDITOR set\n");
+                continue;
+            }
             char path[MAX_PATH];
             GetTempFileName(temp_dir, "hymn", 0, path);
-            temp = fopen(path, "w");
+            temp = hymn_open_file(path, "w");
 #else
+            char *editor = getenv("EDITOR");
+            if (editor == NULL) {
+                printf("no EDITOR set\n");
+                continue;
+            }
             char path[] = "/tmp/hymn.XXXXXX";
             for (int a = 0; a < 64; a++) {
                 for (int x = 0; x < 6; x++) {
                     path[10 + x] = letters[(size_t)((double)rand() / RAND_MAX * (sizeof(letters) - 1))];
                 }
-                temp = fopen(path, "wx");
+                temp = hymn_open_file(path, "wx");
                 if (temp != NULL) {
                     break;
                 }
@@ -8094,6 +8170,9 @@ void hymn_repl(Hymn *H) {
 
             if (temp == NULL) {
                 printf("failed to create temporary file\n");
+#ifdef _MSC_VER
+                free(editor);
+#endif
                 continue;
             }
 
@@ -8105,7 +8184,17 @@ void hymn_repl(Hymn *H) {
 
             fclose(temp);
 
+#ifdef _MSC_VER
+            HymnString *edit;
+            if (editor != NULL) {
+                edit = hymn_string_format("%s %s", editor, path);
+                free(editor);
+            } else {
+                edit = hymn_string_format("%s %s", "notepad", path);
+            }
+#else
             HymnString *edit = hymn_string_format("%s %s", editor, path);
+#endif
             int result = system(edit);
             if (result == -1) {
                 printf("failed edit: %d\n", result);
@@ -8113,7 +8202,12 @@ void hymn_repl(Hymn *H) {
             hymn_string_delete(edit);
 
             HymnString *content = hymn_read_file(path);
+
+#ifdef _MSC_VER
+            _unlink(path);
+#else
             unlink(path);
+#endif
 
             if (content == NULL) {
                 printf("failed to read temporary file\n");
@@ -8671,6 +8765,6 @@ done:
     clear(&F);
     F.new[F.capacity] = '\0';
     F.new[F.n] = '\0';
-
+    free(F.stack);
     return F.new;
 }

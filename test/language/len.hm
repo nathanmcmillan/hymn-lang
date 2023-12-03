@@ -11,4 +11,4 @@ echo len({})
 
 echo len("foo")
 echo len([1, 2, 3, 4])
-echo len({ x: "hello", y: "world"})
+echo len({ x: "hello", y: "world" })

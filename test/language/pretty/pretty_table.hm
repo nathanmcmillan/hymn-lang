@@ -1,7 +1,7 @@
 # func fun(a, b) {
 #   set table = {
 #     x: a,
-#     y: (b + 1),
+#     y: (b + 1)
 #   }
 #   table.z = 2 * 3 / 6
 #   table->a()
@@ -15,7 +15,7 @@ func fun(a,b) {
   }
   table.z=2*3/6
   table -> a( )
-  return z
+  return table
 }
 
 echo _format(fun)

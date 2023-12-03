@@ -24,8 +24,8 @@ try { "abc"[:4] } except e { echo runtime(e) }
 try { "abc"[-2:] } except e { echo runtime(e) }
 try { "abc"[:-4] } except e { echo runtime(e) }
 
-try { [1,2,3][4:] } except e { echo runtime(e) }
-try { [1,2,3][2:1] } except e { echo runtime(e) }
-try { [1,2,3][:4] } except e { echo runtime(e) }
-try { [1,2,3][-2:] } except e { echo runtime(e) }
-try { [1,2,3][:-4] } except e { echo runtime(e) }
+try { [1, 2, 3][4:] } except e { echo runtime(e) }
+try { [1, 2, 3][2:1] } except e { echo runtime(e) }
+try { [1, 2, 3][:4] } except e { echo runtime(e) }
+try { [1, 2, 3][-2:] } except e { echo runtime(e) }
+try { [1, 2, 3][:-4] } except e { echo runtime(e) }

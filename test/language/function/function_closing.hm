@@ -1,3 +1,4 @@
 # @exception function has no closing ')'
 
-echo foo(2
+echo foo(
+  2
