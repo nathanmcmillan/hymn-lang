@@ -4908,6 +4908,7 @@ class Format {
     this.s = 0
     this.deep = 0
     this.compact = new Array()
+    this.nest = new Array()
   }
 }
 
@@ -4949,12 +4950,12 @@ function space(f, t) {
     indent(f)
     return
   } else if (p === ':') {
-    for (let s = len - 2; s >= 0; s--) {
-      if (f.dest[s] === '{') {
+    if (f.nest.length === 0) {
+      f.dest.push(' ')
+    } else {
+      const nest = f.nest[f.nest.length - 1]
+      if (nest !== '[') {
         f.dest.push(' ')
-        return
-      } else if (f.dest[s] === '[') {
-        return
       }
     }
     return
@@ -5058,9 +5059,9 @@ function space(f, t) {
           return
       }
       break
+    case ':':
     case ',':
     case '.':
-    case ':':
     case ')':
     case ']':
       return
@@ -5193,6 +5194,7 @@ function format(source) {
   const f = new Format(source)
   const dest = f.dest
   const compact = f.compact
+  const nest = f.nest
   skip(f)
   while (f.s < f.size) {
     const c = source[f.s++]
@@ -5308,6 +5310,7 @@ function format(source) {
     switch (c) {
       case '(': {
         dest.push(c)
+        nest.push(c)
         for (let a = f.s; a < f.size; a++) {
           const n = source[a]
           if (n === '\n') {
@@ -5324,6 +5327,7 @@ function format(source) {
       }
       case '{': {
         dest.push(c)
+        nest.push(c)
         let any = false
         for (let a = f.s; a < f.size; a++) {
           const n = source[a]
@@ -5364,8 +5368,13 @@ function format(source) {
         }
         break
       }
+      case '[':
+        dest.push(c)
+        nest.push(c)
+        break
       case ')':
       case '}': {
+        nest.pop()
         if (!compact.pop()) {
           if (f.deep >= 1) f.deep--
           possibleNewline(f)
@@ -5373,6 +5382,10 @@ function format(source) {
         dest.push(c)
         break
       }
+      case ']':
+        nest.pop()
+        dest.push(c)
+        break
       case "'":
       case '"':
         stringly(f, c)

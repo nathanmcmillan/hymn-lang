@@ -113,6 +113,8 @@ async function test(file) {
       if (!out.startsWith(start)) {
         result = indent(4, 'EXPECTED START:') + '\n' + indent(8, start) + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
       }
+    } else if (expected.startsWith('@skip')) {
+      return result
     } else if (out !== expected) {
       let difference = null
       const len = Math.min(out.length, expected.length)
