@@ -129,16 +129,12 @@ HymnString *hymn_substring(const char *init, size_t start, size_t end) {
     return (HymnString *)string;
 }
 
-static bool space(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-}
-
 void hymn_string_trim(HymnString *string) {
     size_t len = hymn_string_len(string);
     size_t start = 0;
     while (start < len) {
         char c = string[start];
-        if (!space(c)) {
+        if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
             break;
         }
         start++;
@@ -149,7 +145,7 @@ void hymn_string_trim(HymnString *string) {
         size_t end = len - 1;
         while (end > start) {
             char c = string[end];
-            if (!space(c)) {
+            if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
                 break;
             }
             end--;
@@ -1504,18 +1500,24 @@ static void compile_error(Compiler *C, Token *token, const char *format, ...) {
                 begin++;
                 break;
             }
-            if (begin == 0) break;
+            if (begin == 0) {
+                break;
+            }
             begin--;
         }
 
         while (true) {
-            if (source[begin] != ' ' || begin == size) break;
+            if (source[begin] != ' ' || begin == size) {
+                break;
+            }
             begin++;
         }
 
         size_t end = start;
         while (true) {
-            if (source[end] == '\n' || end == size) break;
+            if (source[end] == '\n' || end == size) {
+                break;
+            }
             end++;
         }
 
@@ -1825,7 +1827,9 @@ static void parse_string(Compiler *C, size_t start) {
                     value_token(C, TOKEN_STRING, start, end);
                     while (true) {
                         c = next_char(C);
-                        if (c == '}' || c == '\0') return;
+                        if (c == '}' || c == '\0') {
+                            return;
+                        }
                     }
                 } else {
                     continue;
@@ -2015,7 +2019,7 @@ static void advance(Compiler *C) {
         case '[': token(C, TOKEN_LEFT_SQUARE); return;
         case ']': token(C, TOKEN_RIGHT_SQUARE); return;
         case '{':
-            if (C->string_format >= 1) {
+            if (C->string_format > 0) {
                 C->string_format++;
             }
             token(C, TOKEN_LEFT_CURLY);
@@ -3347,18 +3351,6 @@ static HymnString *debug_value_to_string(HymnValue value) {
     return format;
 }
 
-// static int stack_delta(uint8_t instruction) {
-//     switch (instruction) {
-//     case OP_POP_N:
-//         // What about instruction specific deltas?
-//         return 2;
-//     case OP_JUMP_IF_EQUAL:
-//     // What about branching leading to different stack results?
-//     default:
-//         return 1;
-//     }
-// }
-
 static int next(uint8_t instruction) {
     switch (instruction) {
     case OP_CALL:
@@ -3691,15 +3683,8 @@ static HymnString *disassemble_byte_code(HymnByteCode *code);
 
 static void optimize(Compiler *C) {
 
-    // TODO: Recover no-longer used constants
-    // TODO: Optimize unmodified local variables
-
     Scope *scope = C->scope;
     HymnFunction *func = scope->func;
-
-    HymnString *debug = disassemble_byte_code(&func->code);
-    printf("debug:\n%s\n", debug);
-    hymn_string_delete(debug);
 
     Optimizer optimizer = {0};
     optimizer.code = &func->code;
@@ -3710,9 +3695,6 @@ static void optimize(Compiler *C) {
     }
 
     interest(&optimizer);
-
-    // bool stack[HYMN_UINT8_COUNT];
-    // int stack_count = 0;
 
 #define COUNT() optimizer.code->count
 #define INSTRUCTION(I) optimizer.code->instructions[I]
@@ -3910,9 +3892,6 @@ static void optimize(Compiler *C) {
             break;
         }
         case OP_CONSTANT: {
-            // What about when we REDO an instruction?
-            // stack[stack_count] = true;
-            // stack_count++;
             if (zero == -1) zero = one;
             if (second == OP_CONSTANT) {
                 int three = two + next(second);
@@ -4243,7 +4222,9 @@ static void optimize(Compiler *C) {
 static void echo_if_none(Compiler *C) {
     HymnByteCode *code = &C->scope->func->code;
     int count = code->count;
-    if (C->barrier == count) return;
+    if (C->barrier == count) {
+        return;
+    }
     if (C->pop == count) code->instructions[count - 1] = OP_ECHO;
 }
 
@@ -5336,9 +5317,13 @@ static HymnFrame *import(Hymn *H, HymnObjectString *file) {
     int p = 1;
     while (true) {
         HymnFrame *frame = parent_frame(H, p);
-        if (frame == NULL) break;
+        if (frame == NULL) {
+            break;
+        }
         script = frame->func->script;
-        if (script) break;
+        if (script) {
+            break;
+        }
         p++;
     }
 
@@ -5649,7 +5634,9 @@ static HymnString *disassemble_byte_code(HymnByteCode *code) {
 
 #define THROW(...)                         \
     frame = throw_error(H, ##__VA_ARGS__); \
-    if (frame == NULL) return;             \
+    if (frame == NULL) {                   \
+        return;                            \
+    }                                      \
     goto dispatch;
 
 #define COMPARE_OP(compare)                                                                       \
@@ -5732,7 +5719,9 @@ dispatch:
         while (H->stack_top != frame->stack) {
             hymn_dereference(H, pop(H));
         }
-        if (done) return;
+        if (done) {
+            return;
+        }
         push(H, hymn_new_none());
         frame = current_frame(H);
         goto dispatch;
@@ -5744,7 +5733,9 @@ dispatch:
         while (H->stack_top != frame->stack) {
             hymn_dereference(H, pop(H));
         }
-        if (done) return;
+        if (done) {
+            return;
+        }
         push(H, result);
         frame = current_frame(H);
         goto dispatch;
@@ -5781,7 +5772,9 @@ dispatch:
         int count = READ_BYTE(frame);
         HymnValue value = peek(H, count + 1);
         frame = call_value(H, value, count);
-        if (frame == NULL) return;
+        if (frame == NULL) {
+            return;
+        }
         goto dispatch;
     }
     case OP_TAIL_CALL: {
@@ -5794,7 +5787,9 @@ dispatch:
             if (count != func->arity) {
                 if (count < func->arity) frame = throw_error(H, "not enough arguments in call to '%s' (expected %d)", func->name, func->arity);
                 frame = throw_error(H, "too many arguments in call to '%s' (expected %d)", func->name, func->arity);
-                if (frame == NULL) return;
+                if (frame == NULL) {
+                    return;
+                }
             } else {
                 HymnValue *top = H->stack_top;
                 HymnValue *new_frame = top - count - 1;
@@ -5818,7 +5813,9 @@ dispatch:
                 frame->ip = func->code.instructions;
             }
         }
-        if (frame == NULL) return;
+        if (frame == NULL) {
+            return;
+        }
         goto dispatch;
     }
     case OP_SELF: {
@@ -7369,7 +7366,9 @@ dispatch:
     }
     case OP_THROW: {
         frame = exception(H);
-        if (frame == NULL) return;
+        if (frame == NULL) {
+            return;
+        }
         goto dispatch;
     }
     case OP_DUPLICATE: {
@@ -7383,7 +7382,9 @@ dispatch:
         if (hymn_is_string(file)) {
             frame = import(H, hymn_as_hymn_string(file));
             hymn_dereference(H, file);
-            if (frame == NULL) return;
+            if (frame == NULL) {
+                return;
+            }
         } else {
             const char *is = hymn_value_type(file.is);
             hymn_dereference(H, file);
@@ -7832,7 +7833,9 @@ static void remove_newline(char *line) {
     }
     while (i > 0) {
         i--;
-        if (line[i] != '\n') return;
+        if (line[i] != '\n') {
+            return;
+        }
         line[i] = '\0';
     }
 }
@@ -8056,7 +8059,11 @@ void hymn_repl(Hymn *H) {
                        "press ^D to exit interactive mode\n");
             } else if (string_starts_with(line, ".save ")) {
                 char path[PATH_MAX];
+#ifdef _MSC_VER
+                strcpy_s(path, PATH_MAX, &line[6]);
+#else
                 strcpy(path, &line[6]);
+#endif
                 if (path[0] == '\0') {
                     printf("bad file path\n");
                 } else if (history == NULL) {
@@ -8345,60 +8352,63 @@ typedef struct Format Format;
 
 struct Format {
     HymnString *source;
-    char *new;
-    bool *stack;
+    char *dest;
+    char *nest;
+    bool *compact;
     size_t size;
     size_t s;
     size_t capacity;
     size_t n;
     size_t deep;
-    size_t limit;
-    size_t f;
-    bool keyword;
-    char padding[7];
+    size_t compact_capacity;
+    size_t compact_len;
+    size_t nest_capacity;
+    size_t nest_len;
 };
 
-#define SIZE_CHECK     \
-    if (F.s >= size) { \
-        goto done;     \
-    }
-
-static void nest(Format *F, bool v) {
-    if (F->f + 1 >= F->limit) {
-        F->limit += 16;
-        F->stack = (F->stack == NULL) ? malloc(F->limit * sizeof(bool)) : realloc(F->stack, F->limit * sizeof(bool));
-    }
-    F->stack[F->f++] = v;
+static bool important_word(Format *F, size_t start, const char *word) {
+    size_t a = 0;
+    do {
+        if (F->dest[start + a] != word[a]) {
+            return false;
+        }
+        a++;
+    } while (word[a] != '\0');
+    return true;
 }
 
-static bool compact(Format *F) {
-    if (F->f > 0) {
-        F->f--;
-        return F->stack[F->f];
+static bool is_important(Format *F, size_t len) {
+    if (len < 2) {
+        return false;
     }
-    return false;
+    size_t start = len - 2;
+    while (true) {
+        if (!is_ident(F->dest[start])) {
+            start++;
+            break;
+        } else if (start == 0) {
+            break;
+        }
+        start--;
+    }
+    return important_word(F, start, "in") ||
+           important_word(F, start, "if") ||
+           important_word(F, start, "for") ||
+           important_word(F, start, "not") ||
+           important_word(F, start, "else") ||
+           important_word(F, start, "elif") ||
+           important_word(F, start, "echo") ||
+           important_word(F, start, "while") ||
+           important_word(F, start, "return");
 }
 
 static void append(Format *F, char c) {
-    if (F->n + 1 >= F->capacity) {
+    const size_t len = ++F->n;
+    if (len >= F->capacity) {
         F->capacity += 256;
-        F->new = realloc(F->new, (F->capacity + 1) * sizeof(char));
+        F->dest = hymn_realloc(F->dest, (F->capacity + 1) * sizeof(char));
     }
-    F->new[F->n++] = c;
-}
-
-static void skip(Format *F) {
-    if (F->s >= F->size) {
-        return;
-    }
-    char c = F->source[F->s];
-    while (c == ' ' || c == '\t') {
-        F->s++;
-        if (F->s >= F->size) {
-            return;
-        }
-        c = F->source[F->s];
-    }
+    F->dest[len - 1] = c;
 }
 
 static void indent(Format *F) {
@@ -8408,363 +8418,596 @@ static void indent(Format *F) {
     }
 }
 
-static char pre(Format *F) {
-    if (F->n >= 1) {
-        return F->new[F->n - 1];
+static void space(Format *F, char t) {
+    switch (t) {
+    case ' ':
+    case '\n':
+    case '\t':
+    case '\r':
+        return;
+    default:
+        break;
     }
-    return '\0';
+    const size_t len = F->n;
+    if (len == 0) {
+        return;
+    }
+    const char p = F->dest[len - 1];
+    if (p == '\n') {
+        indent(F);
+        return;
+    } else if (p == ':') {
+        if (F->nest_len == 0) {
+            append(F, ' ');
+        } else {
+            const char nest = F->nest[F->nest_len - 1];
+            if (nest != '[') {
+                append(F, ' ');
+            }
+        }
+        return;
+    } else if (p == '~') {
+        return;
+    }
+    if (is_digit(t) || is_ident(t)) {
+        switch (p) {
+        case ' ':
+        case '.':
+        case '(':
+        case '[':
+            return;
+        case '>':
+            if (len >= 2 && F->dest[len - 2] == '-') {
+                return;
+            }
+            break;
+        case '-':
+            if (len >= 3) {
+                const char b = F->dest[len - 3];
+                if (b == ',' || b == '{') {
+                    return;
+                }
+                if (is_ident(b) && is_important(F, len - 2)) {
+                    return;
+                }
+            }
+            if (len >= 2) {
+                const char b = F->dest[len - 2];
+                if (b != ')' && b != ' ') {
+                    return;
+                }
+            }
+            break;
+        default:
+            break;
+        }
+        append(F, ' ');
+        return;
+    }
+    switch (t) {
+    case '{':
+        if (p == '(') {
+            return;
+        }
+        break;
+    case '(':
+        if (is_digit(p)) {
+            return;
+        } else if (is_ident(p)) {
+            if (is_important(F, len)) {
+                break;
+            }
+            return;
+        }
+        switch (p) {
+        case ' ':
+        case '(':
+        case ')':
+        case '[':
+        case '}':
+        case ']':
+            return;
+        default:
+            break;
+        }
+        break;
+    case '[':
+        if (is_ident(p)) {
+            if (is_important(F, len)) {
+                break;
+            }
+            return;
+        }
+        switch (p) {
+        case '+':
+        case '=':
+        case ',':
+        case '{':
+            break;
+        default:
+            return;
+        }
+        break;
+    case '<':
+        if (p == '<') {
+            return;
+        }
+        break;
+    case '>':
+        if (p == '-' || p == '>') {
+            return;
+        }
+        break;
+    case '=':
+        switch (p) {
+        case '-':
+        case '+':
+        case '*':
+        case '/':
+        case '<':
+        case '>':
+        case '~':
+        case '^':
+        case '%':
+        case '&':
+        case '|':
+        case '!':
+        case '=':
+            return;
+        default:
+            break;
+        }
+        break;
+    case '-':
+        if (F->s < F->size && F->source[F->s] == '>') {
+            return;
+        } else if (p == ',' || p == '{' || p == ')') {
+            break;
+        } else if (is_ident(p) || is_digit(p)) {
+            break;
+        }
+        return;
+    case '"':
+    case '\'':
+        switch (p) {
+        case '(':
+        case '[':
+            return;
+        default:
+            break;
+        }
+        break;
+    case ':':
+    case ',':
+    case '.':
+    case ')':
+    case ']':
+        return;
+    default:
+        break;
+    }
+    append(F, ' ');
 }
 
-static void fix(Format *F, size_t p) {
-    size_t b = p;
+static void compact(Format *F, bool v) {
+    const size_t len = ++F->compact_len;
+    if (len >= F->compact_capacity) {
+        F->compact_capacity += 16;
+        if (F->compact == NULL) {
+            F->compact = hymn_malloc(F->compact_capacity * sizeof(bool));
+        }
+        F->compact = hymn_realloc(F->compact, F->compact_capacity * sizeof(bool));
+    }
+    F->compact[len - 1] = v;
+}
+
+static bool is_compact(Format *F) {
+    if (F->compact_len > 0) {
+        return F->compact[--F->compact_len];
+    }
+    return false;
+}
+
+static void nest(Format *F, char c) {
+    const size_t len = ++F->nest_len;
+    if (len >= F->nest_capacity) {
+        F->nest_capacity += 16;
+        if (F->nest == NULL) {
+            F->nest = hymn_malloc(F->nest_capacity * sizeof(char));
+        } else {
+            F->nest = hymn_realloc(F->nest, F->nest_capacity * sizeof(char));
+        }
+    }
+    F->nest[len - 1] = c;
+}
+
+static void nest_pop(Format *F) {
+    if (F->nest_len > 0) {
+        F->nest_len--;
+    }
+}
+
+static void skip(Format *F) {
+    if (F->s >= F->size) {
+        return;
+    }
+    char c = F->source[F->s];
+    while (c == ' ' || c == '\t' || c == '\r') {
+        F->s++;
+        if (F->s >= F->size) {
+            return;
+        }
+        c = F->source[F->s];
+    }
+}
+
+static void newline(Format *F) {
+    append(F, '\n');
+    skip(F);
+    if (F->s >= F->size) {
+        return;
+    }
+    char c = F->source[F->s];
+    if (c == '}' || c == ')') {
+        F->s++;
+        if (F->deep > 0) {
+            F->deep--;
+        }
+        indent(F);
+        append(F, c);
+    }
+}
+
+static void possible_newline(Format *F) {
+    size_t p = F->n;
     while (true) {
         if (p == 0) {
             return;
         }
         p--;
-        char c = F->new[p];
-        if (c == '}') {
-            p++;
-            if (p < F->n) {
-                F->new[p++] = ' ';
-                size_t d = b - p;
-                if (d > 0) {
-                    while (true) {
-                        if (p + d >= F->n) {
-                            break;
-                        }
-                        F->new[p] = F->new[p + d];
-                        p++;
+        char o = F->dest[p];
+        if (o == '\n') {
+            return;
+        } else if (o == ' ' || o == '\t' || o == '\r') {
+            continue;
+        } else {
+            newline(F);
+            return;
+        }
+    }
+}
+
+static void stringly(Format *F, char c) {
+    append(F, c);
+    while (F->s < F->size) {
+        const char n = F->source[F->s];
+        append(F, n);
+        F->s++;
+        if (n == '\\') {
+            append(F, F->source[F->s++]);
+        } else if (n == c) {
+            break;
+        }
+    }
+    size_t a = F->s;
+    bool multiple = false;
+loop:
+    while (a < F->size) {
+        char n = F->source[a];
+        if (n == '\n') {
+            for (size_t d = a + 1; d < F->size; d++) {
+                const char m = F->source[d];
+                if (m == '"' || m == '\'') {
+                    if (!multiple) {
+                        multiple = true;
+                        F->deep++;
                     }
-                    F->n -= d;
+                    append(F, '\n');
+                    indent(F);
+                    append(F, m);
+                    F->s = d + 1;
+                    while (F->s < F->size) {
+                        const char i = F->source[F->s];
+                        append(F, i);
+                        F->s++;
+                        if (i == '\\') {
+                            append(F, F->source[F->s++]);
+                        } else if (i == m) {
+                            a = F->s;
+                            goto loop;
+                        }
+                    }
+                    goto end;
+                }
+                if (m != ' ' && m != '\t' && m != '\r' && m != '\n') {
+                    goto end;
                 }
             }
-            return;
-        } else if (c == '\n' || c == ' ') {
-            continue;
+            goto end;
         }
-        return;
-    }
-}
-
-static void clear(Format *F) {
-    while (true) {
-        char c = pre(F);
-        if (c == '\n' || c == ' ') {
-            F->n--;
-            continue;
+        if (n == '"' || n == '\'') {
+            space(F, n);
+            append(F, n);
+            F->s = a + 1;
+            while (F->s < F->size) {
+                const char i = F->source[F->s];
+                append(F, i);
+                F->s++;
+                if (i == '\\') {
+                    append(F, F->source[F->s++]);
+                } else if (i == n) {
+                    a = F->s;
+                    goto loop;
+                }
+            }
         }
-        return;
-    }
-}
-
-static bool matching(Format *F, size_t b, const char *word) {
-    size_t a = 0;
-    do {
-        if (F->source[b + a] != word[a]) {
-            return false;
+        if (n != ' ' && n != '\t' && n != '\r') {
+            break;
         }
         a++;
-    } while (word[a] != '\0');
-    return true;
-}
-
-static void newline(Format *F) {
-    if (F->n == 0) {
-        return;
     }
-    size_t b = F->n - 1;
-    while (true) {
-        if (F->new[b] == '\n') {
-            return;
-        } else if (F->new[b] == ' ' && b >= 1) {
-            b--;
-            continue;
-        }
-        append(F, '\n');
-        indent(F);
-        return;
+end:
+    if (multiple) {
+        if (F->deep > 0) F->deep--;
+        possible_newline(F);
     }
-}
-
-static void spacing(Format *F, char c) {
-    char p = pre(F);
-    if (p == ' ' || p == '\n' || p == '\0') {
-        goto push;
-    }
-    if (is_ident(c) || is_digit(c)) {
-        if (p != '!' && p != '(' && p != '[') {
-            append(F, ' ');
-        }
-        goto push;
-    }
-    switch (c) {
-    case '{':
-    case '!':
-    case '"':
-    case '\'':
-        if (p != '(' && p != '[' && p != '{') {
-            append(F, ' ');
-        }
-        goto push;
-    case '(':
-        if (is_ident(p)) {
-            if (F->keyword) {
-                append(F, ' ');
-            }
-        } else if (p != '(' && p != '[' && p != '{' && p != ')' && p != ']' && p != '}') {
-            append(F, ' ');
-        }
-        goto push;
-    case '[':
-        if (!is_ident(p) && p != '(' && p != '[' && p != '{' && p != ')' && p != ']' && p != '}') {
-            append(F, ' ');
-        }
-        goto push;
-    case '+':
-    case '-':
-    case '=':
-    case '<':
-    case '>':
-        if (p != '+' && p != '-' && p != '=' && p != '<' && p != '>' && p != '!') {
-            append(F, ' ');
-        }
-        goto push;
-    case '.':
-    case ',':
-    case ':':
-        goto push;
-    default:
-        append(F, ' ');
-    }
-push:
-    append(F, c);
 }
 
 char *hymn_format(HymnString *source) {
-
     size_t size = hymn_string_len(source);
-
     Format F = {0};
-
     F.source = source;
     F.size = size;
     F.capacity = size;
-    F.new = malloc((size + 1) * sizeof(char));
-
-    while (true) {
-        SIZE_CHECK
-        char c = source[F.s];
+    F.dest = hymn_malloc((size + 1) * sizeof(char));
+    skip(&F);
+    while (F.s < size) {
+        char c = source[F.s++];
+        space(&F, c);
         if (is_digit(c)) {
-            spacing(&F, c);
-            while (true) {
-                F.s++;
-                SIZE_CHECK
-                c = source[F.s];
-                if (is_digit(c)) {
-                    append(&F, c);
-                } else {
-                    break;
+            append(&F, c);
+            if (F.s < F.size) {
+                if (c == '0') {
+                    char n = source[F.s];
+                    if (n == 'x') {
+                        append(&F, c);
+                        F.s++;
+                        while (F.s < F.size) {
+                            char m = source[F.s];
+                            if (!(m >= '0' && m <= '9') && !(m >= 'a' && m <= 'f')) {
+                                break;
+                            }
+                            append(&F, m);
+                            F.s++;
+                        }
+                        continue;
+                    } else if (n == 'b') {
+                        append(&F, c);
+                        F.s++;
+                        while (F.s < F.size) {
+                            char m = source[F.s];
+                            if (m != '0' && m != '1') {
+                                break;
+                            }
+                            append(&F, m);
+                            F.s++;
+                        }
+                        continue;
+                    }
+                }
+                while (F.s < F.size) {
+                    char n = source[F.s];
+                    if (!is_digit(n)) {
+                        if (n == '.') {
+                            append(&F, n);
+                            F.s++;
+                            while (F.s < F.size) {
+                                char d = source[F.s];
+                                if (!is_digit(d)) {
+                                    if (d == 'e' || d == 'E') {
+                                        append(&F, d);
+                                        F.s++;
+                                        if (F.s < F.size) {
+                                            const char m = F.source[F.s];
+                                            if (m == '+' || m == '-') {
+                                                append(&F, m);
+                                                F.s++;
+                                            }
+                                            while (F.s < F.size) {
+                                                const char e = F.source[F.s];
+                                                if (!is_digit(e)) {
+                                                    break;
+                                                }
+                                                append(&F, e);
+                                                F.s++;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    break;
+                                }
+                                append(&F, d);
+                                F.s++;
+                            }
+                            break;
+                        } else if (n == 'e' || n == 'E') {
+                            append(&F, n);
+                            F.s++;
+                            if (F.s < F.size) {
+                                const char m = F.source[F.s];
+                                if (m == '+' || m == '-') {
+                                    append(&F, m);
+                                    F.s++;
+                                }
+                                while (F.s < F.size) {
+                                    const char e = F.source[F.s];
+                                    if (!is_digit(e)) {
+                                        break;
+                                    }
+                                    append(&F, e);
+                                    F.s++;
+                                }
+                            }
+                            break;
+                        } else {
+                            break;
+                        }
+                    }
+                    append(&F, n);
+                    F.s++;
                 }
             }
+            continue;
         } else if (is_ident(c)) {
-            size_t p = F.n;
-            spacing(&F, c);
-            size_t b = F.s;
-            while (true) {
-                F.s++;
-                SIZE_CHECK
-                c = source[F.s];
-                if (is_ident(c)) {
-                    append(&F, c);
+            append(&F, c);
+            while (F.s < F.size) {
+                const char n = F.source[F.s];
+                if (is_ident(n)) {
+                    append(&F, n);
+                    F.s++;
+                } else if (n == '-' && F.s + 1 < F.size) {
+                    const char m = F.source[F.s + 1];
+                    if (is_ident(m)) {
+                        append(&F, '-');
+                        append(&F, m);
+                        F.s += 2;
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
             }
-            size_t x = F.s - b;
-            if ((x == 2 && matching(&F, b, "if")) || (x == 3 && matching(&F, b, "for")) || (x == 5 && matching(&F, b, "while"))) {
-                F.keyword = true;
-            } else if (x == 4 && (matching(&F, b, "elif") || matching(&F, b, "else"))) {
-                F.keyword = true;
-                fix(&F, p);
-            } else {
-                F.keyword = false;
-            }
-        } else {
-            switch (c) {
-            case '{': {
-                F.s++;
-                char p = pre(&F);
-                spacing(&F, c);
-                skip(&F);
-                SIZE_CHECK
-                c = source[F.s];
-                if (c == '}') {
-                    F.s++;
-                    append(&F, '}');
-                    newline(&F);
-                } else {
+            continue;
+        }
+        switch (c) {
+        case '(': {
+            append(&F, c);
+            nest(&F, c);
+            for (size_t a = F.s; a < F.size; a++) {
+                const char n = F.source[a];
+                if (n == '\n') {
                     F.deep++;
-                    if (p == '=' || p == ':' || p == '(' || p == ',') {
-                        nest(&F, c != '\n');
-                    } else {
+                    newline(&F);
+                    compact(&F, false);
+                    break;
+                } else if (n == ')') {
+                    compact(&F, true);
+                    break;
+                }
+            }
+            break;
+        }
+        case '{': {
+            append(&F, c);
+            nest(&F, c);
+            bool any = false;
+            for (size_t a = F.s; a < F.size; a++) {
+                const char n = F.source[a];
+                if (n == '\n') {
+                    bool ok = true;
+                    if (!any) {
+                        for (size_t d = a + 1; d < F.size; d++) {
+                            const char m = F.source[d];
+                            if (m == '}') {
+                                ok = false;
+                                append(&F, '\n');
+                                indent(&F);
+                                append(&F, '}');
+                                F.s = d + 1;
+                                break;
+                            } else if (m != ' ' && m != '\t' && m != '\r' && m != '\n') {
+                                break;
+                            }
+                        }
+                    }
+                    if (ok) {
+                        F.deep++;
                         newline(&F);
+                        compact(&F, false);
                     }
-                }
-                break;
-            }
-            case '}': {
-                if (F.deep >= 1) {
-                    F.deep--;
-                }
-                F.s++;
-                if (compact(&F)) {
-                    spacing(&F, c);
-                } else {
-                    clear(&F);
-                    newline(&F);
-                    append(&F, c);
-                    newline(&F);
-                }
-                break;
-            }
-            case '(':
-            case '[': {
-                F.s++;
-                F.deep++;
-                spacing(&F, c);
-                skip(&F);
-                SIZE_CHECK
-                c = source[F.s];
-                nest(&F, c != '\n');
-                break;
-            }
-            case ')':
-            case ']': {
-                if (F.deep >= 1) {
-                    F.deep--;
-                }
-                F.s++;
-                if (compact(&F)) {
-                    append(&F, c);
-                } else {
-                    clear(&F);
-                    newline(&F);
-                    append(&F, c);
-                    newline(&F);
-                }
-                break;
-            }
-            case '-': {
-                F.s++;
-                if (F.s < size) {
-                    c = source[F.s];
-                    if (c == '>') {
-                        append(&F, '-');
-                        append(&F, '>');
-                        F.s++;
-                        break;
-                    }
-                }
-                spacing(&F, c);
-                break;
-            }
-            case '+':
-            case '=':
-            case '<':
-            case '>':
-            case '!': {
-                F.s++;
-                spacing(&F, c);
-                break;
-            }
-            case '\'': {
-                F.s++;
-                spacing(&F, c);
-                while (true) {
-                    SIZE_CHECK
-                    c = source[F.s];
-                    append(&F, c);
-                    F.s++;
-                    if (c == '\\') {
-                        SIZE_CHECK
-                        append(&F, source[F.s++]);
-                    } else if (c == '\'') {
-                        break;
-                    }
-                }
-                break;
-            }
-            case '"': {
-                F.s++;
-                spacing(&F, c);
-                while (true) {
-                    SIZE_CHECK
-                    c = source[F.s];
-                    append(&F, c);
-                    F.s++;
-                    if (c == '\\') {
-                        SIZE_CHECK
-                        append(&F, source[F.s++]);
-                    } else if (c == '"') {
-                        break;
-                    }
-                }
-                break;
-            }
-            case '#': {
-                F.s++;
-                spacing(&F, c);
-                while (true) {
-                    SIZE_CHECK
-                    c = source[F.s];
-                    append(&F, c);
-                    F.s++;
-                    if (c == '\n') {
-                        break;
-                    }
-                }
-                break;
-            }
-            case '\n': {
-                F.s++;
-                bool two = false;
-                while (true) {
-                    SIZE_CHECK
-                    c = source[F.s];
-                    if (c == '\n') {
-                        F.s++;
-                        two = true;
-                    } else if (c == '\r' || c == '\t' || c == ' ') {
-                        F.s++;
+                    break;
+                } else if (n == '}') {
+                    if (any) {
+                        compact(&F, true);
                     } else {
-                        break;
+                        append(&F, '}');
+                        F.s = a + 1;
                     }
+                    break;
+                } else if (n != ' ' && n != '\t' && n != '\r') {
+                    any = true;
                 }
+            }
+            break;
+        }
+        case '[':
+            append(&F, c);
+            nest(&F, c);
+            break;
+        case ')':
+        case '}': {
+            nest_pop(&F);
+            if (!is_compact(&F)) {
+                if (F.deep > 0) {
+                    F.deep--;
+                }
+                possible_newline(&F);
+            }
+            append(&F, c);
+            break;
+        }
+        case ']':
+            nest_pop(&F);
+            append(&F, c);
+            break;
+        case '\'':
+        case '"':
+            stringly(&F, c);
+            break;
+        case '#': {
+            append(&F, c);
+            while (F.s < F.size) {
+                const char n = F.source[F.s];
+                append(&F, n);
+                if (n == '\n') {
+                    break;
+                }
+                F.s++;
+            }
+            break;
+        }
+        case '\n': {
+            bool twice = false;
+            while (F.s < F.size) {
+                const char n = F.source[F.s];
+                if (n == '\n') {
+                    F.s++;
+                    twice = true;
+                } else if (n == ' ' || n == '\t' || n == '\r') {
+                    F.s++;
+                } else {
+                    break;
+                }
+            }
+            possible_newline(&F);
+            if (twice) {
                 newline(&F);
-                if (two) {
-                    append(&F, '\n');
-                    indent(&F);
-                }
-                break;
             }
-            case '\r':
-            case '\t':
-            case ' ': {
-                F.s++;
-                break;
-            }
-            default: {
-                F.s++;
-                spacing(&F, c);
-            }
-            }
+            break;
+        }
+        case ' ':
+        case '\t':
+        case '\r':
+            break;
+        default:
+            append(&F, c);
+            break;
         }
     }
-done:
-    clear(&F);
-    F.new[F.capacity] = '\0';
-    F.new[F.n] = '\0';
-    free(F.stack);
-    return F.new;
+    F.dest[F.capacity] = '\0';
+    F.dest[F.n] = '\0';
+    free(F.compact);
+    free(F.nest);
+    return F.dest;
 }

@@ -1359,7 +1359,7 @@ function advance(C) {
         token(C, TOKEN_RIGHT_SQUARE)
         return
       case '{':
-        if (C.stringFormat >= 1) {
+        if (C.stringFormat > 0) {
           C.stringFormat++
         }
         token(C, TOKEN_LEFT_CURLY)
@@ -4970,17 +4970,17 @@ function space(f, t) {
       case '[':
         return
       case '>':
-        if (len - 2 >= 0 && f.dest[len - 2] === '-') return
+        if (len >= 2 && f.dest[len - 2] === '-') return
         break
       case '-':
-        if (len - 3 >= 0) {
-          const t = f.dest[len - 3]
-          if (t === ',' || t === '{') return
-          if (isIdent(t) && isImportant(f, len - 2)) return
+        if (len >= 3) {
+          const b = f.dest[len - 3]
+          if (b === ',' || b === '{') return
+          if (isIdent(b) && isImportant(f, len - 2)) return
         }
-        if (len - 2 >= 0) {
-          const t = f.dest[len - 2]
-          if (t !== ')' && t !== ' ') return
+        if (len >= 2) {
+          const b = f.dest[len - 2]
+          if (b !== ')' && b !== ' ') return
         }
         break
     }
@@ -5091,16 +5091,11 @@ function newline(f) {
   skip(f)
   if (f.s >= f.size) return
   const c = f.source[f.s]
-  if (c === '}') {
+  if (c === '}' || c === ')') {
     f.s++
-    if (f.deep >= 1) f.deep--
+    if (f.deep > 0) f.deep--
     indent(f)
-    f.dest.push('}')
-  } else if (c === ')') {
-    f.s++
-    if (f.deep >= 1) f.deep--
-    indent(f)
-    f.dest.push(')')
+    f.dest.push(c)
   }
 }
 
@@ -5185,7 +5180,7 @@ function stringly(f, c) {
     a++
   }
   if (multiple) {
-    if (f.deep >= 1) f.deep--
+    if (f.deep > 0) f.deep--
     possibleNewline(f)
   }
 }
@@ -5376,7 +5371,7 @@ function format(source) {
       case '}': {
         nest.pop()
         if (!compact.pop()) {
-          if (f.deep >= 1) f.deep--
+          if (f.deep > 0) f.deep--
           possibleNewline(f)
         }
         dest.push(c)

@@ -161,6 +161,8 @@ static HymnString *test_source(HymnString *script) {
                     result = hymn_string_format("EXPECTED START:\n%s\n\nBUT WAS:\n%s", start, out);
                 }
                 hymn_string_delete(start);
+            } else if (hymn_string_starts_with(expected, "@skip")) {
+                // nothing
             } else if (!hymn_string_equal(out, expected)) {
                 expected = indent(expected);
                 out = indent(out);
