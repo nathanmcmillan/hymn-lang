@@ -11,12 +11,10 @@
 1. Finish dynamic library support
    - Export everything
    - Build as a library
+1. Finish formatter
 
 # Features
 
-1. Compiler optimizer function
-   - Recover no longer used constants
-   - Optimize unmodified constant local variables
 1. Macro system
 1. UTF8 encode and decode strings and codes with `\u0000`
 1. Self referencing local functions
