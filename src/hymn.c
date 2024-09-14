@@ -1733,14 +1733,18 @@ static enum TokenType ident_keyword(const char *ident, size_t size) {
             if (ident[1] == 'l') return ident_trie(ident, 2, "oat", TOKEN_TO_FLOAT);
         }
         break;
-    case '_':
-        if (size == 6) return ident_trie(ident, 1, "stack", TOKEN_STACK);
-        if (size == 7) {
-            if (ident[1] == 's') return ident_trie(ident, 2, "ource", TOKEN_SRC);
-            if (ident[1] == 'f') return ident_trie(ident, 2, "ormat", TOKEN_FORMAT);
-        }
-        if (size == 8) return ident_trie(ident, 1, "opcodes", TOKEN_OPCODES);
-        if (size == 10) return ident_trie(ident, 1, "reference", TOKEN_REFERENCE);
+    case 'S':
+        if (size == 5) return ident_trie(ident, 1, "TACK", TOKEN_STACK);
+        if (size == 6) return ident_trie(ident, 1, "OURCE", TOKEN_SRC);
+        break;
+    case 'F':
+        if (size == 6) return ident_trie(ident, 1, "ORMAT", TOKEN_FORMAT);
+        break;
+    case 'O':
+        if (size == 7) return ident_trie(ident, 1, "PCODES", TOKEN_OPCODES);
+        break;
+    case 'R':
+        if (size == 9) return ident_trie(ident, 1, "EFERENCE", TOKEN_REFERENCE);
         break;
     default:
         break;
@@ -4867,40 +4871,40 @@ static void exists_expression(Compiler *C, bool assign) {
 
 static void source_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_source'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'SOURCE'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_source'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'SOURCE'");
     emit(C, OP_SOURCE);
 }
 
 static void opcode_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_opcodes'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'OPCODES'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_opcodes'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'OPCODES'");
     emit(C, OP_CODES);
 }
 
 static void stack_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_stack'");
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_stack'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'STACK'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'STACK'");
     emit(C, OP_STACK);
 }
 
 static void reference_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_reference'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'REFERENCE'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_reference'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'REFERENCE'");
     emit(C, OP_REFERENCE);
 }
 
 static void format_expression(Compiler *C, bool assign) {
     (void)assign;
-    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to '_format'");
+    consume(C, TOKEN_LEFT_PAREN, "expected opening '(' in call to 'FORMAT'");
     expression(C);
-    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to '_format'");
+    consume(C, TOKEN_RIGHT_PAREN, "expected closing ')' in call to 'FORMAT'");
     emit(C, OP_FORMAT);
 }
 

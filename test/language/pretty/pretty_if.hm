@@ -18,4 +18,4 @@ func fun() {
   }
 }
 
-echo _format(fun)
+echo FORMAT(fun)

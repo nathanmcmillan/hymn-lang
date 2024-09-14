@@ -1064,14 +1064,18 @@ function identKey(ident, size) {
         if (ident[1] === 'l') return identTrie(ident, 2, 'oat', TOKEN_TO_FLOAT)
       }
       break
-    case '_':
-      if (size === 6) return identTrie(ident, 1, 'stack', TOKEN_STACK)
-      if (size === 7) {
-        if (ident[1] === 's') return identTrie(ident, 2, 'ource', TOKEN_SRC)
-        if (ident[1] === 'f') return identTrie(ident, 2, 'ormat', TOKEN_FORMAT)
-      }
-      if (size === 8) return identTrie(ident, 1, 'opcodes', TOKEN_OPCODES)
-      if (size === 10) return identTrie(ident, 1, 'reference', TOKEN_REFERENCE)
+    case 'S':
+      if (size === 5) return identTrie(ident, 1, 'TACK', TOKEN_STACK)
+      if (size === 6) return identTrie(ident, 1, 'OURCE', TOKEN_SRC)
+      break
+    case 'F':
+      if (size === 6) return identTrie(ident, 1, 'ORMAT', TOKEN_FORMAT)
+      break
+    case 'O':
+      if (size === 7) return identTrie(ident, 1, 'PCODES', TOKEN_OPCODES)
+      break
+    case 'R':
+      if (size === 9) return identTrie(ident, 1, 'EFERENCE', TOKEN_REFERENCE)
       break
   }
   return TOKEN_UNDEFINED
@@ -2865,36 +2869,36 @@ function existsExpression(C) {
 }
 
 function sourceExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_source'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'SOURCE'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_source'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'SOURCE'`)
   emit(C, OP_SOURCE)
 }
 
 function opCodesExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_opcodes'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'OPCODES'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_opcodes'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'OPCODES'`)
   emit(C, OP_CODES)
 }
 
 function stackExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_stack'`)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_stack'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'STACK'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'STACK'`)
   emit(C, OP_STACK)
 }
 
 function referenceExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_reference'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'REFERENCE'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_reference'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'REFERENCE'`)
   emit(C, OP_REFERENCE)
 }
 
 function formatExpression(C) {
-  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to '_format'`)
+  consume(C, TOKEN_LEFT_PAREN, `expected opening '(' in call to 'FORMAT'`)
   expression(C)
-  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to '_format'`)
+  consume(C, TOKEN_RIGHT_PAREN, `expected closing ')' in call to 'FORMAT'`)
   emit(C, OP_FORMAT)
 }
 

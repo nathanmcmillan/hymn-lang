@@ -14,7 +14,7 @@
 #   echo bar
 # }
 
-echo _format("func foo(n) {
+echo FORMAT("func foo(n) {
   return true
 }
 

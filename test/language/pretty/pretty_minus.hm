@@ -40,4 +40,4 @@ func fun() {
   1-bar
 }
 
-echo _format(fun)
+echo FORMAT(fun)

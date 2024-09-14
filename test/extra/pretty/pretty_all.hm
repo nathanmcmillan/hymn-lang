@@ -2,7 +2,7 @@ for file in path.walk("test/language") {
   if text.contains(file, "pretty") { continue }
   echo "File: " + file
   set read = io.read(file)
-  set format = _format(read)
+  set format = FORMAT(read)
   if read != format {
     set size = len(read)
     if len(format) < size {

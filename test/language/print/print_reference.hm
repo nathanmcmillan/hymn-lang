@@ -6,4 +6,4 @@ func foo() {
 
 set bar = foo
 
-echo _reference(foo) >= 0
+echo REFERENCE(foo) >= 0

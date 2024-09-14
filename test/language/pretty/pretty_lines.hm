@@ -14,4 +14,4 @@ func fun() {
   return line
 }
 
-echo _format(fun)
+echo FORMAT(fun)
