@@ -8599,8 +8599,9 @@ static void compact(Format *F, bool v) {
         F->compact_capacity += 16;
         if (F->compact == NULL) {
             F->compact = hymn_malloc(F->compact_capacity * sizeof(bool));
+        } else {
+            F->compact = hymn_realloc(F->compact, F->compact_capacity * sizeof(bool));
         }
-        F->compact = hymn_realloc(F->compact, F->compact_capacity * sizeof(bool));
     }
     F->compact[len - 1] = v;
 }
