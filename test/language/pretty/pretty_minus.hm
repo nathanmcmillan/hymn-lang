@@ -1,0 +1,43 @@
+# func fun() {
+#   set foo = 1
+#   set bar = 2
+#   1 - 2
+#   foo - bar
+#   echo 1 - 2
+#   echo foo - 2
+#   echo 1 - bar
+#   echo [-foo]
+#   echo [-1]
+#   echo -1
+#   echo -bar
+#   set echo-foo = 4
+#   echo echo-foo
+#   if -1 { -2 }
+#   1 - 2
+#   1 - 2
+#   1 - 2
+#   1 - bar
+# }
+
+func fun() {
+  set foo = 1
+  set bar = 2
+  1 - 2
+  foo - bar
+  echo 1 - 2
+  echo foo - 2
+  echo 1 - bar
+  echo [-foo]
+  echo [-1]
+  echo -1
+  echo -bar
+  set echo-foo = 4
+  echo echo-foo
+  if -1 { -2 }
+  1-2
+  1 -2
+  1- 2
+  1-bar
+}
+
+echo FORMAT(fun)

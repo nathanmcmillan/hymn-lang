@@ -2,25 +2,39 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-const hymn = require('./hymn')
-
-function useOS(vm) {
-  const os = require('./hymn_os')
-  hymn.addFunction(vm, 'os_clock', os.clock)
+function useIO(H) {
+  require('./hymn_io').useIO(H)
 }
 
-function useMath(vm) {
-  const math = require('./hymn_math')
-  hymn.addFunction(vm, 'math_floor', math.floor)
+function useOS(H) {
+  require('./hymn_os').useOS(H)
 }
 
-function use(vm) {
-  useOS(vm)
-  useMath(vm)
+function usePath(H) {
+  require('./hymn_path').usePath(H)
+}
+
+function useMath(H) {
+  require('./hymn_math').useMath(H)
+}
+
+function useText(H) {
+  require('./hymn_text').useText(H)
+}
+
+function useLibs(H) {
+  useIO(H)
+  useOS(H)
+  usePath(H)
+  useMath(H)
+  useText(H)
 }
 
 module.exports = {
+  useIO: useIO,
   useOS: useOS,
+  usePath: usePath,
   useMath: useMath,
-  use: use,
+  useText: useText,
+  useLibs: useLibs,
 }

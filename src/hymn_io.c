@@ -34,7 +34,7 @@ static HymnValue io_read(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     HymnString *string = hymn_read_file(path);
     if (string == NULL) {
-        return hymn_new_exception(H, "fopen null pointer");
+        return hymn_new_exception(H, "fopen error");
     }
     HymnObjectString *object = hymn_intern_string(H, string);
     return hymn_new_string_value(object);
@@ -44,7 +44,7 @@ static HymnValue io_read_lines(Hymn *H, int count, HymnValue *arguments) {
     PATH_STRING
     HymnString *string = hymn_read_file(path);
     if (string == NULL) {
-        return hymn_new_exception(H, "fopen null pointer");
+        return hymn_new_exception(H, "fopen error");
     }
     HymnArray *array = hymn_new_array(0);
     size_t size = hymn_string_len(string);
@@ -73,9 +73,9 @@ static HymnValue io_read_lines(Hymn *H, int count, HymnValue *arguments) {
 }
 
 static HymnValue writing(Hymn *H, HymnString *path, HymnString *content, const char *mode) {
-    FILE *open = fopen(path, mode);
+    FILE *open = hymn_open_file(path, mode);
     if (open == NULL) {
-        return hymn_new_exception(H, "fopen null pointer");
+        return hymn_new_exception(H, "fopen error");
     }
     fputs(content, open);
     fclose(open);
@@ -177,13 +177,13 @@ static HymnValue io_copy(Hymn *H, int count, HymnValue *arguments) {
     HymnString *source = hymn_as_string(a);
     HymnString *target = hymn_as_string(b);
     size_t size = hymn_file_size(source);
-    FILE *from = fopen(source, "r");
+    FILE *from = hymn_open_file(source, "r");
     if (from == NULL) {
-        return hymn_new_exception(H, "fopen null pointer");
+        return hymn_new_exception(H, "fopen error opening source file");
     }
-    FILE *to = fopen(target, "w");
+    FILE *to = hymn_open_file(target, "w");
     if (to == NULL) {
-        return hymn_new_exception(H, "fopen null pointer");
+        return hymn_new_exception(H, "fopen error creating destination file");
     }
     for (size_t i = 0; i < size; i++) {
         fputc(fgetc(from), to);

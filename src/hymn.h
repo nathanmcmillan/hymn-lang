@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define HYMN_VERSION "0.10.1"
+#define HYMN_VERSION "0.11.0"
 
 // #define HYMN_NO_REPL
 // #define HYMN_NO_DYNAMIC_LIBS
@@ -29,7 +29,9 @@
 
 #ifdef _MSC_VER
 #include <Windows.h>
+#include <corecrt.h>
 #include <direct.h>
+#include <stdio.h>
 #define getcwd _getcwd
 #define PATH_MAX FILENAME_MAX
 #define PATH_SEP '\\'
@@ -107,6 +109,8 @@ export void *hymn_realloc(void *mem, size_t size);
 export void *hymn_malloc_int(int count, size_t size);
 export void *hymn_calloc_int(int count, size_t size);
 export void *hymn_realloc_int(void *mem, int count, size_t size);
+
+export FILE *hymn_open_file(const char *path, const char *mode);
 
 typedef struct HymnValue HymnValue;
 typedef struct HymnObjectString HymnObjectString;
@@ -386,5 +390,7 @@ export void hymn_add_dlib(Hymn *H, void *library);
 export void hymn_close_dlib(void *library);
 export HymnString *hymn_use_dlib(Hymn *hymn, const char *path, const char *func);
 #endif
+
+export char *hymn_format(HymnString *source);
 
 #endif

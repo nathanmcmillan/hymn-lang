@@ -1,3 +1,14 @@
+# Release 0.11.0
+
+- New function `FORMAT` formats a string as source code
+- Changed boolean keyword `!` to `not`
+- Compile time folding
+- Renamed global functions
+  - `_stack` -> `STACK`
+  - `_reference` -> `REFERNCE`
+  - `_source` -> `SOURCE`
+  - `_opcodes` -> `OPCODES`
+
 # Release 0.10.1
 
 - Dynamic library support

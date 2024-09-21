@@ -4,4 +4,4 @@ set a = [2, 4, 6]
 echo a[-1]
 
 set a = [2, 4, 6]
-echo a[- - 1]
+echo a[--1]

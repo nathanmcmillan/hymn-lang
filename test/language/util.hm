@@ -1,5 +1,4 @@
-
-# clamp returns n clamped between a and b.
+# @skip clamp returns n clamped between a and b.
 func clamp(n, a, b) {
   return min(max(n, a), b)
 }

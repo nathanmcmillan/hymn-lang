@@ -1,0 +1,4 @@
+# @exception expected '!='
+
+set x = ! false
+echo x

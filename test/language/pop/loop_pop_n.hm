@@ -1,0 +1,18 @@
+# [1]
+
+{
+  set yes = true
+  set foo = []
+
+  while true {
+    set x = 1
+    set y = 2
+    set z = 3
+    if yes {
+      push(foo, x)
+      break
+    }
+  }
+
+  echo foo
+}

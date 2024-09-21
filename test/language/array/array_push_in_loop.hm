@@ -1,0 +1,17 @@
+# [0, 1]
+
+func foo(n) {
+  return true
+}
+
+{
+  set bar = []
+
+  for i = 0, i < 2 {
+    if foo(i) {
+      push(bar, i)
+    }
+  }
+
+  echo bar
+}

@@ -6,11 +6,13 @@
 #include "hymn_libs.h"
 #include "hymn_path.h"
 #include "hymn_text.h"
+#include <stddef.h>
 
 #if !defined(HYMN_NO_TEST)
 
 struct FilterList {
     int count;
+    char padding[4];
     HymnString **filtered;
 };
 
@@ -22,7 +24,7 @@ static HymnString *out;
 
 static struct FilterList string_filter(HymnString **input, int count, bool (*filter)(HymnString *string, const char *using), const char *using) {
     int size = 0;
-    HymnString **filtered = hymn_calloc(count, sizeof(HymnString *));
+    HymnString **filtered = hymn_calloc_int(count, sizeof(HymnString *));
     for (int i = 0; i < count; i++) {
         if (filter(input[i], using)) {
             filtered[size++] = hymn_string_copy(input[i]);
@@ -41,7 +43,7 @@ static void delete_filter_list(struct FilterList *list) {
 static void console(const char *format, ...) {
     va_list args;
     va_start(args, format);
-    int len = vsnprintf(NULL, 0, format, args);
+    size_t len = (size_t)vsnprintf(NULL, 0, format, args);
     va_end(args);
     char *chars = hymn_malloc((len + 1) * sizeof(char));
     va_start(args, format);
@@ -51,7 +53,7 @@ static void console(const char *format, ...) {
     free(chars);
 }
 
-HymnString *indent(HymnString *text) {
+static HymnString *indent(HymnString *text) {
     size_t len = hymn_string_len(text);
     size_t newlines = 1;
     for (size_t i = 0; i < len; i++) {
@@ -159,6 +161,8 @@ static HymnString *test_source(HymnString *script) {
                     result = hymn_string_format("EXPECTED START:\n%s\n\nBUT WAS:\n%s", start, out);
                 }
                 hymn_string_delete(start);
+            } else if (hymn_string_starts_with(expected, "@skip")) {
+                // nothing
             } else if (!hymn_string_equal(out, expected)) {
                 expected = indent(expected);
                 out = indent(out);
@@ -171,7 +175,7 @@ static HymnString *test_source(HymnString *script) {
     return result != NULL ? indent(result) : NULL;
 }
 
-HymnValue fun_for_vm(Hymn *vm, int count, HymnValue *arguments) {
+static HymnValue fun_for_vm(Hymn *vm, int count, HymnValue *arguments) {
     (void)vm;
     (void)count;
     (void)arguments;

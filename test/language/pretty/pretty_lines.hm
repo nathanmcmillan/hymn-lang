@@ -1,0 +1,17 @@
+# func fun() {
+#   set line = "I" " Am "
+#     "On"
+#     " A few" " lines"
+#     " of text"
+#   return line
+# }
+
+func fun() {
+  set line = "I" " Am "
+    "On"
+    " A few" " lines"
+    " of text"
+  return line
+}
+
+echo FORMAT(fun)

@@ -1,0 +1,22 @@
+for file in path.walk("test/language") {
+  if text.contains(file, "pretty") { continue }
+  echo "File: " + file
+  set read = io.read(file)
+  set format = FORMAT(read)
+  if read != format {
+    set size = len(read)
+    if len(format) < size {
+      size = len(format)
+    }
+    for i = 0, i < size {
+      if format[i] != read[i] {
+        set message = "Not formatted!\nExpected: <${read[i]}> But was <${format[i]}>"
+        if i > 0 {
+          message += " At:\n${format[i - 1:]}"
+        }
+        throw message
+      }
+    }
+    throw "Not formatted!\n${format}"
+  }
+}

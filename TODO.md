@@ -11,7 +11,6 @@
 1. Finish dynamic library support
    - Export everything
    - Build as a library
-1. Finish formatter
 
 # Features
 

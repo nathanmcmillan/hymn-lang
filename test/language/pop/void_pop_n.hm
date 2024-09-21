@@ -1,0 +1,17 @@
+# [0]
+# [0, 1]
+# [0, 1, 2]
+
+set global = 12
+
+{
+  set yes = true
+  set foo = []
+
+  for i = 0, i < 3 {
+    if yes {
+      push(foo, i)
+      echo foo
+    }
+  }
+}

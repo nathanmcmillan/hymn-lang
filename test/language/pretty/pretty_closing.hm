@@ -1,0 +1,5 @@
+# {
+#   set z = "foo" return z + "bar"
+# }
+
+echo FORMAT("{ set z = \"foo\" return z+\"bar\" \n }")

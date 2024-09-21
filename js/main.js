@@ -21,7 +21,7 @@ async function main() {
   }
 
   const vm = hymn.newVM()
-  libs.use(vm)
+  libs.useLibs(vm)
 
   let error = null
 

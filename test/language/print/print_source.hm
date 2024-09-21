@@ -15,6 +15,6 @@ set foo = {
   hello: world
 }
 
-echo _source(foo)
-echo _source(bar)
-echo _source(world)
+echo SOURCE(foo)
+echo SOURCE(bar)
+echo SOURCE(world)

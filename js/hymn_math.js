@@ -5,17 +5,23 @@
 const hymn = require('./hymn')
 
 /* eslint-disable no-unused-vars */
-function floor(H, count, args) {
+function mathFloor(H, count, args) {
   if (count < 1) {
     return hymn.newNone()
   }
-  const arg = args[0]
-  if (hymn.isFloat(arg)) {
-    return hymn.newFloat(floor(arg.value))
+  const value = args[0]
+  if (hymn.isFloat(value)) {
+    return hymn.newFloat(Math.floor(value.value))
   }
-  return arg
+  return value
+}
+
+function useMath(H) {
+  const math = new hymn.HymnTable()
+  hymn.addFunctionToTable(math, 'floor', mathFloor)
+  hymn.addTable(H, 'math', math)
 }
 
 module.exports = {
-  floor: floor,
+  useMath: useMath,
 }

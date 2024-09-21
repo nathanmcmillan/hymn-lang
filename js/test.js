@@ -113,8 +113,27 @@ async function test(file) {
       if (!out.startsWith(start)) {
         result = indent(4, 'EXPECTED START:') + '\n' + indent(8, start) + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
       }
+    } else if (expected.startsWith('@skip')) {
+      return null
     } else if (out !== expected) {
-      result = indent(4, 'EXPECTED:') + '\n' + indent(8, expected) + '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
+      let difference = null
+      const len = Math.min(out.length, expected.length)
+      for (let d = 0; d < len; d++) {
+        if (out[d] !== expected[d]) {
+          difference = 'CHAR: <' + out[d] + '> SHOULD BE: <' + expected[d] + '>'
+          break
+        }
+      }
+      if (difference === null) {
+        if (expected.length > out.length) {
+          difference = 'OUTPUT LESS THAN EXPECTED'
+        } else {
+          difference = 'OUTPUT MORE THAN EXPECTED'
+        }
+      }
+      result = indent(4, 'EXPECTED:') + '\n' + indent(8, expected)
+      result += '\n' + indent(4, 'BUT WAS:') + '\n' + indent(8, out)
+      result += '\n' + indent(4, 'DIFFERENCE:') + '\n' + indent(8, difference)
     }
   }
   return result

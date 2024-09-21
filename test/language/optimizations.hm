@@ -42,7 +42,7 @@ echo a[-1]
 
 # double negate constant
 set b = [2, 4, 6]
-echo b[- - 1]
+echo b[--1]
 
 # add two local
 {
@@ -62,7 +62,7 @@ if true { echo "Y" } else { echo "no" }
 if false { echo "no" } else { echo "Z" }
 
 # if not
-if !false { echo "W" } else { echo "no" }
+if not false { echo "W" } else { echo "no" }
 
 # increment
 set x = 1

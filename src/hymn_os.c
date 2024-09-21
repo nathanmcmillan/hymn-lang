@@ -38,11 +38,25 @@ static HymnValue os_env(Hymn *H, int count, HymnValue *arguments) {
         return hymn_new_exception(H, "environment variable must be a string");
     }
     HymnString *name = hymn_as_string(value);
-    char *variable = getenv(name);
+
+#ifdef _MSC_VER
+    char *variable = NULL;
+    size_t size = 0;
+    errno_t error = _dupenv_s(&variable, &size, name);
     if (variable == NULL) {
+        return hymn_new_none();
+    } else if (error != 0) {
+        free(variable);
         return hymn_new_none();
     }
     HymnObjectString *string = hymn_new_intern_string(H, variable);
+    free(variable);
+#else
+    char *variable = getenv(name);
+    if (variable == NULL) return hymn_new_none();
+    HymnObjectString *string = hymn_new_intern_string(H, variable);
+#endif
+
     return hymn_new_string_value(string);
 }
 
@@ -145,9 +159,9 @@ static HymnValue os_fopen(Hymn *H, int count, HymnValue *arguments) {
     }
     HymnString *path = hymn_as_string(a);
     HymnString *mode = hymn_as_string(b);
-    FILE *open = fopen(path, mode);
+    FILE *open = hymn_open_file(path, mode);
     if (open == NULL) {
-        return hymn_new_exception(H, "fopen null pointer");
+        return hymn_new_exception(H, "fopen error");
     }
     return hymn_new_pointer(open);
 }
