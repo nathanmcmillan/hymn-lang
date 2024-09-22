@@ -2639,6 +2639,7 @@ function popStackLoop(C) {
 function breakStatement(C) {
   if (C.loop === null) {
     compileError(C, C.previous, 'break statement outside of loop')
+    return
   }
   popStackLoop(C)
   const jumpNext = C.jump
@@ -2652,6 +2653,7 @@ function breakStatement(C) {
 function continueStatement(C) {
   if (C.loop === null) {
     compileError(C, C.previous, 'continue statement outside of loop')
+    return
   }
   popStackLoop(C)
   if (C.loop.isFor) {
@@ -5095,7 +5097,7 @@ function newline(f) {
   skip(f)
   if (f.s >= f.size) return
   const c = f.source[f.s]
-  if (c === '}' || c === ')') {
+  if (c === ')' || c === ']' || c === '}') {
     f.s++
     if (f.deep > 0) f.deep--
     indent(f)
@@ -5324,6 +5326,23 @@ function format(source) {
         }
         break
       }
+      case '[': {
+        dest.push(c)
+        nest.push(c)
+        for (let a = f.s; a < f.size; a++) {
+          const n = source[a]
+          if (n === '\n') {
+            f.deep++
+            newline(f)
+            compact.push(false)
+            break
+          } else if (n === ']') {
+            compact.push(true)
+            break
+          }
+        }
+        break
+      }
       case '{': {
         dest.push(c)
         nest.push(c)
@@ -5367,11 +5386,8 @@ function format(source) {
         }
         break
       }
-      case '[':
-        dest.push(c)
-        nest.push(c)
-        break
       case ')':
+      case ']':
       case '}': {
         nest.pop()
         if (!compact.pop()) {
@@ -5381,10 +5397,6 @@ function format(source) {
         dest.push(c)
         break
       }
-      case ']':
-        nest.pop()
-        dest.push(c)
-        break
       case "'":
       case '"':
         stringly(f, c)

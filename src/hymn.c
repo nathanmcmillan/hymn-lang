@@ -4622,6 +4622,7 @@ static void pop_stack_loop(Compiler *C) {
 static void break_statement(Compiler *C) {
     if (C->loop == NULL) {
         compile_error(C, &C->previous, "break statement outside of loop");
+        return;
     }
     pop_stack_loop(C);
     JumpList *jump_next = C->jump;
@@ -4635,6 +4636,7 @@ static void break_statement(Compiler *C) {
 static void continue_statement(Compiler *C) {
     if (C->loop == NULL) {
         compile_error(C, &C->previous, "continue statement outside of loop");
+        return;
     }
     pop_stack_loop(C);
     if (C->loop->is_for) {
@@ -8395,15 +8397,25 @@ static bool is_important(Format *F, size_t len) {
         }
         start--;
     }
-    return important_word(F, start, "in") ||
-           important_word(F, start, "if") ||
-           important_word(F, start, "for") ||
-           important_word(F, start, "not") ||
-           important_word(F, start, "else") ||
-           important_word(F, start, "elif") ||
-           important_word(F, start, "echo") ||
-           important_word(F, start, "while") ||
-           important_word(F, start, "return");
+    const size_t size = len - start;
+    switch (size) {
+    case 2:
+        return important_word(F, start, "in") ||
+               important_word(F, start, "if");
+    case 3:
+        return important_word(F, start, "for") ||
+               important_word(F, start, "not");
+    case 4:
+        return important_word(F, start, "else") ||
+               important_word(F, start, "elif") ||
+               important_word(F, start, "echo");
+    case 5:
+        return important_word(F, start, "while");
+    case 6:
+        return important_word(F, start, "return");
+    default:
+        return false;
+    }
 }
 
 static void append(Format *F, char c) {
@@ -8470,8 +8482,7 @@ static void space(Format *F, char t) {
                 const char b = F->dest[len - 3];
                 if (b == ',' || b == '{') {
                     return;
-                }
-                if (is_ident(b) && is_important(F, len - 2)) {
+                } else if (is_ident(b) && is_important(F, len - 2)) {
                     return;
                 }
             }
@@ -8653,7 +8664,7 @@ static void newline(Format *F) {
         return;
     }
     char c = F->source[F->s];
-    if (c == '}' || c == ')') {
+    if (c == ')' || c == ']' || c == '}') {
         F->s++;
         if (F->deep > 0) {
             F->deep--;
@@ -8903,6 +8914,23 @@ char *hymn_format(HymnString *source) {
             }
             break;
         }
+        case '[': {
+            append(&F, c);
+            nest(&F, c);
+            for (size_t a = F.s; a < F.size; a++) {
+                const char n = F.source[a];
+                if (n == '\n') {
+                    F.deep++;
+                    newline(&F);
+                    compact(&F, false);
+                    break;
+                } else if (n == ']') {
+                    compact(&F, true);
+                    break;
+                }
+            }
+            break;
+        }
         case '{': {
             append(&F, c);
             nest(&F, c);
@@ -8946,11 +8974,8 @@ char *hymn_format(HymnString *source) {
             }
             break;
         }
-        case '[':
-            append(&F, c);
-            nest(&F, c);
-            break;
         case ')':
+        case ']':
         case '}': {
             nest_pop(&F);
             if (!is_compact(&F)) {
@@ -8962,10 +8987,6 @@ char *hymn_format(HymnString *source) {
             append(&F, c);
             break;
         }
-        case ']':
-            nest_pop(&F);
-            append(&F, c);
-            break;
         case '\'':
         case '"':
             stringly(&F, c);
