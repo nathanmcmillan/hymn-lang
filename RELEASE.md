@@ -1,3 +1,9 @@
+# Release 0.11.1
+
+- Fixed keyword formatting
+- Fixed multi-line array formatting
+- Fixed continue/break statements inside functions
+
 # Release 0.11.0
 
 - New function `FORMAT` formats a string as source code

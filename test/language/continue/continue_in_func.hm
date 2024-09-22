@@ -1,0 +1,11 @@
+# @exception continue statement outside of loop
+
+func foo(bar) {
+  if bar == 2 {
+    continue
+  }
+}
+
+for i = 1, i < 10 {
+  foo(i)
+}

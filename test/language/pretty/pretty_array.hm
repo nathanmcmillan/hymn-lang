@@ -1,0 +1,21 @@
+# func foo() {
+#   set array = [
+#     "zoo",
+#     "boo",
+#     "foo"
+#   ]
+#   set info = index(array, "foo")
+#   return info
+# }
+
+func foo() {
+  set array = [
+    "zoo",
+    "boo",
+    "foo"
+  ]
+  set info = index(array, "foo")
+  return info
+}
+
+echo FORMAT(foo)
